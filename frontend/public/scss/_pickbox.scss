@@ -1,0 +1,50 @@
+.canto-pick-box {
+  width: 95%;
+  background-color: #FF9800;
+  padding: 10px;
+  .header {
+    position: relative;
+    .title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .close-btn {
+      position: absolute;
+      right: 0;
+      top: 0;
+      font-size: 23px;
+      color: #fff;
+    }
+  }
+  .img-box {
+    background-color: #fff;
+    margin-top: 10px;
+    padding: 10px;
+  }
+  .btn-section {
+    text-align: center;
+    button {
+      height: 30px;
+      width: 100px;
+      line-height: 26px;
+      margin: 15px;
+      padding: 0;
+      font-size: 15px;
+      background-color: #FF9800;
+      color: #fff;
+      border: 2px solid #fff;
+      font-weight: bold;
+      &:hover {
+        background-color:#c77b09;
+      }
+    }
+  }
+
+}
+
+.canto-preview-img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+}

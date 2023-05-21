@@ -1,0 +1,13 @@
+/* .body-section .single-image .single-image-name {
+  top: unset;
+  bottom: 0;
+  height: 40px;
+} */
+
+.body-section .single-image .mask-layer {
+  cursor: pointer;
+}
+
+.body-section .single-image .select-icon-background {
+  cursor: pointer;
+}

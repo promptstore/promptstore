@@ -1,0 +1,161 @@
+#playground .ant-descriptions-item {
+    padding-bottom: 0;
+}
+
+#playground .ant-descriptions-item-content ul {
+    padding-left: 16px;
+}
+
+#playground .row-actions,
+#playground .row-actions .ant-btn {
+    font-size: 12px;
+}
+
+.dark #playground .row-actions .ant-btn-text:hover,
+.dark #playground .row-actions .ant-btn-text:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark #playground .ant-btn-text:hover,
+.dark #playground .ant-btn-text:focus {
+    background-color: rgb(31, 31, 31);
+}
+
+.icon-copy:before {
+    content: "\7b";
+}
+
+.single-image {
+    width: 300px;
+}
+
+.ais-SearchBox-form {
+    background-color: inherit;
+}
+
+.ais-SearchBox-input {
+    background-color: inherit;
+}
+
+.dark .ais-SearchBox-input {
+    border-color: #434343;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.ais-Hits {
+    margin-top: 3px;
+    position: absolute;
+    width: 600px;
+    z-index: 1001;
+}
+
+.dark .ais-Hits {
+    background: #000;
+}
+
+.ais-Hits-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.ais-Hits-item {
+    background-color: rgb(245, 245, 245);
+    border: 1px solid rgb(217, 217, 217);
+    /* margin: 2px 3px 0 1px; */
+    margin: 2px 3px 0 0;
+}
+
+.dark .ais-Hits-item {
+    background-color: inherit;
+    border: 1px solid #434343;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+#params-form {
+    color: rgb(136, 136, 136);
+    display: flex;
+    flex-direction: column;
+}
+
+#params-form .fields-container {
+    margin-bottom: 24px;
+    width: 250px;
+}
+
+#params-form .form-section {
+    border-left: 3px solid #303030;
+    padding-left: 15px;
+}
+
+#params-form .form-section .ant-form-item {
+    margin-bottom: 6px;
+}
+
+#params-form .form-section .ant-form-item:last-child {
+    margin-bottom: 0;
+}
+
+#params-form .small {
+    font-size: 0.85em;
+}
+
+.chat {
+    display: flex;
+    flex-direction: column;
+}
+
+.chat .ant-radio-group>* {
+    margin-bottom: 8px;
+}
+
+.chatline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chatline.assistant {
+    margin-right: 100px;
+}
+
+.chatline.user {
+    margin-left: 100px;
+}
+
+.chatline>* {
+    margin-right: 8px;
+}
+
+.chatline>*:last-child {
+    margin-right: 0;
+}
+
+.chatline .ant-radio {
+    width: 16px;
+}
+
+.chatline .avatar {
+    width: 32px;
+}
+
+.chatline .content {
+    flex: 1;
+    font-size: 14px;
+}
+
+.chatline.user .content {
+    text-align: right;
+}
+
+.chatline.user .content>div {
+    display: inline-block;
+    text-align: left;
+}
+
+#playground label.disabled {
+    color: rgb(136, 136, 136);
+}
+
+#copy-params {
+    margin-top: 5px;
+}

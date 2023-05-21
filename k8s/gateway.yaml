@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: "{{ .Values.appname }}-gateway"
+  namespace: "{{ .Values.namespace }}"
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        # - "***REMOVED***"
+        - "{{ .Values.appname }}.{{ .Values.ingress.domain }}"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        # - "***REMOVED***"
+        - "{{ .Values.appname }}.{{ .Values.ingress.domain }}"
+      tls:
+        credentialName: ingress-cert
+        mode: SIMPLE

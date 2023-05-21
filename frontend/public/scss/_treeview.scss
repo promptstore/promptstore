@@ -1,0 +1,123 @@
+.hidden {
+  display: none !important;
+}
+
+.tree-view-section {
+  width: 20%;
+  border-right: 1px solid #ddd;
+  height: calc(100% - 50px);
+  display: inline-block;
+  position: relative;
+  background-color: #f5f5f5;
+  border-top: 1px solid #ddd;
+  overflow: scroll;
+
+  .tree-view {
+    margin-top: 10px;
+
+    .logo {
+      width: 18px;
+      position: relative;
+      top: 5px;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+      cursor: pointer;
+    }
+
+    li {
+      list-style: none;
+      line-height: 30px;
+      padding-left: 10px;
+      margin-left: 10px;
+      position: relative;
+      white-space: nowrap;
+      &:before {
+        content: '';
+        border-left: 1px solid #e0e0e0;
+        height: 100%;
+        position: absolute;
+        left: -1px;
+      }
+      &:after {
+        content: '';
+        left: -1px;
+        position: absolute;
+        right: auto;
+        border-top: 1px solid #e0e0e0;
+        height: 20px;
+        top: 25px;
+        width: 15px;
+      }
+      &:last-child {
+        &:before {
+          height: 30px;
+        }
+
+      }
+
+      &.selected {
+        color: #FF9800;
+        span {
+          color: #FF9800;
+        }
+      }
+      &.no-child {
+        color: #aaaaaa;
+        span {
+          color: #aaaaaa;
+          font-style: italic;
+          margin-left: 1px;
+        }
+      }
+      .tree-whole-row {
+        position: absolute;
+        height: 28px;
+        width: 100%;
+        left: 0;
+        background-color: #f5f5f5;
+        z-index: 0;
+        &:hover {
+          background-color: #ddd;
+        }
+      }
+    }
+    i {
+      width: 15px;
+      height: 20px;
+      display: inline-block;
+      font-size: 18px;
+      margin-right: 5px;
+      position: relative;
+      top: 2px;
+    }
+    .folder-loading {
+      width: 18px;
+      height: 18px;
+      position: relative;
+      top: 2px;
+    }
+    a, span {
+      color: #666;
+      font-size: 14px;
+      z-index: 2;
+      position: relative;
+    }
+
+    > ul {
+      padding-left: 0;
+      border-left: none;
+      > li {
+        &:before {
+          border-left: none;
+        }
+        &:after {
+          border-top: none;
+        }
+      }
+    }
+  }
+
+
+}

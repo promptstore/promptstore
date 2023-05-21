@@ -1,0 +1,236 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-float infinite 3s ease-in-out;
+  }
+}
+
+.App-header {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+}
+
+.App-link {
+  color: rgb(112, 76, 182);
+}
+
+@keyframes App-logo-float {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(10px)
+  }
+
+  100% {
+    transform: translateY(0px)
+  }
+}
+
+.logo-image {
+  display: block;
+}
+
+.logo-image>div {
+  display: flex;
+  margin: 15px 0px 0px 22px;
+}
+
+.logo-image>div>div:first-child {
+  width: 32px;
+}
+
+.logo-image>div>div:last-child {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 5px 0px 0px 6px;
+}
+
+.logo-image.collapsed {
+  overflow: hidden;
+  width: 54px;
+}
+
+.logo-image img {
+  max-width: inherit;
+  width: 32px;
+}
+
+.ant-layout-sider-dark a {
+  color: #ccc;
+}
+
+.ant-tag .anticon {
+  vertical-align: middle;
+}
+
+.col-hdr-nowrap {
+  white-space: nowrap;
+}
+
+li img {
+  margin-right: 5px;
+}
+
+.tree-view-section .tree-view i {
+  width: 18px;
+}
+
+.body-section .single-image:hover .single-image-name {
+  bottom: 0;
+  top: auto;
+}
+
+.body-section.expanded {
+  left: 0;
+  width: 100%;
+}
+
+.body-section .loading-more {
+  display: block;
+}
+
+.body-section .loading-more.hidden {
+  display: none;
+}
+
+.tree-view-section {
+  width: 0;
+}
+
+.tree-view-section.expanded {
+  width: 20%;
+}
+
+.filter-section .title {
+  margin-right: 8px;
+}
+
+.image-preview-modal .detail-box .detail-item .title {
+  display: inline-block;
+  width: 150px;
+}
+
+#imagebox_mdc_app_url span+button {
+  margin-left: 3px;
+}
+
+.dark .search-box input {
+  color: black;
+}
+
+.body-section {
+  left: 0;
+  /* width: 100%; */
+}
+
+.body-section .loading-more {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+.tree-view-section {
+  border-right-width: 2px;
+  border-top: none;
+  overflow: auto;
+}
+
+.dark .tree-view-section {
+  background-color: rgb(0, 0, 0);
+}
+
+.dark .tree-view-section .tree-view a,
+.dark .tree-view-section .tree-view span {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark .tree-view-section .tree-view a:hover,
+.dark .tree-view-section .tree-view span:hover {
+  color: rgb(255, 255, 255);
+}
+
+.body-section {
+  overflow: auto;
+}
+
+.dark .ant-form-item-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.light .navbar-title {
+  color: rgb(51, 51, 51);
+}
+
+.ant-btn>span[role="img"] {
+  display: inline-flex;
+}
+
+.my-form-item-label {
+  display: inline-block;
+  flex-grow: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: end;
+  vertical-align: middle;
+  padding-top: 14px;
+}
+
+.my-form-item-label>label::after {
+  content: ":";
+  position: relative;
+  margin-block: 0;
+  margin-inline-start: 2px;
+  margin-inline-end: 8px;
+}
+
+#about {
+  margin-top: 20px;
+  max-width: 50%;
+}
+
+@media (max-width: 1500px) {
+  #about {
+    max-width: 75%;
+  }
+}
+
+@media (max-width: 1200px) {
+  #about {
+    max-width: 100%;
+  }
+}
+
+.drag-handle {
+  display: inline-grid;
+  width: 12px;
+  padding: 15px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  touch-action: none;
+  cursor: grab;
+  border-radius: 5px;
+  border: none;
+  outline: none;
+  appearance: none;
+  background-color: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}

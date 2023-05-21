@@ -1,0 +1,13 @@
+data/
+node_modules/
+.env
+*.env
+volumes/
+configmap.yaml
+docker-compose.yml
+venv/
+.venv/
+__pycache__/
+*.pyc
+002_create_db.sh
+

@@ -1,0 +1,21 @@
+.text {
+  &-lowercase {
+    text-transform: lowercase !important;
+  }
+  &-orange {
+    color: #773333 !important;
+    &:focus,
+    &:hover {
+      color: #773333;
+    }
+  }
+  &-black {
+    color: #000000 !important;
+  }
+  &-white {
+    color: #ffffff !important;
+  }
+  &-grey {
+    color: #444444 !important;
+  }
+}

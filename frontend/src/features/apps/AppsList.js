@@ -1,0 +1,129 @@
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button, Table, message } from 'antd';
+
+import NavbarContext from '../../context/NavbarContext';
+import WorkspaceContext from '../../context/WorkspaceContext';
+import {
+  deleteAppsAsync,
+  getAppsAsync,
+  selectLoading,
+  selectApps,
+} from './appsSlice';
+
+import './AppsList.css';
+
+export function AppsList() {
+
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+
+  const loading = useSelector(selectLoading);
+  const apps = useSelector(selectApps);
+  const navigate = useNavigate();
+
+  const data = useMemo(() => {
+    const list = Object.values(apps).map((app) => ({
+      key: app.id,
+      name: app.name || 'undefined',
+    }));
+    list.sort((a, b) => a.name > b.name ? 1 : -1);
+    return list;
+  }, [apps]);
+
+  const { setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+
+  const dispatch = useDispatch();
+
+  const location = useLocation();
+
+  const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    setNavbarState((state) => ({
+      ...state,
+      createLink: '/apps/new',
+      title: 'Apps',
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      dispatch(getAppsAsync({ workspaceId: selectedWorkspace.id }));
+    }
+  }, [selectedWorkspace]);
+
+  useEffect(() => {
+    if (location.state && location.state.message) {
+      messageApi.info({
+        content: location.state.message,
+        duration: 3,
+      });
+    }
+  }, [location]);
+
+  const onDelete = () => {
+    console.log('selectedRowKeys:', selectedRowKeys);
+    dispatch(deleteAppsAsync({ ids: selectedRowKeys }));
+    setSelectedRowKeys([]);
+  };
+
+  const onSelectChange = (newSelectedRowKeys) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  const playground = (id) => {
+    navigate(`/playground/${id}`);
+  };
+
+  const columns = [
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      width: '100%',
+      render: (_, { key, name }) => <Link to={`/apps/${key}`}>{name}</Link>
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      render: (_, record) => (
+        <div className="row-actions">
+          {/* <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => playground(record.key)}
+          >
+            Creative Workspace
+          </Button> */}
+        </div>
+      ),
+    },
+  ];
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+    selections: [
+      Table.SELECTION_ALL,
+    ],
+  };
+
+  const hasSelected = selectedRowKeys.length > 0;
+
+  return (
+    <>
+      {contextHolder}
+      <div id="appslist" style={{ marginTop: 20 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
+            Delete
+          </Button>
+          <span style={{ marginLeft: 8 }}>
+            {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
+          </span>
+        </div>
+        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+      </div>
+    </>
+  );
+};

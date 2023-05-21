@@ -1,0 +1,444 @@
+.body-section {
+  display: inline-block;
+  vertical-align: top;
+  width: 80%;
+  position: absolute;
+  left: 20%;
+  font-size: 0;
+  height: calc(100% - 50px);
+  overflow-y: scroll;
+  .loading-more {
+    position: fixed;
+    bottom: 0;
+    width: calc(80% - 15px);
+    height: 33px;
+    z-index: 100;
+    background: #bcbcbc;
+    color: #000;
+    display: block;
+    text-align: center;
+    font-size: 15px;
+    line-height: 33px;
+    display: none;
+    left: 20%;
+    opacity: 0.95;
+  }
+  .no-item{
+    position: fixed;
+    top: 20%;
+    width: 80%;
+    height: 50px;
+    z-index: 100;
+    color: #626262;
+    display: block;
+    text-align: center;
+    font-size: 15px;
+    line-height: 35px;
+    font-weight: normal;
+  }
+
+  .image-section {
+    padding: 3px;
+  }
+  .single-image {
+    margin: 1px;
+    height: 189px;
+    width: 189px;
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    overflow: hidden;
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.9;
+    }
+
+    .mask-layer {
+      display: none;
+      background-color: rgba(50, 50, 50, 0.3);
+      z-index: 2;
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+    }
+    .single-image-name {
+      position: absolute;
+      width: 100%;
+      top: 100%;
+      background: rgba(50,50,50,.5);
+      color: #fff;
+      font-size: 12px;
+      line-height: 20px;
+      padding: 10px 0;
+      text-align: center;
+      z-index: 99;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .select-box {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: #555;
+      font-size: 25px;
+      z-index: 5;
+    }
+    .select-icon-background {
+      display: none;
+      background-color: #fff;
+      box-shadow: 0px 0px 6px #777;
+      border-radius: 100%;
+      width: 23px;
+      height: 23px;
+      position: absolute;
+      top: 11px;
+      right: 11px;
+      z-index: 4;
+    }
+
+    &:hover {
+      img {
+        opacity: 1;
+      }
+      .mask-layer {
+        display: block;
+      }
+      .select-box {
+        display: block;
+      }
+      .select-icon-background {
+        display: block;
+      }
+    }
+    &.selected {
+      .select-box {
+        display: block;
+      }
+      .select-icon-background {
+        display: block;
+      }
+    }
+  }
+}
+
+.page-mask {
+  z-index: 99;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(0,0,0,0.8);
+}
+.loading-icon {
+  z-index: 110;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(0,0,0,0.8);
+  img {
+    top: 50%;
+    left: 50%;
+    transform: translatex(-50%) translateY(-50%);
+    position: absolute;
+  }
+  .loading-icon-circle {
+    top: 50%;
+    left: 50%;
+    transform: translatex(-50%) translateY(-50%);
+    height: 50px;
+    width: 50px;
+    line-height: 32px;
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    .loading-icon-markup {
+      -webkit-animation: icon-spin 2s infinite linear;
+      animation: icon-spin 2s infinite linear;
+      .icon-color {
+        color: #fff;
+      }
+    }
+  }
+}
+
+.view-image-modal {
+  z-index: 99;
+  position: fixed;
+  display: block;
+  top: 50%;
+  left: 50%;
+  transform: translatex(-50%) translateY(-50%);
+  max-width: 100%;
+  max-height: 100%;
+  .page-mask {
+    z-index: 100;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: rgba(0,0,0,0.8);
+  }
+  img {
+    z-index: 101;
+    position: relative;
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+  .close-btn {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    font-size: 30px;
+    width: 30px;
+    height: 30px;
+    color: #fff;
+    z-index: 102;
+    cursor: pointer;
+  }
+}
+
+.image-detail-modal {
+  z-index: 99;
+  position: fixed;
+  display: block;
+  width: 540px;
+  height: 320px;
+  background-color: #fff;
+  top: calc(50% - 150px);
+  left: calc(50% - 250px);
+  .page-mask {
+    z-index: 100;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: rgba(0,0,0,0.8);
+  }
+  .close-btn {
+    position: absolute;
+    color: #000;
+    right: 20px;
+    top: 20px;
+    font-size: 30px;
+    width: 30px;
+    height: 30px;
+    z-index: 102;
+    cursor: pointer;
+  }
+  .detail-section {
+    position: relative;
+    padding: 20px;
+    z-index: 101;
+    width: 500px;
+    height: 350px;
+    background-color: #fff;
+    .detail-title {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 10px;
+      margin-top: 15px;
+    }
+    .detail-li {
+      line-height: 30px;
+      .title {
+        width: 200px;
+        text-align: right;
+        display: inline-block;
+        font-size: 15px;
+        font-weight: bold;
+      }
+      .content {
+        text-align: left;
+        margin-left: 5px;
+        font-size: 15px;
+      }
+    }
+  }
+  .insert-btn {
+    line-height: 20px;
+    border: 1px solid #333;
+    position: absolute;
+    bottom: 0;
+    z-index: 102;
+    margin: auto;
+    text-align: center;
+    left: 190px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    &:hover {
+      border: 1px solid #006799;
+      background-color: #006799;
+      color: #fff;
+    }
+  }
+}
+
+
+.load-more {
+  position: relative;
+  top: 20px;
+  display: block;
+  height: 20px;
+  color: #828282;
+  margin: auto;
+  font-size: 15px;
+  text-align: center;
+  cursor: pointer;
+  span {
+    font-family: sans-serif, Helvetica, Arial;
+  }
+  &:before {
+    font-size: 20px;
+    position: relative;
+    top: 5px;
+  }
+}
+
+
+.image-preview-modal {
+  z-index: 99;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: 20px;
+  box-sizing: border-box;
+  .close-btn {
+    position: absolute;
+    right: 20px;
+    top: 30px;
+    font-size: 25px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 99;
+  }
+  .image-box {
+    position: relative;
+    width: calc(100% - 575px);
+    height: 100%;
+    img {
+      position: relative;
+      max-width: 100%;
+      max-height: 100%;
+      margin: auto;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%,-50%);
+    }
+  }
+  .detail-box {
+    width: 575px;
+    top: 0;
+    position: absolute;
+    right: 0;
+    padding: 20px;
+    box-sizing: border-box;
+    height: 100%;
+    padding-left: 40px;
+    background-color: #444;
+    .clear {
+      clear: both;
+    }
+    .detail-list-cotnt {
+      height: 75%;
+      overflow-y: auto;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .image-name {
+      font-size: 18px;
+      color: #fff;
+      margin-top: 15px;
+      line-height: 30px;
+      margin-bottom: 20px;
+      width: calc(100% - 30px);
+      display: block;
+      position: relative;
+      word-break: break-all;
+    }
+    .detail-item {
+      font-size: 12px;
+      line-height: 20px;
+      color: #bbb;
+      margin: 5px 0;
+      .title {
+        font-weight: bold;
+      }
+      .more {
+        display: none;
+      }
+      &.restrict-height {
+        .content {
+          max-height: 40px;
+          overflow-y: hidden;
+        }
+        .more {
+          display: block;
+          float: right;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+      }
+    }
+    .insert-action-section {
+      position: absolute;
+      padding-bottom: 20px;
+      bottom: 0;
+      color: #FF9800;
+      background-color: inherit;
+      font-size: 17px;
+      width: calc(100% - 40px);
+      box-sizing: border-box;
+      line-height: 50px;
+      .insert-text {
+        display: inline;
+        color: #fff;
+      }
+      .cancel-btn {
+        display: inline;
+        background-color: #666;
+        padding: 6px 15px;
+        border-radius: 15px;
+        color: #fff;
+        font-size: 15px;
+        margin-left: 40px;
+        cursor: pointer;
+        &:hover {
+          background-color: #555;
+        }
+      }
+      .insert-btn {
+        display: inline;
+        background-color: #777;
+        padding: 6px 15px;
+        border-radius: 15px;
+        color: #fff;
+        font-size: 15px;
+        margin: 10px;
+        cursor: pointer;
+        &:hover {
+          background-color: #666;
+        }
+      }
+      .btn-group {
+        float: right;
+        margin-right: 10px;
+      }
+    }
+  }
+}

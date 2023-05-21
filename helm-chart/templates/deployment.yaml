@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.appname }}"
+  namespace: "{{ .Values.namespace }}"
+spec:
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      imagePullSecrets:
+        - name: "{{ .Values.imagePullSecret }}"
+      containers:
+        - name: api
+          image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
+          env:
+            - name: PGHOST
+              valueFrom:
+                configMapKeyRef:
+                  key: PGHOST
+                  name: "{{ .Values.appname }}"
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  key: PGDATABASE
+                  name: "{{ .Values.appname }}"
+            - name: PGPORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PGPORT
+                  name: "{{ .Values.appname }}"
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PORT
+                  name: "{{ .Values.appname }}"
+            - name: FILE_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  key: FILE_BUCKET
+                  name: "{{ .Values.appname }}"
+            - name: S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: S3_ENDPOINT
+                  name: "{{ .Values.appname }}"
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: REDIS_HOST
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: KEYCLOAK_HOST
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_CALLBACK
+              valueFrom:
+                configMapKeyRef:
+                  key: KEYCLOAK_CALLBACK
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                configMapKeyRef:
+                  key: KEYCLOAK_REALM
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: KEYCLOAK_CLIENT_ID
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_API
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_API
+                  name: "{{ .Values.appname }}"
+            - name: AUTHORIZATION_SERVER_TOKEN_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: AUTHORIZATION_SERVER_TOKEN_URL
+                  name: "{{ .Values.appname }}"
+            - name: AUTHORIZE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: AUTHORIZE_URL
+                  name: "{{ .Values.appname }}"
+            - name: PII_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: PII_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: PLAETOSEQ_PII_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: PLAETOSEQ_PII_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: CANTO_OAUTH_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: CANTO_OAUTH_BASE_URL
+                  name: "{{ .Values.appname }}"
+            - name: CANTO_SITE_BASEURL
+              valueFrom:
+                configMapKeyRef:
+                  key: CANTO_SITE_BASEURL
+                  name: "{{ .Values.appname }}"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  key: PGUSER
+                  name: "{{ .Values.appname }}"
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PGPASSWORD
+                  name: "{{ .Values.appname }}"
+            - name: AWS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_ACCESS_KEY
+                  name: "{{ .Values.appname }}"
+            - name: AWS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_SECRET_KEY
+                  name: "{{ .Values.appname }}"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: KEYCLOAK_CLIENT_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: REDIS_PASSWORD
+                  name: "{{ .Values.appname }}"
+            - name: APP_ID
+              valueFrom:
+                secretKeyRef:
+                  key: APP_ID
+                  name: "{{ .Values.appname }}"
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: APP_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: HUGGING_FACE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: HUGGING_FACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: CANTO_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  key: CANTO_APP_ID
+                  name: "{{ .Values.appname }}"
+            - name: CANTO_APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: CANTO_APP_SECRET
+                  name: "{{ .Values.appname }}"

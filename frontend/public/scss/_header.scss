@@ -1,0 +1,188 @@
+body {
+    font-family: sans-serif, Helvetica, Arial;
+    font-size: 14px;
+    line-height: 1.42857143;
+    color: #333;
+    background-color: #fff;
+    min-width: 850px;
+    overflow-x: hidden;
+}
+
+.canto-body {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  margin: 0;
+}
+
+.header-section {
+  height: 50px;
+  width: 100%;
+  position: relative;
+  background-color: #f5f5f5;
+  box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  .library {
+    display: inline-block;
+    cursor: pointer;
+    .treeview-icon {
+      line-height: 50px;
+      margin-left: 20px;
+      position: relative;
+      top: 1px;
+      &:before {
+        margin-right: 5px;
+      }
+    }
+    .treeview-desc {
+      font-size: 15px;
+      margin-left: 0;
+    }
+  }
+
+  .search-box {
+    display: inline-block;
+    margin-left: calc(50% - 225px);
+    width: 250px;
+    position: relative;
+    input {
+      width: 220px;
+      padding: 2px 10px;
+      border-radius: 15px;
+      border: 1px solid #ccc;
+      height: 20px;
+    }
+    span {
+      position: absolute;
+      right: 0;
+      top: 0;
+      color: #888;
+      height: 25px;
+      width: 32px;
+      padding-top: 7px;
+      padding-left: 10px;
+      cursor: pointer;
+    }
+
+  }
+  .filter-section {
+    display: none !important;
+    line-height: 50px;
+    margin-right: 20px;
+    position: relative;
+    display: inline-block;
+    margin-left: calc(50% - 530px);
+    .type-font {
+      font-size: 25px;
+      color: #000;
+      position: relative;
+      top: 5px;
+      cursor: pointer;
+      &.current {
+        color: #fff;
+        border-radius: 50%;
+        background-color: #222;
+      }
+      &:hover {
+        border-radius: 50%;
+        background-color: #dedede;
+        &.current {
+          color: #fff;
+          border-radius: 50%;
+          background-color: #222;
+        }
+      }
+    }
+  }
+  .selected-count-section {
+    display: inline-block;
+    margin-left: calc(50% - 100px);
+  }
+  .selected-action-section {
+    display: inline-block;
+    float: right;
+    line-height: 50px;
+    margin-right: 0;
+    .action-icon {
+      font-size: 20px;
+      color: #555;
+      margin-right: 20px;
+      position: relative;
+      top: 3px;
+      cursor: pointer;
+      &:hover {
+        border-radius: 50%;
+        color: #333;
+      }
+      &.all-selected {
+        color: #111;
+        &:hover {
+          color: #000;
+        }
+      }
+    }
+    .action-btn {
+      padding: 4px 10px;
+      width: 54px;
+      background: #555;
+      line-height: 50px;
+      margin-top: 20px;
+      border-radius: 15px;
+      color: #ddd;
+      margin-right: 29px;
+      vertical-align: top;
+      cursor: pointer;
+      &:hover {
+        background: #333;
+      }
+    }
+  }
+
+  .logout-btn {
+    z-index: 3;
+    height: 50px;
+    width: 47px;
+    background-color: #f5f5f5;
+    border-radius: 50%;
+    display: block;
+    cursor: pointer;
+    border: 1px solid #f1f1f1;
+    float: right;
+    text-align: center;
+    margin-right: 10px;
+    span {
+      font-size: 21px;
+      margin: auto;
+      color: #555;
+      position: relative;
+      line-height: 50px;
+    }
+    &:hover {
+      color: #333;
+      span {
+        color: #333;
+      }
+    }
+  }
+}
+
+.max-select-tips {
+    position: fixed;
+    top: 50px;
+    text-align: center;
+    left: 20%;
+    z-index: 100;
+    background: #e89600;
+    color: #fff;
+    font-size: 15px;
+    display: none;
+    width: calc(80% - 15px);
+    line-height: 35px;
+    opacity: 0.85;
+}
+
+.no-treeview {
+  left: 0 !important;
+  width: 100% !important;
+}

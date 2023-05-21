@@ -1,0 +1,14 @@
+#appslist .row-actions,
+#appslist .row-actions .ant-btn {
+    font-size: 14px;
+}
+
+.dark #appslist .row-actions .ant-btn-text:hover,
+.dark #appslist .row-actions .ant-btn-text:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark #appslist .ant-btn-text:hover,
+.dark #appslist .ant-btn-text:focus {
+    background-color: rgb(31, 31, 31);
+}
