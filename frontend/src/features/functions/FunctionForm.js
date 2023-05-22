@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  AutoComplete,
   Button,
   Col,
   Collapse,
@@ -14,6 +15,8 @@ import {
   Space,
   Switch,
   Tabs,
+  Tag,
+  Tooltip,
 } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
@@ -101,6 +104,19 @@ const columns = [
   }
 ];
 
+const existingTags = ['one', 'two', 'three'];
+
+const tagInputStyle = {
+  width: 78,
+  verticalAlign: 'top',
+};
+
+const tagPlusStyle = {
+  background: 'inherit',
+  borderStyle: 'dashed',
+  cursor: 'pointer',
+};
+
 const getFields = (title, properties) => ({
   title,
   fields: Object.entries(properties).map(([k, v], i) => ({
@@ -117,6 +133,13 @@ export function FunctionForm() {
   const [formData, setFormData] = useState(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [selectedImplementation, setSelectedImplementation] = useState(-1);
+
+  const [editInputIndex, setEditInputIndex] = useState(-1);
+  const [editInputValue, setEditInputValue] = useState(null);
+  const [inputVisible, setInputVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [options, setOptions] = useState([]);
+  const [tags, setTags] = useState([]);
 
   const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
@@ -136,6 +159,8 @@ export function FunctionForm() {
   const navigate = useNavigate();
 
   const [form] = Form.useForm();
+  const inputRef = useRef(null);
+  const editInputRef = useRef(null);
 
   const argumentsValue = Form.useWatch('arguments', form);
   const implementationsValue = Form.useWatch('implementations', form);
@@ -181,6 +206,16 @@ export function FunctionForm() {
     }
   }, [selectedWorkspace]);
 
+  useEffect(() => {
+    if (inputVisible) {
+      inputRef.current?.focus();
+    }
+  }, [inputVisible]);
+
+  useEffect(() => {
+    editInputRef.current?.focus();
+  }, [inputValue]);
+
   const handleTabChange = (ev) => {
     setActiveTab(String(ev.target.value));
   };
@@ -201,6 +236,11 @@ export function FunctionForm() {
       setFormData(null);
       dispatch(setTestResult({ result: null }));
     }, 200);
+  };
+
+  const handleCloseTag = (removedTag) => {
+    const newTags = tags.filter((tag) => tag !== removedTag);
+    setTags(newTags);
   };
 
   const onCancel = () => {
@@ -224,6 +264,46 @@ export function FunctionForm() {
       }));
     }
     navigate('/functions');
+  };
+
+  const showInput = () => {
+    setInputVisible(true);
+  };
+
+  const handleAutocompleteChange = (value) => {
+    setInputValue(value);
+  };
+
+  const handleInputConfirm = () => {
+    const t = tags || [];
+    if (inputValue && t.indexOf(inputValue) === -1) {
+      setTags((current) => [...current, ...t]);
+    }
+    setInputVisible(false);
+    setInputValue('');
+  };
+
+  const handleEditInputChange = (e) => {
+    setEditInputValue(e.target.value);
+  };
+
+  const handleEditInputConfirm = () => {
+    const newTags = [...tags];
+    newTags[editInputIndex] = editInputValue;
+    setTags(newTags);
+    setEditInputIndex(-1);
+    setInputValue('');
+  };
+
+  const onSelect = (data) => {
+    console.log('onSelect', data);
+  };
+
+  const search = (text) => {
+    return existingTags
+      .filter((t) => t.startsWith(text))
+      .map((value) => ({ value }))
+      ;
   };
 
   const monacoOptions = {
@@ -434,6 +514,81 @@ export function FunctionForm() {
                 name="description"
               >
                 <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
+              </Form.Item>
+              <Form.Item
+                label="Tags"
+                name="tags"
+              >
+                <Space size={[0, 8]} wrap>
+                  <Space size={[0, 8]} wrap>
+                    {(tags || []).map((tag, index) => {
+                      if (editInputIndex === index) {
+                        return (
+                          <Input
+                            ref={editInputRef}
+                            key={tag}
+                            size="small"
+                            style={tagInputStyle}
+                            value={editInputValue}
+                            onChange={handleEditInputChange}
+                            onBlur={handleEditInputConfirm}
+                            onPressEnter={handleEditInputConfirm}
+                          />
+                        );
+                      }
+                      const isLongTag = tag.length > 20;
+                      const tagElem = (
+                        <Tag
+                          key={tag}
+                          closable={true}
+                          style={{
+                            userSelect: 'none',
+                          }}
+                          onClose={() => handleCloseTag(tag)}
+                        >
+                          <span
+                            onDoubleClick={(e) => {
+                              setEditInputIndex(index);
+                              setEditInputValue(tag);
+                              e.preventDefault();
+                            }}
+                          >
+                            {isLongTag ? `${tag.slice(0, 20)}...` : tag}
+                          </span>
+                        </Tag>
+                      );
+                      return isLongTag ? (
+                        <Tooltip title={tag} key={tag}>
+                          {tagElem}
+                        </Tooltip>
+                      ) : (
+                        tagElem
+                      );
+                    })}
+                  </Space>
+                  {inputVisible ? (
+                    <AutoComplete
+                      options={options}
+                      onSelect={onSelect}
+                      onSearch={(text) => setOptions(search(text))}
+                      value={inputValue}
+                      onChange={(value) => handleAutocompleteChange(value)}
+                      onBlur={() => handleInputConfirm()}
+                    >
+                      <Input
+                        ref={inputRef}
+                        type="text"
+                        size="small"
+                        style={tagInputStyle}
+                        onPressEnter={() => handleInputConfirm()}
+                      />
+                    </AutoComplete>
+                  ) : (
+                    <Tag style={tagPlusStyle} onClick={() => showInput()}>
+                      <PlusOutlined /> New Tag
+                    </Tag>
+                  )}
+                </Space>
               </Form.Item>
             </Panel>
             <Panel header={<PanelHeader title="Function Arguments" />} key="2" forceRender>

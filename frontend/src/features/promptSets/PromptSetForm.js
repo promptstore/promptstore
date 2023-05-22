@@ -2,7 +2,6 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  AutoComplete,
   Button,
   Col,
   Collapse,
@@ -13,8 +12,6 @@ import {
   Select,
   Space,
   Switch,
-  Tag,
-  Tooltip,
 } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
@@ -36,6 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 import {
@@ -56,22 +54,11 @@ import {
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const existingTags = ['one', 'two', 'three'];
+const PROMPT_SET_TAGS_KEY = 'promptSetTags';
 
 const layout = {
   labelCol: { span: 4 },
   wrapperCol: { span: 20 },
-};
-
-const tagInputStyle = {
-  width: 78,
-  verticalAlign: 'top',
-};
-
-const tagPlusStyle = {
-  background: 'inherit',
-  borderStyle: 'dashed',
-  cursor: 'pointer',
 };
 
 const roleOptions = [
@@ -239,23 +226,17 @@ function SortableItem({ field, index, remove }) {
 
 export function PromptSetForm() {
 
-  const [tags, setTags] = useState([]);
-  // const [inputVisible, setInputVisible] = useState([]);
-  // const [inputValue, setInputValue] = useState([]);
   // const [editInputIndex, setEditInputIndex] = useState([]);
   // const [editInputValue, setEditInputValue] = useState([]);
-  const [inputVisible, setInputVisible] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [editInputIndex, setEditInputIndex] = useState(-1);
-  const [editInputValue, setEditInputValue] = useState(null);
-  const [skills, setSkills] = useState([]);
+  // const [inputVisible, setInputVisible] = useState([]);
+  // const [inputValue, setInputValue] = useState([]);
+
+  const [existingTags, setExistingTags] = useState([]);
+
   const [newSkill, setNewSkill] = useState('');
+  const [skills, setSkills] = useState([]);
 
-  const inputRef = useRef(null);
-  const editInputRef = useRef(null);
   const newSkillInputRef = useRef(null);
-
-  const [options, setOptions] = useState([]);
 
   const loaded = useSelector(selectLoaded);
   const promptSets = useSelector(selectPromptSets);
@@ -298,37 +279,35 @@ export function PromptSetForm() {
         workspaceId: selectedWorkspace.id,
         key: 'skills',
       }));
+      dispatch(getSettingAsync({
+        workspaceId: selectedWorkspace.id,
+        key: PROMPT_SET_TAGS_KEY,
+      }));
     }
   }, [selectedWorkspace]);
 
-  useEffect(() => {
-    if (promptSet) {
-      const prompts = promptSet.prompts || {};
-      const newTags =
-        Object.values(prompts)
-          .map((v) => v.tags)
-          .filter((v) => v)
-        ;
-      setTags(newTags);
-    }
-  }, [promptSets]);
+  // useEffect(() => {
+  //   if (promptSet) {
+  //     // const prompts = promptSet.prompts || {};
+  //     // const newTags =
+  //     //   Object.values(prompts)
+  //     //     .map((v) => v.tags)
+  //     //     .filter((v) => v)
+  //     //   ;
+  //     setTags(promptSet.tags || []);
+  //   }
+  // }, [promptSets]);
 
   useEffect(() => {
-    const setting = settings['skills'];
-    if (setting) {
-      setSkills(setting.skills);
+    const skillsSetting = settings['skills'];
+    if (skillsSetting) {
+      setSkills(skillsSetting.value || []);
+    }
+    const tagsSetting = settings[PROMPT_SET_TAGS_KEY];
+    if (tagsSetting) {
+      setExistingTags(tagsSetting.value || []);
     }
   }, [settings]);
-
-  useEffect(() => {
-    if (inputVisible) {
-      inputRef.current?.focus();
-    }
-  }, [inputVisible]);
-
-  useEffect(() => {
-    editInputRef.current?.focus();
-  }, [inputValue]);
 
   const addNewSkill = (ev) => {
     ev.preventDefault();
@@ -340,7 +319,7 @@ export function PromptSetForm() {
       const values = {
         workspaceId: selectedWorkspace.id,
         key: 'skills',
-        skills: newSkills,
+        value: newSkills,
       };
       if (setting) {
         dispatch(updateSettingAsync({ id: setting.id, values }));
@@ -353,11 +332,6 @@ export function PromptSetForm() {
     }, 0);
   };
 
-  const handleClose = (removedTag) => {
-    const newTags = tags.filter((tag) => tag !== removedTag);
-    setTags(newTags);
-  };
-
   // const showInput = (key) => {
   //   setInputVisible((current) => {
   //     const newVisible = [...current];
@@ -365,9 +339,6 @@ export function PromptSetForm() {
   //     return newVisible;
   //   });
   // };
-  const showInput = () => {
-    setInputVisible(true);
-  };
 
   // const handleAutocompleteChange = (key, value) => {
   //   setInputValue((current) => {
@@ -376,9 +347,6 @@ export function PromptSetForm() {
   //     return newValue;
   //   });
   // };
-  const handleAutocompleteChange = (value) => {
-    setInputValue(value);
-  };
 
   // const handleInputConfirm = (key) => {
   //   const t = tags[key] || [];
@@ -400,26 +368,6 @@ export function PromptSetForm() {
   //     return newValue;
   //   });
   // };
-  const handleInputConfirm = () => {
-    const t = tags || [];
-    if (inputValue && t.indexOf(inputValue) === -1) {
-      setTags((current) => [...current, ...t]);
-    }
-    setInputVisible(false);
-    setInputValue('');
-  };
-
-  const handleEditInputChange = (e) => {
-    setEditInputValue(e.target.value);
-  };
-
-  const handleEditInputConfirm = () => {
-    const newTags = [...tags];
-    newTags[editInputIndex] = editInputValue;
-    setTags(newTags);
-    setEditInputIndex(-1);
-    setInputValue('');
-  };
 
   const onCancel = () => {
     navigate('/prompt-sets');
@@ -430,7 +378,7 @@ export function PromptSetForm() {
       values = {
         ...values,
         workspaceId: selectedWorkspace.id,
-        prompts: values.prompts?.map((v, i) => ({ ...v, tags: tags[i] })),
+        // prompts: values.prompts?.map((v, i) => ({ ...v, tags: tags[i] })),
         key: values.promptSetType,
       };
       if (isNew) {
@@ -438,23 +386,29 @@ export function PromptSetForm() {
       } else {
         dispatch(updatePromptSetAsync({ id, values }));
       }
+      updateExistingTags(values.tags || []);
       navigate('/prompt-sets');
+    }
+  };
+
+  const updateExistingTags = (tags) => {
+    const setting = settings[PROMPT_SET_TAGS_KEY];
+    const newTags = [...new Set([...existingTags, ...tags])];
+    newTags.sort((a, b) => a < b ? -1 : 1);
+    const values = {
+      workspaceId: selectedWorkspace.id,
+      key: PROMPT_SET_TAGS_KEY,
+      value: newTags,
+    };
+    if (setting) {
+      dispatch(updateSettingAsync({ id: setting.id, values }));
+    } else {
+      dispatch(createSettingAsync({ values }));
     }
   };
 
   const onNewSkillChange = (ev) => {
     setNewSkill(ev.target.value);
-  };
-
-  const onSelect = (data) => {
-    console.log('onSelect', data);
-  };
-
-  const search = (text) => {
-    return existingTags
-      .filter((t) => t.startsWith(text))
-      .map((value) => ({ value }))
-      ;
   };
 
   const sensors = useSensors(
@@ -596,76 +550,7 @@ export function PromptSetForm() {
               label="Tags"
               name="tags"
             >
-              <Space size={[0, 8]} wrap>
-                <Space size={[0, 8]} wrap>
-                  {(tags || []).map((tag, index) => {
-                    if (editInputIndex === index) {
-                      return (
-                        <Input
-                          ref={editInputRef}
-                          key={tag}
-                          size="small"
-                          style={tagInputStyle}
-                          value={editInputValue}
-                          onChange={handleEditInputChange}
-                          onBlur={handleEditInputConfirm}
-                          onPressEnter={handleEditInputConfirm}
-                        />
-                      );
-                    }
-                    const isLongTag = tag.length > 20;
-                    const tagElem = (
-                      <Tag
-                        key={tag}
-                        closable={true}
-                        style={{
-                          userSelect: 'none',
-                        }}
-                        onClose={() => handleClose(tag)}
-                      >
-                        <span
-                          onDoubleClick={(e) => {
-                            setEditInputIndex(index);
-                            setEditInputValue(tag);
-                            e.preventDefault();
-                          }}
-                        >
-                          {isLongTag ? `${tag.slice(0, 20)}...` : tag}
-                        </span>
-                      </Tag>
-                    );
-                    return isLongTag ? (
-                      <Tooltip title={tag} key={tag}>
-                        {tagElem}
-                      </Tooltip>
-                    ) : (
-                      tagElem
-                    );
-                  })}
-                </Space>
-                {inputVisible ? (
-                  <AutoComplete
-                    options={options}
-                    onSelect={onSelect}
-                    onSearch={(text) => setOptions(search(text))}
-                    value={inputValue}
-                    onChange={(value) => handleAutocompleteChange(value)}
-                    onBlur={() => handleInputConfirm()}
-                  >
-                    <Input
-                      ref={inputRef}
-                      type="text"
-                      size="small"
-                      style={tagInputStyle}
-                      onPressEnter={() => handleInputConfirm()}
-                    />
-                  </AutoComplete>
-                ) : (
-                  <Tag style={tagPlusStyle} onClick={() => showInput()}>
-                    <PlusOutlined /> New Tag
-                  </Tag>
-                )}
-              </Space>
+              <TagsInput existingTags={existingTags} />
             </Form.Item>
             <Form.Item
               label="Description"
