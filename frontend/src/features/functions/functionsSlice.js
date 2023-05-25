@@ -82,10 +82,10 @@ export const deleteFunctionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeFunctions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelKey, name }) => async (dispatch) => {
+export const runTestAsync = ({ args, modelId, modelKey, name }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/executions/${name}`;
-  const res = await http.post(url, { args, modelKey });
+  const res = await http.post(url, { args, params: { modelId, model: modelKey } });
   dispatch(setTestResult({ result: res.data }));
 };
 

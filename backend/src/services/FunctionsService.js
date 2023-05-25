@@ -29,6 +29,32 @@ function FunctionsService({ pg, logger }) {
     return functions;
   }
 
+  async function getFunctionsByTag(tag) {
+    if (tag === null || typeof tag === 'undefined') {
+      return null;
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM functions f, json_array_elements_text(f.val->'tags') tag
+      WHERE tag = $1
+      `;
+    const { rows } = await pg.query(q, [tag]);
+    if (rows.length === 0) {
+      return null;
+    }
+    const functions = rows.map((row) => ({
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspaceId,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    }));
+    return functions;
+  }
+
   async function getFunctionByName(name) {
     if (name === null || typeof name === 'undefined') {
       return null;
@@ -122,6 +148,7 @@ function FunctionsService({ pg, logger }) {
 
   return {
     getFunctions,
+    getFunctionsByTag,
     getFunctionByName,
     getFunction,
     upsertFunction,

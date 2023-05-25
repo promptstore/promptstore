@@ -1,9 +1,9 @@
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Collapse, Form, Input, Select, Space, Switch } from 'antd';
-import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
+import { Button, Collapse, Form, Input, Modal, Select, Space, Switch } from 'antd';
 
+import { SchemaModalInput } from '../../components/SchemaModalInput';
 import NavbarContext from '../../context/NavbarContext';
 import {
   createModelAsync,
@@ -123,87 +123,99 @@ export function ModelForm() {
         onFinish={onFinish}
         initialValues={model}
       >
-        <Collapse defaultActiveKey={['1']} ghost>
-          <Panel header={<PanelHeader title="Model Details" />} key="1" forceRender>
+        {/* <Collapse defaultActiveKey={['1']} ghost> */}
+        {/* <Panel header={<PanelHeader title="Model Details" />} key="1" forceRender> */}
+        <Form.Item
+          label="Name"
+          name="name"
+          rules={[
+            {
+              required: true,
+              message: 'Please enter a model name',
+            },
+          ]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          label="Key"
+          name="key"
+          rules={[
+            {
+              required: true,
+              message: 'Please enter a key',
+            },
+          ]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          label="Description"
+          name="description"
+        >
+          <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+        </Form.Item>
+        <Form.Item
+          label="Type"
+          name="type"
+          wrapperCol={{ span: 10 }}
+        >
+          <Select options={typeOptions} />
+        </Form.Item>
+        {typeValue === 'api' ?
+          <Form.Item
+            name="url"
+            label="URL"
+            wrapperCol={{ span: 10 }}
+          >
+            <Input />
+          </Form.Item>
+          : null
+        }
+        {/* </Panel> */}
+        {typeValue === 'api' ?
+          // <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender>
+          <>
             <Form.Item
-              label="Name"
-              name="name"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please enter a model name',
-                },
-              ]}
+              colon={false}
+              label="Define Types?"
+              name="isTypesDefined"
+              valuePropName="checked"
             >
-              <Input />
+              <Switch />
             </Form.Item>
-            <Form.Item
-              label="Key"
-              name="key"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please enter a key',
-                },
-              ]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Description"
-              name="description"
-            >
-              <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
-            </Form.Item>
-            <Form.Item
-              label="Type"
-              name="type"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select options={typeOptions} />
-            </Form.Item>
-          </Panel>
-          {typeValue === 'api' ?
-            <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender>
-              <Form.Item
-                colon={false}
-                label="Define Types?"
-                name="isTypesDefined"
-                valuePropName="checked"
-              >
-                <Switch />
-              </Form.Item>
-              {typesDefinedValue ?
-                <>
+            {typesDefinedValue ?
+              <>
+                <Form.Item
+                  label="Arguments"
+                  name="arguments"
+                >
+                  <SchemaModalInput />
+                </Form.Item>
+                <Form.Item
+                  label="Return Type"
+                  name="returnType"
+                  wrapperCol={{ span: 10 }}
+                >
+                  <Select options={returnTypeOptions} />
+                </Form.Item>
+                {returnTypeValue === 'application/json' ?
                   <Form.Item
-                    label="Arguments"
-                    name="arguments"
+                    label="Return Type Schema"
+                    name="returnTypeSchema"
                   >
-                    <JsonSchemaEditor />
+                    <SchemaModalInput />
                   </Form.Item>
-                  <Form.Item
-                    label="Return Type"
-                    name="returnType"
-                    wrapperCol={{ span: 10 }}
-                  >
-                    <Select options={returnTypeOptions} />
-                  </Form.Item>
-                  {returnTypeValue === 'application/json' ?
-                    <Form.Item
-                      label="Return Type Schema"
-                      name="returnTypeSchema"
-                    >
-                      <JsonSchemaEditor />
-                    </Form.Item>
-                    : null
-                  }
-                </>
-                : null
-              }
-            </Panel>
-            : null
-          }
-        </Collapse>
+                  : null
+                }
+              </>
+              : null
+            }
+          </>
+          // </Panel>
+          : null
+        }
+        {/* </Collapse> */}
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
           <Space>
             <Button type="default" onClick={onCancel}>Cancel</Button>

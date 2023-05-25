@@ -8,7 +8,7 @@ function ContentService({ pg, logger }) {
   // async function getContentsForReview(userId, limit = 999, start = 0) {
   //   let q = `
   //     SELECT id, app_id, content_id, text, hash, created, created_by, modified, modified_by, val
-  //     FROM content c, json_array_elements(c.val->'reviewers') reviewer
+  //     FROM content c, json_array_elements_text(c.val->'reviewers') reviewer
   //     WHERE reviewer = $1
   //     LIMIT $2 OFFSET $3
   //     `;

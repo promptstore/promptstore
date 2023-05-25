@@ -3,6 +3,7 @@ const { Configuration, OpenAIApi } = require('openai');
 const Minio = require('minio');
 const { Pool } = require('pg');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 // const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware');
 const dotenv = require('dotenv');
 const express = require('express');
@@ -203,6 +204,8 @@ app.use(bodyParser.urlencoded({
 app.use(express.static(path.join(__dirname, FRONTEND_DIR, '/build/')));
 
 // app.use(secured);
+
+app.use(cors());
 
 const options = {
   app,

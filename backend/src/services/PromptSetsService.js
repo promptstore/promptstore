@@ -100,6 +100,7 @@ function PromptSetsService({ pg, logger }) {
       );
       return promptSet.id;
     } else {
+      console.log([promptSet.workspaceId, promptSet.skill, val])
       const { rows } = await pg.query(`
         INSERT INTO prompt_sets (workspace_id, skill, val)
         VALUES ($1, $2, $3) RETURNING id

@@ -4,7 +4,8 @@ module.exports = ({ app, logger, passport, services }) => {
 
   app.get('/api/workspaces/:workspaceId/settings/:key', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const { workspaceId, key } = req.params;
-    const setting = await settingsService.getSettingByKey(workspaceId, key);
+    logger.debug('key: ', key);
+    const setting = await settingsService.getSettingByKey(key);
     res.json(setting);
   });
 

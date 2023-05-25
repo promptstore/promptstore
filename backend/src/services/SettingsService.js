@@ -43,6 +43,7 @@ function SettingsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
+    logger.debug('rows: ', rows);
     const row = rows[0];
     return {
       ...row.val,

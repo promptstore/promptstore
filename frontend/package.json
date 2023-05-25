@@ -36,6 +36,8 @@
     "lodash.clonedeep": "^4.5.0",
     "lodash.isempty": "^4.4.0",
     "lodash.isequal": "^4.5.0",
+    "lodash.isfunction": "^3.0.9",
+    "lodash.isobject": "^3.0.2",
     "lodash.isundefined": "^3.0.1",
     "lodash.omit": "^4.5.0",
     "lodash.pick": "^4.4.0",

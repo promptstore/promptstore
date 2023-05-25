@@ -30,12 +30,13 @@ export function FunctionsList() {
       key: func.id,
       name: func.name,
       implementations: func.implementations,
+      tags: func.tags,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
   }, [functions]);
 
-  const { setNavbarState } = useContext(NavbarContext);
+  const { isDarkMode, setNavbarState } = useContext(NavbarContext);
 
   const dispatch = useDispatch();
 
@@ -47,7 +48,7 @@ export function FunctionsList() {
     setNavbarState((state) => ({
       ...state,
       createLink: '/functions/new',
-      title: 'Functions',
+      title: 'Semantic Functions',
     }));
     dispatch(getModelsAsync());
     dispatch(getFunctionsAsync());
@@ -71,6 +72,13 @@ export function FunctionsList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  const getColor = (modelType) => {
+    if (isDarkMode) {
+      return modelType === 'api' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)';
+    }
+    return modelType === 'api' ? '#87d068' : '#2db7f5';
+  };
+
   const columns = [
     {
       title: 'Name',
@@ -84,13 +92,28 @@ export function FunctionsList() {
     {
       title: 'Implementations',
       dataIndex: 'implementations',
-      width: '100%',
       render: (_, { implementations = [] }) => (
         <Space size={[0, 8]} wrap>
           {implementations.map((impl) => (
             impl.modelId && modelsLoaded ?
-              <Tag key={impl.modelId}>{models[impl.modelId].key}</Tag>
+              <Tag key={impl.modelId}
+                color={getColor(models[impl.modelId].type)}
+              >
+                {models[impl.modelId].key}
+              </Tag>
               : null
+          ))}
+        </Space>
+      )
+    },
+    {
+      title: 'Tags',
+      dataIndex: 'tags',
+      width: '100%',
+      render: (_, { tags = [] }) => (
+        <Space size={[0, 8]} wrap>
+          {tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
           ))}
         </Space>
       )

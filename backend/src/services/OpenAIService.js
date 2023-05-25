@@ -19,7 +19,7 @@ function OpenAIService({ openai, logger }) {
       return resp.data;
     } catch (err) {
       logger.error(err);
-      if (resp.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      if (resp && resp.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }

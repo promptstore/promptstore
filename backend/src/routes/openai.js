@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const isEmpty = require('lodash.isempty');
 const isObject = require('lodash.isobject');
 const path = require('path');
 const { validate } = require('jsonschema');
@@ -316,6 +317,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     const { modelId, model: modelKey } = params;
 
     logger.debug('args: ', args);
+    logger.debug('params: ', params);
 
     const func = await functionsService.getFunctionByName(name);
 
@@ -352,7 +354,9 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     }
     if (!impl && modelKey) {
       model = await modelsService.getModelByKey(modelKey);
-      impl = implementations.find((m) => m.modelId === model.id);
+      if (model) {
+        impl = implementations.find((m) => m.modelId === model.id);
+      }
     }
     if (!impl) {
       impl = implementations.find((m) => m.isDefault);
@@ -371,6 +375,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
       ];
       return res.status(500).send({ errors });
     }
+    logger.debug('model: ', model);
 
     const request = await mapArgs(impl, args);
 
@@ -382,9 +387,10 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
         return res.status(500).send({ errors: validatorResult.errors });
       }
 
-      const resp = await axios.post(impl.url, request);
-      return res.json(resp.data);
+      const resp = await axios.post(model.url, request);
+      logger.debug('resp: ', resp.data);
 
+      return res.json(resp.data);
     }
 
     if (model.type === 'gpt') {
@@ -398,11 +404,14 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
       }
 
       const messages = getMessages(promptSet.prompts, request);
-      const response = await fetchChatCompletion(messages, params.maxTokens || 255, params.n || 1, 'openai');
+      const response = await fetchChatCompletion(messages, model.key, params.maxTokens || 255, params.n || 1, 'openai');
       const content = response.choices[0].message.content;
       try {
         const result = await mapReturnType(impl, content);
-        return res.json(result);
+        return res.json({
+          ...response,
+          content: result,
+        });
       } catch (err) {
         logger.error(err);
         return res.sendStatus(500);
@@ -425,7 +434,10 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
       const content = response.choices[0].message.content;
       try {
         const result = await mapReturnType(impl, content);
-        return res.json(result);
+        return res.json({
+          ...response,
+          content: result,
+        });
       } catch (err) {
         logger.error(err);
         return res.sendStatus(500);
@@ -443,25 +455,27 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
   const mapArgs = async (impl, args) => {
     let request;
 
-    let mappingTemplate = impl.mappingTemplate;
-    if (mappingTemplate) {
+    // let mappingTemplate = impl.mappingTemplate;
+    let mappingTemplate = impl.mappingData;
+    if (!isEmpty(mappingTemplate)) {
       mappingTemplate = mappingTemplate.trim();
-      // logger.debug('mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
+      logger.debug('mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
       const template = eval(`(${mappingTemplate})`);
-      // logger.debug('template: ', template, ' ', typeof template);
+      logger.debug('template: ', template, ' ', typeof template);
+      logger.debug('args: ', args, ' ', typeof args);
       request = await mapJsonAsync(args, template);
 
     } else {
 
-      const mappingData = impl.mappingData;
-      if (mappingData && mappingData.length) {
-        request = mappingData.reduce((a, m) => {
-          a[m.target] = args[m.source];
-          return a;
-        }, {});
-      } else {
-        request = args;
-      }
+      // const mappingData = impl.mappingData;
+      // if (mappingData && mappingData.length) {
+      //   request = mappingData.reduce((a, m) => {
+      //     a[m.target] = args[m.source];
+      //     return a;
+      //   }, {});
+      // } else {
+      request = args;
+      // }
 
     }
 
@@ -485,36 +499,36 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     logger.debug('ret: ', ret);
     let response;
 
-    let mappingTemplate = impl.mappingTemplate;
-    if (mappingTemplate) {
-      mappingTemplate = mappingTemplate.trim();
-      logger.debug('mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
-      const template = eval(`(${mappingTemplate})`);
-      // logger.debug('template: ', template, ' ', typeof template);
-      response = await mapJsonAsync(ret, template);
+    const returnTransformation = impl.returnTransformation;
+    if (returnTransformation) {
+      logger.debug('Performing transformation: ', impl.returnTransformation);
+      response = transformations[returnTransformation](ret);
 
     } else {
 
-      const returnTransformation = impl.returnTransformation;
-      if (returnTransformation) {
-        logger.debug('Performing transformation: ', impl.returnTransformation);
-        response = transformations[returnTransformation](ret);
+      // let mappingTemplate = impl.returnMappingTemplate;
+      let mappingTemplate = impl.returnMappingData;
+      if (!isEmpty(mappingTemplate)) {
+        mappingTemplate = mappingTemplate.trim();
+        logger.debug('mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
+        const template = eval(`(${mappingTemplate})`);
+        // logger.debug('template: ', template, ' ', typeof template);
+        response = await mapJsonAsync(ret, template);
+
+        // } else {
+
+        //   const mappingData = impl.returnMappingData;
+        //   if (mappingData && mappingData.length) {
+        //     logger.debug('mappingData: ', mappingData);
+        //     response = mappingData.reduce((a, m) => {
+        //       a[m.target] = ret[m.source];
+        //       return a;
+        //     }, {});
 
       } else {
 
-        const mappingData = impl.mappingData;
-        if (mappingData && mappingData.length) {
-          logger.debug('mappingData: ', mappingData);
-          response = mappingData.reduce((a, m) => {
-            a[m.target] = ret[m.source];
-            return a;
-          }, {});
+        response = ret;
 
-        } else {
-
-          response = ret;
-
-        }
       }
     }
 

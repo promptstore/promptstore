@@ -50,7 +50,11 @@ export function TagsInput({ existingTags, onChange, value }) {
   };
 
   const handleClose = (removedTag) => {
-    setTags((current) => current.filter(t => t !== removedTag));
+    const newTags = tags.filter(t => t !== removedTag);
+    setTags(newTags);
+    if (typeof onChange === 'function') {
+      onChange(newTags);
+    }
   };
 
   const handleEditInputChange = (ev) => {

@@ -14,7 +14,6 @@ import {
   Switch,
 } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
-import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
 import {
   DndContext,
   DragOverlay,
@@ -33,6 +32,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -46,7 +46,6 @@ import {
 import {
   createSettingAsync,
   getSettingAsync,
-  selectLoaded as selectSettingsLoaded,
   selectSettings,
   updateSettingAsync,
 } from './settingsSlice';
@@ -54,7 +53,7 @@ import {
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
-const PROMPT_SET_TAGS_KEY = 'promptSetTags';
+const TAGS_KEY = 'promptSetTags';
 
 const layout = {
   labelCol: { span: 4 },
@@ -124,93 +123,6 @@ function SortableItem({ field, index, remove }) {
           <Select options={roleOptions} allowClear />
         </Form.Item>
       </Col>
-      {/* <Col span={10}>
-                <Form.Item
-                  name={[field.name, 'tags']}
-                  labelCol={{ span: 4 }}
-                  wrapperCol={{ span: 20, offset: index === 0 ? 0 : 4 }}
-                  label={index === 0 ? 'Tags' : ''}
-                >
-                  <Space size={[0, 8]} wrap>
-                    <Space size={[0, 8]} wrap>
-                      {(tags[field.key] || []).map((tag, index) => {
-                        if (editInputIndex[field.key] === index) {
-                          return (
-                            <Input
-                              ref={editInputRef}
-                              key={tag}
-                              size="small"
-                              style={tagInputStyle}
-                              value={editInputValue[field.key]}
-                              onChange={handleEditInputChange}
-                              onBlur={handleEditInputConfirm}
-                              onPressEnter={handleEditInputConfirm}
-                            />
-                          );
-                        }
-                        const isLongTag = tag.length > 20;
-                        const tagElem = (
-                          <Tag
-                            key={tag}
-                            closable={true}
-                            style={{
-                              userSelect: 'none',
-                            }}
-                            onClose={() => handleClose(tag)}
-                          >
-                            <span
-                              onDoubleClick={(e) => {
-                                setEditInputIndex((current) => {
-                                  const newIndex = [...current];
-                                  newIndex[field.key] = index;
-                                  return newIndex;
-                                });
-                                setEditInputValue((current) => {
-                                  const newValue = [...current];
-                                  newValue[field.key] = tag;
-                                  return newValue;
-                                });
-                                e.preventDefault();
-                              }}
-                            >
-                              {isLongTag ? `${tag.slice(0, 20)}...` : tag}
-                            </span>
-                          </Tag>
-                        );
-                        return isLongTag ? (
-                          <Tooltip title={tag} key={tag}>
-                            {tagElem}
-                          </Tooltip>
-                        ) : (
-                          tagElem
-                        );
-                      })}
-                    </Space>
-                    {inputVisible[field.key] ? (
-                      <AutoComplete
-                        options={options}
-                        onSelect={onSelect}
-                        onSearch={(text) => setOptions(search(text))}
-                        value={inputValue[field.key]}
-                        onChange={(value) => handleAutocompleteChange(field.key, value)}
-                        onBlur={() => handleInputConfirm(field.key)}
-                      >
-                        <Input
-                          ref={inputRef}
-                          type="text"
-                          size="small"
-                          style={tagInputStyle}
-                          onPressEnter={() => handleInputConfirm(field.key)}
-                        />
-                      </AutoComplete>
-                    ) : (
-                      <Tag style={tagPlusStyle} onClick={() => showInput(field.key)}>
-                        <PlusOutlined /> New Tag
-                      </Tag>
-                    )}
-                  </Space>
-                </Form.Item>
-              </Col> */}
       <Col span={1}>
         <div style={{ marginLeft: 16 }}>
           <Button type="text"
@@ -226,13 +138,7 @@ function SortableItem({ field, index, remove }) {
 
 export function PromptSetForm() {
 
-  // const [editInputIndex, setEditInputIndex] = useState([]);
-  // const [editInputValue, setEditInputValue] = useState([]);
-  // const [inputVisible, setInputVisible] = useState([]);
-  // const [inputValue, setInputValue] = useState([]);
-
   const [existingTags, setExistingTags] = useState([]);
-
   const [newSkill, setNewSkill] = useState('');
   const [skills, setSkills] = useState([]);
 
@@ -281,29 +187,17 @@ export function PromptSetForm() {
       }));
       dispatch(getSettingAsync({
         workspaceId: selectedWorkspace.id,
-        key: PROMPT_SET_TAGS_KEY,
+        key: TAGS_KEY,
       }));
     }
   }, [selectedWorkspace]);
-
-  // useEffect(() => {
-  //   if (promptSet) {
-  //     // const prompts = promptSet.prompts || {};
-  //     // const newTags =
-  //     //   Object.values(prompts)
-  //     //     .map((v) => v.tags)
-  //     //     .filter((v) => v)
-  //     //   ;
-  //     setTags(promptSet.tags || []);
-  //   }
-  // }, [promptSets]);
 
   useEffect(() => {
     const skillsSetting = settings['skills'];
     if (skillsSetting) {
       setSkills(skillsSetting.value || []);
     }
-    const tagsSetting = settings[PROMPT_SET_TAGS_KEY];
+    const tagsSetting = settings[TAGS_KEY];
     if (tagsSetting) {
       setExistingTags(tagsSetting.value || []);
     }
@@ -332,43 +226,6 @@ export function PromptSetForm() {
     }, 0);
   };
 
-  // const showInput = (key) => {
-  //   setInputVisible((current) => {
-  //     const newVisible = [...current];
-  //     newVisible[key] = true;
-  //     return newVisible;
-  //   });
-  // };
-
-  // const handleAutocompleteChange = (key, value) => {
-  //   setInputValue((current) => {
-  //     const newValue = [...current];
-  //     newValue[key] = value;
-  //     return newValue;
-  //   });
-  // };
-
-  // const handleInputConfirm = (key) => {
-  //   const t = tags[key] || [];
-  //   if (inputValue[key] && t.indexOf(inputValue[key]) === -1) {
-  //     setTags((current) => {
-  //       const newTags = [...current];
-  //       newTags[key] = [...t, inputValue[key]];
-  //       return newTags;
-  //     });
-  //   }
-  //   setInputVisible((current) => {
-  //     const newVisible = [...current];
-  //     newVisible[key] = false;
-  //     return newVisible;
-  //   });
-  //   setInputValue((current) => {
-  //     const newValue = [...current];
-  //     newValue[key] = '';
-  //     return newValue;
-  //   });
-  // };
-
   const onCancel = () => {
     navigate('/prompt-sets');
   };
@@ -378,7 +235,6 @@ export function PromptSetForm() {
       values = {
         ...values,
         workspaceId: selectedWorkspace.id,
-        // prompts: values.prompts?.map((v, i) => ({ ...v, tags: tags[i] })),
         key: values.promptSetType,
       };
       if (isNew) {
@@ -392,12 +248,12 @@ export function PromptSetForm() {
   };
 
   const updateExistingTags = (tags) => {
-    const setting = settings[PROMPT_SET_TAGS_KEY];
+    const setting = settings[TAGS_KEY];
     const newTags = [...new Set([...existingTags, ...tags])];
     newTags.sort((a, b) => a < b ? -1 : 1);
     const values = {
       workspaceId: selectedWorkspace.id,
-      key: PROMPT_SET_TAGS_KEY,
+      key: TAGS_KEY,
       value: newTags,
     };
     if (setting) {
@@ -501,97 +357,97 @@ export function PromptSetForm() {
         onFinish={onFinish}
         initialValues={promptSet}
       >
-        <Collapse defaultActiveKey={['1']} ghost>
-          <Panel header={<PanelHeader title="Prompt Set Details" />} key="1" forceRender>
-            <Form.Item
-              label="Set Name"
-              name="name"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please enter a name',
-                },
-              ]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Skill"
-              name="skill"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please select a type',
-                },
-              ]}
-            >
-              <Select
-                options={skillOptions}
-                dropdownRender={(menu) => (
-                  <>
-                    {menu}
-                    <Divider style={{ margin: '8px 0' }} />
-                    <Space style={{ padding: '0 8px 4px' }}>
-                      <Input
-                        placeholder="Please enter new skill"
-                        ref={newSkillInputRef}
-                        value={newSkill}
-                        onChange={onNewSkillChange}
-                      />
-                      <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
-                        Add skill
-                      </Button>
-                    </Space>
-                  </>
-                )}
-              />
-            </Form.Item>
-            <Form.Item
-              label="Tags"
-              name="tags"
-            >
-              <TagsInput existingTags={existingTags} />
-            </Form.Item>
-            <Form.Item
-              label="Description"
-              name="description"
-            >
-              <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
-            </Form.Item>
-          </Panel>
-          <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender>
-            <Form.Item
-              colon={false}
-              label="Define Types?"
-              name="isTypesDefined"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            {typesDefinedValue ?
-              <Form.Item
-                label="Arguments"
-                name="arguments"
-              >
-                <JsonSchemaEditor />
-              </Form.Item>
-              : null
-            }
-          </Panel>
-          <Panel header={<PanelHeader title="Prompt Messages" />} key="3" forceRender>
-            <Form.List name="prompts">
-              {(fields, { add, move, remove }, { errors }) => (
-                <PromptList
-                  fields={fields}
-                  add={add}
-                  move={move}
-                  remove={remove}
-                  errors={errors}
-                />
-              )}
-            </Form.List>
-          </Panel>
-        </Collapse>
+        {/* <Collapse defaultActiveKey={['1']} ghost> */}
+        {/* <Panel header={<PanelHeader title="Prompt Set Details" />} key="1" forceRender> */}
+        <Form.Item
+          label="Set Name"
+          name="name"
+          rules={[
+            {
+              required: true,
+              message: 'Please enter a name',
+            },
+          ]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          label="Skill"
+          name="skill"
+          rules={[
+            {
+              required: true,
+              message: 'Please select a type',
+            },
+          ]}
+        >
+          <Select
+            options={skillOptions}
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                <Divider style={{ margin: '8px 0' }} />
+                <Space style={{ padding: '0 8px 4px' }}>
+                  <Input
+                    placeholder="Please enter new skill"
+                    ref={newSkillInputRef}
+                    value={newSkill}
+                    onChange={onNewSkillChange}
+                  />
+                  <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
+                    Add skill
+                  </Button>
+                </Space>
+              </>
+            )}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Tags"
+          name="tags"
+        >
+          <TagsInput existingTags={existingTags} />
+        </Form.Item>
+        <Form.Item
+          label="Description"
+          name="description"
+        >
+          <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+        </Form.Item>
+        {/* </Panel> */}
+        {/* <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender> */}
+        <Form.Item
+          colon={false}
+          label="Define Types?"
+          name="isTypesDefined"
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
+        {typesDefinedValue ?
+          <Form.Item
+            label="Arguments"
+            name="arguments"
+          >
+            <SchemaModalInput />
+          </Form.Item>
+          : null
+        }
+        {/* </Panel> */}
+        {/* <Panel header={<PanelHeader title="Prompt Messages" />} key="3" forceRender> */}
+        <Form.List name="prompts">
+          {(fields, { add, move, remove }, { errors }) => (
+            <PromptList
+              fields={fields}
+              add={add}
+              move={move}
+              remove={remove}
+              errors={errors}
+            />
+          )}
+        </Form.List>
+        {/* </Panel> */}
+        {/* </Collapse> */}
         <Form.Item wrapperCol={{ offset: 4 }}>
           <Space>
             <Button type="default" onClick={onCancel}>Cancel</Button>

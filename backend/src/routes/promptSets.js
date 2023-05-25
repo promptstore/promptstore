@@ -40,13 +40,13 @@ module.exports = ({ app, logger, passport, services }) => {
 
   app.delete('/api/prompt-sets/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const id = req.params.id;
-    await promptSetsService.deleteSettings([id]);
+    await promptSetsService.deletePromptSets([id]);
     res.json(id);
   });
 
   app.delete('/api/prompt-sets', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const ids = req.query.ids.split(',');
-    await promptSetsService.deleteSettings(ids);
+    await promptSetsService.deletePromptSets(ids);
     res.json(ids);
   });
 

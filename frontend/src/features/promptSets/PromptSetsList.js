@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { Button, Space, Table, message } from 'antd';
+import { Button, Space, Table, Tag, message } from 'antd';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -24,6 +24,7 @@ export function PromptSetsList() {
       key: promptSet.id,
       name: promptSet.name,
       skill: promptSet.skill,
+      tags: promptSet.tags,
     }));
     list.sort((a, b) => a.key > b.key ? 1 : -1);
     return list;
@@ -83,8 +84,19 @@ export function PromptSetsList() {
     {
       title: 'Skill',
       dataIndex: 'skill',
-      width: '100%',
       render: (_, { skill }) => <span>{skill}</span>
+    },
+    {
+      title: 'Tags',
+      dataIndex: 'tags',
+      width: '100%',
+      render: (_, { tags = [] }) => (
+        <Space size={[0, 8]} wrap>
+          {tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
+        </Space>
+      )
     },
     {
       title: 'Action',

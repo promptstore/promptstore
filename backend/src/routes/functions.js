@@ -13,6 +13,12 @@ module.exports = ({ app, logger, passport, services }) => {
     res.json(functions);
   });
 
+  app.get('/api/functions/tags/:tag', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const tag = req.params.tag;
+    const functions = await functionsService.getFunctionsByTag(tag);
+    res.json(functions);
+  });
+
   app.get('/api/functions/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const id = req.params.id;
     const func = await functionsService.getFunction(id);

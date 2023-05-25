@@ -1,33 +1,31 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  AutoComplete,
   Button,
   Col,
   Collapse,
+  Divider,
   Form,
   Input,
   Modal,
-  Radio,
   Row,
   Select,
   Space,
   Switch,
-  Tabs,
-  Tag,
-  Tooltip,
 } from 'antd';
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
-import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
+import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import ButterflyDataMapping from 'react-data-mapping';
 import MonacoEditor from 'react-monaco-editor';
-// import SchemaForm from '@markmo/antd-schema-form';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
+import isFunction from 'lodash.isfunction';
+import isObject from 'lodash.isobject';
 
+import { SchemaModalInput } from '../../components/SchemaModalInput';
+import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 import {
@@ -52,12 +50,19 @@ import {
   selectLoaded as selectPromptSetsLoaded,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
+import {
+  createSettingAsync,
+  getSettingAsync,
+  selectSettings,
+  updateSettingAsync,
+} from '../promptSets/settingsSlice';
 
 import 'react-data-mapping/dist/index.css';
-// import '@markmo/antd-schema-form/style/antd-schema-form.css';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
+
+const TAGS_KEY = 'functionTags';
 
 const layout = {
   labelCol: { span: 4 },
@@ -104,19 +109,6 @@ const columns = [
   }
 ];
 
-const existingTags = ['one', 'two', 'three'];
-
-const tagInputStyle = {
-  width: 78,
-  verticalAlign: 'top',
-};
-
-const tagPlusStyle = {
-  background: 'inherit',
-  borderStyle: 'dashed',
-  cursor: 'pointer',
-};
-
 const getFields = (title, properties) => ({
   title,
   fields: Object.entries(properties).map(([k, v], i) => ({
@@ -128,18 +120,10 @@ const getFields = (title, properties) => ({
 
 export function FunctionForm() {
 
-  const [activeTab, setActiveTab] = useState('1');
-  const [activeReturnTab, setActiveReturnTab] = useState('1');
+  const [existingTags, setExistingTags] = useState([]);
   const [formData, setFormData] = useState(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [selectedImplementation, setSelectedImplementation] = useState(-1);
-
-  const [editInputIndex, setEditInputIndex] = useState(-1);
-  const [editInputValue, setEditInputValue] = useState(null);
-  const [inputVisible, setInputVisible] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [options, setOptions] = useState([]);
-  const [tags, setTags] = useState([]);
 
   const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
@@ -147,6 +131,7 @@ export function FunctionForm() {
   const modelsLoaded = useSelector(selectModelsLoaded);
   const promptSets = useSelector(selectPromptSets);
   const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
+  const settings = useSelector(selectSettings);
   const testResult = useSelector(selectTestResult);
   const testResultLoaded = useSelector(selectTestResultLoaded);
   const testResultLoading = useSelector(selectTestResultLoading);
@@ -159,8 +144,6 @@ export function FunctionForm() {
   const navigate = useNavigate();
 
   const [form] = Form.useForm();
-  const inputRef = useRef(null);
-  const editInputRef = useRef(null);
 
   const argumentsValue = Form.useWatch('arguments', form);
   const implementationsValue = Form.useWatch('implementations', form);
@@ -203,26 +186,19 @@ export function FunctionForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
+      dispatch(getSettingAsync({
+        workspaceId: selectedWorkspace.id,
+        key: TAGS_KEY,
+      }));
     }
   }, [selectedWorkspace]);
 
   useEffect(() => {
-    if (inputVisible) {
-      inputRef.current?.focus();
+    const tagsSetting = settings[TAGS_KEY];
+    if (tagsSetting) {
+      setExistingTags(tagsSetting.value || []);
     }
-  }, [inputVisible]);
-
-  useEffect(() => {
-    editInputRef.current?.focus();
-  }, [inputValue]);
-
-  const handleTabChange = (ev) => {
-    setActiveTab(String(ev.target.value));
-  };
-
-  const handleReturnTabChange = (ev) => {
-    setActiveReturnTab(String(ev.target.value));
-  };
+  }, [settings]);
 
   const handleTest = (index) => {
     setSelectedImplementation(index);
@@ -236,11 +212,6 @@ export function FunctionForm() {
       setFormData(null);
       dispatch(setTestResult({ result: null }));
     }, 200);
-  };
-
-  const handleCloseTag = (removedTag) => {
-    const newTags = tags.filter((tag) => tag !== removedTag);
-    setTags(newTags);
   };
 
   const onCancel = () => {
@@ -263,47 +234,26 @@ export function FunctionForm() {
         },
       }));
     }
+    updateExistingTags(values.tags || []);
     navigate('/functions');
   };
 
-  const showInput = () => {
-    setInputVisible(true);
-  };
-
-  const handleAutocompleteChange = (value) => {
-    setInputValue(value);
-  };
-
-  const handleInputConfirm = () => {
-    const t = tags || [];
-    if (inputValue && t.indexOf(inputValue) === -1) {
-      setTags((current) => [...current, ...t]);
+  const updateExistingTags = (tags) => {
+    console.log('settings:', settings);
+    const setting = settings[TAGS_KEY];
+    console.log('setting:', setting, TAGS_KEY);
+    const newTags = [...new Set([...existingTags, ...tags])];
+    newTags.sort((a, b) => a < b ? -1 : 1);
+    const values = {
+      workspaceId: selectedWorkspace.id,
+      key: TAGS_KEY,
+      value: newTags,
+    };
+    if (setting) {
+      dispatch(updateSettingAsync({ id: setting.id, values }));
+    } else {
+      dispatch(createSettingAsync({ values }));
     }
-    setInputVisible(false);
-    setInputValue('');
-  };
-
-  const handleEditInputChange = (e) => {
-    setEditInputValue(e.target.value);
-  };
-
-  const handleEditInputConfirm = () => {
-    const newTags = [...tags];
-    newTags[editInputIndex] = editInputValue;
-    setTags(newTags);
-    setEditInputIndex(-1);
-    setInputValue('');
-  };
-
-  const onSelect = (data) => {
-    console.log('onSelect', data);
-  };
-
-  const search = (text) => {
-    return existingTags
-      .filter((t) => t.startsWith(text))
-      .map((value) => ({ value }))
-      ;
   };
 
   const monacoOptions = {
@@ -399,9 +349,6 @@ export function FunctionForm() {
     return returnTypeSchema && getModelReturnTypeSchema(index);
   };
 
-  // const runTest = async (form, value, keys) => {
-  //   dispatch(runTestAsync({ args: value, name: func.name }));
-  // };
   const runTest = async ({ formData }) => {
     const impl = func.implementations[selectedImplementation];
     if (impl) {
@@ -429,6 +376,369 @@ export function FunctionForm() {
     </div>
   );
 
+  function ArgumentMappingModalInput({ index, onChange, value }) {
+
+    const [isAdvanced, setIsAdvanced] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [ready, setReady] = useState(false);
+    const [state, setState] = useState(null);
+
+    useEffect(() => {
+      if (value && typeof value === 'string') {
+        setState(value);
+      }
+    }, [value]);
+
+    const handleClose = () => {
+      setIsModalOpen(false);
+      setState(value);
+      setReady(false);
+    };
+
+    const handleMappingDataChange = (args) => {
+      if (args && args.mappingData) {
+        const data = args.mappingData.reduce((a, x) => {
+          a[x.target] = x.source;
+          return a;
+        }, {});
+        const stateUpdate = JSON.stringify(data, null, 2);
+        setState(stateUpdate);
+      }
+    };
+
+    const handleOk = () => {
+      if (typeof onChange === 'function') {
+        onChange(state);
+      }
+      setIsModalOpen(false);
+      setState(null);
+      setReady(false);
+    }
+
+    const getMappingData = useCallback((val) => {
+      return Object.entries(val).map(([k, v]) => ({
+        source: v,
+        target: k,
+      }));
+    }, []);
+
+    const isObjectNested = useCallback((obj) => {
+      if (isObject(obj)) {
+        return Object.values(obj).some(v => Array.isArray(v) || isObject(v) || isFunction(v));
+      }
+      return false;
+    }, []);
+
+    const isSimpleEnabled = isSimpleArgumentMappingEnabled(index);
+    const isAdvancedEnabled = isAdvancedArgumentMappingEnabled(index);
+    let isSimple = isSimpleEnabled;
+    let mappingData = [];
+    if (isSimpleEnabled && state) {
+      try {
+        const obj = JSON.parse(state);
+        mappingData = getMappingData(obj);
+      } catch (err) {
+        try {
+          const val = eval(`(${state})`);
+          if (isObject(val) && !isFunction(val) && !isObjectNested(val)) {
+            mappingData = getMappingData(val);
+          } else {
+            isSimple = false;
+          }
+        } catch (e) {
+          isSimple = false;
+        }
+      }
+    }
+
+    const noState = useCallback((val) => {
+      if (isEmpty(val)) return true;
+      if (typeof val === 'string') {
+        try {
+          const v = eval(`(${val})`);
+          if (isObject(v) && Object.values(v).length === 0) return true;
+          return false;
+        } catch (err) {
+          return true;
+        }
+      }
+      if (isObject(val) && Object.values(val).length === 0) return true;
+      return false;
+    }, []);
+
+    // console.log('value:', value, typeof value, noState(value))
+
+    return (
+      <>
+        <Modal
+          afterOpenChange={(open) => {
+            if (open) {
+              setTimeout(() => {
+                setReady(true);
+              }, 400);
+            }
+          }}
+          onCancel={handleClose}
+          onOk={handleOk}
+          open={isModalOpen}
+          title="Set Mapping"
+          width={788}
+        >
+          {!ready ?
+            <div>Loading...</div>
+            : null
+          }
+          {ready ?
+            <>
+              <div style={{ display: 'flex' }}>
+                <div style={{ marginLeft: 'auto' }}>
+                  <Space>
+                    <Button onClick={() => setState(null)}>
+                      Clear
+                    </Button>
+                    <Button
+                      disabled={isAdvanced && !isSimple}
+                      onClick={() => setIsAdvanced((current) => !current)}
+                    >
+                      {isAdvanced ? 'Simple' : 'Advanced'}
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                {!isAdvanced && isSimple ?
+                  <ButterflyDataMapping
+                    className="butterfly-data-mapping container single-with-header"
+                    type="single"
+                    columns={columns}
+                    sourceData={getFields('Request Arguments', getFunctionArgumentProperties())}
+                    targetData={getFields(isModelApiType(index) ? 'Model Arguments' : 'Prompt Arguments', getModelArgumentProperties(index))}
+                    config={{}}
+                    onEdgeClick={(data) => {
+                      console.log(data);
+                    }}
+                    width="auto"
+                    height={400}
+                    onChange={handleMappingDataChange}
+                    mappingData={mappingData}
+                  />
+                  : null
+                }
+                {isAdvanced || !isSimple ?
+                  <MonacoEditor
+                    height={250}
+                    language="javascript"
+                    theme={isDarkMode ? 'vs-dark' : 'vs-light'}
+                    options={monacoOptions}
+                    onChange={setState}
+                    value={state}
+                  />
+                  : null
+                }
+              </div>
+            </>
+            : null
+          }
+        </Modal>
+        <Button
+          disabled={!isSimpleEnabled && !isAdvancedEnabled}
+          icon={noState(value) ? null : <CheckOutlined />}
+          onClick={() => setIsModalOpen(true)}
+        >
+          Set Mapping
+        </Button>
+        {!isSimpleEnabled && !isAdvancedEnabled ?
+          <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
+            Have both function and model/prompt arguments been defined?
+          </div>
+          : null
+        }
+      </>
+    );
+  }
+
+  function ReturnTypeMappingModalInput({ index, onChange, value }) {
+
+    const [isAdvanced, setIsAdvanced] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [ready, setReady] = useState(false);
+    const [state, setState] = useState(null);
+
+    useEffect(() => {
+      if (value && typeof value === 'string') {
+        setState(value);
+      }
+    }, [value]);
+
+    const handleClose = () => {
+      setIsModalOpen(false);
+      setState(value);
+      setReady(false);
+    };
+
+    const handleMappingDataChange = (args) => {
+      if (args && args.mappingData) {
+        const data = args.mappingData.reduce((a, x) => {
+          a[x.source] = x.target;
+          return a;
+        }, {});
+        const stateUpdate = JSON.stringify(data, null, 2);
+        setState(stateUpdate);
+      }
+    };
+
+    const handleOk = () => {
+      if (typeof onChange === 'function') {
+        onChange(state);
+      }
+      setIsModalOpen(false);
+      setState(null);
+      setReady(false);
+    }
+
+    const getMappingData = useCallback((val) => {
+      return Object.entries(val).map(([k, v]) => ({
+        source: k,
+        target: v,
+      }));
+    }, []);
+
+    const isObjectNested = useCallback((obj) => {
+      if (isObject(obj)) {
+        return Object.values(obj).some(v => Array.isArray(v) || isObject(v) || isFunction(v));
+      }
+      return false;
+    }, []);
+
+    const isSimpleEnabled = isSimpleReturnTypeMappingEnabled(index);
+    const isAdvancedEnabled = isAdvancedReturnTypeMappingEnabled(index);
+    let isSimple = isSimpleEnabled;
+    let mappingData = [];
+    if (isSimpleEnabled && state) {
+      try {
+        const obj = JSON.parse(state);
+        mappingData = getMappingData(obj);
+      } catch (err) {
+        try {
+          const val = eval(`(${state})`);
+          if (isObject(val) && !isFunction(val) && !isObjectNested(val)) {
+            mappingData = getMappingData(val);
+          } else {
+            isSimple = false;
+          }
+        } catch (e) {
+          isSimple = false;
+        }
+      }
+    }
+
+    const noState = useCallback((val) => {
+      if (isEmpty(val)) return true;
+      if (typeof val === 'string') {
+        try {
+          const v = eval(`(${val})`);
+          if (isObject(v) && Object.values(v).length === 0) return true;
+          return false;
+        } catch (err) {
+          return true;
+        }
+      }
+      if (isObject(val) && Object.values(val).length === 0) return true;
+      return false;
+    }, []);
+
+    return (
+      <>
+        <Modal
+          afterOpenChange={(open) => {
+            if (open) {
+              setTimeout(() => {
+                setReady(true);
+              }, 400);
+            }
+          }}
+          onCancel={handleClose}
+          onOk={handleOk}
+          open={isModalOpen}
+          title="Set Mapping"
+          width={788}
+        >
+          {!ready ?
+            <div>Loading...</div>
+            : null
+          }
+          {ready ?
+            <>
+              <div style={{ display: 'flex' }}>
+                <div style={{ marginLeft: 'auto' }}>
+                  <Space>
+                    <Button onClick={() => setState(null)}>
+                      Clear
+                    </Button>
+                    {isSimpleEnabled ?
+                      <Button
+                        disabled={isAdvanced && !isSimple}
+                        onClick={() => setIsAdvanced((current) => !current)}
+                      >
+                        {isAdvanced ? 'Simple' : 'Advanced'}
+                      </Button>
+                      : null
+                    }
+                  </Space>
+                </div>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                {!isAdvanced && isSimple ?
+                  <ButterflyDataMapping
+                    className="butterfly-data-mapping container single-with-header"
+                    type="single"
+                    columns={columns}
+                    sourceData={getFields('Model Return', getModelReturnTypeProperties(index))}
+                    targetData={getFields('Function Return', getFunctionReturnTypeProperties())}
+                    config={{}}
+                    onEdgeClick={(data) => {
+                      console.log(data);
+                    }}
+                    width="auto"
+                    height={400}
+                    onChange={handleMappingDataChange}
+                    mappingData={mappingData}
+                  />
+                  : null
+                }
+                {isAdvanced || !isSimple ?
+                  <MonacoEditor
+                    height={250}
+                    language="javascript"
+                    theme={isDarkMode ? 'vs-dark' : 'vs-light'}
+                    options={monacoOptions}
+                    onChange={setState}
+                    value={state}
+                  />
+                  : null
+                }
+              </div>
+            </>
+            : null
+          }
+        </Modal>
+        <Button
+          disabled={!isSimpleEnabled && !isAdvancedEnabled}
+          icon={noState(value) ? null : <CheckOutlined />}
+          onClick={() => setIsModalOpen(true)}
+        >
+          Set Mapping
+        </Button>
+        {!isSimpleEnabled && !isAdvancedEnabled ?
+          <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
+            Have both function and model return types been defined?
+          </div>
+          : null
+        }
+      </>
+    );
+  }
+
   if (!isNew && !formIsReady) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
@@ -449,11 +759,6 @@ export function FunctionForm() {
             overflowY: 'auto',
           }}
         >
-          {/* <SchemaForm
-          json={func.arguments}
-          onOk={runTest}
-          okText="Run"
-        /> */}
           <div style={{ width: 720 }}>
             <div style={{ float: 'right' }}>
               <Button type="default"
@@ -478,7 +783,7 @@ export function FunctionForm() {
               {func.returnType === 'application/json' ?
                 <ReactJson src={testResult} />
                 :
-                <div>{String(testResult)}</div>
+                <div>{String(testResult.content)}</div>
               }
             </div>
             : null
@@ -495,399 +800,221 @@ export function FunctionForm() {
           onFinish={onFinish}
           initialValues={func}
         >
-          <Collapse defaultActiveKey={['1']} ghost>
-            <Panel header={<PanelHeader title="Function Details" />} key="1" forceRender>
+          {/* <Collapse defaultActiveKey={['1']} ghost> */}
+          {/* <Panel header={<PanelHeader title="Function Details" />} key="1" forceRender> */}
+          <Form.Item
+            label="Name"
+            name="name"
+            rules={[
+              {
+                required: true,
+                message: 'Please enter a function name',
+              },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            label="Description"
+            name="description"
+          >
+            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+          </Form.Item>
+          <Form.Item
+            label="Tags"
+            name="tags"
+          >
+            <TagsInput existingTags={existingTags} />
+          </Form.Item>
+          {/* </Panel> */}
+          {/* <Panel header={<PanelHeader title="Function Arguments" />} key="2" forceRender> */}
+          <Form.Item
+            label="Arguments"
+            name="arguments"
+          >
+            <SchemaModalInput />
+          </Form.Item>
+          {/* </Panel> */}
+          {/* <Panel header={<PanelHeader title="Function Return" />} key="3" forceRender> */}
+          <Form.Item label="Return Type">
+            <Form.Item
+              name="returnType"
+              style={{ display: 'inline-block', width: 350 }}
+            >
+              <Select options={returnTypeOptions} />
+            </Form.Item>
+            {returnTypeValue === 'application/json' ?
               <Form.Item
-                label="Name"
-                name="name"
-                rules={[
-                  {
-                    required: true,
-                    message: 'Please enter a function name',
-                  },
-                ]}
+                name="returnTypeSchema"
+                style={{ display: 'inline-block', marginLeft: 16 }}
               >
-                <Input />
+                <SchemaModalInput />
               </Form.Item>
-              <Form.Item
-                label="Description"
-                name="description"
-              >
-                <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
-              </Form.Item>
-              <Form.Item
-                label="Tags"
-                name="tags"
-              >
-                <Space size={[0, 8]} wrap>
-                  <Space size={[0, 8]} wrap>
-                    {(tags || []).map((tag, index) => {
-                      if (editInputIndex === index) {
-                        return (
-                          <Input
-                            ref={editInputRef}
-                            key={tag}
-                            size="small"
-                            style={tagInputStyle}
-                            value={editInputValue}
-                            onChange={handleEditInputChange}
-                            onBlur={handleEditInputConfirm}
-                            onPressEnter={handleEditInputConfirm}
-                          />
-                        );
+              : null
+            }
+          </Form.Item>
+          {/* </Panel> */}
+          {/* <Panel header={<PanelHeader title="Model Implementations" />} key="4" forceRender> */}
+          <Form.List name="implementations">
+            {(fields, { add, remove }, { errors }) => (
+              <>
+                {fields.map((field, index) => (
+                  <Row key={field.key} style={{
+                    marginBottom: '8px',
+                  }}>
+                    <Col span={4} className="my-form-item-label">
+                      {index === 0 ?
+                        <label title="Implementations">Implementations</label>
+                        : null
                       }
-                      const isLongTag = tag.length > 20;
-                      const tagElem = (
-                        <Tag
-                          key={tag}
-                          closable={true}
-                          style={{
-                            userSelect: 'none',
-                          }}
-                          onClose={() => handleCloseTag(tag)}
-                        >
-                          <span
-                            onDoubleClick={(e) => {
-                              setEditInputIndex(index);
-                              setEditInputValue(tag);
-                              e.preventDefault();
-                            }}
-                          >
-                            {isLongTag ? `${tag.slice(0, 20)}...` : tag}
-                          </span>
-                        </Tag>
-                      );
-                      return isLongTag ? (
-                        <Tooltip title={tag} key={tag}>
-                          {tagElem}
-                        </Tooltip>
-                      ) : (
-                        tagElem
-                      );
-                    })}
-                  </Space>
-                  {inputVisible ? (
-                    <AutoComplete
-                      options={options}
-                      onSelect={onSelect}
-                      onSearch={(text) => setOptions(search(text))}
-                      value={inputValue}
-                      onChange={(value) => handleAutocompleteChange(value)}
-                      onBlur={() => handleInputConfirm()}
-                    >
-                      <Input
-                        ref={inputRef}
-                        type="text"
-                        size="small"
-                        style={tagInputStyle}
-                        onPressEnter={() => handleInputConfirm()}
-                      />
-                    </AutoComplete>
-                  ) : (
-                    <Tag style={tagPlusStyle} onClick={() => showInput()}>
-                      <PlusOutlined /> New Tag
-                    </Tag>
-                  )}
-                </Space>
-              </Form.Item>
-            </Panel>
-            <Panel header={<PanelHeader title="Function Arguments" />} key="2" forceRender>
-              <Form.Item
-                label="Arguments"
-                name="arguments"
-              >
-                <JsonSchemaEditor />
-              </Form.Item>
-            </Panel>
-            <Panel header={<PanelHeader title="Function Return" />} key="3" forceRender>
-              <Form.Item
-                label="Return Type"
-                name="returnType"
-                wrapperCol={{ span: 6 }}
-              >
-                <Select options={returnTypeOptions} />
-              </Form.Item>
-              {returnTypeValue === 'application/json' ?
-                <Form.Item
-                  label="Return Schema"
-                  name="returnTypeSchema"
-                >
-                  <JsonSchemaEditor />
-                </Form.Item>
-                : null
-              }
-            </Panel>
-            <Panel header={<PanelHeader title="Model Implementations" />} key="4" forceRender>
-              <Form.List name="implementations">
-                {(fields, { add, remove }, { errors }) => (
-                  <>
-                    {fields.map((field, index) => (
-                      <Row key={field.key} style={{
-                        marginBottom: '8px',
-                      }}>
-                        <Col span={4} className="my-form-item-label">
-                          {index === 0 ?
-                            <label title="Implementations">Implementations</label>
-                            : null
-                          }
-                        </Col>
-                        <Col span={6} style={{
-                          border: '1px solid #d9d9d9',
-                          borderLeftRadius: '6px',
-                          borderRight: 'none',
-                          padding: '8px 20px',
-                        }}>
-                          <Form.Item
-                            name={[field.name, 'modelId']}
-                            label="Model"
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            rules={[
-                              {
-                                required: true,
-                                message: 'Please select a model',
-                              },
-                            ]}
-                          >
-                            <Select options={modelOptions} />
-                          </Form.Item>
-                          {getModel(index)?.type === 'gpt' ?
-                            <Form.Item
-                              name={[field.name, 'promptSetId']}
-                              label="Prompt"
-                              labelCol={{ span: 24 }}
-                              wrapperCol={{ span: 24 }}
-                            >
-                              <Select options={promptSetOptions} />
-                            </Form.Item>
-                            : null
-                          }
-                          {getModel(index)?.type === 'api' ?
-                            <Form.Item
-                              name={[field.name, 'url']}
-                              label="URL"
-                              labelCol={{ span: 24 }}
-                              wrapperCol={{ span: 24 }}
-                            >
-                              <Input />
-                            </Form.Item>
-                            : null
-                          }
-                          <Form.Item
-                            colon={false}
-                            name={[field.name, 'isDefault']}
-                            label="Default?"
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            valuePropName="checked"
-                            initialValue={index === 0}
-                          >
-                            <Switch />
-                          </Form.Item>
-                          {!isNew ?
-                            <div style={{ marginTop: 20 }}>
-                              <Button type="primary" onClick={() => { handleTest(index); }}>Test</Button>
-                            </div>
-                            : null
-                          }
-                        </Col>
-                        <Col span={13} style={{
-                          border: '1px solid #d9d9d9',
-                          borderRightRadius: '6px',
-                          borderLeft: 'none',
-                          overflowX: 'auto',
-                          padding: '8px 20px',
-                        }}>
-                          <>
-                            <div style={{ paddingBottom: 8 }}>
-                              <label style={{
-                                alignItems: 'center',
-                                display: 'inline-flex',
-                                height: 32,
-                                lineHeight: '22px',
-                              }}>
-                                Argument Mapping
-                              </label>
-                            </div>
-                            <Radio.Group onChange={handleTabChange} value={activeTab} style={{ marginBottom: 8 }}>
-                              <Radio.Button value="1">Simple</Radio.Button>
-                              <Radio.Button value="2">Advanced</Radio.Button>
-                            </Radio.Group>
-                            <Tabs
-                              activeKey={activeTab}
-                              style={{ marginBottom: 24 }}
-                              items={[
-                                {
-                                  key: '1',
-                                  children: isSimpleArgumentMappingEnabled(index) ?
-                                    <Form.Item
-                                      colon={false}
-                                      name={[field.name, 'mappingData']}
-                                      wrapperCol={{ span: 24 }}
-                                      initialValue={[]}
-                                      valuePropName="mappingData"
-                                      getValueFromEvent={(args) => {
-                                        return args.mappingData;
-                                      }}
-                                    >
-                                      <ButterflyDataMapping
-                                        className="butterfly-data-mapping container single-with-header"
-                                        type="single"
-                                        columns={columns}
-                                        sourceData={getFields('Request Arguments', getFunctionArgumentProperties())}
-                                        targetData={getFields(isModelApiType(index) ? 'Model Arguments' : 'Prompt Arguments', getModelArgumentProperties(index))}
-                                        config={{}}
-                                        onEdgeClick={(data) => {
-                                          console.log(data);
-                                        }}
-                                        width="auto"
-                                        height={400}
-                                      />
-                                    </Form.Item>
-                                    :
-                                    <div>Not available. Use Advanced.</div>
-                                },
-                                {
-                                  key: '2',
-                                  children: isAdvancedArgumentMappingEnabled(index) ?
-                                    <Form.Item
-                                      colon={false}
-                                      name={[field.name, 'mappingTemplate']}
-                                      wrapperCol={{ span: 24 }}
-                                      initialValue={''}
-                                      getValueFromEvent={(args) => {
-                                        // console.log('args:', args);
-                                        return args;
-                                      }}
-                                    >
-                                      <MonacoEditor
-                                        height={250}
-                                        language="javascript"
-                                        theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-                                        options={monacoOptions}
-                                      />
-                                    </Form.Item>
-                                    :
-                                    <div>Not available.</div>
-                                },
-                              ]}
-                            />
-                            <div style={{ paddingBottom: 8 }}>
-                              <label style={{
-                                alignItems: 'center',
-                                display: 'inline-flex',
-                                height: 32,
-                                lineHeight: '22px',
-                              }}>
-                                Return Type Mapping
-                              </label>
-                            </div>
-                            <Radio.Group onChange={handleReturnTabChange} value={activeReturnTab} style={{ marginBottom: 8 }}>
-                              <Radio.Button value="1">Predefined</Radio.Button>
-                              <Radio.Button value="2">Simple</Radio.Button>
-                              <Radio.Button value="3">Advanced</Radio.Button>
-                            </Radio.Group>
-                            <Tabs
-                              activeKey={activeReturnTab}
-                              items={[
-                                {
-                                  key: '1',
-                                  children: isModelGptType(index) ?
-                                    <Form.Item
-                                      name={[field.name, 'returnTransformation']}
-                                      wrapperCol={{ span: 12 }}
-                                    >
-                                      <Select allowClear options={transformationOptions} />
-                                    </Form.Item>
-                                    :
-                                    <div>Not available.</div>
-                                },
-                                {
-                                  key: '2',
-                                  children: isSimpleReturnTypeMappingEnabled(index) ?
-                                    <Form.Item
-                                      colon={false}
-                                      name={[field.name, 'returnMappingData']}
-                                      wrapperCol={{ span: 24 }}
-                                      initialValue={[]}
-                                      valuePropName="mappingData"
-                                      getValueFromEvent={(args) => {
-                                        return args.mappingData;
-                                      }}
-                                    >
-                                      <ButterflyDataMapping
-                                        className="butterfly-data-mapping container single-with-header"
-                                        type="single"
-                                        columns={columns}
-                                        sourceData={getFields('Model Return', getModelReturnTypeProperties(index))}
-                                        targetData={getFields('Function Return', getFunctionReturnTypeProperties())}
-                                        config={{}}
-                                        onEdgeClick={(data) => {
-                                          console.log(data);
-                                        }}
-                                        width="auto"
-                                        height={400}
-                                      />
-                                    </Form.Item>
-                                    :
-                                    <div>Not available. Use Advanced.</div>
-                                },
-                                {
-                                  key: '3',
-                                  children: isAdvancedReturnTypeMappingEnabled(index) ?
-                                    <Form.Item
-                                      colon={false}
-                                      name={[field.name, 'returnMappingTemplate']}
-                                      wrapperCol={{ span: 24 }}
-                                      initialValue={''}
-                                      getValueFromEvent={(args) => {
-                                        console.log('args:', args);
-                                        return args;
-                                      }}
-                                    >
-                                      <MonacoEditor
-                                        height={250}
-                                        language="javascript"
-                                        theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-                                        options={monacoOptions}
-                                      />
-                                    </Form.Item>
-                                    :
-                                    <div>Not available.</div>
-                                },
-                              ]}
-                            />
-                          </>
-                        </Col>
-                        <Col span={1}>
-                          {fields.length ? (
-                            <div style={{ marginLeft: 16 }}>
-                              <Button type="text"
-                                icon={<CloseOutlined />}
-                                className="dynamic-delete-button"
-                                onClick={() => remove(field.name)}
-                              />
-                            </div>
-                          ) : null}
-                        </Col>
-                      </Row>
-                    ))}
-                    <Form.Item wrapperCol={{ offset: 4, span: 6 }}>
-                      <Button
-                        type="dashed"
-                        onClick={() => add()}
-                        style={{ width: '100%', zIndex: 101 }}
-                        icon={<PlusOutlined />}
+                    </Col>
+                    <Col span={6} style={{
+                      border: '1px solid #d9d9d9',
+                      borderLeftRadius: '6px',
+                      borderRight: 'none',
+                      padding: '8px 20px',
+                    }}>
+                      <Form.Item
+                        name={[field.name, 'modelId']}
+                        label="Model"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please select a model',
+                          },
+                        ]}
                       >
-                        Add Implementation
-                      </Button>
-                      <Form.ErrorList errors={errors} />
-                    </Form.Item>
-                  </>
-                )}
-              </Form.List>
-            </Panel>
-          </Collapse>
+                        <Select options={modelOptions} />
+                      </Form.Item>
+                      {getModel(index)?.type === 'gpt' ?
+                        <Form.Item
+                          name={[field.name, 'promptSetId']}
+                          label="Prompt"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                        >
+                          <Select options={promptSetOptions} />
+                        </Form.Item>
+                        : null
+                      }
+                      {/* {getModel(index)?.type === 'api' ?
+                        <Form.Item
+                          name={[field.name, 'url']}
+                          label="URL"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                        >
+                          <Input />
+                        </Form.Item>
+                        : null
+                      } */}
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'isDefault']}
+                        label="Default?"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                        valuePropName="checked"
+                        initialValue={index === 0}
+                      >
+                        <Switch />
+                      </Form.Item>
+                      {!isNew ?
+                        <div style={{ marginTop: 20 }}>
+                          <Button type="primary" onClick={() => { handleTest(index); }}>Test</Button>
+                        </div>
+                        : null
+                      }
+                    </Col>
+                    <Col span={13} style={{
+                      border: '1px solid #d9d9d9',
+                      borderRightRadius: '6px',
+                      borderLeft: 'none',
+                      overflowX: 'auto',
+                      padding: '8px 20px',
+                    }}>
+                      <>
+                        <div style={{ paddingBottom: 8 }}>
+                          <label style={{
+                            alignItems: 'center',
+                            display: 'inline-flex',
+                            height: 32,
+                            lineHeight: '22px',
+                          }}>
+                            Argument Mapping
+                          </label>
+                        </div>
+                        <Form.Item
+                          colon={false}
+                          name={[field.name, 'mappingData']}
+                          wrapperCol={{ span: 24 }}
+                          initialValue={[]}
+                        >
+                          <ArgumentMappingModalInput index={index} />
+                        </Form.Item>
+                        <div style={{ paddingBottom: 8 }}>
+                          <label style={{
+                            alignItems: 'center',
+                            display: 'inline-flex',
+                            height: 32,
+                            lineHeight: '22px',
+                          }}>
+                            Return Type Mapping
+                          </label>
+                        </div>
+                        {isModelGptType(index) ?
+                          <>
+                            <Form.Item
+                              name={[field.name, 'returnTransformation']}
+                              wrapperCol={{ span: 12 }}
+                            >
+                              <Select allowClear options={transformationOptions} />
+                            </Form.Item>
+                            <Divider orientation="left" plain>Alternatively</Divider>
+                          </>
+                          : null
+                        }
+                        <Form.Item
+                          colon={false}
+                          name={[field.name, 'returnMappingData']}
+                          wrapperCol={{ span: 24 }}
+                          initialValue={[]}
+                        >
+                          <ReturnTypeMappingModalInput index={index} />
+                        </Form.Item>
+                      </>
+                    </Col>
+                    <Col span={1}>
+                      {fields.length ? (
+                        <div style={{ marginLeft: 16 }}>
+                          <Button type="text"
+                            icon={<CloseOutlined />}
+                            className="dynamic-delete-button"
+                            onClick={() => remove(field.name)}
+                          />
+                        </div>
+                      ) : null}
+                    </Col>
+                  </Row>
+                ))}
+                <Form.Item wrapperCol={{ offset: 4, span: 6 }}>
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    style={{ width: '100%', zIndex: 101 }}
+                    icon={<PlusOutlined />}
+                  >
+                    Add Implementation
+                  </Button>
+                  <Form.ErrorList errors={errors} />
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+          {/* </Panel> */}
+          {/* </Collapse> */}
           <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
             <Space>
               <Button type="default" onClick={onCancel}>Cancel</Button>
@@ -895,7 +1022,7 @@ export function FunctionForm() {
             </Space>
           </Form.Item>
         </Form>
-      </div>
+      </div >
     </>
   );
 }
