@@ -43,6 +43,11 @@ spec:
                 configMapKeyRef:
                   key: FILE_BUCKET
                   name: "{{ .Values.appname }}"
+            - name: DOCUMENTS_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  key: DOCUMENTS_PREFIX
+                  name: "{{ .Values.appname }}"
             - name: S3_ENDPOINT
               valueFrom:
                 configMapKeyRef:
@@ -107,6 +112,21 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: CANTO_SITE_BASEURL
+                  name: "{{ .Values.appname }}"
+            - name: HUGGING_FACE_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: HUGGING_FACE_BASE_URL
+                  name: "{{ .Values.appname }}"
+            - name: HUGGING_FACE_HUB_API
+              valueFrom:
+                configMapKeyRef:
+                  key: HUGGING_FACE_HUB_API
+                  name: "{{ .Values.appname }}"
+            - name: FEATURE_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: FEATURE_STORE_PLUGINS
                   name: "{{ .Values.appname }}"
             - name: PGUSER
               valueFrom:

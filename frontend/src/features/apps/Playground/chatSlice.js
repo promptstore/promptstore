@@ -40,6 +40,11 @@ export const getPromptsAsync = (req) => async (dispatch) => {
   }));
 };
 
+const cleanMessage = (message) => ({
+  role: message.role,
+  content: message.content,
+});
+
 const formatMessage = ({ message }) => ({
   key: uuidv4(),
   role: message.role,
@@ -49,7 +54,8 @@ const formatMessage = ({ message }) => ({
 export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/chat';
-  const res = await http.post(url, req);
+  // console.log('req:', req);
+  const res = await http.post(url, { ...req, messages: req.messages.map(cleanMessage) });
   const { choices, model, usage } = res.data;
   const messages = choices.map(formatMessage).map((m) => ({
     ...m,
@@ -59,13 +65,15 @@ export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(setMessages({ messages: [...req.messages, ...messages] }));
   const cost = usage.total_tokens / 1000 * 0.002;
   const app = req.app;
-  dispatch(updateAppAsync({
-    id: app.id,
-    values: {
-      tokenCount: (app.tokenCount || 0) + usage.total_tokens,
-      cost: (app.cost || 0) + cost,
-    }
-  }));
+  if (app) {
+    dispatch(updateAppAsync({
+      id: app.id,
+      values: {
+        tokenCount: (app.tokenCount || 0) + usage.total_tokens,
+        cost: (app.cost || 0) + cost,
+      }
+    }));
+  }
 };
 
 export const selectLoaded = (state) => state.chat.loaded;

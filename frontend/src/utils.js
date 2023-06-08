@@ -192,3 +192,9 @@ export const slugify = (str) => {
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
 };
+
+export const getExtension = (filepath) => {
+  if (!filepath) return null;
+  const index = filepath.lastIndexOf('.');
+  return filepath.slice(index + 1);
+};

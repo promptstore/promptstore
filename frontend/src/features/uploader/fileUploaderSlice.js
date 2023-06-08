@@ -86,36 +86,57 @@ export const fileUploadAsync = (file, source) => async (dispatch) => {
   }
 };
 
+const fetchUploads = async (workspaceId) => {
+  const url = `/api/workspaces/${workspaceId}/uploads`;
+  const res = await http.get(url);
+  return res.data;
+};
+
 export const getUploadsAsync = ({ sourceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/workspaces/${sourceId}/uploads`;
-  const res = await http.get(url);
-  dispatch(setUploads({ sourceId, uploads: res.data }));
+  const uploads = await fetchUploads(sourceId);
+  dispatch(setUploads({ sourceId, uploads }));
 };
 
-export const getUploadAsync = (id) => async (dispatch) => {
-  dispatch(startLoad());
-  const url = `/api/uploads/${id}`;
-  const res = await http.get(url);
-  dispatch(setUploads({ uploads: [res.data] }));
+const getNewUploads = (current, id, content) => {
+  if (!current) return null;
+  const index = current.findIndex((u) => u.id === id);
+  if (index === -1) {
+    return null;
+  }
+  const upload = current[index];
+  const uploads = [...current];
+  uploads.splice(index, 1, { ...upload, content });
+  return uploads;
 };
 
-export const getUploadContentAsync = (sourceId, id) => async (dispatch, getState) => {
+export const getUploadContentAsync = (workspaceId, id, maxBytes) => async (dispatch, getState) => {
   const { uploads } = getState().fileUploader;
   dispatch(startLoad());
-  const url = `/api/uploads/${id}/content`;
+  let url = `/api/uploads/${id}/content`;
+  if (maxBytes) {
+    url += `?maxBytes=${maxBytes}`;
+  }
   const res = await http.get(url);
-  const sourceUploads = [...uploads[sourceId]];
-  const idx = sourceUploads.findIndex((u) => u.id === id);
-  sourceUploads.splice(idx, 1, { ...sourceUploads[idx], content: res.data });
-  dispatch(setUploads({ sourceId, uploads: sourceUploads }));
+  const content = res.data;
+  let newUploads = getNewUploads(uploads[workspaceId], id, content);
+  if (!newUploads) {
+    const workspaceUploads = await fetchUploads(workspaceId);
+    newUploads = getNewUploads(workspaceUploads, id, content);
+  }
+  dispatch(setUploads({ sourceId: workspaceId, uploads: newUploads }));
 };
 
 export const deleteUploadsAsync = ({ sourceId, uploads }) => async (dispatch) => {
   const names = uploads.map((u) => u.name);
-  const url = `/api/uploads?names=${names.join(',')}`;
+  const url = `/api/uploads?workspaceId=${sourceId}&names=${names.join(',')}`;
   await http.delete(url);
   dispatch(removeUploads({ sourceId, uploads }));
+};
+
+export const loadDocumentAsync = ({ filepath, params }) => async (dispatch) => {
+  const url = '/api/loader';
+  await http.post(url, { filepath, params });
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;

@@ -98,27 +98,27 @@ function ModelsService({ pg, logger }) {
     };
   }
 
-  async function upsertModel(func) {
-    if (func === null || typeof func === 'undefined') {
+  async function upsertModel(model) {
+    if (model === null || typeof model === 'undefined') {
       return null;
     }
-    const val = omit(func, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
-    const savedModel = await getModel(func.id);
+    const val = omit(model, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const savedModel = await getModel(model.id);
     if (savedModel) {
       await pg.query(`
         UPDATE models
         SET name = $1, val = $2
         WHERE id = $3
         `,
-        [func.name, val, func.id]
+        [model.name, val, model.id]
       );
-      return func.id;
+      return model.id;
     } else {
       const { rows } = await pg.query(`
         INSERT INTO models (name, val)
         VALUES ($1, $2) RETURNING id
         `,
-        [func.name, val]
+        [model.name, val]
       );
       return rows[0].id;
     }

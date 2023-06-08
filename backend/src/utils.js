@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const isObject = require('lodash.isobject');
 const path = require('path');
 
 const delay = (t) => {
@@ -93,11 +94,18 @@ const fillTemplate = (templateString, templateVars) => {
   }
 };
 
+const getMessages = (prompts, features) => prompts.map((p, i) => ({
+  role: p.role || (i < prompts.length - 1 ? 'system' : 'user'),
+  content: fillTemplate(isObject(p) ? p.prompt : p, features),
+}));
+
+
 module.exports = {
   appendSentence,
   delay,
   downloadImage,
   fillTemplate,
+  getMessages,
   hashStr,
   installRoutesDir,
 };

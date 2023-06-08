@@ -1,6 +1,6 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
@@ -29,17 +29,15 @@ import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 import {
-  createFunctionAsync,
-  getFunctionAsync,
-  updateFunctionAsync,
-  runTestAsync,
-  selectLoaded,
-  selectFunctions,
-  selectTestResult,
-  selectTestResultLoaded,
-  selectTestResultLoading,
-  setTestResult,
-} from './functionsSlice';
+  getDataSourcesAsync,
+  selectDataSources,
+  selectLoading as selectDataSourcesLoading,
+} from '../dataSources/dataSourcesSlice';
+import {
+  getIndexesAsync,
+  selectIndexes,
+  selectLoading as selectIndexesLoading,
+} from '../indexes/indexesSlice';
 import {
   getModelsAsync,
   selectLoaded as selectModelsLoaded,
@@ -56,6 +54,18 @@ import {
   selectSettings,
   updateSettingAsync,
 } from '../promptSets/settingsSlice';
+import {
+  createFunctionAsync,
+  getFunctionAsync,
+  updateFunctionAsync,
+  runTestAsync,
+  selectLoaded,
+  selectFunctions,
+  selectTestResult,
+  selectTestResultLoaded,
+  selectTestResultLoading,
+  setTestResult,
+} from './functionsSlice';
 
 import 'react-data-mapping/dist/index.css';
 
@@ -125,7 +135,11 @@ export function FunctionForm() {
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [selectedImplementation, setSelectedImplementation] = useState(-1);
 
+  const dataSources = useSelector(selectDataSources);
+  const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const functions = useSelector(selectFunctions);
+  const indexes = useSelector(selectIndexes);
+  const indexesLoading = useSelector(selectIndexesLoading);
   const loaded = useSelector(selectLoaded);
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
@@ -154,15 +168,41 @@ export function FunctionForm() {
   const func = functions[id];
   const isNew = id === 'new';
 
-  const modelOptions = Object.values(models).map((m) => ({
-    label: m.name,
-    value: m.id,
-  }));
+  const featureStoreOptions = useMemo(() => {
+    const list = Object.values(dataSources).map((ds) => ({
+      label: ds.name,
+      value: ds.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
 
-  const promptSetOptions = Object.values(promptSets).map((s) => ({
-    label: s.name,
-    value: s.id,
-  }));
+  const indexOptions = useMemo(() => {
+    const list = Object.values(indexes).map((idx) => ({
+      label: idx.name,
+      value: idx.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [indexes]);
+
+  const modelOptions = useMemo(() => {
+    const list = Object.values(models).map((m) => ({
+      label: m.name,
+      value: m.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [models]);
+
+  const promptSetOptions = useMemo(() => {
+    const list = Object.values(promptSets).map((s) => ({
+      label: s.name,
+      value: s.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [promptSets]);
 
   const formIsReady = (
     loaded &&
@@ -177,10 +217,12 @@ export function FunctionForm() {
       createLink: null,
       title: 'Semantic Function',
     }));
+    dispatch(getModelsAsync());
+    dispatch(getDataSourcesAsync({ type: 'featurestore' }));
+    dispatch(getIndexesAsync());
     if (!isNew) {
       dispatch(getFunctionAsync(id));
     }
-    dispatch(getModelsAsync());
   }, []);
 
   useEffect(() => {
@@ -239,9 +281,9 @@ export function FunctionForm() {
   };
 
   const updateExistingTags = (tags) => {
-    console.log('settings:', settings);
+    // console.log('settings:', settings);
     const setting = settings[TAGS_KEY];
-    console.log('setting:', setting, TAGS_KEY);
+    // console.log('setting:', setting, TAGS_KEY);
     const newTags = [...new Set([...existingTags, ...tags])];
     newTags.sort((a, b) => a < b ? -1 : 1);
     const values = {
@@ -456,17 +498,16 @@ export function FunctionForm() {
       if (typeof val === 'string') {
         try {
           const v = eval(`(${val})`);
-          if (isObject(v) && Object.values(v).length === 0) return true;
-          return false;
+          if (isObject(v) && Object.values(v).length) return false;
+          if (isFunction(v)) return false;
+          return true;
         } catch (err) {
           return true;
         }
       }
-      if (isObject(val) && Object.values(val).length === 0) return true;
-      return false;
+      if (isObject(val) && Object.values(val).length) return false;
+      return true;
     }, []);
-
-    // console.log('value:', value, typeof value, noState(value))
 
     return (
       <>
@@ -496,12 +537,16 @@ export function FunctionForm() {
                     <Button onClick={() => setState(null)}>
                       Clear
                     </Button>
-                    <Button
-                      disabled={isAdvanced && !isSimple}
-                      onClick={() => setIsAdvanced((current) => !current)}
-                    >
-                      {isAdvanced ? 'Simple' : 'Advanced'}
-                    </Button>
+                    {isSimple ?
+                      <Button
+                        disabled={isAdvanced && !isSimple}
+                        onClick={() => setIsAdvanced((current) => !current)}
+                      >
+                        {isAdvanced ? 'Simple' : 'Advanced'}
+                      </Button>
+                      : null
+                    }
+                    <Link to="https://promptstoredocs.devsheds.io/en/page-2" target="_blank" rel="noopener noreferrer">Need help?</Link>
                   </Space>
                 </div>
               </div>
@@ -637,14 +682,15 @@ export function FunctionForm() {
       if (typeof val === 'string') {
         try {
           const v = eval(`(${val})`);
-          if (isObject(v) && Object.values(v).length === 0) return true;
-          return false;
+          if (isObject(v) && Object.values(v).length) return false;
+          if (isFunction(v)) return false;
+          return true;
         } catch (err) {
           return true;
         }
       }
-      if (isObject(val) && Object.values(val).length === 0) return true;
-      return false;
+      if (isObject(val) && Object.values(val).length) return false;
+      return true;
     }, []);
 
     return (
@@ -675,7 +721,7 @@ export function FunctionForm() {
                     <Button onClick={() => setState(null)}>
                       Clear
                     </Button>
-                    {isSimpleEnabled ?
+                    {isSimple ?
                       <Button
                         disabled={isAdvanced && !isSimple}
                         onClick={() => setIsAdvanced((current) => !current)}
@@ -684,6 +730,7 @@ export function FunctionForm() {
                       </Button>
                       : null
                     }
+                    <Link to="https://promptstoredocs.devsheds.io/en/page-2" target="_blank" rel="noopener noreferrer">Need help?</Link>
                   </Space>
                 </div>
               </div>
@@ -910,6 +957,57 @@ export function FunctionForm() {
                         </Form.Item>
                         : null
                       } */}
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'dataSourceId']}
+                        label="Online Feature Store"
+                        extra="Inject Features"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                      >
+                        <Select allowClear
+                          loading={dataSourcesLoading}
+                          options={featureStoreOptions}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'indexId']}
+                        label="Index"
+                        extra="Inject Context"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                      >
+                        <Select allowClear
+                          loading={indexesLoading}
+                          options={indexOptions}
+                        />
+                      </Form.Item>
+                      {implementationsValue?.[index]?.indexId ?
+                        <>
+                          <Form.Item
+                            colon={false}
+                            name={[field.name, 'indexContentPropertyPath']}
+                            initialValue="content"
+                            label="Content Property Path"
+                            labelCol={{ span: 24 }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            colon={false}
+                            name={[field.name, 'indexContextPropertyPath']}
+                            initialValue="context"
+                            label="Context Property Path"
+                            labelCol={{ span: 24 }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Input />
+                          </Form.Item>
+                        </>
+                        : null
+                      }
                       <Form.Item
                         colon={false}
                         name={[field.name, 'isDefault']}

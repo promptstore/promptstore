@@ -25,8 +25,9 @@ export function PromptSetsList() {
       name: promptSet.name,
       skill: promptSet.skill,
       tags: promptSet.tags,
+      isTemplate: promptSet.isTemplate,
     }));
-    list.sort((a, b) => a.key > b.key ? 1 : -1);
+    list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
   }, [promptSets]);
 
@@ -43,7 +44,7 @@ export function PromptSetsList() {
     setNavbarState((state) => ({
       ...state,
       createLink: '/prompt-sets/new',
-      title: 'Prompt Sets',
+      title: 'Prompts',
     }));
   }, []);
 
@@ -85,6 +86,11 @@ export function PromptSetsList() {
       title: 'Skill',
       dataIndex: 'skill',
       render: (_, { skill }) => <span>{skill}</span>
+    },
+    {
+      title: 'Template',
+      dataIndex: 'template',
+      render: (_, { isTemplate }) => <span>{isTemplate ? 'Y' : ''}</span>
     },
     {
       title: 'Tags',

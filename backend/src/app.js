@@ -9,7 +9,6 @@ const dotenv = require('dotenv');
 const express = require('express');
 const http = require('http');
 const httpProxy = require('http-proxy');
-const logger = require('simple-node-logger').createSimpleLogger();
 const morgan = require('morgan');
 const os = require('os');
 const passport = require('passport');
@@ -19,13 +18,22 @@ const session = require('express-session');
 const axios = require('axios');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
+const winston = require('winston');
 
-// const { secured } = require('./middleware/secured');
 const { AppsService } = require('./services/AppsService');
 const { CantoService } = require('./services/CantoService');
+const { ChatSessionsService } = require('./services/ChatSessionsService');
+const { CompositionsService } = require('./services/CompositionsService');
 const { ContentService } = require('./services/ContentService');
+const { DataSourcesService } = require('./services/DataSourcesService');
+const { DocumentsService } = require('./services/DocumentsService');
+const { ExecutionsService } = require('./services/ExecutionsService');
+const { FeatureStoreService } = require('./services/FeatureStoreService');
 const { FunctionsService } = require('./services/FunctionsService');
 const { Gpt4allService } = require('./services/Gpt4allService');
+const { HuggingFaceService } = require('./services/HuggingFaceService');
+const { IndexesService } = require('./services/IndexesService');
+const { LoaderService } = require('./services/LoaderService');
 const { ModelsService } = require('./services/ModelsService');
 const { OpenAIService } = require('./services/OpenAIService');
 const { PIIService } = require('./services/PIIService');
@@ -39,28 +47,44 @@ const { installRoutesDir } = require('./utils');
 
 const RedisStore = require('connect-redis')(session);
 
-logger.setLevel('debug');
+const logger = new winston.Logger({
+  transports: [new winston.transports.Console()],
+  level: 'debug',
+});
 
-logger.debug('ENVIRON: ', process.env.ENVIRON);
-if (process.env.ENVIRON === 'dev') {
+logger.log('debug', 'ENV:', process.env.ENV);
+if (process.env.ENV === 'dev') {
   dotenv.config();
 }
 
-const CORPORA_PREFIX = process.env.CORPORA_PREFIX || 'corpora';
-const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
-const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
-const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
-const PORT = process.env.PORT || '5000';
-const GPT4ALL_API = process.env.GPT4ALL_API;
 const CANTO_APP_ID = process.env.CANTO_APP_ID;
 const CANTO_APP_SECRET = process.env.CANTO_APP_SECRET;
 const CANTO_OAUTH_BASE_URL = process.env.CANTO_OAUTH_BASE_URL;
 const CANTO_SITE_BASEURL = process.env.CANTO_SITE_BASEURL;
+const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
+const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
+const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
+const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
+const GPT4ALL_API = process.env.GPT4ALL_API;
+const HUGGING_FACE_BASE_URL = process.env.HUGGING_FACE_BASE_URL;
+const HUGGING_FACE_HUB_API = process.env.HUGGING_FACE_HUB_API;
+const HUGGING_FACE_TOKEN = process.env.HUGGING_FACE_TOKEN;
+const PORT = process.env.PORT || '5000';
+const SEARCH_API = process.env.SEARCH_API;
+const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
+
+const featureStorePlugins = FEATURE_STORE_PLUGINS.split(',').reduce((a, p) => {
+  const [k, v] = p.split('|').map(e => e.trim());
+  const plugin = require(v);
+  logger.log('debug', 'plugin: %s - %s', k, typeof plugin);
+  a[k] = plugin();
+  return a;
+}, {});
 
 const app = express();
 
 let apis;
-if (process.env.ENVIRON === 'dev') {
+if (process.env.ENV === 'dev') {
   app.disable('etag');
   apis = ['./src/routes/*.js'];
 } else {
@@ -138,22 +162,41 @@ const cantoService = CantoService({
   mc,
 });
 
+const chatSessionsService = ChatSessionsService({ pg, logger });
+
+const compositionsService = CompositionsService({ pg, logger });
+
 const contentService = ContentService({ pg, logger });
+
+const dataSourcesService = DataSourcesService({ pg, logger });
+
+const documentsService = DocumentsService({
+  constants: { FILE_BUCKET },
+  logger,
+  mc,
+});
+
+const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 
 const functionsService = FunctionsService({ pg, logger });
 
 const gpt4allService = Gpt4allService({ constants: { GPT4ALL_API }, logger });
 
-const modelsService = ModelsService({ pg, logger });
+const huggingFaceService = HuggingFaceService({
+  constants: { HUGGING_FACE_BASE_URL, HUGGING_FACE_HUB_API, HUGGING_FACE_TOKEN },
+  logger,
+});
 
-const openaiService = OpenAIService({ openai, logger });
+const indexesService = IndexesService({ pg, logger });
+
+const modelsService = ModelsService({ pg, logger });
 
 const piiService = PIIService();
 
 const promptSetsService = PromptSetsService({ pg, logger });
 
 const searchService = SearchService({
-  baseUrl: process.env.SEARCH_API,
+  constants: { SEARCH_API },
   logger,
 });
 
@@ -164,6 +207,40 @@ const trainingService = TrainingService({ pg, logger });
 const usersService = UsersService({ pg });
 
 const workspacesService = WorkspacesService({ pg, logger });
+
+const openaiService = OpenAIService({
+  logger,
+  openai,
+  services: {
+    gpt4allService,
+    promptSetsService,
+  },
+});
+
+const loaderService = LoaderService({
+  logger,
+  services: {
+    documentsService,
+    functionsService,
+    indexesService,
+    openaiService,
+    searchService,
+  },
+});
+
+const executionsService = ExecutionsService({
+  logger,
+  services: {
+    dataSourcesService,
+    featureStoreService,
+    huggingFaceService,
+    indexesService,
+    modelsService,
+    openaiService,
+    promptSetsService,
+    searchService,
+  },
+});
 
 const sess = {
   cookie: {},
@@ -203,14 +280,12 @@ app.use(bodyParser.urlencoded({
 
 app.use(express.static(path.join(__dirname, FRONTEND_DIR, '/build/')));
 
-// app.use(secured);
-
 app.use(cors());
 
 const options = {
   app,
   constants: {
-    CORPORA_PREFIX,
+    DOCUMENTS_PREFIX,
     FILE_BUCKET,
     GPT4ALL_API,
     IMAGES_PREFIX,
@@ -222,9 +297,18 @@ const options = {
   services: {
     appsService,
     cantoService,
+    chatSessionsService,
+    compositionsService,
     contentService,
+    dataSourcesService,
+    documentsService,
+    executionsService,
+    featureStoreService,
     functionsService,
     gpt4allService,
+    huggingFaceService,
+    indexesService,
+    loaderService,
     modelsService,
     openaiService,
     piiService,
@@ -355,7 +439,7 @@ const routePaths = app._router.stack
 logger.debug(JSON.stringify(routePaths, null, 2));
 
 let clientProxy;
-if (process.env.ENVIRON === 'dev') {
+if (process.env.ENV === 'dev') {
   clientProxy = httpProxy.createProxyServer({
     target: process.env.CLIENT_DEV_URL,
     headers: {
@@ -371,7 +455,7 @@ if (process.env.ENVIRON === 'dev') {
 
 app.get('*', (req, res) => {
   logger.debug('GET ' + req.originalUrl);
-  if (process.env.ENVIRON === 'dev') {
+  if (process.env.ENV === 'dev') {
     logger.debug('Proxying request');
     clientProxy.web(req, res);
   } else {

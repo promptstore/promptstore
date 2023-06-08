@@ -133,7 +133,7 @@ function CantoService({ constants, logger, mc }) {
             return reject(err);
           }
           let imageUrl;
-          if (process.env.ENVIRON === 'dev') {
+          if (process.env.ENV === 'dev') {
             const u = new URL(presignedUrl);
             imageUrl = '/api/dev/images' + u.pathname + u.search;
           } else {

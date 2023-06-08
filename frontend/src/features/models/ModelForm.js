@@ -1,10 +1,16 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Collapse, Form, Input, Modal, Select, Space, Switch } from 'antd';
+import { Button, Collapse, Form, Input, Select, Space, Switch } from 'antd';
+import debounce from 'lodash.debounce';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import NavbarContext from '../../context/NavbarContext';
+import {
+  getModelsAsync as getHfModelsAsync,
+  selectModels as selectHfModels,
+  selectLoading as selectHfModelsLoading,
+} from './hfModelsSlice';
 import {
   createModelAsync,
   getModelAsync,
@@ -34,12 +40,16 @@ const returnTypeOptions = [
 
 const typeOptions = [
   {
-    label: 'API',
+    label: 'ChatGPT',
+    value: 'gpt',
+  },
+  {
+    label: 'Custom',
     value: 'api',
   },
   {
-    label: 'ChatGPT',
-    value: 'gpt',
+    label: 'Hugging Face',
+    value: 'huggingface',
   },
   {
     label: 'Text Completion',
@@ -172,8 +182,28 @@ export function ModelForm() {
           </Form.Item>
           : null
         }
-        {/* </Panel> */}
         {typeValue === 'api' ?
+          <Form.Item
+            name="batchEndpoint"
+            label="Batch Endpoint"
+            wrapperCol={{ span: 10 }}
+          >
+            <Input />
+          </Form.Item>
+          : null
+        }
+        {/* {typeValue === 'huggingface' ?
+          <Form.Item
+            name="modelName"
+            label="Model Name"
+            wrapperCol={{ span: 10 }}
+          >
+            <Input />
+          </Form.Item>
+          : null
+        } */}
+        {/* </Panel> */}
+        {typeValue === 'api' || typeValue === 'huggingface' ?
           // <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender>
           <>
             <Form.Item
@@ -215,6 +245,49 @@ export function ModelForm() {
           // </Panel>
           : null
         }
+        {typeValue === 'huggingface' ?
+          <>
+            <Form.Item wrapperCol={{ offset: 4 }}>
+              <div>** Requires elevated privileges for production grade endpoints, otherwise may take 20-30 minutes to prime. **</div>
+            </Form.Item>
+            <Form.Item
+              label="Model Name"
+              name="modeName"
+              wrapperCol={{ span: 5 }}
+            >
+              <SearchInput />
+            </Form.Item>
+            <Form.Item
+              label="Instance Type"
+              name="instanceType"
+              wrapperCol={{ span: 5 }}
+            >
+              <Select options={[]} />
+            </Form.Item>
+            <Form.Item
+              label="Replica Autoscaling"
+              wrapperCol={{ span: 5 }}
+            >
+              <Form.Item
+                label="Min"
+                colon={false}
+                name="minScale"
+                style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
+              >
+                <Input type="number" />
+              </Form.Item>
+              <Form.Item
+                label="Max"
+                colon={false}
+                name="maxScale"
+                style={{ display: 'inline-block', width: 'calc(50% - 8px)', margin: '0 8px' }}
+              >
+                <Input type="number" />
+              </Form.Item>
+            </Form.Item>
+          </>
+          : null
+        }
         {/* </Collapse> */}
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
           <Space>
@@ -225,4 +298,45 @@ export function ModelForm() {
       </Form>
     </div>
   );
+}
+
+function SearchInput({ value, onChange }) {
+
+  const hfModels = useSelector(selectHfModels);
+  const hfModelsLoading = useSelector(selectHfModelsLoading);
+
+  const dispatch = useDispatch();
+
+  const options = useMemo(() => Object.values(hfModels).map((m) => ({
+    key: m.id,
+    label: m.id,
+  })), [hfModels]);
+
+  const handleSearch = debounce((q) => {
+    if (q && q.length > 2) {
+      dispatch(getHfModelsAsync(q));
+    }
+  }, 1000);
+
+  const handleChange = (value) => {
+    console.log('value:', value);
+    onChange(value);
+  };
+
+  return (
+    <Select
+      allowClear
+      loading={hfModelsLoading}
+      options={options}
+      placeholder="Enter search query"
+      showSearch
+      defaultActiveFirstOption={false}
+      showArrow={false}
+      filterOption={false}
+      onSearch={handleSearch}
+      onChange={handleChange}
+      notFoundContent={null}
+      value={value}
+    />
+  )
 }

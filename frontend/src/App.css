@@ -234,3 +234,207 @@ li img {
 .drag-handle:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
+
+.chat .ant-checkbox {
+  align-self: baseline;
+}
+
+.chat .ant-checkbox-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.chat .ant-checkbox-wrapper>span {
+  width: 100%;
+}
+
+.chat .ant-checkbox-wrapper>span.ant-checkbox {
+  width: auto;
+}
+
+.chat .ant-checkbox-wrapper+.ant-checkbox-wrapper {
+  margin-inline-start: unset;
+}
+
+
+.react-flow .react-flow__handle {
+  width: 30px;
+  height: 14px;
+  border-radius: 3px;
+  background-color: #784be8;
+}
+
+.react-flow .react-flow__handle-top {
+  top: -10px;
+}
+
+.react-flow .react-flow__handle-bottom {
+  bottom: -10px;
+}
+
+.react-flow .react-flow__node {
+  width: 150px;
+  justify-content: center;
+  align-items: center;
+  border-width: 2px;
+  font-weight: 700;
+}
+
+.react-flow .react-flow__edge path,
+.react-flow__connectionline path {
+  stroke-width: 2;
+}
+
+.wrapper {
+  flex-grow: 1;
+  height: calc(100% - 164px);
+}
+
+
+.react-flow__node-functionNode,
+.react-flow__node-joinerNode,
+.react-flow__node-mapperNode,
+.react-flow__node-outputNode,
+.react-flow__node-requestNode {
+  font-size: 10px;
+  width: 180px;
+  background: #f5f5f6;
+  color: #222;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 15%), 0 2px 4px -1px rgb(0 0 0 / 8%);
+  border-radius: 2px;
+}
+
+.react-flow__node-functionNode .react-flow__handle,
+.react-flow__node-joinerNode .react-flow__handle,
+.react-flow__node-mapperNode .react-flow__handle,
+.react-flow__node-outputNode .react-flow__handle,
+.react-flow__node-requestNode .react-flow__handle {
+  width: 5px;
+  height: 8px;
+  border: none;
+  border-radius: 0px;
+  background-color: #778899;
+}
+
+/* .react-flow__node-mapperNode .react-flow__handle {
+  top: 24px;
+} */
+
+/* .react-flow__node-functionNode .react-flow__handle-left,
+.react-flow__node-mapperNode .react-flow__handle-left {
+  left: -15px;
+} */
+
+.react-flow__node-functionNode .react-flow__handle-left {
+  left: -15px;
+}
+
+/* .react-flow__node-functionNode .react-flow__handle-right,
+.react-flow__node-requestNode .react-flow__handle-right,
+.react-flow__node-mapperNode .react-flow__handle-right {
+  right: -15px;
+} */
+
+.react-flow__node-functionNode .react-flow__handle-right,
+.react-flow__node-requestNode .react-flow__handle-right {
+  right: -15px;
+}
+
+.custom-node__header {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.custom-node__body {
+  padding: 10px;
+}
+
+.custom-node__select {
+  position: relative;
+  margin-top: 8px;
+}
+
+.custom-node__select .ant-btn.ant-btn-sm {
+  font-size: 9px !important;
+  height: 20px !important;
+}
+
+.custom-node__select:first-child {
+  margin-top: 0;
+}
+
+.custom-node__select select {
+  width: 100%;
+  font-size: 10px;
+  outline: none;
+}
+
+.custom-node__select div {
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.temp .react-flow__edge-path {
+  stroke: #bbb;
+  stroke-dasharray: 5 5;
+}
+
+.search-panel .ais-Hits,
+.search-panel .pagination {
+  margin-top: 20px;
+}
+
+.search-panel .ais-Hits-item:hover {
+  background-color: #eee;
+}
+
+article.collapsible {
+  width: 100%;
+}
+
+article.collapsible .header {
+  cursor: pointer;
+}
+
+article.collapsible .header:hover {
+  color: #1677ff;
+}
+
+article.collapsible .header>span {
+  margin-left: 8px;
+}
+
+article.collapsible .header>span[role=img] {
+  margin-left: 0;
+}
+
+article.collapsible .panel .react-json-view {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+article.collapsible .panel.closed {
+  display: none;
+}
+
+.ant-table-thead {
+  white-space: nowrap;
+}
+
+.ant-table-tbody {
+  vertical-align: top;
+}
+
+#menu {
+  flex: 0 0 210px !important;
+  max-width: 210px !important;
+  min-width: 210px !important;
+  width: 210px !important;
+}
+
+#menu.ant-layout-sider-collapsed {
+  flex: 0 0 80px !important;
+  max-width: 80px !important;
+  min-width: 80px !important;
+  width: 80px !important;
+}

@@ -9,8 +9,8 @@ module.exports = ({ app, logger, passport, services }) => {
 
   app.get('/api/models/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const id = req.params.id;
-    const func = await modelsService.getModel(id);
-    res.json(func);
+    const model = await modelsService.getModel(id);
+    res.json(model);
   });
 
   app.post('/api/models', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {

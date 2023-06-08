@@ -33,13 +33,37 @@ function PromptSetsService({ pg, logger }) {
   async function getPromptSetBySkill(skill) {
     if (skill === null || typeof skill === 'undefined') {
       return [];
-    }
+    } workspaceId
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
       WHERE skill = $1
       `;
     const { rows } = await pg.query(q, [skill]);
+    if (rows.length === 0) {
+      return [];
+    }
+    const promptSets = rows.map((row) => ({
+      ...row.val,
+      name: row.val.name || row.key,
+      id: row.id,
+      workspaceId: row.workspaceId,
+      skill: row.skill,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    }));
+    return promptSets;
+  }
+
+  async function getPromptSetTemplates() {
+    let q = `
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      FROM prompt_sets p
+      WHERE p.val->>'isTemplate' = 'true'
+      `;
+    const { rows } = await pg.query(q);
     if (rows.length === 0) {
       return [];
     }
@@ -127,6 +151,7 @@ function PromptSetsService({ pg, logger }) {
   return {
     getPromptSets,
     getPromptSetBySkill,
+    getPromptSetTemplates,
     getPromptSet,
     upsertPromptSet,
     deletePromptSets,

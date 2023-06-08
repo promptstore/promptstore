@@ -29,43 +29,43 @@
     width: 300px;
 }
 
-.ais-SearchBox-form {
+#playground .ais-SearchBox-form {
     background-color: inherit;
 }
 
-.ais-SearchBox-input {
+#playground .ais-SearchBox-input {
     background-color: inherit;
 }
 
-.dark .ais-SearchBox-input {
+#playground .dark .ais-SearchBox-input {
     border-color: #434343;
     color: rgba(255, 255, 255, 0.85);
 }
 
-.ais-Hits {
+#playground .ais-Hits {
     margin-top: 3px;
     position: absolute;
     width: 600px;
     z-index: 1001;
 }
 
-.dark .ais-Hits {
+#playground .dark .ais-Hits {
     background: #000;
 }
 
-.ais-Hits-list {
+#playground .ais-Hits-list {
     max-height: 600px;
     overflow-y: auto;
 }
 
-.ais-Hits-item {
+#playground .ais-Hits-item {
     background-color: rgb(245, 245, 245);
     border: 1px solid rgb(217, 217, 217);
     /* margin: 2px 3px 0 1px; */
     margin: 2px 3px 0 0;
 }
 
-.dark .ais-Hits-item {
+#playground .dark .ais-Hits-item {
     background-color: inherit;
     border: 1px solid #434343;
     color: rgba(255, 255, 255, 0.85);
@@ -102,6 +102,7 @@
 .chat {
     display: flex;
     flex-direction: column;
+    max-width: 900px;
 }
 
 .chat .ant-radio-group>* {
@@ -112,6 +113,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: 8px;
 }
 
 .chatline.assistant {

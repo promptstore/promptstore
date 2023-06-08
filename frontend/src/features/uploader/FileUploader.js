@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Form, Upload, message } from 'antd';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
@@ -26,10 +26,10 @@ const beforeUpload = (file) => {
     message.error('You may only upload a CSV, Text or Zip file.');
   }
 
-  const isLt2M = file.size / 1024 / 1024 < 100;
+  const isLt2M = file.size / 1024 / 1024 < 1000;
 
   if (!isLt2M) {
-    message.error('File must smaller than 100MB.');
+    message.error('File must smaller than 1GB.');
   }
 
   return (isCSV || isText || isZip) && isLt2M;
@@ -65,7 +65,7 @@ export function FileUploader() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Corpora',
+      title: 'Documents',
     }));
   }, []);
 

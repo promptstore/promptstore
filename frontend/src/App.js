@@ -11,32 +11,40 @@ import {
 } from 'react-router-dom';
 import { ConfigProvider, theme, Layout, Menu } from 'antd';
 import {
+  ApartmentOutlined,
   ApiOutlined,
   BookOutlined,
+  BorderlessTableOutlined,
   CodeOutlined,
-  CloudUploadOutlined,
+  CommentOutlined,
   DatabaseOutlined,
   DeploymentUnitOutlined,
-  HomeOutlined,
-  FileImageOutlined,
+  FileOutlined,
   FunctionOutlined,
+  HomeOutlined,
   NotificationOutlined,
-  SafetyCertificateOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
+import { ReactFlowProvider } from 'reactflow';
 
-import MyLogo from './images/promptstore_logo_colour.png';
 import NavbarContext from './context/NavbarContext';
 import WorkspaceContext from './context/WorkspaceContext';
 import UserContext from './context/UserContext';
 import { About } from './features/about/About';
 import { AppForm } from './features/apps/AppForm';
 import { AppsList } from './features/apps/AppsList';
+import { Composer } from './features/composer/Composer';
+import { CompositionsList } from './features/composer/CompositionsList';
+import { DataSourceForm } from './features/dataSources/DataSourceForm';
+import { DataSourcesList } from './features/dataSources/DataSourcesList';
+import { Designer } from './features/designer/Designer';
 import { FileUploader } from './features/uploader/FileUploader';
 import { FunctionForm } from './features/functions/FunctionForm';
 import { FunctionsList } from './features/functions/FunctionsList';
 import { Home } from './features/home/Home';
+import { IndexForm } from './features/indexes/IndexForm';
+import { IndexesList } from './features/indexes/IndexesList';
 import { ModelForm } from './features/models/ModelForm';
 import { ModelsList } from './features/models/ModelsList';
 import { Playground } from './features/apps/Playground';
@@ -56,7 +64,10 @@ import {
 } from './features/users/usersSlice';
 import { onTokenExpiry, onTokenRefresh, renewToken, setToken } from './http';
 
+import MyLogo from './images/promptstore_logo_colour.png';
+
 import './App.css';
+import 'instantsearch.css/themes/satellite.css';
 
 const Navbar = lazy(() => import('./components/Navbar'));
 
@@ -111,13 +122,6 @@ const getSideMenuItems = (isWorkspaceSelected) => {
         ),
       },
       // {
-      //   key: 'reviews',
-      //   icon: <SafetyCertificateOutlined />,
-      //   label: (
-      //     <NavLink to="/reviews">My Reviews</NavLink>
-      //   ),
-      // },
-      // {
       //   key: 'training',
       //   icon: <DatabaseOutlined />,
       //   label: (
@@ -128,7 +132,14 @@ const getSideMenuItems = (isWorkspaceSelected) => {
         key: 'prompt-sets',
         icon: <CodeOutlined />,
         label: (
-          <NavLink to="/prompt-sets">Prompt Sets</NavLink>
+          <NavLink to="/prompt-sets">Prompts</NavLink>
+        ),
+      },
+      {
+        key: 'prompt-designer',
+        icon: <CommentOutlined />,
+        label: (
+          <NavLink to="/design">Prompt Designer</NavLink>
         ),
       },
       {
@@ -138,17 +149,45 @@ const getSideMenuItems = (isWorkspaceSelected) => {
           <NavLink to="/functions">Semantic Functions</NavLink>
         ),
       },
+      {
+        key: 'composer',
+        icon: <ApartmentOutlined />,
+        label: (
+          <NavLink to="/compositions">Composer</NavLink>
+        ),
+      },
+      {
+        key: 'indexes',
+        icon: <BorderlessTableOutlined />,
+        label: (
+          <NavLink to="/indexes">Indexes</NavLink>
+        ),
+      },
+      {
+        key: 'data-sources',
+        icon: <DatabaseOutlined />,
+        label: (
+          <NavLink to="/data-sources">Data Sources</NavLink>
+        ),
+      },
+      {
+        key: 'documents',
+        icon: <FileOutlined />,
+        label: (
+          <NavLink to="/uploads">Documents</NavLink>
+        ),
+      },
     ]];
   }
 
   sideMenuItems = [...sideMenuItems, ...[
-    // {
-    //   key: 'documentation',
-    //   icon: <BookOutlined />,
-    //   label: (
-    //     <Link to="https://agencydocs.devsheds.io/" target="_blank" rel="noopener noreferrer">Documentation</Link>
-    //   ),
-    // },
+    {
+      key: 'documentation',
+      icon: <BookOutlined />,
+      label: (
+        <Link to="https://promptstoredocs.devsheds.io/" target="_blank" rel="noopener noreferrer">Documentation</Link>
+      ),
+    },
     {
       key: 'api',
       icon: <ApiOutlined />,
@@ -166,7 +205,7 @@ function SideMenu({ isDarkMode, isWorkspaceSelected }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={isDarkMode ? 'dark' : 'light'}>
+    <Sider id="menu" collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={isDarkMode ? 'dark' : 'light'}>
       <NavLink to="/" className={'logo-image' + (collapsed ? ' collapsed' : '')}>
         <div>
           <div><img src={MyLogo} alt="Prompt Store" /></div>
@@ -246,9 +285,16 @@ function App() {
                   <Route path="/about" element={<About />} />
                   <Route path="/apps/:id" element={<AppForm />} />
                   <Route path="/apps" element={<AppsList />} />
+                  <Route path="/compositions/:id" element={<Composer />} />
+                  <Route path="/compositions" element={<CompositionsList />} />
+                  <Route path="/data-sources/:id" element={<DataSourceForm />} />
+                  <Route path="/data-sources" element={<DataSourcesList />} />
+                  <Route path="/design" element={<Designer />} />
                   <Route path="/functions/:id" element={<FunctionForm />} />
                   <Route path="/functions" element={<FunctionsList />} />
                   <Route path="/home" element={<Home />} />
+                  <Route path="/indexes/:id" element={<IndexForm />} />
+                  <Route path="/indexes" element={<IndexesList />} />
                   <Route path="/models/:id" element={<ModelForm />} />
                   <Route path="/models" element={<ModelsList />} />
                   <Route path="/playground/:id" element={<Playground />} />
@@ -296,7 +342,9 @@ function App() {
         <UserContext.Provider value={userContextValue}>
           <WorkspaceContext.Provider value={workspaceContextValue}>
             <NavbarContext.Provider value={navbarContextValue}>
-              <RouterProvider router={router} />
+              <ReactFlowProvider>
+                <RouterProvider router={router} />
+              </ReactFlowProvider>
             </NavbarContext.Provider>
           </WorkspaceContext.Provider>
         </UserContext.Provider>

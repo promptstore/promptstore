@@ -42,3 +42,7 @@ curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executio
 curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/sentiment" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"Sentiment"}'
 
 curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/ner" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"ner"}'
+
+curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"features":["driver_hourly_stats:conv_rate"],"entities":{"driver_id":[1001]}}'
+
+curl -vL -H 'Content-Type: application/json' "http://localhost:5556/api/executions/get_driver_stats" --data '{"args":{"entityId":1001},"modelKey":"gpt-3.5-turbo"}'

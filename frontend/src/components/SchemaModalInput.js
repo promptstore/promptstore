@@ -5,7 +5,7 @@ import { CheckOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
 import isObject from 'lodash.isobject';
 
-export function SchemaModalInput({ onChange, value }) {
+export function SchemaModalInput({ onChange, value, buttonProps }) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [state, setState] = useState(null);
@@ -59,6 +59,7 @@ export function SchemaModalInput({ onChange, value }) {
       <Button
         icon={noState(value) ? null : <CheckOutlined />}
         onClick={() => setIsModalOpen(true)}
+        {...buttonProps}
       >
         Set Schema
       </Button>

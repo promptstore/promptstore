@@ -19,6 +19,11 @@ module.exports = ({ app, logger, passport, services }) => {
     res.json(promptSets);
   });
 
+  app.get('/api/prompt-set-templates', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const sets = await promptSetsService.getPromptSetTemplates();
+    res.json(sets);
+  });
+
   app.get('/api/prompt-sets/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const id = req.params.id;
     const promptSet = await promptSetsService.getPromptSet(id);

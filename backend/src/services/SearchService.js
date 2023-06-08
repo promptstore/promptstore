@@ -1,15 +1,43 @@
 const axios = require('axios');
 
-function SearchService({ baseUrl, logger }) {
+function SearchService({ constants, logger }) {
 
   const documents = [];
 
   let intervalId = null;
 
+  async function getIndexes() {
+    try {
+      const res = await axios.get(constants.SEARCH_API + '/index', {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return res.data;
+    } catch (err) {
+      logger.error(String(err));
+      return [];
+    }
+  }
+
+  async function getIndex(name) {
+    try {
+      const res = await axios.get(constants.SEARCH_API + '/index/' + name, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return res.data;
+    } catch (err) {
+      logger.error(String(err));
+      return null;
+    }
+  }
+
   async function createIndex(sourceId, fields) {
-    logger.debug('Creating index for source:', sourceId);
+    logger.debug('Creating index for source: ', sourceId);
     logger.debug('fields: ', JSON.stringify(fields, null, 2));
-    await axios.post(baseUrl + '/index', {
+    const res = await axios.post(constants.SEARCH_API + '/index', {
       indexName: sourceId,
       fields,
     }, {
@@ -17,12 +45,41 @@ function SearchService({ baseUrl, logger }) {
         'Content-Type': 'application/json',
       }
     });
+    return res.data;
   }
 
-  function sendDocuments(sourceId) {
+  async function dropIndex(name) {
+    try {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + name, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return res.data;
+    } catch (err) {
+      logger.error(String(err));
+      return null;
+    }
+  }
+
+  async function dropData(name) {
+    try {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + name + '/data', {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return res.data;
+    } catch (err) {
+      logger.error(String(err));
+      return null;
+    }
+  }
+
+  function sendDocuments(indexName) {
     if (documents.length) {
-      axios.post(baseUrl + '/document', {
-        indexName: sourceId,
+      axios.post(constants.SEARCH_API + '/document', {
+        indexName,
         documents,
       }, {
         headers: {
@@ -37,9 +94,7 @@ function SearchService({ baseUrl, logger }) {
     }
   }
 
-  const notIn = (arr) => (val) => arr.indexOf(val) === -1;
-
-  function indexDocument(sourceId, doc) {
+  function indexDocument(indexName, doc) {
     const prefix = doc.nodeType.toLowerCase();
     const value = Object.entries(doc)
       .filter(([k, _]) => notIn(['nodeType'])(k))
@@ -48,16 +103,76 @@ function SearchService({ baseUrl, logger }) {
         return a;
       }, {});
     value[prefix + '__label'] = doc.nodeType;
-    logger.debug('value: ', value);
+    // logger.debug('value: ', value);
     documents.push(value);
     if (!intervalId) {
-      intervalId = setInterval(sendDocuments, 1000, sourceId);
+      intervalId = setInterval(sendDocuments, 1000, indexName);
     }
   }
 
-  async function search(indexName, query) {
+  async function deleteDocument(indexName, uid) {
     try {
-      const res = await axios.get(baseUrl + `/search?indexName=${indexName}&q=${query}`);
+      await axios.delete(constants.SEARCH_API + '/indexes/' + indexName + '/documents/' + uid, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return uid;
+    } catch (err) {
+      logger.error(String(err));
+      return null;
+    }
+  }
+
+  async function deleteDocuments(indexName, uids) {
+    try {
+      await axios.post(constants.SEARCH_API + '/bulk-delete', {
+        indexName,
+        uids,
+      }, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      return uids;
+    } catch (err) {
+      logger.error(String(err));
+      return null;
+    }
+  }
+
+  async function deleteDocumentsMatching(indexName, query, attrs = {}) {
+    try {
+      const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
+      let url = constants.SEARCH_API + '/delete-matching?indexName=' + indexName;
+      if (query) {
+        url += '&q=' + query;
+      }
+      if (ps) {
+        url += '&' + ps;
+      }
+      await axios.delete(url, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+    } catch (err) {
+      logger.error(String(err));
+    }
+  }
+
+  async function search(indexName, query, attrs = {}) {
+    try {
+      const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
+      let url = constants.SEARCH_API + `/search?indexName=${indexName}`;
+      if (query) {
+        url += `&q=${query}`;
+      }
+      if (ps) {
+        url += '&' + ps;
+      }
+      const res = await axios.get(url);
+      // logger.log('debug', 'search results: %s', res.data);
       return res.data;
     } catch (err) {
       logger.error(err);
@@ -83,6 +198,9 @@ function SearchService({ baseUrl, logger }) {
 
   function getSearchType(dataType) {
     switch (dataType) {
+      case 'Vector':
+        return 'VECTOR';
+
       case 'String':
       case 'DateTime':
         return 'TEXT';
@@ -92,6 +210,7 @@ function SearchService({ baseUrl, logger }) {
 
       case 'Double':
       case 'Long':
+      case 'Integer':
         return 'NUMERIC';
 
       default:
@@ -99,9 +218,18 @@ function SearchService({ baseUrl, logger }) {
     }
   }
 
+  const notIn = (arr) => (val) => arr.indexOf(val) === -1;
+
   return {
     createIndex,
+    deleteDocuments,
+    deleteDocumentsMatching,
+    deleteDocument,
+    dropData,
+    dropIndex,
     indexDocument,
+    getIndexes,
+    getIndex,
     getSearchSchema,
     search,
   };

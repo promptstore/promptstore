@@ -1,6 +1,6 @@
 import { forwardRef, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Avatar, Button, Input, Radio, Space, Spin } from 'antd';
+import { Avatar, Button, Checkbox, Divider, Input, Radio, Space, Spin } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,14 +15,24 @@ export function Chat({
   enableActions,
   loading,
   messages,
+  onSave,
   onSelected,
   onSubmit,
   onReset,
+  onUseSelected,
+  placeholder,
+  selectMultiple,
   suggestPrompts,
   tourRefs,
 }) {
 
+  if (!placeholder) {
+    placeholder = 'For example: "limit to three words"';
+  }
+
+  const [indeterminate, setIndeterminate] = useState(false);
   const [selected, setSelected] = useState({});
+  const [checkAll, setCheckAll] = useState(false);
 
   const selectedKeys = Object.entries(selected).filter(([_, v]) => v).map(([k, _]) => k);
   const hasSelected = selectedKeys.length > 0;
@@ -34,9 +44,31 @@ export function Chat({
   const dispatch = useDispatch();
 
   const handleChange = (key) => {
-    setSelected({ [key]: true });
-    if (typeof onSelected === 'function') {
-      onSelected([key]);
+    if (selectMultiple) {
+      const selectedUpdate = {
+        ...selected,
+        [key]: !selected[key],
+      };
+      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v).map(([k, _]) => k);
+      if (selectedEntries.length > 0 && selectedEntries.length < messages.length) {
+        setIndeterminate(true);
+      } else {
+        setIndeterminate(false);
+      }
+      if (selectedEntries.length === messages.length) {
+        setCheckAll(true);
+      } else {
+        setCheckAll(false);
+      }
+      setSelected(selectedUpdate);
+      if (typeof onSelected === 'function') {
+        onSelected(selectedEntries);
+      }
+    } else {
+      setSelected({ [key]: true });
+      if (typeof onSelected === 'function') {
+        onSelected([key]);
+      }
     }
   };
 
@@ -44,6 +76,13 @@ export function Chat({
     setSelected({});
     if (typeof onReset === 'function') {
       onReset();
+    }
+  };
+
+  const handleSave = () => {
+    setSelected({});
+    if (typeof onSave === 'function') {
+      onSave(messages);
     }
   };
 
@@ -55,44 +94,78 @@ export function Chat({
       content: inputRef.current.resizableTextArea.textArea.value,
     };
     inputRef.current.resizableTextArea.textArea.value = '';
-    onSubmit({ app, messages: [...messages, msg] });
+    onSubmit({ app, messages: [...messages, msg], model: 'gpt-3.5-turbo' });
   };
 
   const handleSuggestPrompts = () => {
     suggestPrompts({ messages });
   };
 
+  const onCheckAllChange = (ev) => {
+    if (ev.target.checked) {
+      setCheckAll(true);
+      const selectedUpdate = messages.reduce((a, m) => {
+        a[m.key] = true;
+        return a;
+      }, {});
+      setSelected(selectedUpdate);
+      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v).map(([k, _]) => k);
+      if (typeof onSelected === 'function') {
+        onSelected(selectedEntries);
+      }
+    } else {
+      setCheckAll(false);
+      setSelected({});
+    }
+    setIndeterminate(false);
+  };
+
   const useContent = () => {
     if (hasSelected) {
-      const contents = [];
-      for (const key of selectedKeys) {
-        const message = messages.find((m) => m.key === key);
-        if (message) {
-          contents.push({
-            appId,
-            contentId: uuidv4(),
-            isNew: true,
-            text: message.content,
-            model: message.model,
-            usage: message.usage,
-          });
+      if (typeof onUseSelected === 'function') {
+        const msgs = messages.filter((m) => selectedKeys.indexOf(m.key) !== -1);
+        onUseSelected(msgs);
+      } else {
+        const contents = [];
+        for (const key of selectedKeys) {
+          const message = messages.find((m) => m.key === key);
+          if (message) {
+            contents.push({
+              appId,
+              contentId: uuidv4(),
+              isNew: true,
+              text: message.content,
+              model: message.model,
+              usage: message.usage,
+            });
+          }
         }
+        if (contents.length) {
+          dispatch(setContents({ contents }));
+        }
+        setSelected({});
       }
-      if (contents.length) {
-        dispatch(setContents({ contents }));
-      }
-      setSelected({});
     }
   };
 
-  const AssistantMessage = ({ first, message }) => {
-    if (first) {
+  const AssistantMessage = ({ first, message, onChange }) => {
+    if (first && !selectMultiple) {
       return (
         <div className="chatline assistant">
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
           <div className="content">{message.content}</div>
         </div>
+      );
+    }
+    if (selectMultiple) {
+      return (
+        <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
+          <div className="chatline assistant">
+            <div className="avatar"><Avatar>A</Avatar></div>
+            <div className="content">{message.content}</div>
+          </div>
+        </Checkbox>
       );
     }
     return (
@@ -105,33 +178,58 @@ export function Chat({
     );
   };
 
-  const UserMessage = ({ message }) => (
-    <div className="chatline user">
-      <div className="content">
-        <div>{message.content}</div>
-      </div>
-      <div className="avatar"><Avatar>U</Avatar></div>
-    </div>
-  );
-
-  const Message = ({ first, message }) => {
-    if (message.role === 'assistant') {
+  const UserMessage = ({ message, onChange }) => {
+    if (selectMultiple) {
       return (
-        <AssistantMessage first={first} message={message} />
+        <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
+          <div className="chatline user">
+            <div className="content">
+              <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+            </div>
+            <div className="avatar"><Avatar>U</Avatar></div>
+          </div>
+        </Checkbox>
       );
     }
     return (
-      <UserMessage message={message} />
+      <div className="chatline user">
+        <div className="content">
+          <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+        </div>
+        <div className="avatar"><Avatar>U</Avatar></div>
+      </div>
     );
   };
 
-  const Messages = ({ messages, onChange, value }) => (
-    <Radio.Group onChange={onChange} value={value}>
-      {messages.map((m, i) => (
-        <Message key={m.key} first={i === 0} message={m} />
-      ))}
-    </Radio.Group>
-  );
+  const Message = ({ first, message, onChange }) => {
+    if (message.role === 'assistant') {
+      return (
+        <AssistantMessage first={first} message={message} onChange={onChange} />
+      );
+    }
+    return (
+      <UserMessage message={message} onChange={onChange} />
+    );
+  };
+
+  const Messages = ({ messages, onChange, value }) => {
+    if (selectMultiple) {
+      return (
+        <div style={{ marginBottom: 24 }}>
+          {messages.map((m, i) => (
+            <Message key={m.key} first={i === 0} message={m} onChange={onChange} />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <Radio.Group onChange={onChange} value={value}>
+        {messages.map((m, i) => (
+          <Message key={m.key} first={i === 0} message={m} />
+        ))}
+      </Radio.Group>
+    );
+  };
 
   const Loading = ({ loading }) => {
     if (!loading) {
@@ -152,6 +250,15 @@ export function Chat({
     }
     return (
       <>
+        {selectMultiple && messages.length > 0 ?
+          <>
+            <Checkbox indeterminate={indeterminate} onChange={onCheckAllChange} checked={checkAll}>
+              {checkAll ? 'Unselect all' : 'Select all'}
+            </Checkbox>
+            <Divider />
+          </>
+          : null
+        }
         <Messages
           messages={messages}
           onChange={onChange}
@@ -167,6 +274,7 @@ export function Chat({
     handleSuggestPrompts,
     hasMessages,
     hasSelected,
+    saveChatSession,
     startNewChatSession,
     useContent,
     visible,
@@ -176,12 +284,12 @@ export function Chat({
     }
     return (
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" size="small"
+        {/* <Button type="primary" size="small"
           disabled={disabled}
           onClick={handleSuggestPrompts}
         >
           Suggest Prompts
-        </Button>
+        </Button> */}
         <Button type="primary" size="small"
           disabled={disabled || !hasSelected}
           onClick={useContent}
@@ -194,6 +302,15 @@ export function Chat({
         >
           New Session
         </Button>
+        {selectMultiple ?
+          <Button type="primary" size="small"
+            disabled={disabled || !hasMessages}
+            onClick={saveChatSession}
+          >
+            Save Session
+          </Button>
+          : null
+        }
       </Space>
     );
   };
@@ -207,20 +324,27 @@ export function Chat({
     };
 
     return (
-      <div style={{ display: 'flex' }}>
-        <TextArea
-          ref={ref}
-          autoSize={{ minRows: 1, maxRows: 14 }}
-          onPressEnter={handleSubmit}
-          style={{ flex: 1 }}
-          onChange={handleChange}
-          placeholder={'For example: "limit to three words"'}
-        />
-        <Button type="text"
-          disabled={disabled || loading || !value}
-          icon={<SendOutlined />}
-          onClick={handleSubmit}
-        />
+      <div>
+        <div style={{ display: 'flex' }}>
+          <TextArea
+            ref={ref}
+            autoSize={{ minRows: 1, maxRows: 14 }}
+            onPressEnter={(ev) => {
+              if (!ev.shiftKey) {
+                handleSubmit(ev);
+              }
+            }}
+            style={{ flex: 1 }}
+            onChange={handleChange}
+            placeholder={placeholder}
+          />
+          <Button type="text"
+            disabled={disabled || loading || !value}
+            icon={<SendOutlined />}
+            onClick={handleSubmit}
+          />
+        </div>
+        <p style={{ lineHeight: '32px' }}>Press Shift+Enter to insert a new line.</p>
       </div>
     );
   });
@@ -239,11 +363,12 @@ export function Chat({
         handleSuggestPrompts={handleSuggestPrompts}
         hasMessages={hasMessages}
         hasSelected={hasSelected}
+        saveChatSession={handleSave}
         startNewChatSession={handleReset}
         useContent={useContent}
         visible={enableActions}
       />
-      <div ref={tourRefs.prompt}>
+      <div ref={tourRefs?.prompt}>
         <MessageInput
           ref={inputRef}
           disabled={disabled}

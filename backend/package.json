@@ -16,10 +16,13 @@
     "http-proxy-middleware": "^2.0.6",
     "jsonpath-mapper": "^1.1.0",
     "jsonschema": "^1.4.1",
+    "lodash.get": "^4.4.2",
     "lodash.isempty": "^4.4.0",
     "lodash.isobject": "^3.0.2",
+    "lodash.merge": "^4.6.2",
     "lodash.omit": "^4.5.0",
     "lodash.pick": "^4.4.0",
+    "lodash.set": "^4.3.2",
     "lodash.trimend": "^4.5.1",
     "minio": "^7.0.28",
     "morgan": "^1.10.0",
@@ -36,10 +39,11 @@
     "request": "^2.88.2",
     "simple-node-logger": "^21.8.12",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^4.6.2"
+    "swagger-ui-express": "^4.6.2",
+    "winston": "^2.4.7"
   },
   "scripts": {
-    "start": "ENVIRON=dev node src/app.js",
+    "start": "ENV=dev node src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Mark Mo",

@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { Empty, Modal, Radio, Space } from 'antd';
+import * as dayjs from 'dayjs';
 
 export function VersionsModal({
   handleCancel,
   onVersionRollback,
   isModalOpen,
   selectedRow,
+  width = 520,
+  keyProp = 'hash',
+  valueProp = 'hash',
+  titleProp = 'text',
 }) {
 
   const [selectedVersion, setSelectedVersion] = useState(null);
@@ -18,6 +23,9 @@ export function VersionsModal({
     setSelectedVersion(ev.target.value);
   };
 
+  const versions = [...(selectedRow?.versions || [])];
+  versions.sort((a, b) => a.created < b.created ? 1 : -1);
+
   return (
     <Modal
       title="Version History"
@@ -28,12 +36,13 @@ export function VersionsModal({
       open={isModalOpen}
       onOk={handleVersionRollback}
       onCancel={handleCancel}
+      width={width}
     >
-      {selectedRow?.versions ?
+      {versions.length ?
         <Radio.Group onChange={onChange} value={selectedVersion}>
           <Space direction="vertical">
-            {selectedRow.versions.map((v) => (
-              <Radio key={v.hash} value={v.hash}>{v.text}</Radio>
+            {versions.map((v) => (
+              <Radio key={v[keyProp]} value={v[valueProp]}>{v[titleProp]} - {dayjs(v.created).format('YYYY-MM-DD HH:mm')}</Radio>
             ))}
           </Space>
         </Radio.Group>

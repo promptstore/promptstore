@@ -16,6 +16,7 @@ RUN npm install
 COPY ./backend/src/app.js .
 COPY ./backend/src/routes ./routes
 COPY ./backend/src/services ./services
+COPY ./backend/src/plugins ./plugins
 COPY ./backend/src/utils.js .
 COPY ./backend/src/transformations.js .
 COPY ./backend/src/keycloak ./keycloak

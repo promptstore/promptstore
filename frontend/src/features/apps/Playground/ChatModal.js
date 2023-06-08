@@ -9,7 +9,7 @@ import {
   setMessages,
 } from './chatSlice';
 
-export function ChatModal({ appId, app, loading, open, onOk, onCancel }) {
+export function ChatModal({ appId, app, loading, onCancel, onOk, open }) {
 
   const [selectedKeys, setSelectedKeys] = useState([]);
 
@@ -54,7 +54,6 @@ export function ChatModal({ appId, app, loading, open, onOk, onCancel }) {
         messages={messages}
         onSelected={setSelectedKeys}
         onSubmit={handleSubmit}
-        tourRefs={{}}
       />
     </Modal >
   );

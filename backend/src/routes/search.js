@@ -19,10 +19,104 @@ module.exports = ({ app, logger, passport, services }) => {
     res.send('OK');
   });
 
+  app.get('/api/index', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const indexes = await searchService.getIndexes();
+    res.send(indexes);
+  });
+
+  app.get('/api/index/:name', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { name } = req.params;
+    const index = await searchService.getIndex(name);
+    if (!index) {
+      return res.sendStatus(404);
+    }
+    res.send(index);
+  });
+
+  app.post('/api/index', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { indexName, schema } = req.body;
+    try {
+      const searchSchema = searchService.getSearchSchema(schema);
+      const resp = await searchService.createIndex(indexName, searchSchema);
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
+  app.delete('/api/index/:name', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { name } = req.params;
+    try {
+      const resp = await searchService.dropIndex(name);
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
+  app.delete('/api/index/:name/data', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { name } = req.params;
+    try {
+      const resp = await searchService.dropData(name);
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
+  app.post('/api/documents', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { documents = [], indexName } = req.body;
+    logger.debug('documents: ', JSON.stringify(documents, null, 2));
+    logger.debug('indexName: ', indexName);
+    const promises = documents.map((doc) => searchService.indexDocument(indexName, doc));
+    await Promise.all(promises);
+    res.send({ status: 'OK' });
+  });
+
+  app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
+    const { indexName, uid } = req.params;
+    try {
+      await searchService.deleteDocument(indexName, uid);
+      res.sendStatus(200);
+    } catch (e) {
+      logger.log('error', '%s\n%s', e, e.stack);
+      res.status(500).json({
+        error: { message: String(e) },
+      });
+    }
+  });
+
+  app.post('/api/bulk-delete', async (req, res) => {
+    const { indexName, uids } = req.body;
+    try {
+      const resp = await searchService.deleteDocuments(indexName, uids);
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
+  app.delete('/api/delete-matching', async (req, res) => {
+    const { indexName, q, ...rest } = req.query;
+    try {
+      await searchService.deleteDocumentsMatching(indexName, q, rest);
+      res.sendStatus(200);
+    } catch (e) {
+      logger.log('error', '%s\n%s', e, e.stack);
+      res.status(500).json({
+        error: { message: String(e) },
+      });
+    }
+  });
+
   app.post('/api/search', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
-    const { requests } = req.body;
+    const { requests, attrs } = req.body;
     const { indexName, params: { query } } = requests[0];
-    const rawResults = await searchService.search(indexName, query);
+    const rawResults = await searchService.search(indexName, query, attrs);
     const result = formatAlgolia(requests, rawResults);
     res.status(200).send({ results: [result] });
   });
@@ -42,11 +136,18 @@ module.exports = ({ app, logger, passport, services }) => {
         a[key] = v;
         return a;
       }, {}))
+      // .map((val) => ({
+      //   uid: val.__uid,
+      //   label: val._label,
+      //   value: val.text || val.value,
+      // }))
       .map((val) => ({
-        uid: val.__uid,
-        label: val._label,
-        value: val.text || val.value,
-      }));
+        ...val,
+        score: parseFloat(val.score),
+      }))
+      // .filter((val) => val.score < 0.5)
+      ;
+    hits.sort((a, b) => a.score < b.score ? -1 : 1);
     return {
       exhaustive: {
         nbHits: true,

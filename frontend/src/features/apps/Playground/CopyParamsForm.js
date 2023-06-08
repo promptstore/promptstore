@@ -48,7 +48,23 @@ const initialValues = {
   topP: 1,
 };
 
-export function CopyParamsForm({ generate, onChange, tourRefs }) {
+export function CopyParamsForm({
+  includes,
+  generate,
+  onChange,
+  tourRefs,
+}) {
+
+  if (!includes) {
+    includes = {
+      variation: true,
+      maxTokens: true,
+      temperature: true,
+      topP: true,
+      promptSet: true,
+      allowEmojis: true,
+    };
+  }
 
   const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
   const [selectedVariationKey, setSelectedVariationKey] = useState(null);
@@ -66,8 +82,10 @@ export function CopyParamsForm({ generate, onChange, tourRefs }) {
   const variationsFormResetCallbackRef = useRef();
 
   useEffect(() => {
-    dispatch(getPromptSetsAsync({ key: 'copy', workspaceId: selectedWorkspace.id }));
-    dispatch(getUploadsAsync({ sourceId: selectedWorkspace.id }));
+    if (includes['promptSet']) {
+      dispatch(getPromptSetsAsync({ key: 'copy', workspaceId: selectedWorkspace.id }));
+    }
+    // dispatch(getUploadsAsync({ sourceId: selectedWorkspace.id }));
   }, [selectedWorkspace]);
 
   useEffect(() => {
@@ -158,7 +176,7 @@ export function CopyParamsForm({ generate, onChange, tourRefs }) {
 
   const SetVariationsControl = () => (
     <Space>
-      <Button ref={tourRefs.variations} type="default"
+      <Button ref={tourRefs?.variations} type="default"
         onClick={() => setIsVariationModalOpen(true)}
       >
         Set
@@ -194,48 +212,63 @@ export function CopyParamsForm({ generate, onChange, tourRefs }) {
       >
         <div id="params-form">
           <div>
-            <div className="fields-container">
-              <label>Variation</label>
-              <div className="form-section">
-                <Form.Item
-                  label="By Category"
-                  name="variations"
-                >
-                  <SetVariationsControl />
-                </Form.Item>
-                <div>&mdash; or &mdash;</div>
-                <Form.Item
-                  label="Number"
-                  name="n"
-                >
-                  <InputNumber />
-                </Form.Item>
+            {includes['variation'] ?
+              <div className="fields-container">
+                <label>Variation</label>
+                <div className="form-section">
+                  <Form.Item
+                    label="By Category"
+                    name="variations"
+                  >
+                    <SetVariationsControl />
+                  </Form.Item>
+                  <div>&mdash; or &mdash;</div>
+                  <Form.Item
+                    label="Number"
+                    name="n"
+                  >
+                    <InputNumber />
+                  </Form.Item>
+                </div>
               </div>
-            </div>
-            <Form.Item
-              label="Max Tokens"
-              name="maxTokens"
-            >
-              <InputNumber ref={tourRefs.maxTokens} />
-            </Form.Item>
-            <Form.Item
-              label="Temperature"
-              name="temperature"
-            >
-              <Slider min={0.1} max={2.0} step={0.1} />
-            </Form.Item>
-            <Form.Item
-              label="Top-p"
-              name="topP"
-            >
-              <Slider min={0.05} max={1} step={0.05} />
-            </Form.Item>
-            <Form.Item
-              label="Prompt Set"
-              name="promptSet"
-            >
-              <Select allowClear options={promptSetOptions} />
-            </Form.Item>
+              : null
+            }
+            {includes['maxTokens'] ?
+              <Form.Item
+                label="Max Tokens"
+                name="maxTokens"
+              >
+                <InputNumber ref={tourRefs?.maxTokens} />
+              </Form.Item>
+              : null
+            }
+            {includes['temperature'] ?
+              <Form.Item
+                label="Temperature"
+                name="temperature"
+              >
+                <Slider min={0.1} max={2.0} step={0.1} />
+              </Form.Item>
+              : null
+            }
+            {includes['topP'] ?
+              <Form.Item
+                label="Top-p"
+                name="topP"
+              >
+                <Slider min={0.05} max={1} step={0.05} />
+              </Form.Item>
+              : null
+            }
+            {includes['promptSet'] ?
+              <Form.Item
+                label="Prompt Set"
+                name="promptSet"
+              >
+                <Select allowClear options={promptSetOptions} />
+              </Form.Item>
+              : null
+            }
             {/* <Form.Item
               label="Framework"
               name="framework"
@@ -246,7 +279,7 @@ export function CopyParamsForm({ generate, onChange, tourRefs }) {
               label="Tone of Voice"
               name="toneFilen"
             >
-              <div ref={tourRefs.tone}>
+              <div ref={tourRefs?.tone}>
                 <Select allowClear options={fileOptions} />
               </div>
             </Form.Item> */}
@@ -254,21 +287,24 @@ export function CopyParamsForm({ generate, onChange, tourRefs }) {
               label="Prompt Override"
               name="prompt"
             >
-              <div ref={tourRefs.prompt}>
+              <div ref={tourRefs?.prompt}>
                 <TextArea autoSize={{ minRows: 2, maxRows: 14 }} />
               </div>
             </Form.Item> */}
-            <Form.Item
-              colon={false}
-              label="Allow Emojis?"
-              name="allowEmojis"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
+            {includes['allowEmojis'] ?
+              <Form.Item
+                colon={false}
+                label="Allow Emojis?"
+                name="allowEmojis"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+              : null
+            }
           </div>
           {/* <Form.Item>
-            <Button ref={tourRefs.generate} type="primary"
+            <Button ref={tourRefs?.generate} type="primary"
               onClick={handleGenerate}
             >
               Generate

@@ -12,6 +12,7 @@ import {
   Select,
   Space,
   Switch,
+  Tag,
 } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import {
@@ -31,11 +32,15 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { v4 as uuidv4 } from 'uuid';
+import omit from 'lodash.omit';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
+import { VersionsModal } from '../apps/Playground/VersionsModal';
+import { TemplateModal } from './TemplateModal';
 import {
   createPromptSetAsync,
   getPromptSetAsync,
@@ -141,6 +146,8 @@ export function PromptSetForm() {
   const [existingTags, setExistingTags] = useState([]);
   const [newSkill, setNewSkill] = useState('');
   const [skills, setSkills] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   const newSkillInputRef = useRef(null);
 
@@ -158,6 +165,9 @@ export function PromptSetForm() {
   const [form] = Form.useForm();
 
   const typesDefinedValue = Form.useWatch('isTypesDefined', form);
+  const argumentsValue = Form.useWatch('arguments', form);
+
+  const vars = Object.keys(argumentsValue?.properties || {});
 
   const id = location.pathname.match(/\/prompt-sets\/(.*)/)[1];
   const isNew = id === 'new';
@@ -172,7 +182,7 @@ export function PromptSetForm() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Prompts',
+      title: 'Prompt',
     }));
     if (!isNew) {
       dispatch(getPromptSetAsync(id));
@@ -226,25 +236,72 @@ export function PromptSetForm() {
     }, 0);
   };
 
+  useEffect(() => {
+    form.setFieldsValue(promptSet)
+  }, [form, promptSet]);
+
+  const useTemplate = (template) => {
+    // form.setFieldValue('skill', template.skill);
+    form.setFieldValue('isTypesDefined', template.isTypesDefined);
+    form.setFieldValue('arguments', template.arguments);
+    form.setFieldValue('prompts', template.prompts);
+    setIsTemplateModalOpen(false);
+  };
+
+  const handleTemplateModalCancel = () => {
+    setIsTemplateModalOpen(false);
+  };
+
   const onCancel = () => {
     navigate('/prompt-sets');
   };
 
   const onFinish = (values) => {
-    if (selectedWorkspace) {
+    if (isNew) {
+      if (selectedWorkspace) {
+        values = {
+          ...values,
+          workspaceId: selectedWorkspace.id,
+          key: values.skill,
+        };
+        dispatch(createPromptSetAsync({ values }));
+      }
+    } else {
       values = {
         ...values,
-        workspaceId: selectedWorkspace.id,
-        key: values.promptSetType,
+        key: values.skill,
       };
-      if (isNew) {
-        dispatch(createPromptSetAsync({ values }));
-      } else {
-        dispatch(updatePromptSetAsync({ id, values }));
-      }
-      updateExistingTags(values.tags || []);
-      navigate('/prompt-sets');
+      dispatch(updatePromptSetAsync({ id, values }));
     }
+    updateExistingTags(values.tags || []);
+    navigate('/prompt-sets');
+  };
+
+  const cleanVersion = (ver) => ({ ...ver, id: ver.id || uuidv4() });
+
+  const saveAndCreateVersion = async () => {
+    let values = await form.validateFields();
+    const title =
+      promptSet.prompts?.[promptSet.prompts.length - 1]?.prompt
+        .split(/\s+/)
+        .slice(0, 3)
+        .join(' ');
+    values = {
+      ...values,
+      key: values.skill,
+      versions: [
+        ...(promptSet.versions || []).map(cleanVersion),
+        {
+          id: uuidv4(),
+          created: (new Date()).toISOString(),
+          promptSet: omit(promptSet, ['versions']),
+          title,
+        },
+      ],
+    };
+    dispatch(updatePromptSetAsync({ id, values }));
+    updateExistingTags(values.tags || []);
+    navigate('/prompt-sets');
   };
 
   const updateExistingTags = (tags) => {
@@ -321,6 +378,19 @@ export function PromptSetForm() {
         </DndContext>
         <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
           <div style={{ marginLeft: 35 }}>
+            <Space direction="horizontal">
+              <span>Available variables:</span>
+              {vars.map((v) => (
+                <Tag key={v}>{v}</Tag>
+              ))}
+            </Space>
+            <div>
+              Use <code style={{ fontSize: '0.9em' }}>{'${<var>}'}</code> notation to insert a variable.
+            </div>
+          </div>
+        </Form.Item>
+        <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
+          <div style={{ marginLeft: 35 }}>
             <Button
               icon={<PlusOutlined />}
               type="dashed"
@@ -335,6 +405,40 @@ export function PromptSetForm() {
       </>
     );
   }
+  const handleCancel = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleVersionRollback = (selectedVersion) => {
+    const ver = promptSet.versions.find((v) => v.id === selectedVersion);
+    if (ver) {
+      const title =
+        promptSet.prompts?.[promptSet.prompts.length - 1]?.prompt
+          .split(/\s+/)
+          .slice(0, 3)
+          .join(' ');
+      const values = {
+        ...ver.promptSet,
+        versions: [
+          ...(promptSet.versions || []).map(cleanVersion),
+          {
+            id: uuidv4(),
+            created: (new Date()).toISOString(),
+            promptSet: omit(promptSet, ['versions']),
+            title,
+          },
+        ],
+      };
+      dispatch(updatePromptSetAsync({ id, values }));
+      updateExistingTags(values.tags || []);
+    }
+    setIsModalOpen(false);
+  };
+
+  const showVersionsModal = (key) => {
+    // setSelectedRowKey(key);
+    setIsModalOpen(true);
+  };
 
   const PanelHeader = ({ title }) => (
     <div style={{ borderBottom: '1px solid #d9d9d9' }}>
@@ -348,114 +452,142 @@ export function PromptSetForm() {
     );
   }
   return (
-    <div style={{ marginTop: 20 }}>
-      <Form
-        {...layout}
-        form={form}
-        name="promptSets"
-        autoComplete="off"
-        onFinish={onFinish}
-        initialValues={promptSet}
-      >
-        {/* <Collapse defaultActiveKey={['1']} ghost> */}
-        {/* <Panel header={<PanelHeader title="Prompt Set Details" />} key="1" forceRender> */}
-        <Form.Item
-          label="Set Name"
-          name="name"
-          rules={[
-            {
-              required: true,
-              message: 'Please enter a name',
-            },
-          ]}
+    <>
+      <VersionsModal
+        handleCancel={handleCancel}
+        onVersionRollback={handleVersionRollback}
+        isModalOpen={isModalOpen}
+        selectedRow={promptSet}
+        width={600}
+        keyProp="id"
+        valueProp="id"
+        titleProp="title"
+      />
+      <TemplateModal
+        onCancel={handleTemplateModalCancel}
+        onSubmit={useTemplate}
+        open={isTemplateModalOpen}
+      />
+      <div style={{ marginTop: 20 }}>
+        <Form
+          {...layout}
+          form={form}
+          name="promptSets"
+          autoComplete="off"
+          onFinish={onFinish}
+          initialValues={promptSet}
         >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          label="Skill"
-          name="skill"
-          rules={[
-            {
-              required: true,
-              message: 'Please select a type',
-            },
-          ]}
-        >
-          <Select
-            options={skillOptions}
-            dropdownRender={(menu) => (
-              <>
-                {menu}
-                <Divider style={{ margin: '8px 0' }} />
-                <Space style={{ padding: '0 8px 4px' }}>
-                  <Input
-                    placeholder="Please enter new skill"
-                    ref={newSkillInputRef}
-                    value={newSkill}
-                    onChange={onNewSkillChange}
-                  />
-                  <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
-                    Add skill
-                  </Button>
-                </Space>
-              </>
-            )}
-          />
-        </Form.Item>
-        <Form.Item
-          label="Tags"
-          name="tags"
-        >
-          <TagsInput existingTags={existingTags} />
-        </Form.Item>
-        <Form.Item
-          label="Description"
-          name="description"
-        >
-          <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
-        </Form.Item>
-        {/* </Panel> */}
-        {/* <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender> */}
-        <Form.Item
-          colon={false}
-          label="Define Types?"
-          name="isTypesDefined"
-          valuePropName="checked"
-        >
-          <Switch />
-        </Form.Item>
-        {typesDefinedValue ?
+          {/* <Collapse defaultActiveKey={['1']} ghost> */}
+          {/* <Panel header={<PanelHeader title="Prompt Set Details" />} key="1" forceRender> */}
           <Form.Item
-            label="Arguments"
-            name="arguments"
+            label="Name"
+            name="name"
+            rules={[
+              {
+                required: true,
+                message: 'Please enter a name',
+              },
+            ]}
           >
-            <SchemaModalInput />
+            <Input />
           </Form.Item>
-          : null
-        }
-        {/* </Panel> */}
-        {/* <Panel header={<PanelHeader title="Prompt Messages" />} key="3" forceRender> */}
-        <Form.List name="prompts">
-          {(fields, { add, move, remove }, { errors }) => (
-            <PromptList
-              fields={fields}
-              add={add}
-              move={move}
-              remove={remove}
-              errors={errors}
+          <Form.Item
+            label="Skill"
+            name="skill"
+            rules={[
+              {
+                required: true,
+                message: 'Please select a type',
+              },
+            ]}
+          >
+            <Select
+              options={skillOptions}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Space style={{ padding: '0 8px 4px' }}>
+                    <Input
+                      placeholder="Please enter new skill"
+                      ref={newSkillInputRef}
+                      value={newSkill}
+                      onChange={onNewSkillChange}
+                    />
+                    <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
+                      Add skill
+                    </Button>
+                  </Space>
+                </>
+              )}
             />
-          )}
-        </Form.List>
-        {/* </Panel> */}
-        {/* </Collapse> */}
-        <Form.Item wrapperCol={{ offset: 4 }}>
-          <Space>
-            <Button type="default" onClick={onCancel}>Cancel</Button>
-            <Button type="primary" htmlType="submit">Save</Button>
-          </Space>
-        </Form.Item>
-      </Form>
-    </div>
+          </Form.Item>
+          <Form.Item
+            label="Tags"
+            name="tags"
+          >
+            <TagsInput existingTags={existingTags} />
+          </Form.Item>
+          <Form.Item
+            label="Description"
+            name="description"
+          >
+            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+          </Form.Item>
+          <Form.Item
+            colon={false}
+            label="Is Template?"
+            name="isTemplate"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          {/* </Panel> */}
+          {/* <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender> */}
+          <Form.Item
+            colon={false}
+            label="Define Types?"
+            name="isTypesDefined"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          {typesDefinedValue ?
+            <Form.Item
+              label="Arguments"
+              name="arguments"
+            >
+              <SchemaModalInput />
+            </Form.Item>
+            : null
+          }
+          {/* </Panel> */}
+          {/* <Panel header={<PanelHeader title="Prompt Messages" />} key="3" forceRender> */}
+          <Form.List name="prompts">
+            {(fields, { add, move, remove }, { errors }) => (
+              <PromptList
+                fields={fields}
+                add={add}
+                move={move}
+                remove={remove}
+                errors={errors}
+              />
+            )}
+          </Form.List>
+          {/* </Panel> */}
+          {/* </Collapse> */}
+          <Form.Item wrapperCol={{ offset: 4 }}>
+            <Space>
+              <Button type="default" onClick={onCancel}>Cancel</Button>
+              <Button type="primary" htmlType="submit">Save</Button>
+              <Button type="primary" onClick={saveAndCreateVersion} disabled={isNew}>Save &amp; Create Version</Button>
+              <Button type="default" onClick={showVersionsModal} disabled={isNew}>Versions</Button>
+              <Button type="default" onClick={() => setIsTemplateModalOpen(true)}>Use Template</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </div>
+    </>
   );
 
 }

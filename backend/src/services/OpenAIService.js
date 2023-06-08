@@ -2,17 +2,34 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-const { delay } = require('../utils');
+const { delay, getMessages } = require('../utils');
 
-function OpenAIService({ openai, logger }) {
+function OpenAIService({ logger, openai, services }) {
 
-  async function createChatCompletion(messages, model, maxTokens, retryCount = 0) {
-    logger.debug('messages: ', messages);
+  const {
+    gpt4allService,
+    promptSetsService,
+  } = services;
+
+  async function createChatCompletion(messages, model, maxTokens, hits, retryCount = 0) {
     let resp;
     try {
+      let msgs = [...messages];
+      if (hits?.length) {
+        const context = hits.map(h => h.content_text).join('\n');
+        const i = messages.length - 1;
+        const content = messages[i].content;
+        const promptSets = await promptSetsService.getPromptSetBySkill('qa');
+        if (promptSets.length) {
+          const prompts = promptSets[0].prompts;
+          const features = { context, content };
+          msgs.splice(i, 1, ...getMessages(prompts, features));
+        }
+      }
+      logger.debug('messages: ', msgs);
       resp = await openai.createChatCompletion({
         model,
-        messages,
+        messages: msgs,
         max_tokens: maxTokens,
       });
       logger.debug('OpenAI response: ', JSON.stringify(resp.data, null, 2));
@@ -87,11 +104,46 @@ function OpenAIService({ openai, logger }) {
     });
   }
 
+  const fetchChatCompletion = async (messages, model, maxTokens, n, service) => {
+    let response;
+    const prompt = messages[messages.length - 1];
+
+    if (service === 'gpt4all') {
+      const input = messages.map((m) => m.content).join('\n\n');
+      response = await gpt4allService.createCompletion(input, maxTokens, n);
+      return response.map((c) => ({ text: c.generation, prompt }));
+    }
+
+    response = await createChatCompletion(messages, model, maxTokens, n);
+    return {
+      ...response,
+      choices: response.choices.map((c) => ({ ...c, prompt })),
+    };
+  };
+
+  const fetchCompletion = async (input, model, maxTokens, n, service) => {
+    let response;
+
+    if (service === 'gpt4all') {
+      response = await gpt4allService.createCompletion(input, maxTokens, n);
+      return response.map((c) => ({ text: c.generation, prompt: input }));
+    }
+
+    // openai
+    response = await createCompletion(prompt, model, maxTokens, n);
+    return {
+      ...response,
+      choices: response.choices.map((c) => ({ ...c, prompt: input })),
+    };
+  };
+
   return {
     createChatCompletion,
     createCompletion,
     createImage,
     extractKeywords,
+    fetchChatCompletion,
+    fetchCompletion,
     generateImageVariant,
   };
 

@@ -51,7 +51,7 @@ export const getUsersAsync = () => async (dispatch) => {
     const res = await http.get(url);
     dispatch(setUsers({ users: res.data }));
   } catch (error) {
-    dispatch(setError({ error }));
+    dispatch(setError({ error: { message: String(error) } }));
   }
 };
 
@@ -62,7 +62,7 @@ export const getUserAsync = (id) => async (dispatch) => {
     const res = await http.get(url);
     dispatch(setUsers({ users: [res.data] }));
   } catch (error) {
-    dispatch(setError({ error }));
+    dispatch(setError({ error: { message: String(error) } }));
   }
 };
 

@@ -401,3 +401,197 @@ CREATE INDEX training_workspace_id_key
     ON public."training" USING btree
     (workspace_id)
     TABLESPACE pg_default;
+
+
+-- Table: public."compositions"
+
+DROP TABLE IF EXISTS public."compositions";
+
+-- Sequence: public."compositions_id_seq"
+
+DROP SEQUENCE IF EXISTS public."compositions_id_seq";
+
+CREATE SEQUENCE public."compositions_id_seq" AS bigint;
+
+CREATE TABLE public."compositions"
+(
+    id integer NOT NULL DEFAULT nextval('"compositions_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "compositions_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."compositions"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."compositions_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."compositions_id_seq"
+    OWNED BY public."compositions"."id";
+
+
+-- Table: public."chat_sessions"
+
+DROP TABLE IF EXISTS public."chat_sessions";
+
+-- Sequence: public."chat_sessions_id_seq"
+
+DROP SEQUENCE IF EXISTS public."chat_sessions_id_seq";
+
+CREATE SEQUENCE public."chat_sessions_id_seq" AS bigint;
+
+CREATE TABLE public."chat_sessions"
+(
+    id integer NOT NULL DEFAULT nextval('"chat_sessions_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "chat_sessions_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."chat_sessions"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."chat_sessions_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."chat_sessions_id_seq"
+    OWNED BY public."chat_sessions"."id";
+
+
+-- Table: public."doc_indexes"
+
+DROP TABLE IF EXISTS public."doc_indexes";
+
+-- Sequence: public."doc_indexes_id_seq"
+
+DROP SEQUENCE IF EXISTS public."doc_indexes_id_seq";
+
+CREATE SEQUENCE public."doc_indexes_id_seq" AS bigint;
+
+CREATE TABLE public."doc_indexes"
+(
+    id integer NOT NULL DEFAULT nextval('"doc_indexes_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    engine character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "doc_indexes_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."doc_indexes"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."doc_indexes_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."doc_indexes_id_seq"
+    OWNED BY public."doc_indexes"."id";
+
+-- Index: doc_indexes_workspace_id_key
+
+DROP INDEX IF EXISTS public.doc_indexes_workspace_id_key;
+
+CREATE INDEX doc_indexes_workspace_id_key
+    ON public."doc_indexes" USING btree
+    (workspace_id)
+    TABLESPACE pg_default;
+
+-- Index: doc_indexes_name_key
+
+DROP INDEX IF EXISTS public.doc_indexes_name_key;
+
+CREATE INDEX doc_indexes_name_key
+    ON public."doc_indexes" USING btree
+    (name)
+    TABLESPACE pg_default;
+
+-- Index: doc_indexes_engine_key
+
+DROP INDEX IF EXISTS public.doc_indexes_engine_key;
+
+CREATE INDEX doc_indexes_engine_key
+    ON public."doc_indexes" USING btree
+    (engine)
+    TABLESPACE pg_default;
+
+
+-- Table: public."data_sources"
+
+DROP TABLE IF EXISTS public."data_sources";
+
+-- Sequence: public."data_sources_id_seq"
+
+DROP SEQUENCE IF EXISTS public."data_sources_id_seq";
+
+CREATE SEQUENCE public."data_sources_id_seq" AS bigint;
+
+CREATE TABLE public."data_sources"
+(
+    id integer NOT NULL DEFAULT nextval('"data_sources_id_seq"'::regclass),
+    name character varying(255) COLLATE pg_catalog."default",
+    type character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "data_sources_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."data_sources"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."data_sources_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."data_sources_id_seq"
+    OWNED BY public."data_sources"."id";
+
+-- Index: data_sources_name_key
+
+DROP INDEX IF EXISTS public.data_sources_name_key;
+
+CREATE INDEX data_sources_name_key
+    ON public."data_sources" USING btree
+    (name)
+    TABLESPACE pg_default;
+
+-- Index: data_sources_type_key
+
+DROP INDEX IF EXISTS public.data_sources_type_key;
+
+CREATE INDEX data_sources_type_key
+    ON public."data_sources" USING btree
+    (type)
+    TABLESPACE pg_default;

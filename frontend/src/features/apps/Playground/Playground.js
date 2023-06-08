@@ -75,7 +75,7 @@ import {
   selectLoading as selectImagesLoading,
 } from './imagesSlice';
 
-import 'instantsearch.css/themes/satellite.css';
+// import 'instantsearch.css/themes/satellite.css';
 import './Playground.css';
 
 const { Content, Sider } = Layout;

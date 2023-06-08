@@ -19,6 +19,7 @@ export const functionsSlice = createSlice({
       }
     },
     setFunctions: (state, action) => {
+      state.functions = {};
       for (const func of action.payload.functions) {
         state.functions[func.id] = func;
       }
@@ -52,6 +53,13 @@ export const {
 export const getFunctionsAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/functions';
+  const res = await http.get(url);
+  dispatch(setFunctions({ functions: res.data }));
+};
+
+export const getFunctionsByTagAsync = ({ tag }) => async (dispatch) => {
+  dispatch(startLoad());
+  const url = `/api/functions/tags/${tag}`;
   const res = await http.get(url);
   dispatch(setFunctions({ functions: res.data }));
 };
