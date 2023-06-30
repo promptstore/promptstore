@@ -33,7 +33,7 @@ function PromptSetsService({ pg, logger }) {
   async function getPromptSetBySkill(skill) {
     if (skill === null || typeof skill === 'undefined') {
       return [];
-    } workspaceId
+    }
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
@@ -122,7 +122,7 @@ function PromptSetsService({ pg, logger }) {
         `,
         [promptSet.skill, val, promptSet.id]
       );
-      return promptSet.id;
+      return promptSet;
     } else {
       console.log([promptSet.workspaceId, promptSet.skill, val])
       const { rows } = await pg.query(`

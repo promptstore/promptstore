@@ -69,8 +69,8 @@ export const createPromptSetAsync = ({ values }) => async (dispatch) => {
 
 export const updatePromptSetAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/prompt-sets/${id}`;
-  await http.put(url, values);
-  dispatch(setPromptSets({ promptSets: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setPromptSets({ promptSets: [res.data] }));
 };
 
 export const deletePromptSetsAsync = ({ ids }) => async (dispatch) => {

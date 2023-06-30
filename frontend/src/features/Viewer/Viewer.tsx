@@ -35,10 +35,10 @@ import WorkspaceContext from '../../context/WorkspaceContext';
 import useOAuth2 from '../Login/useOAuth2';
 
 const env = {
-  APP_ID: '***REMOVED***',
-  APP_SECRET: '***REMOVED***',
-  AUTHORIZATION_SERVER_TOKEN_URL: 'https://oauth.canto.global/oauth/api/oauth2/token',
-  AUTHORIZE_URL: 'https://oauth.canto.global/oauth/api/oauth2/authorize',
+  CANTO_USER_FLOW_APP_ID: '***REMOVED***',
+  CANTO_USER_FLOW_APP_SECRET: '***REMOVED***',
+  CANTO_AUTHORIZATION_SERVER_TOKEN_URL: 'https://oauth.canto.global/oauth/api/oauth2/token',
+  CANTO_AUTHORIZE_URL: 'https://oauth.canto.global/oauth/api/oauth2/authorize',
 };
 
 const formatArr = ['png', 'jpg', 'jpeg', 'zip', 'ase', 'tif', 'pdf', 'svg', 'eps', 'ai'];
@@ -103,7 +103,7 @@ const Viewer = () => {
   const [loadMore, setLoadMore] = useState(false);
 
   // TODO - harden
-  const [localTokenData, setLocalTokenData] = useLocalStorageState(env.APP_ID, { defaultValue: {} });
+  const [localTokenData, setLocalTokenData] = useLocalStorageState(env.CANTO_USER_FLOW_APP_ID, { defaultValue: {} });
 
   const [selectedContentId, setSelectedContentId] = useState('');
   const [keywords, setKeywords] = useState('');
@@ -119,8 +119,8 @@ const Viewer = () => {
 
   const { getAuth } = useOAuth2({
     navigate,
-    appId: env.APP_ID,
-    authorizeUrl: env.AUTHORIZE_URL,
+    appId: env.CANTO_USER_FLOW_APP_ID,
+    authorizeUrl: env.CANTO_AUTHORIZE_URL,
     redirectUrl: `${document.location.origin}/callback`,
     tokenUrl: `/api/token`,
   });

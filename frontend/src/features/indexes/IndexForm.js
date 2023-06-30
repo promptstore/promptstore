@@ -6,6 +6,7 @@ import { Button, Descriptions, Form, Input, Popconfirm, Select, Space, Table } f
 import JsonInput from '../../components/JsonInput';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
+import { engineOptions } from '../../options';
 
 import { SearchModal } from './SearchModal';
 import {
@@ -26,13 +27,6 @@ const layout = {
   labelCol: { span: 4 },
   wrapperCol: { span: 20 },
 };
-
-const engineOptions = [
-  {
-    label: 'Redis Vector Store',
-    value: 'redis',
-  },
-];
 
 export function IndexForm() {
 

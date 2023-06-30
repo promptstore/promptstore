@@ -6,6 +6,7 @@ import { Button, Divider, Form, Input, Radio, Select, Space } from 'antd';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
+import { getExtension } from '../../utils';
 import {
   getFunctionsByTagAsync,
   selectFunctions,
@@ -32,10 +33,25 @@ const layout = {
   wrapperCol: { span: 20 },
 };
 
+const databaseOptions = [
+  {
+    label: 'PostgreSQL',
+    value: 'postgresql',
+  },
+];
+
 const documentTypeOptions = [
   {
     label: 'CSV',
     value: 'csv',
+  },
+  {
+    label: 'Microsoft Word',
+    value: 'docx',
+  },
+  {
+    label: 'PDF',
+    value: 'pdf',
   },
   {
     label: 'Text',
@@ -80,6 +96,17 @@ const splitterOptions = [
   },
 ];
 
+const sqlTypeOptions = [
+  {
+    label: 'Sample',
+    value: 'sample',
+  },
+  {
+    label: 'Schema',
+    value: 'schema',
+  },
+];
+
 const typeOptions = [
   {
     label: 'Document',
@@ -88,6 +115,14 @@ const typeOptions = [
   {
     label: 'Feature Store',
     value: 'featurestore',
+  },
+  {
+    label: 'SQL',
+    value: 'sql',
+  },
+  {
+    label: 'Web Crawler',
+    value: 'crawler',
   },
 ];
 
@@ -121,13 +156,15 @@ export function DataSourceForm() {
     if (selectedWorkspace) {
       const workspaceUploads = uploads[selectedWorkspace.id];
       if (workspaceUploads) {
-        return Object.values(workspaceUploads).map((u) => ({
-          label: u.name,
-          value: u.id,
-        }));
+        return Object.values(workspaceUploads)
+          .filter((doc) => getExtension(doc.name) === documentTypeValue)
+          .map((doc) => ({
+            label: doc.name,
+            value: doc.id,
+          }));
       }
     }
-  }, [selectedWorkspace, uploads]);
+  }, [selectedWorkspace, uploads, documentTypeValue]);
 
   const functionOptions = useMemo(() => Object.values(functions).map((func) => ({
     label: func.name,
@@ -389,6 +426,7 @@ export function DataSourceForm() {
               <Form.Item
                 label="Feature Service"
                 name="featureService"
+                extra="Takes precedence over the feature list"
                 wrapperCol={{ span: 10 }}
               >
                 <Input />
@@ -411,6 +449,112 @@ export function DataSourceForm() {
               >
                 <Input />
               </Form.Item>
+            </>
+            : null
+          }
+          {featurestoreValue === 'anaml' ?
+            <>
+              <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+                <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                  Anaml Parameters
+                </div>
+              </Form.Item>
+              <Form.Item
+                label="Feature Store Name"
+                name="featureStoreName"
+                wrapperCol={{ span: 10 }}
+              >
+                <Input />
+              </Form.Item>
+            </>
+            : null
+          }
+          {typeValue === 'crawler' ?
+            <>
+              <Form.Item
+                label="URL"
+                name="baseUrl"
+                wrapperCol={{ span: 10 }}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="Maximum Requests"
+                name="maxRequestsPerCrawl"
+                wrapperCol={{ span: 5 }}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="Scraping Spec"
+                name="scrapingSpec"
+                wrapperCol={{ span: 5 }}
+              >
+                <SchemaModalInput
+                  isSpec={true}
+                  title="Set Spec"
+                  placeholders={{
+                    title: 'selector',
+                    description: 'attribute (leave empty for text content)',
+                  }}
+                />
+              </Form.Item>
+            </>
+            : null
+          }
+          {typeValue === 'sql' ?
+            <>
+              <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+                <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                  SQL Connection Info
+                </div>
+              </Form.Item>
+              <Form.Item
+                label="Dialect"
+                name="dialect"
+                wrapperCol={{ span: 10 }}
+              >
+                <Select allowClear options={databaseOptions} />
+              </Form.Item>
+              <Form.Item
+                label="SQL Type"
+                name="sqlType"
+              >
+                <Radio.Group
+                  optionType="button"
+                  buttonStyle="solid"
+                  options={sqlTypeOptions}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Connection String"
+                name="connectionString"
+                wrapperCol={{ span: 10 }}
+              >
+                <Input />
+              </Form.Item>
+              {/* <Form.Item
+                label="Credentials"
+                name="credentials"
+                wrapperCol={{ span: 10 }}
+              >
+                <Form.Item
+                  label="Username"
+                  name={['credentials', 'username']}
+                  colon={false}
+                  style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  label="Password"
+                  name={['credentials', 'password']}
+                  colon={false}
+                  style={{ display: 'inline-block', width: 'calc(50% - 8px)', marginLeft: 16 }}
+                >
+                  <Input type="password" />
+                </Form.Item>
+              </Form.Item> */}
             </>
             : null
           }

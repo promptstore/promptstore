@@ -5,7 +5,14 @@ import { CheckOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
 import isObject from 'lodash.isobject';
 
-export function SchemaModalInput({ onChange, value, buttonProps }) {
+export function SchemaModalInput({
+  onChange,
+  value,
+  buttonProps,
+  title = 'Set Schema',
+  placeholders,
+  isSpec,
+}) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [state, setState] = useState(null);
@@ -48,12 +55,14 @@ export function SchemaModalInput({ onChange, value, buttonProps }) {
         onCancel={handleClose}
         onOk={handleOk}
         open={isModalOpen}
-        title="Set Schema"
+        title={title}
         width={'90%'}
       >
         <JsonSchemaEditor
           onChange={setState}
           value={state}
+          placeholders={placeholders}
+          isSpec={isSpec}
         />
       </Modal>
       <Button
@@ -61,7 +70,7 @@ export function SchemaModalInput({ onChange, value, buttonProps }) {
         onClick={() => setIsModalOpen(true)}
         {...buttonProps}
       >
-        Set Schema
+        {title}
       </Button>
     </>
   );

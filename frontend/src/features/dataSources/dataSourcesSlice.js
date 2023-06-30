@@ -96,6 +96,10 @@ export const deleteDataSourcesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeDataSources({ ids }));
 };
 
+export const crawlAsync = ({ url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine }) => async (dispatch) => {
+  await http.post('/api/crawls', { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine });
+};
+
 export const selectLoaded = (state) => state.dataSources.loaded;
 
 export const selectLoading = (state) => state.dataSources.loading;

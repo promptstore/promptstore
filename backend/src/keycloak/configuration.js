@@ -1,4 +1,5 @@
 module.exports = class KeycloakEnvConfig {
+
   constructor(inputOptions) {
     const defaultOptions = {
       host: process.env.KEYCLOAK_HOST,
@@ -19,4 +20,5 @@ module.exports = class KeycloakEnvConfig {
     this.tokenURL = `${this.host}/auth/realms/${this.realm}/protocol/openid-connect/token`;
     this.userInfoURL = `${this.host}/auth/realms/${this.realm}/protocol/openid-connect/userinfo`;
   }
+
 }

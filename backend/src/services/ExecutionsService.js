@@ -16,10 +16,11 @@ function ExecutionsService({ logger, services }) {
     featureStoreService,
     huggingFaceService,
     indexesService,
+    llmService,
     modelsService,
-    openaiService,
     promptSetsService,
     searchService,
+    sqlSourceService,
   } = services;
 
   const executeFunction = async (func, args, params, batch = false) => {
@@ -36,12 +37,20 @@ function ExecutionsService({ logger, services }) {
       return { errors };
     }
 
-    const {
+    let {
       maxTokens = 255,
       modelId,
       model: modelKey,
       n = 1,
     } = params;
+    if (typeof maxTokens === 'string') {
+      try {
+        maxTokens = parseInt(maxTokens, 10);
+      } catch (err) {
+        logger.debug('Error parsing `maxTokens` param: ' + String(err));
+        maxTokens = 255;
+      }
+    }
 
     const funcArgs = batch ? args[0] : args;
 
@@ -129,6 +138,7 @@ function ExecutionsService({ logger, services }) {
         entity: ds.entity,
         featureList: ds.featureList,
         featureService: ds.featureService,
+        featureStoreName: ds.featureStoreName,
         httpMethod: ds.httpMethod,
         url: ds.url,
       }
@@ -165,6 +175,19 @@ function ExecutionsService({ logger, services }) {
       // logger.log('debug', 'context: %s', context);
 
       request = set(request, indexContextPropertyPath, context);
+    }
+
+    if (impl.sqlSourceId) {
+      const source = await dataSourcesService.getDataSource(impl.sqlSourceId);
+      if (source.sqlType === 'schema') {
+        const context = await sqlSourceService.getSchema(source);
+        logger.debug('SQL context: ', JSON.stringify(context, null, 2));
+        request = set(request, 'context', context);
+      } else if (source.sqlType === 'sample') {
+        const context = await sqlSourceService.getSample(source, 'feast_driver_hourly_stats', 10);
+        logger.debug('SQL context: ', JSON.stringify(context, null, 2));
+        request = set(request, 'context', context);
+      }
     }
 
     const requestArgs = batch ? request[0] : request;
@@ -251,20 +274,20 @@ function ExecutionsService({ logger, services }) {
         let i = 0;
         for (const r of request) {
           if (i === 0) {
-            messages = getMessages(promptSet.prompts, r);
+            messages = getMessages(promptSet.prompts, r, promptSet.templateEngine);
           } else {
             messages.push({
               role: 'user',
-              content: fillTemplate(prompt, r),
+              content: fillTemplate(prompt, r, promptSet.templateEngine),
             });
           }
           i += 1;
         }
       } else {
-        messages = getMessages(promptSet.prompts, request);
+        messages = getMessages(promptSet.prompts, request, promptSet.templateEngine);
       }
       logger.log('debug', 'messages: %s', JSON.stringify(messages, null, 2));
-      const response = await openaiService.fetchChatCompletion(messages, model.key, maxTokens, n, 'openai');
+      const response = await llmService.fetchChatCompletion(model.provider, messages, model.key, maxTokens, n);
       try {
         let result;
         if (batch) {
@@ -301,16 +324,16 @@ function ExecutionsService({ logger, services }) {
       let input;
       if (batch) {
         input = request.map((r) => {
-          const messages = getMessages(promptSet.prompts, r);
+          const messages = getMessages(promptSet.prompts, r, promptSet.templateEngine);
           const contents = messages.map((m) => m.content);
           return contents.join('\n\n');
         })
       } else {
-        const messages = getMessages(promptSet.prompts, request);
+        const messages = getMessages(promptSet.prompts, request, promptSet.templateEngine);
         const contents = messages.map((m) => m.content);
         input = contents.join('\n\n');
       }
-      const response = await openaiService.fetchCompletion(input, model.key, maxTokens, n, 'openai');
+      const response = await llmService.fetchCompletion(model.provider, input, model.key, maxTokens, n);
       try {
         let result;
         if (batch) {

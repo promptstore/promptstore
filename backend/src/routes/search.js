@@ -1,8 +1,8 @@
-module.exports = ({ app, logger, passport, services }) => {
+module.exports = ({ app, auth, logger, services }) => {
 
   const { searchService } = services;
 
-  app.post('/api/workspaces/:workspaceId/index', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/workspaces/:workspaceId/index', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
     const schema = {
       content: {
@@ -19,13 +19,14 @@ module.exports = ({ app, logger, passport, services }) => {
     res.send('OK');
   });
 
-  app.get('/api/index', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/index', auth, async (req, res, next) => {
     const indexes = await searchService.getIndexes();
     res.send(indexes);
   });
 
-  app.get('/api/index/:name', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/index/:name', auth, async (req, res, next) => {
     const { name } = req.params;
+    logger.debug('GET physical index: ', name);
     const index = await searchService.getIndex(name);
     if (!index) {
       return res.sendStatus(404);
@@ -33,7 +34,7 @@ module.exports = ({ app, logger, passport, services }) => {
     res.send(index);
   });
 
-  app.post('/api/index', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/index', auth, async (req, res, next) => {
     const { indexName, schema } = req.body;
     try {
       const searchSchema = searchService.getSearchSchema(schema);
@@ -45,7 +46,7 @@ module.exports = ({ app, logger, passport, services }) => {
     }
   });
 
-  app.delete('/api/index/:name', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/index/:name', auth, async (req, res, next) => {
     const { name } = req.params;
     try {
       const resp = await searchService.dropIndex(name);
@@ -56,7 +57,7 @@ module.exports = ({ app, logger, passport, services }) => {
     }
   });
 
-  app.delete('/api/index/:name/data', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/index/:name/data', auth, async (req, res, next) => {
     const { name } = req.params;
     try {
       const resp = await searchService.dropData(name);
@@ -67,7 +68,7 @@ module.exports = ({ app, logger, passport, services }) => {
     }
   });
 
-  app.post('/api/documents', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/documents', auth, async (req, res, next) => {
     const { documents = [], indexName } = req.body;
     logger.debug('documents: ', JSON.stringify(documents, null, 2));
     logger.debug('indexName: ', indexName);
@@ -113,7 +114,7 @@ module.exports = ({ app, logger, passport, services }) => {
     }
   });
 
-  app.post('/api/search', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/search', auth, async (req, res, next) => {
     const { requests, attrs } = req.body;
     const { indexName, params: { query } } = requests[0];
     const rawResults = await searchService.search(indexName, query, attrs);
@@ -121,7 +122,7 @@ module.exports = ({ app, logger, passport, services }) => {
     res.status(200).send({ results: [result] });
   });
 
-  app.post('/api/sffv', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/sffv', auth, async (req, res, next) => {
     const { requests } = req.body;
     const results = [];
     res.status(200).send(results);
@@ -136,16 +137,10 @@ module.exports = ({ app, logger, passport, services }) => {
         a[key] = v;
         return a;
       }, {}))
-      // .map((val) => ({
-      //   uid: val.__uid,
-      //   label: val._label,
-      //   value: val.text || val.value,
-      // }))
       .map((val) => ({
         ...val,
         score: parseFloat(val.score),
       }))
-      // .filter((val) => val.score < 0.5)
       ;
     hits.sort((a, b) => a.score < b.score ? -1 : 1);
     return {

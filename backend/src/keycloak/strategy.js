@@ -31,7 +31,6 @@ Strategy.prototype.userProfile = function (accessToken, done) {
     if (err) {
       return done(err);
     }
-
     try {
       const json = JSON.parse(body);
       const email = json.email;

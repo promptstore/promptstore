@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
-  Collapse,
   Divider,
   Form,
   Input,
@@ -69,7 +68,6 @@ import {
 
 import 'react-data-mapping/dist/index.css';
 
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const TAGS_KEY = 'functionTags';
@@ -169,28 +167,32 @@ export function FunctionForm() {
   const isNew = id === 'new';
 
   const featureStoreOptions = useMemo(() => {
-    const list = Object.values(dataSources).map((ds) => ({
-      label: ds.name,
-      value: ds.id,
-    }));
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'featurestore')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
+      }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [dataSources]);
 
   const indexOptions = useMemo(() => {
-    const list = Object.values(indexes).map((idx) => ({
-      label: idx.name,
-      value: idx.id,
-    }));
+    const list = Object.values(indexes)
+      .map((idx) => ({
+        label: idx.name,
+        value: idx.id,
+      }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [indexes]);
 
   const modelOptions = useMemo(() => {
-    const list = Object.values(models).map((m) => ({
-      label: m.name,
-      value: m.id,
-    }));
+    const list = Object.values(models)
+      .map((m) => ({
+        label: m.name,
+        value: m.id,
+      }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [models]);
@@ -203,6 +205,17 @@ export function FunctionForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [promptSets]);
+
+  const sqlSourceOptions = useMemo(() => {
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'sql')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
 
   const formIsReady = (
     loaded &&
@@ -218,7 +231,8 @@ export function FunctionForm() {
       title: 'Semantic Function',
     }));
     dispatch(getModelsAsync());
-    dispatch(getDataSourcesAsync({ type: 'featurestore' }));
+    // dispatch(getDataSourcesAsync({ type: 'featurestore' }));
+    dispatch(getDataSourcesAsync());
     dispatch(getIndexesAsync());
     if (!isNew) {
       dispatch(getFunctionAsync(id));
@@ -412,15 +426,9 @@ export function FunctionForm() {
     },
   };
 
-  const PanelHeader = ({ title }) => (
-    <div style={{ borderBottom: '1px solid #d9d9d9' }}>
-      {title}
-    </div>
-  );
-
   function ArgumentMappingModalInput({ index, onChange, value }) {
 
-    const [isAdvanced, setIsAdvanced] = useState(false);
+    const [isAdvanced, setIsAdvanced] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [ready, setReady] = useState(false);
     const [state, setState] = useState(null);
@@ -524,9 +532,10 @@ export function FunctionForm() {
           open={isModalOpen}
           title="Set Mapping"
           width={788}
+          wrapClassName="mapping-modal"
         >
           {!ready ?
-            <div>Loading...</div>
+            <div style={{ height: 448 }}>Loading...</div>
             : null
           }
           {ready ?
@@ -604,7 +613,7 @@ export function FunctionForm() {
 
   function ReturnTypeMappingModalInput({ index, onChange, value }) {
 
-    const [isAdvanced, setIsAdvanced] = useState(false);
+    const [isAdvanced, setIsAdvanced] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [ready, setReady] = useState(false);
     const [state, setState] = useState(null);
@@ -708,9 +717,10 @@ export function FunctionForm() {
           open={isModalOpen}
           title="Set Mapping"
           width={788}
+          wrapClassName="mapping-modal"
         >
           {!ready ?
-            <div>Loading...</div>
+            <div style={{ height: 448 }}>Loading...</div>
             : null
           }
           {ready ?
@@ -847,8 +857,6 @@ export function FunctionForm() {
           onFinish={onFinish}
           initialValues={func}
         >
-          {/* <Collapse defaultActiveKey={['1']} ghost> */}
-          {/* <Panel header={<PanelHeader title="Function Details" />} key="1" forceRender> */}
           <Form.Item
             label="Name"
             name="name"
@@ -873,16 +881,20 @@ export function FunctionForm() {
           >
             <TagsInput existingTags={existingTags} />
           </Form.Item>
-          {/* </Panel> */}
-          {/* <Panel header={<PanelHeader title="Function Arguments" />} key="2" forceRender> */}
+          <Form.Item
+            colon={false}
+            label="Is System Function?"
+            name="isSystem"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
           <Form.Item
             label="Arguments"
             name="arguments"
           >
             <SchemaModalInput />
           </Form.Item>
-          {/* </Panel> */}
-          {/* <Panel header={<PanelHeader title="Function Return" />} key="3" forceRender> */}
           <Form.Item label="Return Type">
             <Form.Item
               name="returnType"
@@ -900,8 +912,6 @@ export function FunctionForm() {
               : null
             }
           </Form.Item>
-          {/* </Panel> */}
-          {/* <Panel header={<PanelHeader title="Model Implementations" />} key="4" forceRender> */}
           <Form.List name="implementations">
             {(fields, { add, remove }, { errors }) => (
               <>
@@ -957,13 +967,14 @@ export function FunctionForm() {
                         </Form.Item>
                         : null
                       } */}
+                      <Divider orientation="left" plain>Knowledge Doping</Divider>
                       <Form.Item
                         colon={false}
                         name={[field.name, 'dataSourceId']}
                         label="Online Feature Store"
                         extra="Inject Features"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
+                        labelCol={{ span: 23, offset: 1 }}
+                        wrapperCol={{ span: 23, offset: 1 }}
                       >
                         <Select allowClear
                           loading={dataSourcesLoading}
@@ -975,8 +986,8 @@ export function FunctionForm() {
                         name={[field.name, 'indexId']}
                         label="Index"
                         extra="Inject Context"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
+                        labelCol={{ span: 23, offset: 1 }}
+                        wrapperCol={{ span: 23, offset: 1 }}
                       >
                         <Select allowClear
                           loading={indexesLoading}
@@ -990,8 +1001,8 @@ export function FunctionForm() {
                             name={[field.name, 'indexContentPropertyPath']}
                             initialValue="content"
                             label="Content Property Path"
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
+                            labelCol={{ span: 23, offset: 1 }}
+                            wrapperCol={{ span: 23, offset: 1 }}
                           >
                             <Input />
                           </Form.Item>
@@ -1000,14 +1011,27 @@ export function FunctionForm() {
                             name={[field.name, 'indexContextPropertyPath']}
                             initialValue="context"
                             label="Context Property Path"
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
+                            labelCol={{ span: 23, offset: 1 }}
+                            wrapperCol={{ span: 23, offset: 1 }}
                           >
                             <Input />
                           </Form.Item>
                         </>
                         : null
                       }
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'sqlSourceId']}
+                        label="SQL Data Source"
+                        extra="Inject Metadata"
+                        labelCol={{ span: 23, offset: 1 }}
+                        wrapperCol={{ span: 23, offset: 1 }}
+                      >
+                        <Select allowClear
+                          loading={dataSourcesLoading}
+                          options={sqlSourceOptions}
+                        />
+                      </Form.Item>
                       <Form.Item
                         colon={false}
                         name={[field.name, 'isDefault']}
@@ -1111,8 +1135,6 @@ export function FunctionForm() {
               </>
             )}
           </Form.List>
-          {/* </Panel> */}
-          {/* </Collapse> */}
           <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
             <Space>
               <Button type="default" onClick={onCancel}>Cancel</Button>

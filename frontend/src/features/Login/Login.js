@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import useOAuth2 from './useOAuth2';
 
 const env = {
-  APP_ID: '***REMOVED***',
-  AUTHORIZE_URL: 'https://oauth.canto.global/oauth/api/oauth2/authorize',
+  CANTO_USER_FLOW_APP_ID: '***REMOVED***',
+  CANTO_AUTHORIZE_URL: 'https://oauth.canto.global/oauth/api/oauth2/authorize',
 };
 
 const Login = () => {
@@ -13,8 +13,8 @@ const Login = () => {
 
   const { data, loading, error, getAuth } = useOAuth2({
     navigate,
-    appId: env.APP_ID,
-    authorizeUrl: env.AUTHORIZE_URL,
+    appId: env.CANTO_USER_FLOW_APP_ID,
+    authorizeUrl: env.CANTO_AUTHORIZE_URL,
     redirectUrl: `${document.location.origin}/callback`,
     tokenUrl: `/api/token`,
   });

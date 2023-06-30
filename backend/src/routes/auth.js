@@ -1,7 +1,10 @@
 const KeycloakBearerStrategy = require('passport-keycloak-bearer');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
-module.exports = ({ app, logger, passport, services }) => {
+const LocalAPIKeyStrategy = require('../LocalApiKeyStrategy');
+
+module.exports = ({ app, constants, logger, passport, services }) => {
 
   const { usersService } = services;
 
@@ -39,8 +42,8 @@ module.exports = ({ app, logger, passport, services }) => {
     realm,
   }) => {
     const KeycloakStrategy = require('../keycloak/strategy');
-    const callbackURL = process.env.KEYCLOAK_CALLBACK;
-    const host = process.env.KEYCLOAK_HOST;
+    const callbackURL = constants.KEYCLOAK_CALLBACK;
+    const host = constants.KEYCLOAK_HOST;
     return new KeycloakStrategy(
       {
         host,
@@ -65,59 +68,58 @@ module.exports = ({ app, logger, passport, services }) => {
   };
 
   const login = async (req, res, next, cb) => {
-    const host = process.env.KEYCLOAK_HOST;
-    const realm = process.env.KEYCLOAK_REALM;
+    const realm = constants.KEYCLOAK_REALM;
     const strategy = createStrategy({
-      clientId: process.env.KEYCLOAK_CLIENT_ID,
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
+      clientId: constants.KEYCLOAK_CLIENT_ID,
+      clientSecret: constants.KEYCLOAK_CLIENT_SECRET,
       realm,
     });
     passport.authenticate(strategy, cb)(req, res, next);
   };
 
   /**
-  new KeycloakBearerStrategy(options, verify)
-
-  jwtPayload:  {
-    exp: 1681802373,
-    iat: 1681801773,
-    auth_time: 1681801772,
-    jti: '***REMOVED***',
-    iss: 'https://auth.acme.com/auth/realms/AgencyAI',
-    aud: [ 'backend', 'account' ],
-    sub: '***REMOVED***',
-    typ: 'Bearer',
-    azp: 'frontend',
-    session_state: '***REMOVED***',
-    acr: '1',
-    realm_access: {
-      roles: [
-        'default-roles-agencyai',
-        'offline_access',
-        'app-admin',
-        'uma_authorization',
-        'app-user'
-      ]
-    },
-    resource_access: {
-      backend: { roles: [Array] },
-      frontend: { roles: [Array] },
-      account: { roles: [Array] }
-    },
-    scope: 'profile email client_roles_frontend',
-    sid: '***REMOVED***',
-    email_verified: true,
-    roles: [ 'admin', 'user' ],
-    name: 'Mark Mo',
-    preferred_username: 'markmo',
-    given_name: 'Mark',
-    family_name: 'Mo',
-    email: 'markmo@acme.com'
-  }
+   * new KeycloakBearerStrategy(options, verify)
+   *
+   *   jwtPayload:  {
+   *     exp: 1681802373,
+   *     iat: 1681801773,
+   *     auth_time: 1681801772,
+   *     jti: 'XXXXXd7b-c27b-4b15-8224-001d61eXXXXX',
+   *     iss: 'https://auth.acme.com/auth/realms/AgencyAI',
+   *     aud: [ 'backend', 'account' ],
+   *     sub: 'XXXXX795-ec4d-4073-b8a5-d456628XXXXX',
+   *     typ: 'Bearer',
+   *     azp: 'frontend',
+   *     session_state: 'XXXXX5a0-c81c-4683-8760-50ef011XXXXX',
+   *     acr: '1',
+   *     realm_access: {
+   *       roles: [
+   *         'default-roles-agencyai',
+   *         'offline_access',
+   *         'app-admin',
+   *         'uma_authorization',
+   *         'app-user'
+   *       ]
+   *     },
+   *     resource_access: {
+   *       backend: { roles: [Array] },
+   *       frontend: { roles: [Array] },
+   *       account: { roles: [Array] }
+   *     },
+   *     scope: 'profile email client_roles_frontend',
+   *     sid: 'XXXXX5a0-c81c-4683-8760-50ef011XXXXX',
+   *     email_verified: true,
+   *     roles: [ 'admin', 'user' ],
+   *     name: 'Mark Mo',
+   *     preferred_username: 'markmo',
+   *     given_name: 'Mark',
+   *     family_name: 'Mo',
+   *     email: 'markmo@acme.com'
+   *   }
    */
   passport.use(new KeycloakBearerStrategy({
-    realm: process.env.KEYCLOAK_REALM,
-    url: process.env.KEYCLOAK_HOST,
+    realm: constants.KEYCLOAK_REALM,
+    url: constants.KEYCLOAK_HOST,
   }, async (jwtPayload, done) => {
     const { roles, sub: keycloakId } = jwtPayload;
     const savedUser = await usersService.getUserByKeycloakId(keycloakId);
@@ -128,11 +130,11 @@ module.exports = ({ app, logger, passport, services }) => {
 
   app.post('/api/auth/refresh', async (req, res, next) => {
     const { refreshToken } = req.body;
-    const host = process.env.KEYCLOAK_HOST;
-    const realm = process.env.KEYCLOAK_REALM;
+    const host = constants.KEYCLOAK_HOST;
+    const realm = constants.KEYCLOAK_REALM;
     const url = `${host}/realms/${realm}/protocol/openid-connect/token`;
-    const clientId = process.env.KEYCLOAK_CLIENT_ID;
-    const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
+    const clientId = constants.KEYCLOAK_CLIENT_ID;
+    const clientSecret = constants.KEYCLOAK_CLIENT_SECRET;
     const grantType = 'refresh_token';
 
     // logger.debug(`curl -vL -H 'Content-Type: application/x-www-form-urlencoded' ${url} -d 'client_id=${clientId}&client_secret=${clientSecret}&grant_type=${grantType}&refresh_token=${refreshToken}'`);
@@ -154,6 +156,24 @@ module.exports = ({ app, logger, passport, services }) => {
       logger.error(err);
       res.sendStatus(401);
     }
+  });
+
+  passport.use(new LocalAPIKeyStrategy(async (apikey, done) => {
+    try {
+      const email = await rc.hget('onetoks', apikey);
+      if (!email) { return done(null, false); }
+      await rc.hdel('onetoks', apikey);
+      return done(null, { email });
+    } catch (err) {
+      return done(err);
+    }
+  }));
+
+  app.post('/api/auth/one-time-token', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+    const { email } = req.body;
+    const token = uuidv4();
+    rc.hset('onetoks', token, email);
+    res.send({ token });
   });
 
 };

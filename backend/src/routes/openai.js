@@ -49,7 +49,7 @@ const maxTokensByFormat = {
   'sms': 25,
 };
 
-module.exports = ({ app, constants, logger, mc, passport, services }) => {
+module.exports = ({ app, auth, constants, logger, mc, services }) => {
 
   const {
     openaiService,
@@ -57,7 +57,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     searchService,
   } = services;
 
-  app.post('/api/completion', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/completion', auth, async (req, res, next) => {
     const { app, service } = req.body;
     logger.debug('app: ', app);
     const features = getFeaturesWithDefaults(app);
@@ -91,7 +91,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     res.json(resp);
   });
 
-  app.post('/api/prompts', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/prompts', auth, async (req, res, next) => {
     const app = req.body;
     logger.debug('app: ', app);
     const features = getFeaturesWithDefaults(app);
@@ -106,17 +106,28 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     res.send(promptSuggestion);
   });
 
-  app.post('/api/chat', passport.authenticate('keycloak', { session: false }), async (req, res) => {
+  app.post('/api/chat', auth, async (req, res) => {
     logger.debug('body: ', req.body);
-    const { messages, model, maxTokens, indexName } = req.body;
+    let { messages, model, maxTokens, indexName } = req.body;
     let hits;
     if (indexName) {
       const message = messages[messages.length - 1];
       logger.debug('q: ', message.content);
       hits = await searchService.search(indexName, message.content);
       logger.debug('hits: ', JSON.stringify(hits, null, 2));
+      if (hits?.length) {
+        const context = hits.map(h => h.content_text).join('\n\n');
+        const i = messages.length - 1;
+        const content = messages[i].content;
+        const promptSets = await promptSetsService.getPromptSetBySkill('qa');
+        if (promptSets.length) {
+          const prompts = promptSets[0].prompts;
+          const features = { context, content };
+          messages.splice(i, 1, ...getMessages(prompts, features));
+        }
+      }
     }
-    const completion = await openaiService.createChatCompletion(messages, model, maxTokens, hits);
+    const completion = await openaiService.createChatCompletion(messages, model, maxTokens, 1);
 
     res.json(completion);
   });
@@ -124,7 +135,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
 
   // NOT CURRENTLY IN SCOPE
 
-  app.post('/api/image-request', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/image-request', auth, async (req, res, next) => {
     const { sourceId, prompt, n = 1 } = req.body;
     logger.debug(`prompt: ${prompt} (${n})`);
     const response = await openaiService.createImage(prompt, n);
@@ -165,7 +176,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
           }
           logger.debug('presignedUrl: ', presignedUrl);
           let imageUrl;
-          if (process.env.ENV === 'dev') {
+          if (constants.ENV === 'dev') {
             const u = new URL(presignedUrl);
             imageUrl = '/api/dev/images' + u.pathname + u.search;
           } else {
@@ -177,7 +188,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
     });
   };
 
-  app.post('/api/gen-image-variant', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/gen-image-variant', auth, async (req, res, next) => {
     const { imageUrl, n = 1 } = req.body;
     logger.debug('imageUrl:', imageUrl);
     const response = await openaiService.generateImageVariant(imageUrl, n);
@@ -216,11 +227,11 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
 
     // NOT CURRENTLY IN SCOPE
     if (app.toneFilename) {
-      const localFilePath = `/tmp/${process.env.FILE_BUCKET}/${app.toneFilename}`;  // includes `workspaceId` prefix
+      const localFilePath = `/tmp/${constants.FILE_BUCKET}/${app.toneFilename}`;  // includes `workspaceId` prefix
       const dirname = path.dirname(localFilePath);
       await fs.promises.mkdir(dirname, { recursive: true });
       const fileStream = fs.createWriteStream(localFilePath);
-      mc.getObject(process.env.FILE_BUCKET, app.toneFilename, async (err, dataStream) => {
+      mc.getObject(constants.FILE_BUCKET, app.toneFilename, async (err, dataStream) => {
         if (err) {
           logger.error(err);
           throw err;
@@ -239,7 +250,7 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
 
     logger.debug('messages: ', messages);
 
-    const response = await opensiService.fetchChatCompletion(messages, model, maxTokens, n, service);
+    const response = await openaiService.fetchChatCompletion(messages, model, maxTokens, n, service);
 
     return response;
   };
@@ -273,9 +284,9 @@ module.exports = ({ app, constants, logger, mc, passport, services }) => {
   const getMaxTokens = (app, format) => {
     let maxTokens;
     if (app.maxTokens) {
-      maxTokens = app.maxTokens;
+      maxTokens = parseInt(app.maxTokens, 10);
     } else if (app.format) {
-      maxTokens = maxTokensByFormat(format);
+      maxTokens = maxTokensByFormat(app.format);
     }
     return maxTokens || DEFAULT_MAX_TOKENS;
   };

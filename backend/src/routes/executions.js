@@ -1,4 +1,4 @@
-module.exports = ({ app, logger, passport, services }) => {
+module.exports = ({ app, auth, logger, services }) => {
 
   const { compositionsService, executionsService, functionsService } = services;
 
@@ -53,6 +53,7 @@ module.exports = ({ app, logger, passport, services }) => {
     const name = req.params.name;
     const batch = req.query.batch;
     const { args, params = {} } = req.body;
+    logger.debug('body:', req.body);
     const func = await functionsService.getFunctionByName(name);
 
     if (!func) {

@@ -1,36 +1,36 @@
 const omit = require('lodash.omit');
 const pick = require('lodash.pick');
 
-module.exports = ({ app, logger, passport, services }) => {
+module.exports = ({ app, auth, logger, services }) => {
 
   const { contentService, imagesService, searchService } = services;
 
-  app.get('/api/users/:userId/content', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/users/:userId/content', auth, async (req, res, next) => {
     const { userId } = req.params;
     const { limit, start } = req.query;
     const content = await contentService.getContentsForReview(userId, limit, start);
     res.json(content);
   });
 
-  app.get('/api/apps/:appId/content', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/apps/:appId/content', auth, async (req, res, next) => {
     const { appId } = req.params;
     const { limit, start } = req.query;
     const content = await contentService.getContents(appId, limit, start);
     res.json(content);
   });
 
-  app.get('/api/content/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/content/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const content = await contentService.getContent(id);
     res.json(content);
   });
 
-  app.get('/api/contents', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/contents', auth, async (req, res, next) => {
     const contents = await contentService.getContentsByFilter(req.query);
     res.json(contents);
   });
 
-  app.post('/api/contents', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/contents', auth, async (req, res, next) => {
     const promises = req.body.flatMap((content) => {
       const p = [];
       p.push(contentService.upsertContent(content));
@@ -46,13 +46,13 @@ module.exports = ({ app, logger, passport, services }) => {
     res.json(ids);
   });
 
-  app.post('/api/content', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/content', auth, async (req, res, next) => {
     const values = req.body;
     const id = await contentService.upsertContent(values);
     res.json(id);
   });
 
-  app.put('/api/content/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.put('/api/content/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const values = req.body;
     logger.debug('values: ', values);
@@ -65,7 +65,7 @@ module.exports = ({ app, logger, passport, services }) => {
     res.json(resp);
   });
 
-  app.put('/api/contents', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.put('/api/contents', auth, async (req, res, next) => {
     const promises = req.body.flatMap((v) => {
       const p = [];
       const content = omit(v, ['image', 'isNew', 'isChanged']);
@@ -81,13 +81,13 @@ module.exports = ({ app, logger, passport, services }) => {
     res.json(contents);
   });
 
-  app.delete('/api/content/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/content/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await contentService.deleteContents([id]);
     res.json(id);
   });
 
-  app.delete('/api/content', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/content', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await contentService.deleteContents(ids);
     res.json(ids);

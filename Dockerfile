@@ -1,4 +1,4 @@
-FROM node:14
+FROM node:16
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -19,7 +19,9 @@ COPY ./backend/src/services ./services
 COPY ./backend/src/plugins ./plugins
 COPY ./backend/src/utils.js .
 COPY ./backend/src/transformations.js .
+COPY ./backend/src/errors ./errors
 COPY ./backend/src/keycloak ./keycloak
+COPY ./backend/src/LocalApiKeyStrategy.js .
 COPY ./frontend/build/ ./build/
 
 ENV FRONTEND_DIR=.

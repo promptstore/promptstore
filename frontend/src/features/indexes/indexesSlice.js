@@ -15,6 +15,9 @@ export const indexesSlice = createSlice({
         delete state.indexes[id];
       }
     },
+    resetIndexes: (state) => {
+      state.indexes = {};
+    },
     setIndexes: (state, action) => {
       for (const index of action.payload.indexes) {
         state.indexes[index.id] = index;
@@ -31,12 +34,14 @@ export const indexesSlice = createSlice({
 
 export const {
   removeIndexes,
+  resetIndexes,
   setIndexes,
   startLoad,
 } = indexesSlice.actions;
 
 export const getIndexesAsync = () => async (dispatch) => {
   dispatch(startLoad());
+  dispatch(resetIndexes());
   const url = '/api/indexes';
   const res = await http.get(url);
   dispatch(setIndexes({ indexes: res.data }));

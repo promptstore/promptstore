@@ -163,9 +163,10 @@ export function ReturnTypeMappingModalInput({
         open={isModalOpen}
         title="Set Mapping"
         width={788}
+        wrapClassName="mapping-modal"
       >
         {!ready ?
-          <div>Loading...</div>
+          <div style={{ height: 448 }}>Loading...</div>
           : null
         }
         {ready ?

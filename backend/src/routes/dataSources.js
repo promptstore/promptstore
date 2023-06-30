@@ -1,10 +1,10 @@
 const path = require('path');
 
-module.exports = ({ app, constants, logger, passport, pg, services }) => {
+module.exports = ({ app, auth, constants, logger, pg, services }) => {
 
   const { dataSourcesService, documentsService } = services;
 
-  app.get('/api/data-sources', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/data-sources', auth, async (req, res, next) => {
     const { type } = req.query;
     let dataSources;
     if (type) {
@@ -15,13 +15,13 @@ module.exports = ({ app, constants, logger, passport, pg, services }) => {
     res.json(dataSources);
   });
 
-  app.get('/api/data-sources/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const index = await dataSourcesService.getDataSource(id);
     res.json(index);
   });
 
-  app.get('/api/data-sources/:id/content', passport.authenticate('keycloak', { session: false }), (req, res) => {
+  app.get('/api/data-sources/:id/content', auth, (req, res) => {
     const { id } = req.params;
     const { maxBytes } = req.query;
     let mb;
@@ -86,26 +86,26 @@ module.exports = ({ app, constants, logger, passport, pg, services }) => {
     );
   });
 
-  app.post('/api/data-sources', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/data-sources', auth, async (req, res, next) => {
     const values = req.body;
     const id = await dataSourcesService.upsertDataSource(values);
     res.json(id);
   });
 
-  app.put('/api/data-sources/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.put('/api/data-sources/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const values = req.body;
     await dataSourcesService.upsertDataSource({ id, ...values });
     res.json({ status: 'OK' });
   });
 
-  app.delete('/api/data-sources/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await dataSourcesService.deleteDataSources([id]);
     res.json(id);
   });
 
-  app.delete('/api/data-sources', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/data-sources', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await dataSourcesService.deleteDataSources(ids);
     res.json(ids);

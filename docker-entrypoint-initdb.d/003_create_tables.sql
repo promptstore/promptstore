@@ -16,6 +16,7 @@ CREATE TABLE public.file_uploads
     workspace_id integer NOT NULL,
     user_id character varying(255) COLLATE pg_catalog."default",
     filename character varying(255) COLLATE pg_catalog."default",
+    val json,
     CONSTRAINT file_uploads_pkey PRIMARY KEY (id)
 )
 WITH (

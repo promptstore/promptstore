@@ -40,21 +40,40 @@ const returnTypeOptions = [
 
 const typeOptions = [
   {
-    label: 'ChatGPT',
+    label: 'LLM - Chat',
     value: 'gpt',
   },
   {
-    label: 'Custom',
-    value: 'api',
+    label: 'LLM - Text',
+    value: 'completion',
   },
   {
     label: 'Hugging Face',
     value: 'huggingface',
   },
   {
-    label: 'Text Completion',
-    value: 'completion',
+    label: 'Custom',
+    value: 'api',
   },
+];
+
+const providerOptions = [
+  {
+    label: 'OpenAI',
+    value: 'openai',
+  },
+  {
+    label: 'Vertex AI',
+    value: 'vertexai',
+  },
+  {
+    label: 'Local AI (Private instance)',
+    value: 'localai',
+  },
+  // {
+  //   label: 'GPT4All',
+  //   value: 'gpt4all',
+  // },
 ];
 
 export function ModelForm() {
@@ -172,6 +191,16 @@ export function ModelForm() {
         >
           <Select options={typeOptions} />
         </Form.Item>
+        {typeValue === 'gpt' ?
+          <Form.Item
+            label="Provider"
+            name="provider"
+            wrapperCol={{ span: 10 }}
+          >
+            <Select options={providerOptions} />
+          </Form.Item>
+          : null
+        }
         {typeValue === 'api' ?
           <Form.Item
             name="url"

@@ -73,17 +73,11 @@ export const processUploadsAsync = (sourceId) => async (dispatch) => {
 
 export const fileUploadAsync = (file, source) => async (dispatch) => {
   dispatch(startUpload());
-  try {
-    const form = new FormData();
-    form.append('sourceId', source.id);
-    form.append('file', file.originFileObj);
-    await http.post('/api/upload', form, {
-      headers: {}
-    });
-    dispatch(uploaded());
-  } catch (err) {
-    return new Error(err.message);
-  }
+  const form = new FormData();
+  form.append('sourceId', source.id);
+  form.append('file', file.originFileObj);
+  await http.post('/api/upload', form);
+  dispatch(uploaded());
 };
 
 const fetchUploads = async (workspaceId) => {
@@ -101,9 +95,7 @@ export const getUploadsAsync = ({ sourceId }) => async (dispatch) => {
 const getNewUploads = (current, id, content) => {
   if (!current) return null;
   const index = current.findIndex((u) => u.id === id);
-  if (index === -1) {
-    return null;
-  }
+  if (index === -1) return null;
   const upload = current[index];
   const uploads = [...current];
   uploads.splice(index, 1, { ...upload, content });
@@ -134,7 +126,12 @@ export const deleteUploadsAsync = ({ sourceId, uploads }) => async (dispatch) =>
   dispatch(removeUploads({ sourceId, uploads }));
 };
 
-export const loadDocumentAsync = ({ filepath, params }) => async (dispatch) => {
+export const indexDataAsync = ({ uploadId, params }) => async (dispatch) => {
+  const url = '/api/dataloader';
+  await http.post(url, { uploadId, params });
+};
+
+export const indexDocumentAsync = ({ filepath, params }) => async (dispatch) => {
   const url = '/api/loader';
   await http.post(url, { filepath, params });
 };

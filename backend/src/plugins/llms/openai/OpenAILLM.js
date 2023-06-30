@@ -1,47 +1,39 @@
+const { Configuration, OpenAIApi } = require('openai');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-const { delay, getMessages } = require('../utils');
+const { delay } = require('./utils');
 
-function OpenAIService({ logger, openai, services }) {
+function OpenAILLM({ constants, logger }) {
 
-  const {
-    gpt4allService,
-    promptSetsService,
-  } = services;
+  const configuration = new Configuration({
+    apiKey: constants.OPENAI_API_KEY,
+  });
 
-  async function createChatCompletion(messages, model, maxTokens, hits, retryCount = 0) {
+  const openai = new OpenAIApi(configuration);
+
+  async function createChatCompletion(messages, model, maxTokens, n, retryCount = 0) {
     let resp;
     try {
-      let msgs = [...messages];
-      if (hits?.length) {
-        const context = hits.map(h => h.content_text).join('\n');
-        const i = messages.length - 1;
-        const content = messages[i].content;
-        const promptSets = await promptSetsService.getPromptSetBySkill('qa');
-        if (promptSets.length) {
-          const prompts = promptSets[0].prompts;
-          const features = { context, content };
-          msgs.splice(i, 1, ...getMessages(prompts, features));
-        }
-      }
-      logger.debug('messages: ', msgs);
-      resp = await openai.createChatCompletion({
+      const options = {
         model,
-        messages: msgs,
+        messages,
         max_tokens: maxTokens,
-      });
+        n,
+      };
+      // logger.debug('options: ', JSON.stringify(options, null, 2));
+      resp = await openai.createChatCompletion(options);
       logger.debug('OpenAI response: ', JSON.stringify(resp.data, null, 2));
       return resp.data;
     } catch (err) {
-      logger.error(err);
+      logger.error(String(err));
       if (resp && resp.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(messages, maxTokens, retryCount + 1);
+        return await createChatCompletion(messages, maxTokens, n, retryCount + 1);
       }
     }
   }
@@ -104,37 +96,33 @@ function OpenAIService({ logger, openai, services }) {
     });
   }
 
-  const fetchChatCompletion = async (messages, model, maxTokens, n, service) => {
-    let response;
+  const fetchChatCompletion = async (messages, model, maxTokens, n) => {
     const prompt = messages[messages.length - 1];
-
-    if (service === 'gpt4all') {
-      const input = messages.map((m) => m.content).join('\n\n');
-      response = await gpt4allService.createCompletion(input, maxTokens, n);
-      return response.map((c) => ({ text: c.generation, prompt }));
-    }
-
-    response = await createChatCompletion(messages, model, maxTokens, n);
+    const response = await createChatCompletion(messages, model, maxTokens, n);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt })),
     };
   };
 
-  const fetchCompletion = async (input, model, maxTokens, n, service) => {
-    let response;
-
-    if (service === 'gpt4all') {
-      response = await gpt4allService.createCompletion(input, maxTokens, n);
-      return response.map((c) => ({ text: c.generation, prompt: input }));
-    }
-
-    // openai
-    response = await createCompletion(prompt, model, maxTokens, n);
+  const fetchCompletion = async (input, model, maxTokens, n) => {
+    const response = await createCompletion(prompt, model, maxTokens, n);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt: input })),
     };
+  };
+
+  const getSummary = async (messages) => {
+    const content = messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n');
+    const msgs = [
+      {
+        role: 'user',
+        content: `Summarize the following content to a maximum of three words: """${content}"""`,
+      }
+    ];
+    const resp = await createChatCompletion(msgs, 'gpt-3.5-turbo', 10);
+    return resp.choices[0].message.content;
   };
 
   return {
@@ -145,10 +133,9 @@ function OpenAIService({ logger, openai, services }) {
     fetchChatCompletion,
     fetchCompletion,
     generateImageVariant,
+    getSummary,
   };
 
 }
 
-module.exports = {
-  OpenAIService,
-};
+module.exports = OpenAILLM;

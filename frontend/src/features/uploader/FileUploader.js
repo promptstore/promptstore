@@ -22,7 +22,11 @@ const beforeUpload = (file) => {
 
   const isZip = file.type === 'application/zip';
 
-  if (!(isCSV || isText || isZip)) {
+  const isPdf = file.type === 'application/pdf';
+
+  const isWord = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  if (!(isCSV || isText || isZip || isPdf || isWord)) {
     message.error('You may only upload a CSV, Text or Zip file.');
   }
 
@@ -32,7 +36,7 @@ const beforeUpload = (file) => {
     message.error('File must smaller than 1GB.');
   }
 
-  return (isCSV || isText || isZip) && isLt2M;
+  return (isCSV || isText || isZip || isPdf || isWord) && isLt2M;
 };
 
 // https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it

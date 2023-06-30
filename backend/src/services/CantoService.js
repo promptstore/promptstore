@@ -133,7 +133,7 @@ function CantoService({ constants, logger, mc }) {
             return reject(err);
           }
           let imageUrl;
-          if (process.env.ENV === 'dev') {
+          if (constants.ENV === 'dev') {
             const u = new URL(presignedUrl);
             imageUrl = '/api/dev/images' + u.pathname + u.search;
           } else {
@@ -146,7 +146,7 @@ function CantoService({ constants, logger, mc }) {
   };
 
   async function getAccessToken() {
-    const url = `${constants.CANTO_OAUTH_BASE_URL}/oauth/api/oauth2/token?app_id=${constants.CANTO_APP_ID}&app_secret=${constants.CANTO_APP_SECRET}&grant_type=client_credentials`;
+    const url = `${constants.CANTO_OAUTH_BASE_URL}/oauth/api/oauth2/token?app_id=${constants.CANTO_CLIENT_CRED_APP_ID}&app_secret=${constants.CANTO_CLIENT_CRED_APP_SECRET}&grant_type=client_credentials`;
     try {
       const res = await axios.post(url);
       return res.data;

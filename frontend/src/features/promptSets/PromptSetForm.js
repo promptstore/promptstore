@@ -1,13 +1,13 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
-  Collapse,
   Divider,
   Form,
   Input,
+  Radio,
   Row,
   Select,
   Space,
@@ -55,7 +55,6 @@ import {
   updateSettingAsync,
 } from './settingsSlice';
 
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const TAGS_KEY = 'promptSetTags';
@@ -77,6 +76,17 @@ const roleOptions = [
   {
     label: 'User',
     value: 'user',
+  },
+];
+
+const templateEngineOptions = [
+  {
+    label: 'Handlebars',
+    value: 'handlebars',
+  },
+  {
+    label: 'ES6',
+    value: 'es6',
   },
 ];
 
@@ -166,6 +176,7 @@ export function PromptSetForm() {
 
   const typesDefinedValue = Form.useWatch('isTypesDefined', form);
   const argumentsValue = Form.useWatch('arguments', form);
+  const templateEngineValue = Form.useWatch('templateEngine', form);
 
   const vars = Object.keys(argumentsValue?.properties || {});
 
@@ -331,6 +342,12 @@ export function PromptSetForm() {
     })
   );
 
+  function Code({ children }) {
+    return (
+      <code style={{ color: 'chocolate', fontSize: '0.9em', whiteSpace: 'nowrap' }}>{children}</code>
+    );
+  }
+
   function PromptList({ fields, errors, add, move, remove }) {
 
     const [activeId, setActiveId] = useState(null);
@@ -379,14 +396,45 @@ export function PromptSetForm() {
         <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
           <div style={{ marginLeft: 35 }}>
             <Space direction="horizontal">
-              <span>Available variables:</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Available variables:</span>
               {vars.map((v) => (
                 <Tag key={v}>{v}</Tag>
               ))}
             </Space>
-            <div>
-              Use <code style={{ fontSize: '0.9em' }}>{'${<var>}'}</code> notation to insert a variable.
-            </div>
+            {templateEngineValue === 'es6' ?
+              <div className="prompt-help">
+                <div>
+                  Use <Code>{'${<var>}'}</Code> notation to insert a variable.
+                </div>
+              </div>
+              : null
+            }
+            {templateEngineValue === 'handlebars' ?
+              <div className="prompt-help">
+                <div>
+                  Use <Code>{'{{<var>}}'}</Code> notation to insert a variable.
+                  Wrap a conditional block using:
+                </div>
+                <div>
+                  <Code>{'{{#if <var>}}<text-block>{{else}}<alt-block>{{/if}}'}</Code>
+                </div>
+                <div>
+                  or if testing that a variable is a non-empty list:
+                </div>
+                <div>
+                  <Code>{'{{#ifmulitple <var>}}<text-block>{{else}}<alt-block>{{/if}}'}</Code>
+                </div>
+                <div>
+                  To enumerate a list variable as a comma-separated list,
+                  use: <Code>{'{{list <var>}}'}</Code>
+                </div>
+                <div>
+                  <Link to="https://handlebarsjs.com/guide/" target="_blank" rel="noopener noreferrer">See this guide</Link> for
+                  a more indepth discussion.
+                </div>
+              </div>
+              : null
+            }
           </div>
         </Form.Item>
         <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
@@ -405,6 +453,7 @@ export function PromptSetForm() {
       </>
     );
   }
+
   const handleCancel = () => {
     setIsModalOpen(false);
   };
@@ -436,15 +485,8 @@ export function PromptSetForm() {
   };
 
   const showVersionsModal = (key) => {
-    // setSelectedRowKey(key);
     setIsModalOpen(true);
   };
-
-  const PanelHeader = ({ title }) => (
-    <div style={{ borderBottom: '1px solid #d9d9d9' }}>
-      {title}
-    </div>
-  );
 
   if (!isNew && !loaded) {
     return (
@@ -477,8 +519,6 @@ export function PromptSetForm() {
           onFinish={onFinish}
           initialValues={promptSet}
         >
-          {/* <Collapse defaultActiveKey={['1']} ghost> */}
-          {/* <Panel header={<PanelHeader title="Prompt Set Details" />} key="1" forceRender> */}
           <Form.Item
             label="Name"
             name="name"
@@ -542,8 +582,6 @@ export function PromptSetForm() {
           >
             <Switch />
           </Form.Item>
-          {/* </Panel> */}
-          {/* <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender> */}
           <Form.Item
             colon={false}
             label="Define Types?"
@@ -561,8 +599,16 @@ export function PromptSetForm() {
             </Form.Item>
             : null
           }
-          {/* </Panel> */}
-          {/* <Panel header={<PanelHeader title="Prompt Messages" />} key="3" forceRender> */}
+          <Form.Item
+            label="Template Engine"
+            name="templateEngine"
+          >
+            <Radio.Group
+              optionType="button"
+              buttonStyle="solid"
+              options={templateEngineOptions}
+            />
+          </Form.Item>
           <Form.List name="prompts">
             {(fields, { add, move, remove }, { errors }) => (
               <PromptList
@@ -574,8 +620,6 @@ export function PromptSetForm() {
               />
             )}
           </Form.List>
-          {/* </Panel> */}
-          {/* </Collapse> */}
           <Form.Item wrapperCol={{ offset: 4 }}>
             <Space>
               <Button type="default" onClick={onCancel}>Cancel</Button>

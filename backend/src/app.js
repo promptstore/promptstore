@@ -1,4 +1,3 @@
-const { Configuration, OpenAIApi } = require('openai');
 // const FormData = require('form-data');
 const Minio = require('minio');
 const { Pool } = require('pg');
@@ -25,66 +24,141 @@ const { CantoService } = require('./services/CantoService');
 const { ChatSessionsService } = require('./services/ChatSessionsService');
 const { CompositionsService } = require('./services/CompositionsService');
 const { ContentService } = require('./services/ContentService');
+const { CrawlerService } = require('./services/CrawlerService');
 const { DataSourcesService } = require('./services/DataSourcesService');
 const { DocumentsService } = require('./services/DocumentsService');
 const { ExecutionsService } = require('./services/ExecutionsService');
 const { FeatureStoreService } = require('./services/FeatureStoreService');
 const { FunctionsService } = require('./services/FunctionsService');
-const { Gpt4allService } = require('./services/Gpt4allService');
 const { HuggingFaceService } = require('./services/HuggingFaceService');
 const { IndexesService } = require('./services/IndexesService');
+const { LLMService } = require('./services/LLMService');
 const { LoaderService } = require('./services/LoaderService');
 const { ModelsService } = require('./services/ModelsService');
-const { OpenAIService } = require('./services/OpenAIService');
 const { PIIService } = require('./services/PIIService');
 const { PromptSetsService } = require('./services/PromptSetsService');
-const { WorkspacesService } = require('./services/WorkspacesService');
 const { SearchService } = require('./services/SearchService');
 const { SettingsService } = require('./services/SettingsService');
+const { SqlSourceService } = require('./services/SqlSourceService');
+const { Tool } = require('./services/Tool');
 const { TrainingService } = require('./services/TrainingService');
+const { UploadsService } = require('./services/UploadsService');
 const { UsersService } = require('./services/UsersService');
+const { WorkspacesService } = require('./services/WorkspacesService');
 const { installRoutesDir } = require('./utils');
 
 const RedisStore = require('connect-redis')(session);
 
-const logger = new winston.Logger({
-  transports: [new winston.transports.Console()],
-  level: 'debug',
-});
-
-logger.log('debug', 'ENV:', process.env.ENV);
-if (process.env.ENV === 'dev') {
+const ENV = process.env.ENV;
+console.log('debug', 'ENV: ', ENV);
+if (ENV === 'dev') {
   dotenv.config();
 }
 
-const CANTO_APP_ID = process.env.CANTO_APP_ID;
-const CANTO_APP_SECRET = process.env.CANTO_APP_SECRET;
+const logger = new winston.Logger({
+  transports: [new winston.transports.Console()],
+  level: ENV === 'dev' ? 'debug' : 'info',
+});
+
+const ANAML_API_KEY = process.env.ANAML_API_KEY;
+const ANAML_API_SECRET = process.env.ANAML_API_SECRET;
+const ANAML_API_URL = process.env.ANAML_API_URL;
+const CANTO_AUTHORIZATION_SERVER_TOKEN_URL = process.env.CANTO_AUTHORIZATION_SERVER_TOKEN_URL;
+const CANTO_CLIENT_CRED_APP_ID = process.env.CANTO_CLIENT_CRED_APP_ID;
+const CANTO_CLIENT_CRED_APP_SECRET = process.env.CANTO_CLIENT_CRED_APP_SECRET;
 const CANTO_OAUTH_BASE_URL = process.env.CANTO_OAUTH_BASE_URL;
 const CANTO_SITE_BASEURL = process.env.CANTO_SITE_BASEURL;
+const CANTO_USER_FLOW_APP_ID = process.env.CANTO_USER_FLOW_APP_ID;
+const CANTO_USER_FLOW_APP_SECRET = process.env.CANTO_USER_FLOW_APP_SECRET;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
+const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const GPT4ALL_API = process.env.GPT4ALL_API;
 const HUGGING_FACE_BASE_URL = process.env.HUGGING_FACE_BASE_URL;
 const HUGGING_FACE_HUB_API = process.env.HUGGING_FACE_HUB_API;
 const HUGGING_FACE_TOKEN = process.env.HUGGING_FACE_TOKEN;
+const KEYCLOAK_CALLBACK = process.env.KEYCLOAK_CALLBACK;
+const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID;
+const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET;
+const KEYCLOAK_HOST = process.env.KEYCLOAK_HOST;
+const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM;
+const LLM_PLUGINS = process.env.LLM_PLUGINS || '';
+const LOCALAI_BASE_PATH = process.env.LOCALAI_BASE_PATH;
+const ONESOURCE_API_URL = process.env.ONESOURCE_API_URL;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const PII_API_URL = process.env.PII_API_URL;
+const PLAETOSEQ_PII_API_URL = process.env.PLAETOSEQ_PII_API_URL;
 const PORT = process.env.PORT || '5000';
 const SEARCH_API = process.env.SEARCH_API;
-const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
+const SERPAPI_KEY = process.env.SERPAPI_KEY;
+const SERPAPI_URL = process.env.SERPAPI_URL;
+const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
+const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 
 const featureStorePlugins = FEATURE_STORE_PLUGINS.split(',').reduce((a, p) => {
   const [k, v] = p.split('|').map(e => e.trim());
   const plugin = require(v);
   logger.log('debug', 'plugin: %s - %s', k, typeof plugin);
-  a[k] = plugin();
+  a[k] = plugin({
+    constants: {
+      ANAML_API_KEY,
+      ANAML_API_SECRET,
+      ANAML_API_URL,
+    },
+    logger,
+  });
+  return a;
+}, {});
+
+const llmPlugins = LLM_PLUGINS.split(',').reduce((a, p) => {
+  const [k, v] = p.split('|').map(e => e.trim());
+  const plugin = require(v);
+  logger.log('debug', 'plugin: %s - %s', k, typeof plugin);
+  a[k] = plugin({
+    constants: {
+      GOOGLE_API_KEY,
+      GPT4ALL_API,
+      LOCALAI_BASE_PATH,
+      OPENAI_API_KEY,
+      SERPAPI_KEY,
+      SERPAPI_URL,
+    },
+    logger,
+  });
+  return a;
+}, {});
+
+const sqlSourcePlugins = SQL_SOURCE_PLUGINS.split(',').reduce((a, p) => {
+  const [k, v] = p.split('|').map(e => e.trim());
+  const plugin = require(v);
+  logger.log('debug', 'plugin: %s - %s', k, typeof plugin);
+  a[k] = plugin({
+    constants: {
+    },
+    logger,
+  });
+  return a;
+}, {});
+
+const toolPlugins = TOOL_PLUGINS.split(',').reduce((a, p) => {
+  const [k, v] = p.split('|').map(e => e.trim());
+  const plugin = require(v);
+  logger.log('debug', 'plugin: %s - %s', k, typeof plugin);
+  a[k] = plugin({
+    constants: {
+    },
+    logger,
+  });
   return a;
 }, {});
 
 const app = express();
 
 let apis;
-if (process.env.ENV === 'dev') {
+if (ENV === 'dev') {
   app.disable('etag');
   apis = ['./src/routes/*.js'];
 } else {
@@ -126,12 +200,6 @@ const mc = new Minio.Client({
   secretKey: process.env.AWS_SECRET_KEY,
 });
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
-
 const pg = new Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
@@ -151,8 +219,8 @@ const appsService = AppsService({ pg, logger });
 
 const cantoService = CantoService({
   constants: {
-    CANTO_APP_ID,
-    CANTO_APP_SECRET,
+    CANTO_CLIENT_CRED_APP_ID,
+    CANTO_CLIENT_CRED_APP_SECRET,
     CANTO_OAUTH_BASE_URL,
     CANTO_SITE_BASEURL,
     FILE_BUCKET,
@@ -168,10 +236,12 @@ const compositionsService = CompositionsService({ pg, logger });
 
 const contentService = ContentService({ pg, logger });
 
+const crawlerService = CrawlerService({ logger });
+
 const dataSourcesService = DataSourcesService({ pg, logger });
 
 const documentsService = DocumentsService({
-  constants: { FILE_BUCKET },
+  constants: { FILE_BUCKET, ONESOURCE_API_URL },
   logger,
   mc,
 });
@@ -180,8 +250,6 @@ const featureStoreService = FeatureStoreService({ logger, registry: featureStore
 
 const functionsService = FunctionsService({ pg, logger });
 
-const gpt4allService = Gpt4allService({ constants: { GPT4ALL_API }, logger });
-
 const huggingFaceService = HuggingFaceService({
   constants: { HUGGING_FACE_BASE_URL, HUGGING_FACE_HUB_API, HUGGING_FACE_TOKEN },
   logger,
@@ -189,9 +257,17 @@ const huggingFaceService = HuggingFaceService({
 
 const indexesService = IndexesService({ pg, logger });
 
+const llmService = LLMService({ logger, registry: llmPlugins });
+
 const modelsService = ModelsService({ pg, logger });
 
-const piiService = PIIService();
+const piiService = PIIService({
+  constants: {
+    HUGGING_FACE_TOKEN,
+    PII_API_URL,
+    PLAETOSEQ_PII_API_URL,
+  }
+});
 
 const promptSetsService = PromptSetsService({ pg, logger });
 
@@ -202,31 +278,17 @@ const searchService = SearchService({
 
 const settingsService = SettingsService({ pg, logger });
 
+const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
+
+const tool = Tool({ logger, registry: toolPlugins });
+
 const trainingService = TrainingService({ pg, logger });
+
+const uploadsService = UploadsService({ pg, logger });
 
 const usersService = UsersService({ pg });
 
 const workspacesService = WorkspacesService({ pg, logger });
-
-const openaiService = OpenAIService({
-  logger,
-  openai,
-  services: {
-    gpt4allService,
-    promptSetsService,
-  },
-});
-
-const loaderService = LoaderService({
-  logger,
-  services: {
-    documentsService,
-    functionsService,
-    indexesService,
-    openaiService,
-    searchService,
-  },
-});
 
 const executionsService = ExecutionsService({
   logger,
@@ -235,10 +297,23 @@ const executionsService = ExecutionsService({
     featureStoreService,
     huggingFaceService,
     indexesService,
+    llmService,
     modelsService,
-    openaiService,
     promptSetsService,
     searchService,
+    sqlSourceService,
+  },
+});
+
+const loaderService = LoaderService({
+  logger,
+  services: {
+    documentsService,
+    executionsService,
+    functionsService,
+    indexesService,
+    searchService,
+    uploadsService,
   },
 });
 
@@ -284,11 +359,21 @@ app.use(cors());
 
 const options = {
   app,
+  auth: passport.authenticate(['localapikey', 'keycloak'], { session: false }),
   constants: {
+    CANTO_AUTHORIZATION_SERVER_TOKEN_URL,
+    CANTO_USER_FLOW_APP_ID,
+    CANTO_USER_FLOW_APP_SECRET,
     DOCUMENTS_PREFIX,
+    ENV,
     FILE_BUCKET,
     GPT4ALL_API,
     IMAGES_PREFIX,
+    KEYCLOAK_CALLBACK,
+    KEYCLOAK_CLIENT_ID,
+    KEYCLOAK_CLIENT_SECRET,
+    KEYCLOAK_HOST,
+    KEYCLOAK_REALM,
   },
   logger,
   mc,
@@ -300,22 +385,25 @@ const options = {
     chatSessionsService,
     compositionsService,
     contentService,
+    crawlerService,
     dataSourcesService,
     documentsService,
     executionsService,
     featureStoreService,
     functionsService,
-    gpt4allService,
     huggingFaceService,
     indexesService,
+    llmService,
     loaderService,
     modelsService,
-    openaiService,
     piiService,
     promptSetsService,
     searchService,
     settingsService,
+    sqlSourceService,
+    tool,
     trainingService,
+    uploadsService,
     usersService,
     workspacesService,
   },
@@ -439,7 +527,7 @@ const routePaths = app._router.stack
 logger.debug(JSON.stringify(routePaths, null, 2));
 
 let clientProxy;
-if (process.env.ENV === 'dev') {
+if (ENV === 'dev') {
   clientProxy = httpProxy.createProxyServer({
     target: process.env.CLIENT_DEV_URL,
     headers: {
@@ -455,7 +543,7 @@ if (process.env.ENV === 'dev') {
 
 app.get('*', (req, res) => {
   logger.debug('GET ' + req.originalUrl);
-  if (process.env.ENV === 'dev') {
+  if (ENV === 'dev') {
     logger.debug('Proxying request');
     clientProxy.web(req, res);
   } else {

@@ -438,3 +438,78 @@ article.collapsible .panel.closed {
   min-width: 80px !important;
   width: 80px !important;
 }
+
+.json-schema-react-editor-adv-modal .other-row {
+  margin-bottom: 8px;
+}
+
+.json-schema-react-editor-adv-modal .other-row .ant-checkbox-wrapper {
+  margin-left: 8px;
+}
+
+.json-schema-react-editor-adv-modal .ant-col+.ant-col {
+  padding-left: 8px;
+}
+
+.markdown p {
+  margin-bottom: 8px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* 
+.markdown h5 {
+  margin-bottom: 8px;
+} */
+
+.markdown h1 {
+  font-size: 1.25em;
+}
+
+.markdown h2 {
+  font-size: 1.15em;
+}
+
+.markdown h3 {
+  font-size: 1.1em;
+}
+
+.markdown ul,
+.markdown ol {
+  margin-bottom: 12px;
+  margin-top: -4px;
+  padding-left: 14px;
+}
+
+#function .ant-col-23.ant-col-offset-1.ant-form-item-label {
+  text-align: start;
+}
+
+.prompt-help {
+  margin-top: 16px;
+}
+
+.prompt-help>div {
+  margin-top: 4px;
+}
+
+.prompt-help a,
+.mapping-modal a {
+  color: #177ddc;
+}
+
+.model-list-row,
+.function-list-row,
+.promptset-list-row {
+  vertical-align: middle;
+}
+
+.model-list-row .ant-space {
+  vertical-align: bottom;
+}

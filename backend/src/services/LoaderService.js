@@ -1,16 +1,19 @@
-const { parse } = require('csv-parse');
+const { parse } = require('csv-parse/sync');
+
+const { getExtension } = require('../utils');
 
 function LoaderService({ logger, services }) {
 
   const {
     documentsService,
+    executionsService,
     functionsService,
     indexesService,
-    openaiService,
     searchService,
+    uploadsService,
   } = services;
 
-  async function load(filepath, params) {
+  async function indexDocument(filepath, params) {
     const {
       characters = '\n\n',
       delimiter = ',',
@@ -39,7 +42,7 @@ function LoaderService({ logger, services }) {
           throw new Error('Chunker function not found');
         }
 
-        chunks = await openaiService.executeFunction('chunk', { text });
+        chunks = await executionsService.executeFunction('chunk', { text });
 
       } else {
 
@@ -47,7 +50,7 @@ function LoaderService({ logger, services }) {
 
       }
 
-      const docs = chunks.map((c) => ({ [textProperty]: c, nodeType: 'content' }));
+      const docs = chunks.map((chunk) => ({ [textProperty]: chunk, nodeType: 'content' }));
       indexChunks(indexId, docs);
 
     } else if (ext === 'csv') {
@@ -65,8 +68,8 @@ function LoaderService({ logger, services }) {
 
       const records = parse(text, options);
 
-      const docs = records.map((r) => ({ ...r, nodeType: 'content' }));
-      indexChunks(indexId, docs);
+      const docs = records.map((rec) => ({ ...rec, nodeType: 'content' }));
+      await indexChunks(indexId, docs);
 
     } else {
 
@@ -75,10 +78,30 @@ function LoaderService({ logger, services }) {
     }
   }
 
-  function getExtension(filepath) {
-    if (!filepath) return null;
-    const index = filepath.lastIndexOf('.');
-    return filepath.slice(index + 1);
+  async function indexData(uploadId, { indexId }) {
+    const upload = await uploadsService.getUpload(uploadId);
+
+    if (!upload) {
+      throw new Error('Upload not found');
+    }
+
+    const chunks = upload.data.data.structured_content;
+    const docs = chunks.map((chunk) => {
+      if (chunk.type === 'list') {
+        return {
+          type: chunk.type,
+          subtype: chunk.subtype,
+          text: chunk.heading + '\n' + chunk.items.map((it) => '- ' + it).join('\n'),
+          nodeType: 'content',
+        };
+      } else {
+        return {
+          ...chunk,
+          nodeType: 'content',
+        };
+      }
+    });
+    await indexChunks(indexId, docs);
   }
 
   async function indexChunks(indexId, chunks) {
@@ -94,7 +117,8 @@ function LoaderService({ logger, services }) {
   }
 
   return {
-    load,
+    indexDocument,
+    indexData,
   };
 
 }

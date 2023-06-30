@@ -45,4 +45,6 @@ curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executio
 
 curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"features":["driver_hourly_stats:conv_rate"],"entities":{"driver_id":[1001]}}'
 
+curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"feature_service":"driver_activity","entities":{"driver_id":[1001]}}'
+
 curl -vL -H 'Content-Type: application/json' "http://localhost:5556/api/executions/get_driver_stats" --data '{"args":{"entityId":1001},"modelKey":"gpt-3.5-turbo"}'

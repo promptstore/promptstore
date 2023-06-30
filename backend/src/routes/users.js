@@ -1,4 +1,4 @@
-module.exports = ({ app, logger, passport, services }) => {
+module.exports = ({ app, auth, logger, services }) => {
 
   const { usersService } = services;
 
@@ -10,21 +10,21 @@ module.exports = ({ app, logger, passport, services }) => {
     }
   });
 
-  app.get('/api/users/id/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/users/id/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const { getUserById } = usersService;
     const user = await getUserById(id);
     res.json(user);
   });
 
-  app.get('/api/users/:user_id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/users/:user_id', auth, async (req, res, next) => {
     const userId = req.params.user_id;
     const { getUser } = usersService;
     const user = await getUser(userId);
     res.json(user);
   });
 
-  app.get('/api/users', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/users', auth, async (req, res, next) => {
     const { getUsers } = usersService;
     const users = await getUsers();
     res.json(users);

@@ -83,15 +83,15 @@ spec:
                 configMapKeyRef:
                   key: SEARCH_API
                   name: "{{ .Values.appname }}"
-            - name: AUTHORIZATION_SERVER_TOKEN_URL
+            - name: CANTO_AUTHORIZATION_SERVER_TOKEN_URL
               valueFrom:
                 configMapKeyRef:
-                  key: AUTHORIZATION_SERVER_TOKEN_URL
+                  key: CANTO_AUTHORIZATION_SERVER_TOKEN_URL
                   name: "{{ .Values.appname }}"
-            - name: AUTHORIZE_URL
+            - name: CANTO_AUTHORIZE_URL
               valueFrom:
                 configMapKeyRef:
-                  key: AUTHORIZE_URL
+                  key: CANTO_AUTHORIZE_URL
                   name: "{{ .Values.appname }}"
             - name: PII_API_URL
               valueFrom:
@@ -128,6 +128,41 @@ spec:
                 configMapKeyRef:
                   key: FEATURE_STORE_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: ANAML_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ANAML_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: ONESOURCE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ONESOURCE_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: LLM_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: LLM_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: LOCALAI_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: LOCALAI_BASE_PATH
+                  name: "{{ .Values.appname }}"
+            - name: SERPAPI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SERPAPI_URL
+                  name: "{{ .Values.appname }}"
+            - name: TOOL_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: TOOL_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: SQL_SOURCE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: SQL_SOURCE_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: PGUSER
               valueFrom:
                 secretKeyRef:
@@ -163,28 +198,48 @@ spec:
                 secretKeyRef:
                   key: REDIS_PASSWORD
                   name: "{{ .Values.appname }}"
-            - name: APP_ID
+            - name: CANTO_USER_FLOW_APP_ID
               valueFrom:
                 secretKeyRef:
-                  key: APP_ID
+                  key: CANTO_USER_FLOW_APP_ID
                   name: "{{ .Values.appname }}"
-            - name: APP_SECRET
+            - name: CANTO_USER_FLOW_APP_SECRET
               valueFrom:
                 secretKeyRef:
-                  key: APP_SECRET
+                  key: CANTO_USER_FLOW_APP_SECRET
                   name: "{{ .Values.appname }}"
             - name: HUGGING_FACE_TOKEN
               valueFrom:
                 secretKeyRef:
                   key: HUGGING_FACE_TOKEN
                   name: "{{ .Values.appname }}"
-            - name: CANTO_APP_ID
+            - name: CANTO_CLIENT_CRED_APP_ID
               valueFrom:
                 secretKeyRef:
-                  key: CANTO_APP_ID
+                  key: CANTO_CLIENT_CRED_APP_ID
                   name: "{{ .Values.appname }}"
-            - name: CANTO_APP_SECRET
+            - name: CANTO_CLIENT_CRED_APP_SECRET
               valueFrom:
                 secretKeyRef:
-                  key: CANTO_APP_SECRET
+                  key: CANTO_CLIENT_CRED_APP_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: ANAML_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: ANAML_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: ANAML_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: ANAML_API_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: SERPAPI_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERPAPI_KEY
                   name: "{{ .Values.appname }}"

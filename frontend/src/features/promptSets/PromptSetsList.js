@@ -1,7 +1,10 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { Button, Space, Table, Tag, message } from 'antd';
+import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { CheckCircleTwoTone } from '@ant-design/icons';
+import debounce from 'lodash.debounce';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -11,25 +14,62 @@ import {
   selectLoading,
   selectPromptSets,
 } from './promptSetsSlice';
+import {
+  getSettingAsync,
+  selectLoading as selectSettingsLoading,
+  selectSettings,
+} from './settingsSlice';
+
+const { Search } = Input;
+
+const TAGS_KEY = 'promptSetTags';
+
+const intersects = (arr1 = [], arr2 = []) => {
+  return arr1.filter(v => arr2.includes(v)).length > 0;
+};
 
 export function PromptSetsList() {
 
+  const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', false);
+  const [searchValue, setSearchValue] = useState('');
+  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', []);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
   const promptSets = useSelector(selectPromptSets);
+  const settings = useSelector(selectSettings);
+  const settingsLoading = useSelector(selectSettingsLoading);
 
   const data = useMemo(() => {
-    const list = Object.values(promptSets).map((promptSet) => ({
-      key: promptSet.id,
-      name: promptSet.name,
-      skill: promptSet.skill,
-      tags: promptSet.tags,
-      isTemplate: promptSet.isTemplate,
-    }));
+    const list =
+      Object.values(promptSets)
+        .filter((ps) => ps.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+        .filter((ps) => selectedTags?.length ? intersects(ps.tags, selectedTags) : true)
+        .filter((ps) => filterTemplates ? ps.isTemplate : true)
+        .map((ps) => ({
+          key: ps.id,
+          name: ps.name,
+          summary: ps.summary,
+          skill: ps.skill,
+          tags: ps.tags,
+          isTemplate: ps.isTemplate,
+        }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
-  }, [promptSets]);
+  }, [promptSets, searchValue, filterTemplates, selectedTags]);
+
+  const tagOptions = useMemo(() => {
+    const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
+    if (setting) {
+      const list = [...setting.value];
+      list.sort();
+      return list.map(s => ({
+        label: s,
+        value: s,
+      }));
+    }
+    return [];
+  }, [settings]);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -51,6 +91,7 @@ export function PromptSetsList() {
   useEffect(() => {
     if (selectedWorkspace) {
       dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
+      dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
     }
   }, [selectedWorkspace]);
 
@@ -68,6 +109,10 @@ export function PromptSetsList() {
     setSelectedRowKeys([]);
   };
 
+  const onSearch = debounce((q) => {
+    setSearchValue(q);
+  }, 1000);
+
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
@@ -76,10 +121,20 @@ export function PromptSetsList() {
     {
       title: 'Name',
       dataIndex: 'name',
+      onFilter: (value, record) => record.name.startsWith(value),
+      filterMode: 'menu',
+      filterSearch: true,
       render: (_, { key, name }) => (
         <div style={{ minWidth: 250 }}>
           <Link to={`/prompt-sets/${key}`}>{name}</Link>
         </div>
+      )
+    },
+    {
+      title: 'Summary',
+      dataIndex: 'summary',
+      render: (_, { summary }) => (
+        <div style={{ whiteSpace: 'nowrap' }}>{summary}</div>
       )
     },
     {
@@ -90,7 +145,11 @@ export function PromptSetsList() {
     {
       title: 'Template',
       dataIndex: 'template',
-      render: (_, { isTemplate }) => <span>{isTemplate ? 'Y' : ''}</span>
+      render: (_, { isTemplate }) => (
+        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+          <span>{isTemplate ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+        </div>
+      )
     },
     {
       title: 'Tags',
@@ -135,8 +194,33 @@ export function PromptSetsList() {
           <span style={{ marginLeft: 8 }}>
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
+          <Search allowClear
+            placeholder="find entries"
+            onSearch={onSearch}
+            style={{ marginLeft: 16, width: 250 }}
+          />
+          <Select allowClear mode="multiple"
+            options={tagOptions}
+            loading={settingsLoading}
+            placeholder="select tags"
+            onChange={setSelectedTags}
+            style={{ marginLeft: 16, width: 250 }}
+            value={selectedTags}
+          />
+          <Switch
+            checked={filterTemplates}
+            onChange={setFilterTemplates}
+            style={{ marginLeft: 8 }}
+          />
+          <span style={{ marginLeft: 8 }}>Templates</span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowClassName="promptset-list-row"
+        />
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-module.exports = ({ app, logger, passport, services }) => {
+module.exports = ({ app, auth, logger, services }) => {
 
   const { workspacesService, usersService } = services;
 
@@ -166,7 +166,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.get('/api/workspaces', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/workspaces', auth, async (req, res, next) => {
     const query = { ...req.query };
     const limit = query.limit;
     const start = query.start;
@@ -206,7 +206,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.get('/api/workspaces/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.get('/api/workspaces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const workspace = await workspacesService.getWorkspace(id);
     res.json(workspace);
@@ -235,7 +235,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.post('/api/workspaces', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.post('/api/workspaces', auth, async (req, res, next) => {
     const values = req.body;
     const id = await workspacesService.upsertWorkspace(values);
     res.json(id);
@@ -270,7 +270,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.put('/api/workspaces/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.put('/api/workspaces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const values = req.body;
     await workspacesService.upsertWorkspace({ id, ...values });
@@ -306,7 +306,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.delete('/api/workspaces/:id', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/workspaces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await workspacesService.deleteWorkspaces([id]);
     res.json(id);
@@ -336,7 +336,7 @@ module.exports = ({ app, logger, passport, services }) => {
    *       500:
    *         description: Error
    */
-  app.delete('/api/workspaces', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
+  app.delete('/api/workspaces', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await workspacesService.deleteWorkspaces(ids);
     res.json(ids);

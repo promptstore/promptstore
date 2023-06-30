@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button, Modal, Space, Table } from 'antd';
+import {
+  FileExcelOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+} from '@ant-design/icons';
 import hr from '@tsmx/human-readable';
 
 import { getExtension, getHumanFriendlyDelta } from '../../utils';
@@ -11,11 +18,45 @@ import {
   deleteUploadsAsync,
   getUploadContentAsync,
   getUploadsAsync,
-  loadDocumentAsync,
+  indexDocumentAsync,
   selectLoading,
   selectUploaded,
   selectUploads,
 } from './fileUploaderSlice';
+
+const getDocIcon = (ext) => {
+  switch (ext) {
+    case 'csv':
+      return <FileExcelOutlined style={{
+        color: '#217346',
+        fontSize: '1.5em',
+      }} />;
+
+    case 'txt':
+      return <FileTextOutlined style={{
+        color: 'rgba(0, 0, 0, 0.88)',
+        fontSize: '1.5em',
+      }} />;
+
+    case 'docx':
+      return <FileWordOutlined style={{
+        color: '#2b579a',
+        fontSize: '1.5em',
+      }} />;
+
+    case 'pdf':
+      return <FilePdfOutlined style={{
+        color: '#F40F02',
+        fontSize: '1.5em',
+      }} />;
+
+    default:
+      return <FileOutlined style={{
+        color: 'rgba(0, 0, 0, 0.88)',
+        fontSize: '1.5em',
+      }} />;
+  }
+};
 
 export function UploadsList({ sourceId }) {
 
@@ -31,21 +72,19 @@ export function UploadsList({ sourceId }) {
 
   const sourceUploads = uploads[sourceId] || [];
 
-  const data = useMemo(() => sourceUploads.map((upload) => ({
-    key: upload.etag,
-    id: upload.id,
-    name: upload.name,
-    size: upload.size,
-    lastModified: upload.lastModified,
+  const data = useMemo(() => sourceUploads.map((doc) => ({
+    key: doc.etag,
+    id: doc.id,
+    name: doc.name,
+    size: doc.size,
+    lastModified: doc.lastModified,
+    ext: getExtension(doc.name),
   })), [uploads]);
 
-  // const upload = useMemo(() => {
-  //   return sourceUploads.find((u) => u.id === selectedId);
-  // }, [selectedId, uploads]);
-
-  const upload = sourceUploads.find((u) => u.id === selectedId);
-
-  const ext = getExtension(selectedRow?.name);
+  const upload = useMemo(() => {
+    if (!selectedId) return null;
+    return sourceUploads.find((doc) => doc.id === selectedId);
+  }, [selectedId, uploads]);
 
   const dispatch = useDispatch();
 
@@ -61,7 +100,7 @@ export function UploadsList({ sourceId }) {
 
   useEffect(() => {
     if (selectedId && !upload.content) {
-      dispatch(getUploadContentAsync(sourceId, selectedId, 1000 * 1024)); // preview 1Mb
+      dispatch(getUploadContentAsync(sourceId, selectedId, 1000 * 1024));
     }
   }, [selectedId]);
 
@@ -82,21 +121,21 @@ export function UploadsList({ sourceId }) {
     setSelectedRowKeys([]);
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  };
-
   const onIndexCancel = () => {
     setIsIndexModalOpen(false);
   };
 
   const onIndexSubmit = (values) => {
-    dispatch(loadDocumentAsync({
+    dispatch(indexDocumentAsync({
       filepath: selectedRow.name,
       params: values,
     }));
     setIsIndexModalOpen(false);
     setSelectedRow(null);
+  };
+
+  const onSelectChange = (newSelectedRowKeys) => {
+    setSelectedRowKeys(newSelectedRowKeys);
   };
 
   const openIndex = (record) => {
@@ -121,6 +160,16 @@ export function UploadsList({ sourceId }) {
           {name.match(`${sourceId}/(.*)`)[1]}
         </a>
       ),
+    },
+    {
+      title: 'Type',
+      dataIndex: 'ext',
+      render: (_, { ext }) => (
+        <div style={{ textAlign: 'center' }}>
+          {getDocIcon(ext)}
+        </div>
+      ),
+      className: 'col-hdr-nowrap',
     },
     {
       title: 'Size',
@@ -177,7 +226,7 @@ export function UploadsList({ sourceId }) {
         <ContentView upload={upload} />
       </Modal>
       <IndexModal
-        ext={ext}
+        ext={selectedRow?.ext}
         onCancel={onIndexCancel}
         onSubmit={onIndexSubmit}
         open={isIndexModalOpen}

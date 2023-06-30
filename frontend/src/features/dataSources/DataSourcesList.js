@@ -11,12 +11,14 @@ import { IndexModal } from '../uploader/IndexModal';
 import {
   // getUploadContentAsync,
   getUploadsAsync,
-  loadDocumentAsync,
+  indexDataAsync,
+  indexDocumentAsync,
   selectLoaded as selectUploadsLoaded,
   selectUploads,
 } from '../uploader/fileUploaderSlice';
 
 import {
+  crawlAsync,
   deleteDataSourcesAsync,
   getDataSourcesAsync,
   getDataSourceContentAsync,
@@ -41,7 +43,11 @@ export function DataSourcesList() {
       key: ds.id,
       name: ds.name,
       type: ds.type,
+      instance: ds.featurestore || ds.documentType || ds.dialect,
       documentId: ds.documentId,
+      baseUrl: ds.baseUrl,
+      scrapingSpec: ds.scrapingSpec,
+      maxRequestsPerCrawl: ds.maxRequestsPerCrawl,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -87,11 +93,11 @@ export function DataSourcesList() {
   //     dispatch(getUploadContentAsync(selectedWorkspace.id, selectedId, 1000 * 1024)); // preview 1Mb
   //   }
   // }, [selectedId, selectedWorkspace]);
-  useEffect(() => {
-    if (selectedId) {
-      dispatch(getDataSourceContentAsync(selectedId, 1000 * 1024)); // preview 1Mb
-    }
-  }, [selectedId]);
+  // useEffect(() => {
+  //   if (selectedId) {
+  //     dispatch(getDataSourceContentAsync(selectedId, 1000 * 1024)); // preview 1Mb
+  //   }
+  // }, [selectedId]);
 
   const onDelete = () => {
     dispatch(deleteDataSourcesAsync({ ids: selectedRowKeys }));
@@ -103,32 +109,64 @@ export function DataSourcesList() {
   };
 
   const onIndexSubmit = (values) => {
-    const workspaceUploads = uploads[selectedWorkspace.id];
-    const upload = workspaceUploads.find((u) => u.id === dataSource.documentId);
-    // console.log('upload:', upload);
-    if (upload) {
-      if (dataSource.documentType === 'csv') {
-        values = {
-          ...values,
-          documentId: dataSource.documentId,
-          delimiter: dataSource.delimiter,
-          quoteChar: dataSource.quoteChar,
-        };
-      } else if (dataSource.documentType === 'txt') {
-        values = {
-          ...values,
-          documentId: dataSource.documentId,
-          textProperty: dataSource.textProperty,
-          splitter: dataSource.splitter,
-          characters: dataSource.characters,
-          functionId: dataSource.functionId,
-        };
-      }
-      dispatch(loadDocumentAsync({
-        filepath: upload.name,
-        params: values,
+    if (dataSource.type === 'crawler') {
+      dispatch(crawlAsync({
+        url: dataSource.baseUrl,
+        spec: dataSource.scrapingSpec,
+        maxRequestsPerCrawl: parseInt(dataSource.maxRequestsPerCrawl || '99', 10),
+        indexId: values.indexId,
+        newIndexName: values.newIndexName,
+        engine: values.engine,
       }));
+
+    } else if (dataSource.type === 'document') {
+
+      const workspaceUploads = uploads[selectedWorkspace.id];
+      const upload = workspaceUploads.find((doc) => doc.id === dataSource.documentId);
+      // console.log('upload:', upload);
+
+      if (upload) {
+
+        if (dataSource.documentType === 'csv') {
+          dispatch(indexDocumentAsync({
+            filepath: upload.name,
+            params: {
+              ...values,
+              documentId: dataSource.documentId,
+              delimiter: dataSource.delimiter,
+              quoteChar: dataSource.quoteChar,
+            },
+          }));
+
+        } else if (dataSource.documentType === 'txt') {
+          dispatch(indexDocumentAsync({
+            filepath: upload.name,
+            params: {
+              ...values,
+              documentId: dataSource.documentId,
+              textProperty: dataSource.textProperty,
+              splitter: dataSource.splitter,
+              characters: dataSource.characters,
+              functionId: dataSource.functionId,
+            },
+          }));
+
+        } else if (
+          dataSource.documentType === 'pdf' ||
+          dataSource.documentType === 'docx'
+        ) {
+          dispatch(indexDataAsync({
+            uploadId: upload.id,
+            params: {
+              indexId: values.indexId,
+              newIndexName: values.newIndexName,
+              engine: values.engine,
+            },
+          }));
+        }
+      }
     }
+
     setIsIndexModalOpen(false);
     setSelectedId(null);
   };
@@ -142,6 +180,14 @@ export function DataSourcesList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  // const openCrawl = (record) => {
+  //   dispatch(crawlAsync({
+  //     url: record.baseUrl,
+  //     spec: record.scrapingSpec,
+  //     maxRequestsPerCrawl: parseInt(record.maxRequestsPerCrawl || '99', 10),
+  //   }));
+  // };
+
   const openIndex = (record) => {
     setSelectedId(record.key);
     setIsIndexModalOpen(true);
@@ -150,7 +196,24 @@ export function DataSourcesList() {
   const openPreview = (record) => {
     // setSelectedId(record.documentId);
     setSelectedId(record.key);
+    dispatch(getDataSourceContentAsync(record.key, 1000 * 1024)); // preview 1Mb
     setIsPreviewModalOpen(true);
+  };
+
+  const getColor = (instance) => {
+    switch (instance) {
+      case 'feast':
+        return '#87d068';
+
+      case 'anaml':
+        return '#2db7f5';
+
+      case 'postgresql':
+        return '#ca3dd4';
+
+      default:
+        return 'rgba(0, 0, 0, 0.25)';
+    }
   };
 
   const columns = [
@@ -164,34 +227,56 @@ export function DataSourcesList() {
       )
     },
     {
-      title: 'Type',
+      title: 'Source Type',
       dataIndex: 'type',
-      width: '100%',
       render: (_, { type }) => (
         <Tag>{type}</Tag>
+      )
+    },
+    {
+      title: 'Instance Type',
+      dataIndex: 'instance',
+      width: '100%',
+      render: (_, { instance }) => (
+        <Tag color={getColor(instance)}>{instance}</Tag>
       )
     },
     {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-        record.type === 'document' && record.documentId ?
-          <Space size="middle">
-            <Button type="link"
-              style={{ paddingLeft: 0 }}
-              onClick={() => openPreview(record)}
-            >
-              Preview
-            </Button>
-            <Button type="link"
-              disabled={!uploadsLoaded}
-              style={{ paddingLeft: 0 }}
-              onClick={() => openIndex(record)}
-            >
-              Index
-            </Button>
-          </Space>
-          : null
+        <>
+          {record.type === 'document' && record.documentId ?
+            <Space size="middle">
+              <Button type="link"
+                disabled={!uploadsLoaded}
+                style={{ paddingLeft: 0 }}
+                onClick={() => openIndex(record)}
+              >
+                Index
+              </Button>
+              <Button type="link"
+                style={{ paddingLeft: 0 }}
+                onClick={() => openPreview(record)}
+              >
+                Preview
+              </Button>
+            </Space>
+            : null
+          }
+          {record.type === 'crawler' ?
+            <Space size="middle">
+              <Button type="link"
+                disabled={false}
+                style={{ paddingLeft: 0 }}
+                onClick={() => openIndex(record)}
+              >
+                Index
+              </Button>
+            </Space>
+            : null
+          }
+        </>
       ),
     },
   ];

@@ -10,4 +10,4 @@ venv/
 __pycache__/
 *.pyc
 002_create_db.sh
-
+backend/storage/

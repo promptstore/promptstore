@@ -1,10 +1,10 @@
 const axios = require('axios');
 
-function PIIService() {
+function PIIService({ constants }) {
 
   async function scan(data) {
-    const url = process.env.PII_API_URL;
-    const token = process.env.HUGGING_FACE_TOKEN;
+    const url = constants.PII_API_URL;
+    const token = constants.HUGGING_FACE_TOKEN;
     const resp = await axios.post(url, { ...data, options: { wait_for_model: true } }, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -16,7 +16,7 @@ function PIIService() {
   }
 
   async function scan2(data) {
-    const url = process.env.PLAETOSEQ_PII_API_URL;
+    const url = constants.PLAETOSEQ_PII_API_URL;
     const resp = await axios.post(url, { text: data.inputs }, {
       headers: {
         'Accept': 'application/json',
