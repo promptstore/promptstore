@@ -14,19 +14,22 @@ function ExecutionsService({ logger, services }) {
   const {
     dataSourcesService,
     featureStoreService,
-    huggingFaceService,
+    functionsService,
+    guardrailsService,
     indexesService,
     llmService,
+    modelProviderService,
     modelsService,
+    parserService,
     promptSetsService,
     searchService,
     sqlSourceService,
   } = services;
 
-  const executeFunction = async (func, args, params, batch = false) => {
+  const executeFunction = async (func, args, params, functions, batch = false) => {
     logger.log('debug', 'execute function: %s', func.name);
-    logger.log('debug', 'args: %s', args);
-    logger.log('debug', 'params: %s', params);
+    logger.log('debug', 'args:', args);
+    logger.log('debug', 'params:', params);
 
     if (batch && !(Array.isArray(args) && args.length)) {
       const errors = [
@@ -42,7 +45,8 @@ function ExecutionsService({ logger, services }) {
       modelId,
       model: modelKey,
       n = 1,
-    } = params;
+      stop,
+    } = params || {};
     if (typeof maxTokens === 'string') {
       try {
         maxTokens = parseInt(maxTokens, 10);
@@ -111,14 +115,15 @@ function ExecutionsService({ logger, services }) {
     const mappingTemplate = impl.mappingData;
     if (mappingTemplate) {
       if (batch) {
-        request = await Promise.all(args.map((a) => mapArgs(mappingTemplate, a)));
+        request = await Promise.all(args.map((a) => mapArgs(mappingTemplate, a, func.arguments.type === 'array')));
       } else {
-        request = await mapArgs(mappingTemplate, args);
+        request = await mapArgs(mappingTemplate, args, func.arguments.type === 'array');
       }
     } else {
       logger.log('debug', 'skip argument mapping');
       request = args;
     }
+    request.maxTokens = maxTokens;
 
     if (impl.dataSourceId) {
       const ds = await dataSourcesService.getDataSource(impl.dataSourceId);
@@ -142,39 +147,72 @@ function ExecutionsService({ logger, services }) {
         httpMethod: ds.httpMethod,
         url: ds.url,
       }
+      logger.log('debug', 'calling feature store:', ds.featurestore, request.entityId, params);
       const values = await featureStoreService.getOnlineFeatures(ds.featurestore, params, request.entityId);
-      // logger.log('debug', 'values: %s', JSON.stringify(values, null, 2));
+      // logger.log('debug', 'values:', values);
       request = { ...request, ...values };
     }
 
-    if (impl.indexId) {
-      const index = await indexesService.getIndex(impl.indexId);
+    logger.log('debug', 'indexes:', impl.indexes);
 
-      if (!index) {
-        const errors = [
-          {
-            message: 'Index not found',
-          },
-        ];
-        return { errors };
+    if (impl.indexes?.length) {
+      for (const { indexId, indexContentPropertyPath, indexContextPropertyPath, allResults, summarizeResults } of impl.indexes) {
+        const index = await indexesService.getIndex(indexId);
+        if (!index) {
+          const errors = [
+            {
+              message: 'Index not found',
+            },
+          ];
+          return { errors };
+        }
+
+        const contentPath = indexContentPropertyPath?.trim();
+        const contextPath = indexContextPropertyPath?.trim();
+
+        let content;
+        if (allResults) {
+          content = '*';
+        } else if (!contentPath || contentPath === 'root') {
+          content = request;
+        } else {
+          content = get(request, contentPath);
+        }
+
+        const res = await searchService.search(index.name, content);
+
+        logger.log('debug', 'res:', res);
+
+        let context = res.map(r => r.content_text).join('\n\n');
+        // logger.log('debug', 'context: %s', context);
+
+        if (summarizeResults) {
+          const summarizeFunc = await functionsService.getFunctionByName('summarize');
+          if (!summarizeFunc) {
+            const errors = [
+              {
+                message: 'Summarize function not found',
+              },
+            ];
+            logger.log('error', errors);
+            // ignore
+          } else {
+            const { data, errors } = await executeFunction(summarizeFunc, { text: context }, {
+              maxTokens: 255,
+              model: 'gpt-3.5-turbo',
+              n: 1,
+            });
+            if (errors) {
+              logger.log('error', errors);
+              // ignore
+            } else {
+              context = data.content;
+            }
+          }
+        }
+
+        request = set(request, contextPath, context);
       }
-
-      const indexContentPropertyPath = impl.indexContentPropertyPath?.trim();
-      const indexContextPropertyPath = impl.indexContextPropertyPath?.trim() || 'context';
-
-      let content;
-      if (!indexContentPropertyPath || indexContentPropertyPath === 'root') {
-        content = request;
-      } else {
-        content = get(request, indexContentPropertyPath);
-      }
-
-      const res = await searchService.search(index.name, content);
-
-      const context = res[0].content_text;
-      // logger.log('debug', 'context: %s', context);
-
-      request = set(request, indexContextPropertyPath, context);
     }
 
     if (impl.sqlSourceId) {
@@ -244,7 +282,7 @@ function ExecutionsService({ logger, services }) {
         ];
         return { errors };
       } else {
-        resp = await huggingFaceService.query(model.modelName, request);
+        resp = await modelProviderService.query('huggingface', model.modelName, request);
       }
       logger.log('debug', 'resp: %s', resp);
 
@@ -255,52 +293,141 @@ function ExecutionsService({ logger, services }) {
     // See https://community.openai.com/t/batching-with-chatcompletion-endpoint/137723
     if (model.type === 'gpt') {
 
-      const promptSet = await promptSetsService.getPromptSet(impl.promptSetId);
-
-      if (promptSet.arguments) {
-        validatorResult = validate(requestArgs, promptSet.arguments, { required: true });
-
-        if (!validatorResult.valid) {
-          return { errors: validatorResult.errors };
-        }
-      } else {
-        logger.log('debug', 'skip prompt-set argument validation');
-      }
-
       let messages;
-      if (batch) {
-        const p = promptSet.prompts[promptSet.prompts.length - 1];
-        const prompt = isObject(p) ? p.prompt : p;
-        let i = 0;
-        for (const r of request) {
-          if (i === 0) {
-            messages = getMessages(promptSet.prompts, r, promptSet.templateEngine);
-          } else {
-            messages.push({
-              role: 'user',
-              content: fillTemplate(prompt, r, promptSet.templateEngine),
-            });
+      if (impl.promptSetId) {
+        const promptSet = await promptSetsService.getPromptSet(impl.promptSetId);
+
+        if (promptSet.arguments) {
+          validatorResult = validate(requestArgs, promptSet.arguments, { required: true });
+
+          if (!validatorResult.valid) {
+            return { errors: validatorResult.errors };
           }
-          i += 1;
+        } else {
+          logger.log('debug', 'skip prompt-set argument validation');
+        }
+
+        if (batch) {
+          const p = promptSet.prompts[promptSet.prompts.length - 1];
+          const prompt = isObject(p) ? p.prompt : p;
+          let i = 0;
+          for (const r of request) {
+            if (i === 0) {
+              messages = getMessages(promptSet.prompts, r, promptSet.templateEngine);
+            } else {
+              messages.push({
+                role: 'user',
+                content: fillTemplate(prompt, r, promptSet.templateEngine),
+              });
+            }
+            i += 1;
+          }
+        } else {
+          messages = getMessages(promptSet.prompts, request, promptSet.templateEngine);
         }
       } else {
-        messages = getMessages(promptSet.prompts, request, promptSet.templateEngine);
-      }
-      logger.log('debug', 'messages: %s', JSON.stringify(messages, null, 2));
-      const response = await llmService.fetchChatCompletion(model.provider, messages, model.key, maxTokens, n);
-      try {
-        let result;
-        if (batch) {
-          result = await Promise.all(response.choices.map((c) => mapReturnType(impl, c.message.content)));
+        logger.debug('args:', args, ' ', typeof args);
+        if (typeof args === 'string') {
+          messages = [
+            {
+              role: 'user',
+              content: args,
+            }
+          ];
+        } else if (isObject(args)) {
+          const content = args.text || args.input;
+          if (content) {
+            messages = [
+              {
+                role: 'user',
+                content,
+              }
+            ];
+          } else {
+            const errors = [
+              {
+                message: 'Cannot parse args',
+              },
+            ];
+            return { errors };
+          }
         } else {
-          result = await mapReturnType(impl, response.choices[0].message.content);
+          const errors = [
+            {
+              message: 'Cannot parse args',
+            },
+          ];
+          return { errors };
         }
+      }
+      logger.log('debug', 'messages:', messages);
+
+      if (impl.inputGuardrails?.length) {
+        const text = messages.map((m) => m.content).join('\n\n');
+        for (const key of impl.inputGuardrails) {
+          logger.log('debug', 'guardrail: %s', key);
+          const res = await guardrailsService.scan(key, text);
+          if (res.error) {
+            return { errors: [res.error] };
+          }
+        }
+      }
+
+      logger.log('debug', 'params: modelKey=%s maxTokens=%s n=%s', model.key, maxTokens, n);
+      const response = await llmService.fetchChatCompletion(model.provider, messages, model.key, maxTokens, n, functions, stop);
+
+      try {
+        const contents = response.choices.map((c) => c.message.content);
+        const results = [];
+
+        for (const content of contents) {
+          let result = content;
+
+          if (impl.outputGuardrails?.length) {
+            for (const guardrail of impl.outputGuardrails) {
+              // logger.log('debug', 'guardrail: %s', guardrail);
+              const res = await guardrailsService.scan(guardrail, result);
+              // logger.log('debug', 'result: %s', res);
+              if (res.error) {
+                return { errors: [res.error] };
+              }
+              result = res.text;
+            }
+          }
+
+          if (impl.outputParser) {
+            result = await parserService.parse(impl.outputParser, result);
+          }
+
+          if (impl.returnMappingData) {
+            result = await mapReturnType(impl.returnMappingData, result, model.returnTypeSchema?.type === 'array');
+          }
+
+          results.push(result);
+        }
+
+        const resp = {
+          ...response,
+          choices: response.choices.map((c, i) => ({
+            ...c,
+            message: {
+              ...c.message,
+              result: results[i],
+            }
+          }))
+        };
+
         return {
           data: {
-            ...response,
-            content: result,
-          },
+            ...resp,
+
+            // TODO - some usages expect `n=1` which is not correct
+            content: response.choices[0].message.content,
+            result: results[0],
+            functionCall: response.choices[0].message.function_call,
+          }
         };
+
       } catch (err) {
         logger.log('error', err);
         return { errors: [{ message: String(err) }] };
@@ -334,12 +461,23 @@ function ExecutionsService({ logger, services }) {
         input = contents.join('\n\n');
       }
       const response = await llmService.fetchCompletion(model.provider, input, model.key, maxTokens, n);
+      logger.debug('response:', response);
       try {
         let result;
         if (batch) {
-          result = await Promise.all(response.choices.map((c) => mapReturnType(impl, c.text)));
+          result = await Promise.all(response.choices.map((c) => mapReturnType(impl.returnMappingData, c.text, model.returnTypeSchema?.type === 'array')));
         } else {
-          result = await mapReturnType(impl, response.choices[0].text);
+          result = await mapReturnType(impl.returnMappingData, response.choices[0].text, model.returnTypeSchema?.type === 'array');
+          if (impl.guardrails?.length) {
+            for (const key of impl.guardrails) {
+              logger.log('debug', 'guardrail: %s', key);
+              const res = await guardrailsService.scan(key, result);
+              if (res.error) {
+                return { errors: [res.error] };
+              }
+              result = res.text;
+            }
+          }
         }
         return {
           data: {
@@ -413,31 +551,25 @@ function ExecutionsService({ logger, services }) {
     return result;
   };
 
-  const mapArgs = async (mappingTemplate, args) => {
+  const mapArgs = async (mappingTemplate, args, isArrayType) => {
     let request;
-
-    // let mappingTemplate = impl.mappingTemplate;
-    // let mappingTemplate = impl.mappingData;
     if (!isEmpty(mappingTemplate)) {
       mappingTemplate = mappingTemplate.trim();
-      logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
+      // logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
       const template = eval(`(${mappingTemplate})`);
-      logger.log('debug', 'template: ', template, ' ', typeof template);
-      logger.log('debug', 'args: ', args, ' ', typeof args);
-      request = await mapJsonAsync(args, template);
-
+      // logger.log('debug', 'template: ', template, ' ', typeof template);
+      // logger.log('debug', 'args: ', args, ' ', typeof args);
+      if (isArrayType) {
+        // Looks like `mapEntries/mapEntriesAsync` was planned but not built
+        // request = await mapEntriesAsync(args, template);
+        const promises = args.map((val) => mapJsonAsync(val, template));
+        request = Promise.all(promises);
+      } else {
+        request = await mapJsonAsync(args, template);
+      }
     } else {
 
-      // const mappingData = impl.mappingData;
-      // if (mappingData && mappingData.length) {
-      //   request = mappingData.reduce((a, m) => {
-      //     a[m.target] = args[m.source];
-      //     return a;
-      //   }, {});
-      // } else {
       request = args;
-      // }
-
     }
 
     return request;
@@ -447,50 +579,32 @@ function ExecutionsService({ logger, services }) {
    * Current order of operation is:
    * 
    * 1. Advanced JSON Path Template
-   * 2. Predefined transformation
    * 3. Simple Mapping
    * 
-   * @param {*} impl 
+   * @param {*} mappingTemplate 
    * @param {*} ret 
    * @returns 
    */
-  const mapReturnType = async (impl, ret) => {
-    logger.log('debug', 'ret: %s', ret);
+  const mapReturnType = async (mappingTemplate, ret, isArrayType) => {
+    // logger.log('debug', 'ret: %s', ret);
     let response;
-
-    const returnTransformation = impl.returnTransformation;
-    if (returnTransformation) {
-      logger.log('debug', 'Performing transformation: %s', impl.returnTransformation);
-      response = transformations[returnTransformation](ret);
-
+    if (!isEmpty(mappingTemplate)) {
+      mappingTemplate = mappingTemplate.trim();
+      logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
+      const template = eval(`(${mappingTemplate})`);
+      // logger.log('debug', 'template: ', template, ' ', typeof template);
+      if (isArrayType) {
+        // Looks like `mapEntries/mapEntriesAsync` was planned but not built
+        // response = await mapEntriesAsync(ret, template);
+        const promises = ret.map((val) => mapJsonAsync(val, template));
+        response = Promise.all(promises);
+      } else {
+        response = await mapJsonAsync(ret, template);
+      }
     } else {
 
-      // let mappingTemplate = impl.returnMappingTemplate;
-      let mappingTemplate = impl.returnMappingData;
-      if (!isEmpty(mappingTemplate)) {
-        mappingTemplate = mappingTemplate.trim();
-        logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
-        const template = eval(`(${mappingTemplate})`);
-        // logger.log('debug', 'template: ', template, ' ', typeof template);
-        response = await mapJsonAsync(ret, template);
-
-        // } else {
-
-        //   const mappingData = impl.returnMappingData;
-        //   if (mappingData && mappingData.length) {
-        //     logger.log('debug', 'mappingData: %s', mappingData);
-        //     response = mappingData.reduce((a, m) => {
-        //       a[m.target] = ret[m.source];
-        //       return a;
-        //     }, {});
-
-      } else {
-
-        response = ret;
-
-      }
+      response = ret;
     }
-
     logger.log('debug', 'response: %s', response);
 
     return response;

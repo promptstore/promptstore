@@ -16,13 +16,15 @@ import {
   BookOutlined,
   BorderlessTableOutlined,
   CodeOutlined,
-  CommentOutlined,
+  CodepenOutlined,
   DatabaseOutlined,
   DeploymentUnitOutlined,
   FileOutlined,
   FunctionOutlined,
   HomeOutlined,
+  InteractionOutlined,
   NotificationOutlined,
+  RobotOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
@@ -32,7 +34,9 @@ import NavbarContext from './context/NavbarContext';
 import WorkspaceContext from './context/WorkspaceContext';
 import UserContext from './context/UserContext';
 import { About } from './features/about/About';
+import { Agents } from './features/agents/Agents';
 import { AppForm } from './features/apps/AppForm';
+import { AppView } from './features/apps/AppView';
 import { AppsList } from './features/apps/AppsList';
 import { Composer } from './features/composer/Composer';
 import { CompositionsList } from './features/composer/CompositionsList';
@@ -47,12 +51,10 @@ import { IndexForm } from './features/indexes/IndexForm';
 import { IndexesList } from './features/indexes/IndexesList';
 import { ModelForm } from './features/models/ModelForm';
 import { ModelsList } from './features/models/ModelsList';
-import { Playground } from './features/apps/Playground';
 import { ProfileView } from './features/profile/ProfileView';
 import { WorkspaceForm } from './features/workspaces/WorkspaceForm';
 import { WorkspacesList } from './features/workspaces/WorkspacesList';
 import { PromptSetsList } from './features/promptSets/PromptSetsList';
-import { ReviewsList } from './features/reviews/ReviewsList';
 import { PromptSetForm } from './features/promptSets/PromptSetForm';
 import { TrainingList } from './features/training/TrainingList';
 import { UsersList } from './features/users/UsersList';
@@ -103,13 +105,6 @@ const getSideMenuItems = (isWorkspaceSelected) => {
         <NavLink to="/workspaces">Workspaces</NavLink>
       ),
     },
-    {
-      key: 'models',
-      icon: <DeploymentUnitOutlined />,
-      label: (
-        <NavLink to="/models">Models</NavLink>
-      ),
-    },
   ];
 
   if (isWorkspaceSelected) {
@@ -121,6 +116,13 @@ const getSideMenuItems = (isWorkspaceSelected) => {
           <NavLink to="/apps">Apps</NavLink>
         ),
       },
+      {
+        key: 'agents',
+        icon: <RobotOutlined />,
+        label: (
+          <NavLink to="/agents">Agents</NavLink>
+        ),
+      },
       // {
       //   key: 'training',
       //   icon: <DatabaseOutlined />,
@@ -129,71 +131,118 @@ const getSideMenuItems = (isWorkspaceSelected) => {
       //   ),
       // },
       {
-        key: 'prompt-sets',
+        key: 'prompt-engineering',
         icon: <CodeOutlined />,
-        label: (
-          <NavLink to="/prompt-sets">Prompts</NavLink>
-        ),
+        label: 'Prompt Engineering',
+        // label: (
+        //   <NavLink to="/prompt-sets">Prompt Engineering</NavLink>
+        // ),
+        children: [
+          {
+            key: 'prompt-sets',
+            icon: <CodeOutlined />,
+            label: (
+              <NavLink to="/prompt-sets">Prompts</NavLink>
+            ),
+          },
+          {
+            key: 'prompt-designer',
+            icon: <InteractionOutlined />,
+            label: (
+              <NavLink to="/design">Prompt Design</NavLink>
+            ),
+          },
+        ],
       },
       {
-        key: 'prompt-designer',
-        icon: <CommentOutlined />,
-        label: (
-          <NavLink to="/design">Prompt Designer</NavLink>
-        ),
-      },
-      {
-        key: 'functions',
+        key: 'model-execution',
         icon: <FunctionOutlined />,
-        label: (
-          <NavLink to="/functions">Semantic Functions</NavLink>
-        ),
+        label: 'Model Execution',
+        // label: (
+        //   <NavLink to="/functions">Model Execution</NavLink>
+        // ),
+        children: [
+          {
+            key: 'functions',
+            icon: <FunctionOutlined />,
+            label: (
+              <NavLink to="/functions">Semantic Functions</NavLink>
+            ),
+          },
+          {
+            key: 'composer',
+            icon: <ApartmentOutlined />,
+            label: (
+              <NavLink to="/compositions">Composer</NavLink>
+            ),
+          },
+          {
+            key: 'models',
+            icon: <CodepenOutlined />,
+            label: (
+              <NavLink to="/models">Models</NavLink>
+            ),
+          },
+        ],
       },
       {
-        key: 'composer',
-        icon: <ApartmentOutlined />,
-        label: (
-          <NavLink to="/compositions">Composer</NavLink>
-        ),
-      },
-      {
-        key: 'indexes',
-        icon: <BorderlessTableOutlined />,
-        label: (
-          <NavLink to="/indexes">Indexes</NavLink>
-        ),
-      },
-      {
-        key: 'data-sources',
-        icon: <DatabaseOutlined />,
-        label: (
-          <NavLink to="/data-sources">Data Sources</NavLink>
-        ),
-      },
-      {
-        key: 'documents',
-        icon: <FileOutlined />,
-        label: (
-          <NavLink to="/uploads">Documents</NavLink>
-        ),
+        key: 'knowledge',
+        icon: <DeploymentUnitOutlined />,
+        label: 'Knowledge',
+        // label: (
+        //   <NavLink to="/data-sources">Knowledge</NavLink>
+        // ),
+        children: [
+          {
+            key: 'data-sources',
+            icon: <DatabaseOutlined />,
+            label: (
+              <NavLink to="/data-sources">Data Sources</NavLink>
+            ),
+          },
+          {
+            key: 'documents',
+            icon: <FileOutlined />,
+            label: (
+              <NavLink to="/uploads">Documents</NavLink>
+            ),
+          },
+          {
+            key: 'indexes',
+            icon: <BorderlessTableOutlined />,
+            label: (
+              <NavLink to="/indexes">Indexes</NavLink>
+            ),
+          },
+        ],
       },
     ]];
   }
 
   sideMenuItems = [...sideMenuItems, ...[
     {
-      key: 'documentation',
+      key: 'support',
       icon: <BookOutlined />,
-      label: (
-        <Link to="https://promptstoredocs.devsheds.io/" target="_blank" rel="noopener noreferrer">Documentation</Link>
-      ),
-    },
-    {
-      key: 'api',
-      icon: <ApiOutlined />,
-      label: (
-        <Link to="/api-docs" target="_blank" rel="noopener noreferrer">API</Link>
-      ),
+      label: 'Support',
+      // label: (
+      //   <Link to="https://promptstoredocs.devsheds.io/" target="_blank" rel="noopener noreferrer">Documentation</Link>
+      // ),
+      children: [
+        {
+          key: 'documentation',
+          icon: <BookOutlined />,
+          label: (
+            <Link to="https://promptstoredocs.devsheds.io/" target="_blank" rel="noopener noreferrer">Documentation</Link>
+          ),
+        },
+        {
+          key: 'api',
+          icon: <ApiOutlined />,
+          label: (
+            <Link to="/api-docs" target="_blank" rel="noopener noreferrer">API</Link>
+          ),
+        },
+      ],
     },
   ]];
 
@@ -213,7 +262,12 @@ function SideMenu({ isDarkMode, isWorkspaceSelected }) {
         </div>
       </NavLink>
       <br />
-      <Menu items={getSideMenuItems(isWorkspaceSelected)} mode="inline" theme={isDarkMode ? 'dark' : 'light'} />
+      <Menu
+        items={getSideMenuItems(isWorkspaceSelected)}
+        mode="vertical"
+        theme={isDarkMode ? 'dark' : 'light'}
+        triggerSubMenuAction="click"
+      />
     </Sider>
   );
 }
@@ -283,7 +337,9 @@ function App() {
               <Content style={{ margin: '0 16px' }}>
                 <Routes>
                   <Route path="/about" element={<About />} />
-                  <Route path="/apps/:id" element={<AppForm />} />
+                  <Route path="/agents" element={<Agents />} />
+                  <Route path="/apps-edit/:id" element={<AppForm />} />
+                  <Route path="/apps/:id" element={<AppView />} />
                   <Route path="/apps" element={<AppsList />} />
                   <Route path="/compositions/:id" element={<Composer />} />
                   <Route path="/compositions" element={<CompositionsList />} />
@@ -297,11 +353,9 @@ function App() {
                   <Route path="/indexes" element={<IndexesList />} />
                   <Route path="/models/:id" element={<ModelForm />} />
                   <Route path="/models" element={<ModelsList />} />
-                  <Route path="/playground/:id" element={<Playground />} />
                   <Route path="/profile" element={<ProfileView />} />
                   <Route path="/prompt-sets/:id" element={<PromptSetForm />} />
                   <Route path="/prompt-sets" element={<PromptSetsList />} />
-                  <Route path="/reviews" element={<ReviewsList />} />
                   <Route path="/training" element={<TrainingList />} />
                   <Route path="/uploads" element={<FileUploader />} />
                   <Route path="/users" element={<UsersList />} />

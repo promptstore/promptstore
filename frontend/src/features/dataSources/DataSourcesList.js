@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Modal, Space, Table, Tag, message } from 'antd';
+import useLocalStorageState from 'use-local-storage-state';
 
 // import { ContentView } from '../../components/ContentView';
 import { DataSourceContentView } from '../../components/DataSourceContentView';
@@ -11,7 +12,8 @@ import { IndexModal } from '../uploader/IndexModal';
 import {
   // getUploadContentAsync,
   getUploadsAsync,
-  indexDataAsync,
+  indexApiAsync,
+  indexStructuredDocumentAsync,
   indexDocumentAsync,
   selectLoaded as selectUploadsLoaded,
   selectUploads,
@@ -30,6 +32,7 @@ export function DataSourcesList() {
 
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [page, setPage] = useLocalStorageState('data-sources-list-page', 1);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
@@ -57,8 +60,8 @@ export function DataSourcesList() {
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -117,6 +120,20 @@ export function DataSourcesList() {
         indexId: values.indexId,
         newIndexName: values.newIndexName,
         engine: values.engine,
+        titleField: values.titleField,
+        vectorField: values.vectorField,
+      }));
+
+    } else if (dataSource.type === 'api') {
+      dispatch(indexApiAsync({
+        endpoint: dataSource.endpoint,
+        schema: dataSource.schema,
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          engine: values.engine,
+          vectorField: values.vectorField,
+        }
       }));
 
     } else if (dataSource.type === 'document') {
@@ -135,10 +152,13 @@ export function DataSourcesList() {
               documentId: dataSource.documentId,
               delimiter: dataSource.delimiter,
               quoteChar: dataSource.quoteChar,
+              titleField: values.titleField,
+              vectorField: values.vectorField,
             },
           }));
 
         } else if (dataSource.documentType === 'txt') {
+          // console.log('dataSource:', dataSource);
           dispatch(indexDocumentAsync({
             filepath: upload.name,
             params: {
@@ -155,7 +175,7 @@ export function DataSourcesList() {
           dataSource.documentType === 'pdf' ||
           dataSource.documentType === 'docx'
         ) {
-          dispatch(indexDataAsync({
+          dispatch(indexStructuredDocumentAsync({
             uploadId: upload.id,
             params: {
               indexId: values.indexId,
@@ -245,9 +265,9 @@ export function DataSourcesList() {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-        <>
+        <Space size="middle">
           {record.type === 'document' && record.documentId ?
-            <Space size="middle">
+            <>
               <Button type="link"
                 disabled={!uploadsLoaded}
                 style={{ paddingLeft: 0 }}
@@ -261,22 +281,26 @@ export function DataSourcesList() {
               >
                 Preview
               </Button>
-            </Space>
+            </>
             : null
           }
-          {record.type === 'crawler' ?
-            <Space size="middle">
-              <Button type="link"
-                disabled={false}
-                style={{ paddingLeft: 0 }}
-                onClick={() => openIndex(record)}
-              >
-                Index
-              </Button>
-            </Space>
+          {record.type === 'crawler' || record.type === 'api' ?
+            <Button type="link"
+              disabled={false}
+              style={{ paddingLeft: 0 }}
+              onClick={() => openIndex(record)}
+            >
+              Index
+            </Button>
             : null
           }
-        </>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/data-sources/${record.key}`)}
+          >
+            Edit
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -321,6 +345,7 @@ export function DataSourcesList() {
         onCancel={onIndexCancel}
         onSubmit={onIndexSubmit}
         open={isIndexModalOpen}
+        type={dataSource?.type}
       />
       <div style={{ marginTop: 20 }}>
         <div style={{ marginBottom: 16 }}>
@@ -331,7 +356,16 @@ export function DataSourcesList() {
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

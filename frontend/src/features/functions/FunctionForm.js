@@ -13,7 +13,7 @@ import {
   Space,
   Switch,
 } from 'antd';
-import { CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 import ButterflyDataMapping from 'react-data-mapping';
 import MonacoEditor from 'react-monaco-editor';
 import SchemaForm from '@rjsf/antd';
@@ -65,6 +65,16 @@ import {
   selectTestResultLoading,
   setTestResult,
 } from './functionsSlice';
+import {
+  getGuardrailsAsync,
+  selectLoading as selectGuardrailsLoading,
+  selectGuardrails,
+} from './guardrailsSlice';
+import {
+  getOutputParsersAsync,
+  selectLoading as selectOutputParsersLoading,
+  selectOutputParsers,
+} from './outputParsersSlice';
 
 import 'react-data-mapping/dist/index.css';
 
@@ -85,13 +95,6 @@ const returnTypeOptions = [
   {
     label: 'text/plain',
     value: 'text/plain',
-  },
-];
-
-const transformationOptions = [
-  {
-    label: 'Convert to array',
-    value: 'convertToArray',
   },
 ];
 
@@ -136,11 +139,15 @@ export function FunctionForm() {
   const dataSources = useSelector(selectDataSources);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const functions = useSelector(selectFunctions);
+  const guardrails = useSelector(selectGuardrails);
+  const guardrailsLoading = useSelector(selectGuardrailsLoading);
   const indexes = useSelector(selectIndexes);
   const indexesLoading = useSelector(selectIndexesLoading);
   const loaded = useSelector(selectLoaded);
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
+  const outputParsers = useSelector(selectOutputParsers);
+  const outputParsersLoading = useSelector(selectOutputParsersLoading);
   const promptSets = useSelector(selectPromptSets);
   const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
   const settings = useSelector(selectSettings);
@@ -177,6 +184,28 @@ export function FunctionForm() {
     return list;
   }, [dataSources]);
 
+  const inputGuardrailOptions = useMemo(() => {
+    const list = guardrails
+      .filter((g) => g.type === 'input')
+      .map((g) => ({
+        label: g.name,
+        value: g.key,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [guardrails]);
+
+  const outputGuardrailOptions = useMemo(() => {
+    const list = guardrails
+      .filter((g) => g.type === 'output')
+      .map((g) => ({
+        label: g.name,
+        value: g.key,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [guardrails]);
+
   const indexOptions = useMemo(() => {
     const list = Object.values(indexes)
       .map((idx) => ({
@@ -192,10 +221,20 @@ export function FunctionForm() {
       .map((m) => ({
         label: m.name,
         value: m.id,
+        disabled: !!m.disabled,
       }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [models]);
+
+  const outputParserOptions = useMemo(() => {
+    const list = Object.values(outputParsers).map((p) => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [outputParsers]);
 
   const promptSetOptions = useMemo(() => {
     const list = Object.values(promptSets).map((s) => ({
@@ -234,6 +273,8 @@ export function FunctionForm() {
     // dispatch(getDataSourcesAsync({ type: 'featurestore' }));
     dispatch(getDataSourcesAsync());
     dispatch(getIndexesAsync());
+    dispatch(getGuardrailsAsync());
+    dispatch(getOutputParsersAsync());
     if (!isNew) {
       dispatch(getFunctionAsync(id));
     }
@@ -282,6 +323,7 @@ export function FunctionForm() {
         },
       }));
     } else {
+      // console.log('values:', values);
       dispatch(updateFunctionAsync({
         id,
         values: {
@@ -370,7 +412,15 @@ export function FunctionForm() {
   };
 
   const getModelReturnTypeProperties = (index) => {
-    return getModelReturnTypeSchema(index)?.properties;
+    const schema = getModelReturnTypeSchema(index);
+    if (schema) {
+      if (schema.type === 'array') {
+        return schema.items.properties;
+      } else {
+        return schema.properties;
+      }
+    }
+    return undefined;
   };
 
   const isSimpleArgumentMappingEnabled = (index) => {
@@ -390,11 +440,25 @@ export function FunctionForm() {
   };
 
   const getFunctionArgumentProperties = () => {
-    return argumentsValue?.properties;
+    if (argumentsValue) {
+      if (argumentsValue.type === 'array') {
+        return argumentsValue.items.properties;
+      } else {
+        return argumentsValue.properties;
+      }
+    }
+    return undefined;
   };
 
   const getFunctionReturnTypeProperties = () => {
-    return returnTypeSchema?.properties;
+    if (returnTypeSchema) {
+      if (returnTypeSchema.type === 'array') {
+        return returnTypeSchema.items.properties;
+      } else {
+        return returnTypeSchema.properties;
+      }
+    }
+    return undefined;
   };
 
   const isSimpleReturnTypeMappingEnabled = (index) => {
@@ -431,7 +495,9 @@ export function FunctionForm() {
     const [isAdvanced, setIsAdvanced] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [ready, setReady] = useState(false);
-    const [state, setState] = useState(null);
+    const [state, setState] = useState('');
+
+    // console.log('state:', state, typeof state);
 
     useEffect(() => {
       if (value && typeof value === 'string') {
@@ -441,7 +507,9 @@ export function FunctionForm() {
 
     const handleClose = () => {
       setIsModalOpen(false);
-      setState(value);
+      if (value && typeof value === 'string') {
+        setState(value);
+      }
       setReady(false);
     };
 
@@ -461,7 +529,7 @@ export function FunctionForm() {
         onChange(state);
       }
       setIsModalOpen(false);
-      setState(null);
+      setState('');
       setReady(false);
     }
 
@@ -543,7 +611,7 @@ export function FunctionForm() {
               <div style={{ display: 'flex' }}>
                 <div style={{ marginLeft: 'auto' }}>
                   <Space>
-                    <Button onClick={() => setState(null)}>
+                    <Button onClick={() => setState('')}>
                       Clear
                     </Button>
                     {isSimple ?
@@ -572,7 +640,6 @@ export function FunctionForm() {
                       console.log(data);
                     }}
                     width="auto"
-                    height={400}
                     onChange={handleMappingDataChange}
                     mappingData={mappingData}
                   />
@@ -616,7 +683,7 @@ export function FunctionForm() {
     const [isAdvanced, setIsAdvanced] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [ready, setReady] = useState(false);
-    const [state, setState] = useState(null);
+    const [state, setState] = useState('');
 
     useEffect(() => {
       if (value && typeof value === 'string') {
@@ -626,7 +693,9 @@ export function FunctionForm() {
 
     const handleClose = () => {
       setIsModalOpen(false);
-      setState(value);
+      if (value && typeof value === 'string') {
+        setState(value);
+      }
       setReady(false);
     };
 
@@ -646,7 +715,7 @@ export function FunctionForm() {
         onChange(state);
       }
       setIsModalOpen(false);
-      setState(null);
+      setState('');
       setReady(false);
     }
 
@@ -728,7 +797,7 @@ export function FunctionForm() {
               <div style={{ display: 'flex' }}>
                 <div style={{ marginLeft: 'auto' }}>
                   <Space>
-                    <Button onClick={() => setState(null)}>
+                    <Button onClick={() => setState('')}>
                       Clear
                     </Button>
                     {isSimple ?
@@ -757,7 +826,6 @@ export function FunctionForm() {
                       console.log(data);
                     }}
                     width="auto"
-                    height={400}
                     onChange={handleMappingDataChange}
                     mappingData={mappingData}
                   />
@@ -792,6 +860,17 @@ export function FunctionForm() {
           </div>
           : null
         }
+      </>
+    );
+  }
+
+  function LabelledSwitch({ checked, label, onChange }) {
+    return (
+      <>
+        <div style={{ display: 'inline-flex', alignItems: 'center', height: 32, marginRight: 16 }}>
+          {label}
+        </div>
+        <Switch checked={checked} onChange={onChange} />
       </>
     );
   }
@@ -848,7 +927,7 @@ export function FunctionForm() {
         </Modal>
         : null
       }
-      <div style={{ marginTop: 20 }}>
+      <div id="function-form" style={{ marginTop: 20 }}>
         <Form
           {...layout}
           form={form}
@@ -866,51 +945,64 @@ export function FunctionForm() {
                 message: 'Please enter a function name',
               },
             ]}
+            wrapperCol={{ span: 12 }}
           >
-            <Input />
+            <Input style={{ minWidth: 437 }} />
           </Form.Item>
           <Form.Item
             label="Description"
             name="description"
+            wrapperCol={{ span: 12 }}
           >
-            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} style={{ minWidth: 437 }} />
           </Form.Item>
           <Form.Item
-            label="Tags"
-            name="tags"
+            label="System Function?"
           >
-            <TagsInput existingTags={existingTags} />
-          </Form.Item>
-          <Form.Item
-            colon={false}
-            label="Is System Function?"
-            name="isSystem"
-            valuePropName="checked"
-          >
-            <Switch />
+            <Form.Item
+              name="isSystem"
+              valuePropName="checked"
+              style={{ display: 'inline-block', margin: 0 }}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label="Tags"
+              name="tags"
+              style={{ display: 'inline-block', margin: '0 24px' }}
+            >
+              <TagsInput existingTags={existingTags} />
+            </Form.Item>
           </Form.Item>
           <Form.Item
             label="Arguments"
-            name="arguments"
           >
-            <SchemaModalInput />
-          </Form.Item>
-          <Form.Item label="Return Type">
             <Form.Item
-              name="returnType"
-              style={{ display: 'inline-block', width: 350 }}
+              name="arguments"
+              style={{ display: 'inline-block', margin: 0 }}
             >
-              <Select options={returnTypeOptions} />
+              <SchemaModalInput />
             </Form.Item>
-            {returnTypeValue === 'application/json' ?
+            <Form.Item
+              label="Return Type"
+              style={{ display: 'inline-block', margin: '0 16px' }}
+            >
               <Form.Item
-                name="returnTypeSchema"
-                style={{ display: 'inline-block', marginLeft: 16 }}
+                name="returnType"
+                style={{ display: 'inline-block', margin: 0, width: 200 }}
               >
-                <SchemaModalInput />
+                <Select options={returnTypeOptions} optionFilterProp="label" />
               </Form.Item>
-              : null
-            }
+              {returnTypeValue === 'application/json' ?
+                <Form.Item
+                  name="returnTypeSchema"
+                  style={{ display: 'inline-block', margin: '0 8px' }}
+                >
+                  <SchemaModalInput />
+                </Form.Item>
+                : null
+              }
+            </Form.Item>
           </Form.Item>
           <Form.List name="implementations">
             {(fields, { add, remove }, { errors }) => (
@@ -943,17 +1035,29 @@ export function FunctionForm() {
                           },
                         ]}
                       >
-                        <Select options={modelOptions} />
+                        <Select options={modelOptions} optionFilterProp="label" />
                       </Form.Item>
                       {getModel(index)?.type === 'gpt' ?
-                        <Form.Item
-                          name={[field.name, 'promptSetId']}
-                          label="Prompt"
-                          labelCol={{ span: 24 }}
-                          wrapperCol={{ span: 24 }}
-                        >
-                          <Select options={promptSetOptions} />
-                        </Form.Item>
+                        <div style={{ display: 'flex' }}>
+                          <Form.Item
+                            name={[field.name, 'promptSetId']}
+                            label="Prompt"
+                            labelCol={{ span: 24 }}
+                            wrapperCol={{ span: 24 }}
+                            style={{ flex: 1 }}
+                          >
+                            <Select allowClear options={promptSetOptions} optionFilterProp="label" />
+                          </Form.Item>
+                          {implementationsValue?.[index]?.promptSetId ?
+                            <Button
+                              type="link"
+                              icon={<LinkOutlined />}
+                              onClick={() => navigate(`/prompt-sets/${implementationsValue?.[index]?.promptSetId}`)}
+                              style={{ marginTop: 32, width: 32 }}
+                            />
+                            : null
+                          }
+                        </div>
                         : null
                       }
                       {/* {getModel(index)?.type === 'api' ?
@@ -967,146 +1071,309 @@ export function FunctionForm() {
                         </Form.Item>
                         : null
                       } */}
-                      <Divider orientation="left" plain>Knowledge Doping</Divider>
+                      <div>
+                        <label style={{
+                          alignItems: 'center',
+                          display: 'inline-flex',
+                          height: 32,
+                          lineHeight: '22px',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          Argument Mapping
+                        </label>
+                      </div>
                       <Form.Item
                         colon={false}
-                        name={[field.name, 'dataSourceId']}
-                        label="Online Feature Store"
-                        extra="Inject Features"
-                        labelCol={{ span: 23, offset: 1 }}
-                        wrapperCol={{ span: 23, offset: 1 }}
+                        name={[field.name, 'mappingData']}
+                        wrapperCol={{ span: 24 }}
+                        initialValue={''}
                       >
-                        <Select allowClear
-                          loading={dataSourcesLoading}
-                          options={featureStoreOptions}
-                        />
+                        <ArgumentMappingModalInput index={index} />
                       </Form.Item>
+                      <div>
+                        <label style={{
+                          alignItems: 'center',
+                          display: 'inline-flex',
+                          height: 32,
+                          lineHeight: '22px',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          Return Type Mapping
+                        </label>
+                      </div>
                       <Form.Item
                         colon={false}
-                        name={[field.name, 'indexId']}
-                        label="Index"
-                        extra="Inject Context"
-                        labelCol={{ span: 23, offset: 1 }}
-                        wrapperCol={{ span: 23, offset: 1 }}
+                        name={[field.name, 'returnMappingData']}
+                        wrapperCol={{ span: 24 }}
+                        initialValue={''}
                       >
-                        <Select allowClear
-                          loading={indexesLoading}
-                          options={indexOptions}
-                        />
+                        <ReturnTypeMappingModalInput index={index} />
                       </Form.Item>
-                      {implementationsValue?.[index]?.indexId ?
-                        <>
-                          <Form.Item
-                            colon={false}
-                            name={[field.name, 'indexContentPropertyPath']}
-                            initialValue="content"
-                            label="Content Property Path"
-                            labelCol={{ span: 23, offset: 1 }}
-                            wrapperCol={{ span: 23, offset: 1 }}
-                          >
-                            <Input />
-                          </Form.Item>
-                          <Form.Item
-                            colon={false}
-                            name={[field.name, 'indexContextPropertyPath']}
-                            initialValue="context"
-                            label="Context Property Path"
-                            labelCol={{ span: 23, offset: 1 }}
-                            wrapperCol={{ span: 23, offset: 1 }}
-                          >
-                            <Input />
-                          </Form.Item>
-                        </>
-                        : null
-                      }
+                    </Col>
+                    <Col span={6} style={{
+                      border: '1px solid #d9d9d9',
+                      borderRightRadius: '6px',
+                      borderLeft: 'none',
+                      borderRight: 'none',
+                      overflowX: 'visible',
+                      padding: '8px 20px',
+                    }}>
+                      <Divider orientation="left" plain style={{ height: 32, marginTop: 0 }}>
+                        Knowledge Doping
+                      </Divider>
+                      <div style={{ display: 'flex' }}>
+                        <Form.Item
+                          colon={false}
+                          name={[field.name, 'dataSourceId']}
+                          label="Online Feature Store"
+                          extra="Inject Features"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                          style={{ flex: 1, marginTop: '-16px' }}
+                        >
+                          <Select allowClear
+                            loading={dataSourcesLoading}
+                            options={featureStoreOptions}
+                            optionFilterProp="label"
+                            placeholder="Select feature store"
+                          />
+                        </Form.Item>
+                        {implementationsValue?.[index]?.dataSourceId ?
+                          <Button
+                            type="link"
+                            icon={<LinkOutlined />}
+                            onClick={() => navigate(`/data-sources/${implementationsValue?.[index]?.dataSourceId}`)}
+                            style={{ marginTop: 16, width: 32 }}
+                          />
+                          : null
+                        }
+                      </div>
+                      <div style={{ display: 'flex' }}>
+                        <Form.Item
+                          colon={false}
+                          name={[field.name, 'sqlSourceId']}
+                          label="SQL Data Source"
+                          extra="Inject Metadata"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                          style={{ flex: 1 }}
+                        >
+                          <Select allowClear
+                            loading={dataSourcesLoading}
+                            options={sqlSourceOptions}
+                            optionFilterProp="label"
+                            placeholder="Select data source"
+                          />
+                        </Form.Item>
+                        {implementationsValue?.[index]?.sqlSourceId ?
+                          <Button
+                            type="link"
+                            icon={<LinkOutlined />}
+                            onClick={() => navigate(`/data-sources/${implementationsValue?.[index]?.sqlSourceId}`)}
+                            style={{ marginTop: 32, width: 32 }}
+                          />
+                          : null
+                        }
+                      </div>
+                      <div>
+                        <label style={{
+                          alignItems: 'center',
+                          display: 'inline-flex',
+                          height: 32,
+                          lineHeight: '22px',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          Indexes
+                        </label>
+                      </div>
+                      <Form.List name={[field.name, 'indexes']}>
+                        {(fields, { add, remove }, { errors }) => (
+                          <>
+                            {fields.map((field, idx) => (
+                              <Row key={field.key} style={{
+                                marginBottom: '8px',
+                              }}>
+                                <Col span={24}>
+                                  <div style={{ display: 'flex' }}>
+                                    <Form.Item
+                                      name={[field.name, 'indexId']}
+                                      labelCol={{ span: 24 }}
+                                      wrapperCol={{ span: 24 }}
+                                      style={{ flex: 1 }}
+                                    >
+                                      <Select allowClear
+                                        loading={indexesLoading}
+                                        options={indexOptions}
+                                        optionFilterProp="label"
+                                        placeholder="Select index"
+                                      />
+                                    </Form.Item>
+                                    {implementationsValue?.[index]?.indexes?.[idx]?.indexId ?
+                                      <Button
+                                        type="link"
+                                        icon={<LinkOutlined />}
+                                        onClick={() => navigate(`/indexes/${implementationsValue?.[index]?.indexes?.[idx]?.indexId}`)}
+                                        style={{ width: 32 }}
+                                      />
+                                      : null
+                                    }
+                                    {fields.length ? (
+                                      <Button type="text"
+                                        icon={<CloseOutlined />}
+                                        className="dynamic-delete-button"
+                                        onClick={() => remove(field.name)}
+                                        style={{ width: 32 }}
+                                      />
+                                    ) : null}
+                                  </div>
+                                  {implementationsValue?.[index]?.indexes?.[idx]?.indexId ?
+                                    <>
+                                      <Form.Item
+                                        extra="Content path"
+                                        initialValue="content"
+                                        name={[field.name, 'indexContentPropertyPath']}
+                                        placeholder="Content path"
+                                        style={{ display: 'inline-block', width: 'calc(50% - 4px)' }}
+                                        wrapperCol={{ span: 24 }}
+                                      >
+                                        <Input />
+                                      </Form.Item>
+                                      <Form.Item
+                                        extra="Context path"
+                                        initialValue="context"
+                                        name={[field.name, 'indexContextPropertyPath']}
+                                        placeholder="Context path"
+                                        style={{ display: 'inline-block', width: 'calc(50% - 4px)', marginLeft: 8 }}
+                                        wrapperCol={{ span: 24 }}
+                                      >
+                                        <Input />
+                                      </Form.Item>
+                                      <Form.Item
+                                        extra="All"
+                                        name={[field.name, 'allResults']}
+                                        valuePropName="checked"
+                                        style={{ display: 'inline-block', width: 'calc(50% - 4px)' }}
+                                        wrapperCol={{ span: 24 }}
+                                      >
+                                        <Switch />
+                                      </Form.Item>
+                                      <Form.Item
+                                        extra="Summarize"
+                                        name={[field.name, 'summarizeResults']}
+                                        valuePropName="checked"
+                                        style={{ display: 'inline-block', width: 'calc(50% - 4px)', marginLeft: 8 }}
+                                        wrapperCol={{ span: 24 }}
+                                      >
+                                        <Switch />
+                                      </Form.Item>
+                                    </>
+                                    : null
+                                  }
+                                </Col>
+                              </Row>
+                            ))}
+                            <Form.Item wrapperCol={{ span: 24 }}>
+                              <Button
+                                type="dashed"
+                                onClick={() => add()}
+                                style={{ width: '100%', zIndex: 101 }}
+                                icon={<PlusOutlined />}
+                              >
+                                Add Index
+                              </Button>
+                              <Form.ErrorList errors={errors} />
+                            </Form.Item>
+                          </>
+                        )}
+                      </Form.List>
+                    </Col>
+                    <Col span={6} style={{
+                      border: '1px solid #d9d9d9',
+                      borderRightRadius: '6px',
+                      borderLeft: 'none',
+                      borderRight: 'none',
+                      overflowX: 'auto',
+                      padding: '8px 20px',
+                    }}>
+                      <Divider orientation="left" plain style={{ height: 32, marginTop: 0 }}>
+                        Guardrails
+                      </Divider>
                       <Form.Item
                         colon={false}
-                        name={[field.name, 'sqlSourceId']}
-                        label="SQL Data Source"
-                        extra="Inject Metadata"
-                        labelCol={{ span: 23, offset: 1 }}
-                        wrapperCol={{ span: 23, offset: 1 }}
-                      >
-                        <Select allowClear
-                          loading={dataSourcesLoading}
-                          options={sqlSourceOptions}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        colon={false}
-                        name={[field.name, 'isDefault']}
-                        label="Default?"
+                        name={[field.name, 'inputGuardrails']}
+                        label="Input Guardrails"
                         labelCol={{ span: 24 }}
                         wrapperCol={{ span: 24 }}
-                        valuePropName="checked"
-                        initialValue={index === 0}
+                        style={{ marginTop: '-16px' }}
                       >
-                        <Switch />
+                        <Select allowClear
+                          mode="multiple"
+                          loading={guardrailsLoading}
+                          options={inputGuardrailOptions}
+                          optionFilterProp="label"
+                          placeholder="Select guardrails"
+                        />
                       </Form.Item>
-                      {!isNew ?
-                        <div style={{ marginTop: 20 }}>
-                          <Button type="primary" onClick={() => { handleTest(index); }}>Test</Button>
-                        </div>
-                        : null
-                      }
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'outputGuardrails']}
+                        label="Output Guardrails"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                      >
+                        <Select allowClear
+                          mode="multiple"
+                          loading={guardrailsLoading}
+                          options={outputGuardrailOptions}
+                          optionFilterProp="label"
+                          placeholder="Select guardrails"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        colon={false}
+                        name={[field.name, 'outputParser']}
+                        label="Output Parser"
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                      >
+                        <Select allowClear
+                          loading={outputParsersLoading}
+                          options={outputParserOptions}
+                          optionFilterProp="label"
+                          placeholder="Select output parser"
+                        />
+                      </Form.Item>
+                      <Divider orientation="left" plain style={{ height: 32, marginTop: 24 }}>
+                        Options
+                      </Divider>
+                      <div style={{ display: 'flex', marginTop: '-8px' }}>
+                        <Form.Item
+                          extra="Default"
+                          name={[field.name, 'isDefault']}
+                          wrapperCol={{ span: 24 }}
+                          valuePropName="checked"
+                          initialValue={index === 0}
+                        >
+                          {/* <LabelledSwitch label="Default?" /> */}
+                          <Switch />
+                        </Form.Item>
+                        {!isNew ?
+                          <>
+                            <div style={{ flex: 1 }}></div>
+                            <Button type="primary" onClick={() => { handleTest(index); }}>Test</Button>
+                          </>
+                          : null
+                        }
+                      </div>
                     </Col>
-                    <Col span={13} style={{
+                    <Col span={1} style={{
                       border: '1px solid #d9d9d9',
                       borderRightRadius: '6px',
                       borderLeft: 'none',
                       overflowX: 'auto',
                       padding: '8px 20px',
                     }}>
-                      <>
-                        <div style={{ paddingBottom: 8 }}>
-                          <label style={{
-                            alignItems: 'center',
-                            display: 'inline-flex',
-                            height: 32,
-                            lineHeight: '22px',
-                          }}>
-                            Argument Mapping
-                          </label>
-                        </div>
-                        <Form.Item
-                          colon={false}
-                          name={[field.name, 'mappingData']}
-                          wrapperCol={{ span: 24 }}
-                          initialValue={[]}
-                        >
-                          <ArgumentMappingModalInput index={index} />
-                        </Form.Item>
-                        <div style={{ paddingBottom: 8 }}>
-                          <label style={{
-                            alignItems: 'center',
-                            display: 'inline-flex',
-                            height: 32,
-                            lineHeight: '22px',
-                          }}>
-                            Return Type Mapping
-                          </label>
-                        </div>
-                        {isModelGptType(index) ?
-                          <>
-                            <Form.Item
-                              name={[field.name, 'returnTransformation']}
-                              wrapperCol={{ span: 12 }}
-                            >
-                              <Select allowClear options={transformationOptions} />
-                            </Form.Item>
-                            <Divider orientation="left" plain>Alternatively</Divider>
-                          </>
-                          : null
-                        }
-                        <Form.Item
-                          colon={false}
-                          name={[field.name, 'returnMappingData']}
-                          wrapperCol={{ span: 24 }}
-                          initialValue={[]}
-                        >
-                          <ReturnTypeMappingModalInput index={index} />
-                        </Form.Item>
-                      </>
+
                     </Col>
                     <Col span={1}>
                       {fields.length ? (
@@ -1121,7 +1388,7 @@ export function FunctionForm() {
                     </Col>
                   </Row>
                 ))}
-                <Form.Item wrapperCol={{ offset: 4, span: 6 }}>
+                <Form.Item wrapperCol={{ offset: 4, span: 19 }}>
                   <Button
                     type="dashed"
                     onClick={() => add()}

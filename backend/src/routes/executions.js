@@ -55,7 +55,6 @@ module.exports = ({ app, auth, logger, services }) => {
     const { args, params = {} } = req.body;
     logger.debug('body:', req.body);
     const func = await functionsService.getFunctionByName(name);
-
     if (!func) {
       const errors = [
         {

@@ -1,52 +1,121 @@
-const { fillTemplate } = require('../utils');
+module.exports = ({ agents, app, auth, logger, services }) => {
 
-const FORMAT_INSTRUCTIONS = `Use the following format in your response:
+  const { agentsService, tool } = services;
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [\${tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question`;
+  let clients = [];
+  let events = [];
 
-const PREFIX = `Answer the following questions as best you can. You have access to the following tools:`;
-const SUFFIX = `Begin!
-Question: \${input}
-Thought: \${agent_scratchpad}`;
-
-
-module.exports = ({ app, auth, logger, services }) => {
-
-  const { tool } = services;
-
-  const tools = [
-    {
-      name: 'serpapi',
-      description: 'a search engine. useful for when you need to answer questions about current events. input should be a search query.',
-    },
-    {
-      name: 'calculator',
-      description: 'Useful for getting the result of a math expression. The input to this tool should be a valid mathematical expression that could be executed by a simple calculator.',
-    }
-  ];
-
-  const getTemplate = () => {
-    const formatInstructions = fillTemplate(FORMAT_INSTRUCTIONS, {
-      tool_names: tools.map((tool) => tool.name),
-    });
-    const template = [
-      PREFIX,
-      tools.map((tool) => `${tool.name}: ${tool.description}`).join('\n'),
-      formatInstructions,
-      SUFFIX
-    ].join('\n\n');
-    return template;
+  const sendEventToAllClients = (event) => {
+    clients.forEach(client => client.response.write(`data: ${JSON.stringify(event)}\n\n`));
   };
 
-  app.post('/api/agent-executions', async (req, res, next) => {
+  const addEvent = (event) => {
+    events.push(event);
+    sendEventToAllClients(event);
+  };
 
+  const eventsHandler = (req, res) => {
+    const headers = {
+      'Content-Type': 'text/event-stream',
+      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+    };
+    res.writeHead(200, headers);
+    res.write('data: ' + JSON.stringify(events.join('\n\n')) + '\n\n');
+    const clientId = Date.now();
+    const newClient = { id: clientId, response: res };
+    clients.push(newClient);
+    req.on('close', () => {
+      logger.log('debug', '%s connection closed', clientId);
+      clients = clients.filter(client => client.id !== clientId);
+    });
+  };
+
+  app.get('/api/agent-events', eventsHandler);
+
+  app.get('/api/agent-status', async (req, res) => {
+    res.json({ clients: clients.length });
+  });
+
+  app.post('/api/agent-executions', auth, async (req, res, next) => {
+    const { agentType, goal, indexName, name, selfEvaluate, tools } = req.body.agent;
+    logger.log('debug', 'user:', req.user);
+    const email = req.user?.email;
+    events = [];
+    let agent;
+    if (agentType === 'plan') {
+      agent = new agents.PlanAndExecuteAgent({});
+    } else {
+      agent = new agents.MKRLAgent({ isChat: true });
+    }
+    if (!agent) {
+      return res.sendStatus(400);
+    }
+    agent.emitter.on('event', (data) => {
+      // logger.log('debug', '>>', data);
+      addEvent(data);
+    });
+    const callParams = {
+      agentName: name,
+      email,
+      indexName,
+    };
+    await agent.run(goal, tools, callParams, selfEvaluate);
+    res.json({ status: 'OK' });
+  });
+
+  app.get('/api/tools', (req, res, next) => {
+    const tools = tool.getTools();
+    res.json(tools);
+  });
+
+  app.get('/api/workspaces/:workspaceId/agents', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const agents = await agentsService.getAgents(workspaceId);
+    res.json(agents);
+  });
+
+  app.get('/api/agents', auth, async (req, res, next) => {
+    const agents = await agentsService.getAgents();
+    res.json(agents);
+  });
+
+  app.get('/api/agents/:id', auth, async (req, res, next) => {
+    const id = req.params.id;
+    const session = await agentsService.getAgent(id);
+    res.json(session);
+  });
+
+  app.post('/api/agents', auth, async (req, res, next) => {
+    const values = req.body;
+    // const content = values.messages
+    //   .filter((m) => m.role === 'user')
+    //   .map((m) => m.content)
+    //   .join('\n\n');
+    // const args = { content };
+    // const resp = await executionsService.executeFunction('create_summary_label', args, {});
+    // const name = resp.choices[0].message.content;
+    const id = await agentsService.upsertAgent({ ...values });
+    res.json(id);
+  });
+
+  app.put('/api/agents/:id', auth, async (req, res, next) => {
+    const { id } = req.params;
+    const values = req.body;
+    await agentsService.upsertAgent({ id, ...values });
+    res.json({ status: 'OK' });
+  });
+
+  app.delete('/api/agents/:id', auth, async (req, res, next) => {
+    const id = req.params.id;
+    await agentsService.deleteAgents([id]);
+    res.json(id);
+  });
+
+  app.delete('/api/agents', auth, async (req, res, next) => {
+    const ids = req.query.ids.split(',');
+    await agentsService.deleteAgents(ids);
+    res.json(ids);
   });
 
 }

@@ -26,7 +26,7 @@ module.exports = ({ app, auth, logger, services }) => {
 
   app.get('/api/index/:name', auth, async (req, res, next) => {
     const { name } = req.params;
-    logger.debug('GET physical index: ', name);
+    logger.debug('GET physical index:', name);
     const index = await searchService.getIndex(name);
     if (!index) {
       return res.sendStatus(404);
@@ -118,6 +118,7 @@ module.exports = ({ app, auth, logger, services }) => {
     const { requests, attrs } = req.body;
     const { indexName, params: { query } } = requests[0];
     const rawResults = await searchService.search(indexName, query, attrs);
+    logger.log('debug', 'rawResults:', rawResults);
     const result = formatAlgolia(requests, rawResults);
     res.status(200).send({ results: [result] });
   });

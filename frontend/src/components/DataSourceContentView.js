@@ -5,8 +5,6 @@ const { Text } = Typography;
 
 export const DataSourceContentView = ({ dataSource }) => {
 
-  // console.log('dataSource:', dataSource);
-
   const [previewColumns, setPreviewColumns] = useState();
 
   const documentType = dataSource?.documentType;

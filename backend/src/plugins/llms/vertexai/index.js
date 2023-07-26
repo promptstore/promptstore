@@ -1,3 +1,7 @@
 const PalmLLM = require('./PalmLLM');
+const constants = require('./constants');
 
-module.exports = PalmLLM;
+module.exports = {
+  plugin: PalmLLM,
+  constants,
+}

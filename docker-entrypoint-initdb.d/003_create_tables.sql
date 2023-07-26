@@ -596,3 +596,40 @@ CREATE INDEX data_sources_type_key
     ON public."data_sources" USING btree
     (type)
     TABLESPACE pg_default;
+
+
+-- Table: public."agents"
+
+DROP TABLE IF EXISTS public."agents";
+
+-- Sequence: public."agents_id_seq"
+
+DROP SEQUENCE IF EXISTS public."agents_id_seq";
+
+CREATE SEQUENCE public."agents_id_seq" AS bigint;
+
+CREATE TABLE public."agents"
+(
+    id integer NOT NULL DEFAULT nextval('"agents_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "agents_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."agents"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."agents_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."agents_id_seq"
+    OWNED BY public."agents"."id";

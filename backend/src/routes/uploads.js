@@ -6,7 +6,7 @@ const { getExtension } = require('../utils');
 
 module.exports = ({ app, auth, constants, logger, mc, services }) => {
 
-  const { cantoService, documentsService, uploadsService } = services;
+  const { documentsService, extractorService, uploadsService } = services;
 
   const upload = multer({ dest: os.tmpdir() });
 
@@ -100,25 +100,6 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
     }
   });
 
-  app.post('/api/canto/uploads/status', auth, async (req, res, next) => {
-    logger.debug('body: ', JSON.stringify(req.body));
-    const { tokenData } = req.body;
-    const resp = await cantoService.getUploadStatus(tokenData);
-    res.json(resp);
-  });
-
-  app.post('/api/canto', upload.single('file'), async (req, res, next) => {
-    const {
-      filename,
-      tenant,
-      tokenData,
-    } = req.body;
-    const file = req.file;
-    const setting = await cantoService.getUploadSetting(tenant, tokenData);
-    await cantoSetting.uploadFile(filename, file, setting, tokenData);
-    res.sendStatus(200);
-  });
-
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
     let {
       sourceId,
@@ -143,7 +124,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
         file.mimetype === 'application/pdf' ||
         file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ) {
-        data = await documentsService.extract(file);
+        data = await extractorService.extract(file);
       }
 
       // TODO
@@ -156,7 +137,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
           filename: file.originalname,
           data,
         };
-        const id = await uploadsService.upsert(uploadRecord);
+        const id = await uploadsService.upsertUpload(uploadRecord);
         logger.info('Inserted', { ...uploadRecord, id });
 
         res.sendStatus(200);

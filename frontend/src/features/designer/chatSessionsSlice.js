@@ -16,8 +16,8 @@ export const chatSessionsSlice = createSlice({
       }
     },
     setChatSessions: (state, action) => {
-      for (const func of action.payload.chatSessions) {
-        state.chatSessions[func.id] = func;
+      for (const s of action.payload.chatSessions) {
+        state.chatSessions[s.id] = s;
       }
       state.loaded = true;
       state.loading = false;

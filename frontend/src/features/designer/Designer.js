@@ -7,16 +7,10 @@ import { Button, Layout, Table } from 'antd';
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 import { Chat } from '../../components/Chat';
-import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
-
-import { CopyParamsForm } from '../apps/Playground/CopyParamsForm';
-import {
-  getResponseAsync as getChatResponseAsync,
-  selectLoading as selectChatLoading,
-  selectMessages,
-  setMessages,
-} from '../apps/Playground/chatSlice';
 import { createPromptSetAsync } from '../promptSets/promptSetsSlice';
+
+import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
+import { CopyParamsForm } from './CopyParamsForm';
 import {
   createChatSessionAsync,
   deleteChatSessionsAsync,
@@ -26,6 +20,12 @@ import {
   selectLoading,
   updateChatSessionAsync,
 } from './chatSessionsSlice';
+import {
+  getResponseAsync as getChatResponseAsync,
+  selectLoading as selectChatLoading,
+  selectMessages,
+  setMessages,
+} from './chatSlice';
 
 const { Content, Sider } = Layout;
 

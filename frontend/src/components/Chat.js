@@ -271,7 +271,6 @@ export function Chat({
 
   const Actions = ({
     disabled,
-    handleSuggestPrompts,
     hasMessages,
     hasSelected,
     saveChatSession,
@@ -284,12 +283,6 @@ export function Chat({
     }
     return (
       <Space style={{ marginBottom: 16 }}>
-        {/* <Button type="primary" size="small"
-          disabled={disabled}
-          onClick={handleSuggestPrompts}
-        >
-          Suggest Prompts
-        </Button> */}
         <Button type="primary" size="small"
           disabled={disabled || !hasSelected}
           onClick={useContent}

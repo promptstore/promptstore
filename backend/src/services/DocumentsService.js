@@ -17,6 +17,8 @@ function DocumentsService({ constants, mc, logger }) {
       });
       const res = await axios.post(constants.ONESOURCE_API_URL, form, {
         headers: form.getHeaders(),
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
       });
       logger.debug('File uploaded to document service successfully.');
       logger.debug('res: ', res.data);

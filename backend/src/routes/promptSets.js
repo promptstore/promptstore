@@ -14,7 +14,7 @@ module.exports = ({ app, auth, logger, services }) => {
     const { skill } = req.query;
     let promptSets;
     if (skill) {
-      promptSets = await promptSetsService.getPromptSetBySkill(skill);
+      promptSets = await promptSetsService.getPromptSetsBySkill(skill);
     } else {
       promptSets = await promptSetsService.getPromptSets(workspaceId);
     }
@@ -76,12 +76,11 @@ module.exports = ({ app, auth, logger, services }) => {
       throw new Error('Function not found');
     }
     const content = prompts
-      .filter((m) => m.role === 'user')
       .map((m) => m.prompt)
       .join('\n\n');
     const args = { content };
-    const resp = await executionsService.executeFunction(func, args, {});
-    // logger.debug('resp:', JSON.stringify(resp, null, 2));
+    const resp = await executionsService.executeFunction(func, args, { maxTokens: 3 });
+    // logger.log('debug', 'resp: %s', resp);
     return resp.data.content;
   };
 

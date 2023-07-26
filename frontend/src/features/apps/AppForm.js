@@ -1,26 +1,39 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, DatePicker, Form, Input, Space } from 'antd';
-import { MinusCircleOutlined } from '@ant-design/icons';
-import * as dayjs from 'dayjs';
+import { Button, Form, Input, Select, Space } from 'antd';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
 
 import {
   createAppAsync,
-  generateBriefAsync,
   getAppAsync,
   selectApps,
-  selectBrief,
   selectLoaded,
-  selectLoadingBrief,
   updateAppAsync,
 } from './appsSlice';
-import { AppModalForm } from './AppModalForm';
+import {
+  getDataSourcesAsync,
+  selectLoading as selectDataSourcesLoading,
+  selectDataSources,
+} from '../dataSources/dataSourcesSlice';
+import {
+  getFunctionsAsync,
+  selectLoading as selectFunctionsLoading,
+  selectFunctions,
+} from '../functions/functionsSlice';
+import {
+  getIndexesAsync,
+  selectLoading as selectIndexesLoading,
+  selectIndexes,
+} from '../indexes/indexesSlice';
+import {
+  getPromptSetsAsync,
+  selectLoading as selectPromptSetsLoading,
+  selectPromptSets,
+} from '../promptSets/promptSetsSlice';
 
-const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
 const layout = {
@@ -28,44 +41,56 @@ const layout = {
   wrapperCol: { span: 20 },
 };
 
-const getFeatureLength = (featureValues) => {
-  let n = 0;
-  for (const v of Object.values(featureValues)) {
-    if (Array.isArray(v)) {
-      if (v.length > 0) {
-        n += 1;
-      }
-    } else {
-      if (v !== null && typeof v !== 'undefined') {
-        n += 1;
-      }
-    }
-  }
-  return n;
-};
-
-const brandOptions = [
-  {
-    label: 'BT',
-    value: 'BT',
-  },
-  {
-    label: 'EE',
-    value: 'EE',
-  },
-];
-
 export function AppForm() {
-
-  const [isFeaturesModalOpen, setIsFeaturesModalOpen] = useState(false);
-  const [featureValues, setFeatureValues] = useState(null);
 
   const [form] = Form.useForm();
 
-  const featuresFormResetCallbackRef = useRef();
-
-  const loaded = useSelector(selectLoaded);
   const apps = useSelector(selectApps);
+  const loaded = useSelector(selectLoaded);
+  const dataSources = useSelector(selectDataSources);
+  const dataSourcesLoading = useSelector(selectDataSourcesLoading);
+  const functions = useSelector(selectFunctions);
+  const functionsLoading = useSelector(selectFunctionsLoading);
+  const indexes = useSelector(selectIndexes);
+  const indexesLoading = useSelector(selectIndexesLoading);
+  const promptSets = useSelector(selectPromptSets);
+  const promptSetsLoading = useSelector(selectPromptSetsLoading);
+
+  const dataSourceOptions = useMemo(() => {
+    const list = Object.values(dataSources).map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
+
+  const functionOptions = useMemo(() => {
+    const list = Object.values(functions).map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [functions]);
+
+  const indexOptions = useMemo(() => {
+    const list = Object.values(indexes).map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [indexes]);
+
+  const promptSetOptions = useMemo(() => {
+    const list = Object.values(promptSets).map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [promptSets]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,22 +99,9 @@ export function AppForm() {
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
-  const id = location.pathname.match(/\/apps\/(.*)/)[1];
+  const id = location.pathname.match(/\/apps-edit\/(.*)/)[1];
   const isNew = id === 'new';
-
-  const selectedFeatures =
-    featureValues ? getFeatureLength(featureValues) + ' features' : '';
-
-  const app = useMemo(() => {
-    const a = apps[id];
-    if (a) {
-      const now = new Date();
-      const [startDate, endDate] = a.dateRange || [null, null];
-      const dateRange = [dayjs(startDate || now), dayjs(endDate || now)];
-      return { ...a, dateRange };
-    }
-    return [];
-  }, [apps]);
+  const app = apps[id];
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -97,25 +109,19 @@ export function AppForm() {
       createLink: null,
       title: 'App',
     }));
+    dispatch(getDataSourcesAsync());
+    dispatch(getFunctionsAsync());
+    dispatch(getIndexesAsync());
     if (!isNew) {
       dispatch(getAppAsync(id));
     }
   }, []);
 
   useEffect(() => {
-    if (app.features) {
-      setFeatureValues(app.features);
+    if (selectedWorkspace) {
+      dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
     }
-  }, [apps]);
-
-  const handleFeaturesCancel = () => {
-    setIsFeaturesModalOpen(false);
-  };
-
-  const handleFeaturesSet = (values) => {
-    setIsFeaturesModalOpen(false);
-    setFeatureValues(values);
-  };
+  }, [selectedWorkspace]);
 
   const onCancel = () => {
     navigate('/apps');
@@ -127,34 +133,15 @@ export function AppForm() {
         values: {
           ...values,
           workspaceId: selectedWorkspace.id,
-          features: featureValues,
-          dateRange: [values.dateRange?.[0].format('YYYY-MM-DD'), values.dateRange?.[1].format('YYYY-MM-DD')],
         }
       }));
     } else {
       dispatch(updateAppAsync({
         id,
-        values: {
-          ...values,
-          features: featureValues,
-          dateRange: [values.dateRange?.[0].format('YYYY-MM-DD'), values.dateRange?.[1].format('YYYY-MM-DD')],
-        }
+        values,
       }));
     }
     navigate('/apps');
-  };
-
-  const playground = () => {
-    navigate(`/playground/${app.id}`);
-  };
-
-  const registerFeaturesResetCallback = (callback) => {
-    featuresFormResetCallbackRef.current = callback;
-  };
-
-  const unsetFeatures = () => {
-    setFeatureValues(null);
-    featuresFormResetCallbackRef.current();
   };
 
   if (!isNew && !loaded) {
@@ -164,23 +151,10 @@ export function AppForm() {
   }
   return (
     <>
-      <AppModalForm
-        open={isFeaturesModalOpen}
-        onOk={handleFeaturesSet}
-        onCancel={handleFeaturesCancel}
-        registerResetCallback={registerFeaturesResetCallback}
-        values={app.features}
-      />
       <div style={{ marginTop: 20 }}>
         <div style={{ display: 'flex' }}>
           <div style={{ marginLeft: 'auto' }}>
             <Space>
-              {/* <Button type="link"
-                disabled={isNew}
-                onClick={playground}
-              >
-                Creative Workspace
-              </Button> */}
             </Space>
           </div>
         </div>
@@ -210,30 +184,57 @@ export function AppForm() {
               name="description"
             >
               <TextArea
-                autoSize={{ minRows: 3, maxRows: 14 }}
+                autoSize={{ minRows: 2, maxRows: 14 }}
               />
             </Form.Item>
-            {/* <Form.Item
-              label="Primary Features"
-              name="features"
+            <Form.Item
+              label="Prompts"
+              name="promptSets"
             >
-              <Space>
-                <Button type="default"
-                  onClick={() => setIsFeaturesModalOpen(true)}
-                >
-                  Set
-                </Button>
-                <div>{selectedFeatures}</div>
-                {selectedFeatures &&
-                  <Button type="text"
-                    icon={<MinusCircleOutlined />}
-                    style={{ color: 'rgb(136, 136, 136)' }}
-                    title="Unset"
-                    onClick={unsetFeatures}
-                  />
-                }
-              </Space>
-            </Form.Item> */}
+              <Select
+                allowClear
+                options={promptSetOptions}
+                optionFilterProp="label"
+                loading={promptSetsLoading}
+                mode="multiple"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Semantic Functions"
+              name="functions"
+            >
+              <Select
+                allowClear
+                options={functionOptions}
+                optionFilterProp="label"
+                loading={functionsLoading}
+                mode="multiple"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Data Sources"
+              name="dataSources"
+            >
+              <Select
+                allowClear
+                options={dataSourceOptions}
+                optionFilterProp="label"
+                loading={dataSourcesLoading}
+                mode="multiple"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Indexes"
+              name="indexes"
+            >
+              <Select
+                allowClear
+                options={indexOptions}
+                optionFilterProp="label"
+                loading={indexesLoading}
+                mode="multiple"
+              />
+            </Form.Item>
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>
                 <Button type="default" onClick={onCancel}>Cancel</Button>

@@ -42,6 +42,7 @@ export function IndexModal({
   onCancel,
   onSubmit,
   open,
+  type,
   width = 800,
 }) {
 
@@ -64,11 +65,13 @@ export function IndexModal({
   }, [functions]);
 
   const indexOptions = useMemo(() => {
-    return Object.values(indexes)
+    const list = Object.values(indexes)
       .map((index) => ({
         label: index.name,
         value: index.id,
       }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
   }, [indexes]);
 
   const dispatch = useDispatch();
@@ -104,19 +107,25 @@ export function IndexModal({
   };
 
   const handleCancel = () => {
-    form.resetFields();
     onCancel();
+    form.resetFields();
   }
 
   const handleOk = async () => {
     const values = await form.validateFields();
     onSubmit({ ...values, newIndexName: newIndex });
+    form.resetFields();
   };
 
   const onNewIndexChange = (ev) => {
     setNewIndex(ev.target.value);
   };
 
+  if (!open) {
+    return (
+      <></>
+    );
+  }
   return (
     <Modal
       onCancel={handleCancel}
@@ -143,6 +152,7 @@ export function IndexModal({
           <Select
             loading={indexesLoading}
             options={indexOptions}
+            optionFilterProp="label"
             dropdownRender={(menu) => (
               <>
                 {menu}
@@ -174,7 +184,7 @@ export function IndexModal({
             ]}
             wrapperCol={{ span: 10 }}
           >
-            <Select options={engineOptions} />
+            <Select options={engineOptions} optionFilterProp="label" />
           </Form.Item>
           : null
         }
@@ -193,6 +203,7 @@ export function IndexModal({
             >
               <Select allowClear
                 options={splitterOptions}
+                optionFilterProp="label"
               />
             </Form.Item>
             {splitterValue === 'delimiter' ?
@@ -214,11 +225,31 @@ export function IndexModal({
                 <Select allowClear
                   loading={functionsLoading}
                   options={functionOptions}
+                  optionFilterProp="label"
                 />
               </Form.Item>
 
               : null
             }
+          </>
+          : null
+        }
+        {indexValue === 'new' && (ext === 'csv' || type === 'crawler' || type === 'api') ?
+          <>
+            <Form.Item
+              label="Title Field"
+              name="titleField"
+              wrapperCol={{ span: 5 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Vector Field"
+              name="vectorField"
+              wrapperCol={{ span: 5 }}
+            >
+              <Input />
+            </Form.Item>
           </>
           : null
         }

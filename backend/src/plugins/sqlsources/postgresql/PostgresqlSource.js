@@ -10,7 +10,7 @@ const types = [
   'views',
 ];
 
-function PostgresqlSource({ constants, logger }) {
+function PostgresqlSource({ __name, constants, logger }) {
 
   Handlebars.registerHelper('loud', function (aString) {
     return aString.toUpperCase();
@@ -27,7 +27,6 @@ function PostgresqlSource({ constants, logger }) {
   }
 
   async function getSchema(source) {
-    // logger.debug('source: ', source);
     const client = await getConnection(source.connectionString);
     const { rows } = await query(client, 'tables');
     const meta = {};
@@ -56,7 +55,6 @@ function PostgresqlSource({ constants, logger }) {
   }
 
   async function getSample(source, tableName, limit = 10) {
-    // logger.debug('source: ', source);
     const client = await getConnection(source.connectionString);
     const { rows } = await client.query(`SELECT * FROM ${tableName} LIMIT $1`, [limit]);
     return rows;
@@ -79,17 +77,6 @@ function PostgresqlSource({ constants, logger }) {
     }
   };
 
-  function makePromiseFromObject(obj) {
-    const keys = Object.keys(obj);
-    const values = Object.values(obj);
-    logger.debug('obj:', keys, values);
-    return Promise.all(values)
-      .then((resolved) => resolved.reduce((a, v, i) => {
-        a[keys[i]] = v;
-        return a;
-      }, {}));
-  }
-
   function query(client, type, vars) {
     const path = `${__dirname}/sql/${type}.sql`;
     const template = fs.readFileSync(path).toString();
@@ -99,6 +86,7 @@ function PostgresqlSource({ constants, logger }) {
   };
 
   return {
+    __name,
     getSample,
     getSchema,
   };

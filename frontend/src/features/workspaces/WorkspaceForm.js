@@ -214,8 +214,10 @@ export function WorkspaceForm() {
         open={isInviteModalOpen}
         onOk={handleInvite}
         onCancel={handleInviteCancel}
+        width={800}
       >
-        {usersLoaded ?
+        <div style={{ height: 300 }}>
+        {loaded && usersLoaded ?
           <Form
             form={inviteMembersForm}
             initialValues={{ members: workspace.members?.map(({ id }) => id) }}
@@ -226,12 +228,14 @@ export function WorkspaceForm() {
               <Select allowClear
                 mode="multiple"
                 options={userOptions}
+                optionFilterProp="label"
               />
             </Form.Item>
           </Form>
           :
           <div>Loading...</div>
         }
+        </div>
       </Modal>
       <div style={{ marginTop: 20 }}>
         <div style={{ display: 'flex' }}>

@@ -51,7 +51,7 @@ function Navbar() {
     {
       key: 'profile',
       label: (
-        <Link to="https://auth.acme.com/auth/realms/AgencyAI/account">View Profile</Link>
+        <Link to={process.env.REACT_APP_USER_PROFILE_URL}>View Profile</Link>
       ),
     },
     {

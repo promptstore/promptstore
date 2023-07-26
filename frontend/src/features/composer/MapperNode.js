@@ -27,7 +27,7 @@ export default memo(({ id, data, isConnectable }) => {
         Mapper
       </div>
       <div className="custom-node__body">
-        <Select options={returnTypeOptions} name="Output Type" nodeId={id} value={data.returnType} />
+        <Select options={returnTypeOptions} optionFilterProp="label" name="Output Type" nodeId={id} value={data.returnType} />
         <SetSchema data={data} name="Output Schema" nodeId={id} />
         <SetMapper data={data} name="Mapper" nodeId={id} isConnectable={isConnectable} />
       </div>

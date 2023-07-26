@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
 import { CheckCircleTwoTone } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
@@ -37,6 +37,7 @@ const intersects = (arr1 = [], arr2 = []) => {
 export function FunctionsList() {
 
   const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', false);
+  const [page, setPage] = useLocalStorageState('functions-list-page', 1);
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', []);
@@ -95,6 +96,7 @@ export function FunctionsList() {
 
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -196,6 +198,12 @@ export function FunctionsList() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/functions/${record.key}`)}
+          >
+            Edit
+          </Button>
         </Space>
       ),
     },
@@ -225,22 +233,24 @@ export function FunctionsList() {
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 16, width: 250 }}
+            style={{ marginLeft: 16, width: 200 }}
           />
           <Select allowClear mode="multiple"
             options={modelOptions}
+            optionFilterProp="label"
             loading={modelsLoading}
             placeholder="select implementations"
             onChange={setSelectedImpls}
-            style={{ marginLeft: 16, width: 250 }}
+            style={{ marginLeft: 8, width: 200 }}
             value={selectedImpls}
           />
           <Select allowClear mode="multiple"
             options={tagOptions}
+            optionFilterProp="label"
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 16, width: 250 }}
+            style={{ marginLeft: 8, width: 200 }}
             value={selectedTags}
           />
           <Switch
@@ -255,6 +265,10 @@ export function FunctionsList() {
           columns={columns}
           dataSource={data}
           loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
           rowClassName="function-list-row"
         />
       </div>

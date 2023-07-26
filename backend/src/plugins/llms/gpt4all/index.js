@@ -1,3 +1,7 @@
 const Gpt4AllLLM = require('./Gpt4AllLLM');
+const constants = require('./constants');
 
-module.exports = Gpt4AllLLM;
+module.exports = {
+  plugin: Gpt4AllLLM,
+  constants,
+}

@@ -18,35 +18,45 @@ spec:
         - name: api
           image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
           env:
-            - name: PGHOST
+            - name: ENV
               valueFrom:
                 configMapKeyRef:
-                  key: PGHOST
+                  key: ENV
                   name: "{{ .Values.appname }}"
-            - name: PGDATABASE
+            - name: DOCUMENTS_PREFIX
               valueFrom:
                 configMapKeyRef:
-                  key: PGDATABASE
-                  name: "{{ .Values.appname }}"
-            - name: PGPORT
-              valueFrom:
-                configMapKeyRef:
-                  key: PGPORT
-                  name: "{{ .Values.appname }}"
-            - name: PORT
-              valueFrom:
-                configMapKeyRef:
-                  key: PORT
+                  key: DOCUMENTS_PREFIX
                   name: "{{ .Values.appname }}"
             - name: FILE_BUCKET
               valueFrom:
                 configMapKeyRef:
                   key: FILE_BUCKET
                   name: "{{ .Values.appname }}"
-            - name: DOCUMENTS_PREFIX
+            - name: IMAGES_PREFIX
               valueFrom:
                 configMapKeyRef:
-                  key: DOCUMENTS_PREFIX
+                  key: IMAGES_PREFIX
+                  name: "{{ .Values.appname }}"
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PORT
+                  name: "{{ .Values.appname }}"
+            - name: PGHOST
+              valueFrom:
+                configMapKeyRef:
+                  key: PGHOST
+                  name: "{{ .Values.appname }}"
+            - name: PGPORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PGPORT
+                  name: "{{ .Values.appname }}"
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  key: PGDATABASE
                   name: "{{ .Values.appname }}"
             - name: S3_ENDPOINT
               valueFrom:
@@ -57,6 +67,37 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: REDIS_HOST
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_API
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_API
+                  name: "{{ .Values.appname }}"
+            - name: ONESOURCE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ONESOURCE_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: MAILTRAP_TEMPLATE_UUID
+              valueFrom:
+                configMapKeyRef:
+                  key: MAILTRAP_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
+            - name: MAILTRAP_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  key: MAILTRAP_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: SENDER_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: SENDER_EMAIL
+                  name: "{{ .Values.appname }}"
+
+            - name: ANAML_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ANAML_API_URL
                   name: "{{ .Values.appname }}"
             - name: KEYCLOAK_HOST
               valueFrom:
@@ -78,91 +119,102 @@ spec:
                 configMapKeyRef:
                   key: KEYCLOAK_CLIENT_ID
                   name: "{{ .Values.appname }}"
-            - name: SEARCH_API
+            - name: TOKEN_STORE_KEY
               valueFrom:
                 configMapKeyRef:
-                  key: SEARCH_API
+                  key: TOKEN_STORE_KEY
                   name: "{{ .Values.appname }}"
-            - name: CANTO_AUTHORIZATION_SERVER_TOKEN_URL
+            - name: EUROPA_PII_API_URL
               valueFrom:
                 configMapKeyRef:
-                  key: CANTO_AUTHORIZATION_SERVER_TOKEN_URL
+                  key: EUROPA_PII_API_URL
                   name: "{{ .Values.appname }}"
-            - name: CANTO_AUTHORIZE_URL
+            - name: HUGGINGFACE_PII_API_URL
               valueFrom:
                 configMapKeyRef:
-                  key: CANTO_AUTHORIZE_URL
+                  key: HUGGINGFACE_PII_API_URL
                   name: "{{ .Values.appname }}"
-            - name: PII_API_URL
+            - name: GPT4ALL_API
               valueFrom:
                 configMapKeyRef:
-                  key: PII_API_URL
-                  name: "{{ .Values.appname }}"
-            - name: PLAETOSEQ_PII_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  key: PLAETOSEQ_PII_API_URL
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_OAUTH_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  key: CANTO_OAUTH_BASE_URL
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_SITE_BASEURL
-              valueFrom:
-                configMapKeyRef:
-                  key: CANTO_SITE_BASEURL
-                  name: "{{ .Values.appname }}"
-            - name: HUGGING_FACE_BASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  key: HUGGING_FACE_BASE_URL
-                  name: "{{ .Values.appname }}"
-            - name: HUGGING_FACE_HUB_API
-              valueFrom:
-                configMapKeyRef:
-                  key: HUGGING_FACE_HUB_API
-                  name: "{{ .Values.appname }}"
-            - name: FEATURE_STORE_PLUGINS
-              valueFrom:
-                configMapKeyRef:
-                  key: FEATURE_STORE_PLUGINS
-                  name: "{{ .Values.appname }}"
-            - name: ANAML_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  key: ANAML_API_URL
-                  name: "{{ .Values.appname }}"
-            - name: ONESOURCE_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  key: ONESOURCE_API_URL
-                  name: "{{ .Values.appname }}"
-            - name: LLM_PLUGINS
-              valueFrom:
-                configMapKeyRef:
-                  key: LLM_PLUGINS
+                  key: GPT4ALL_API
                   name: "{{ .Values.appname }}"
             - name: LOCALAI_BASE_PATH
               valueFrom:
                 configMapKeyRef:
                   key: LOCALAI_BASE_PATH
                   name: "{{ .Values.appname }}"
+            - name: PALM2_MODEL_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: PALM2_MODEL_NAME
+                  name: "{{ .Values.appname }}"
+            - name: HUGGINGFACE_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: HUGGINGFACE_BASE_URL
+                  name: "{{ .Values.appname }}"
+            - name: HUGGINGFACE_HUB_API
+              valueFrom:
+                configMapKeyRef:
+                  key: HUGGINGFACE_HUB_API
+                  name: "{{ .Values.appname }}"
             - name: SERPAPI_URL
               valueFrom:
                 configMapKeyRef:
                   key: SERPAPI_URL
                   name: "{{ .Values.appname }}"
-            - name: TOOL_PLUGINS
+            - name: EXTRACTOR_PLUGINS
               valueFrom:
                 configMapKeyRef:
-                  key: TOOL_PLUGINS
+                  key: EXTRACTOR_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: FEATURE_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: FEATURE_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: GUARDRAIL_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: GUARDRAIL_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: LLM_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: LLM_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: LOADER_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: LOADER_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: MODEL_PROVIDER_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: MODEL_PROVIDER_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: OUTPUT_PARSER_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: OUTPUT_PARSER_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: PASSPORT_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: PASSPORT_PLUGINS
                   name: "{{ .Values.appname }}"
             - name: SQL_SOURCE_PLUGINS
               valueFrom:
                 configMapKeyRef:
                   key: SQL_SOURCE_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: TOOL_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: TOOL_PLUGINS
+                  name: "{{ .Values.appname }}"
+
             - name: PGUSER
               valueFrom:
                 secretKeyRef:
@@ -183,45 +235,10 @@ spec:
                 secretKeyRef:
                   key: AWS_SECRET_KEY
                   name: "{{ .Values.appname }}"
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: OPENAI_API_KEY
-                  name: "{{ .Values.appname }}"
-            - name: KEYCLOAK_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: KEYCLOAK_CLIENT_SECRET
-                  name: "{{ .Values.appname }}"
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   key: REDIS_PASSWORD
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_USER_FLOW_APP_ID
-              valueFrom:
-                secretKeyRef:
-                  key: CANTO_USER_FLOW_APP_ID
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_USER_FLOW_APP_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: CANTO_USER_FLOW_APP_SECRET
-                  name: "{{ .Values.appname }}"
-            - name: HUGGING_FACE_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  key: HUGGING_FACE_TOKEN
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_CLIENT_CRED_APP_ID
-              valueFrom:
-                secretKeyRef:
-                  key: CANTO_CLIENT_CRED_APP_ID
-                  name: "{{ .Values.appname }}"
-            - name: CANTO_CLIENT_CRED_APP_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: CANTO_CLIENT_CRED_APP_SECRET
                   name: "{{ .Values.appname }}"
             - name: ANAML_API_KEY
               valueFrom:
@@ -233,10 +250,30 @@ spec:
                 secretKeyRef:
                   key: ANAML_API_SECRET
                   name: "{{ .Values.appname }}"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: "{{ .Values.appname }}"
             - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: GOOGLE_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: HUGGINGFACE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: HUGGINGFACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: KEYCLOAK_CLIENT_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENWEATHER_API_KEY
                   name: "{{ .Values.appname }}"
             - name: SERPAPI_KEY
               valueFrom:

@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, Tag, message } from 'antd';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../context/NavbarContext';
 
@@ -16,6 +17,7 @@ import {
 export function IndexesList() {
 
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [page, setPage] = useLocalStorageState('indexes-list-page', 1);
   const [selectedIndex, setSelectedIndex] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
@@ -27,6 +29,7 @@ export function IndexesList() {
       key: index.id,
       name: index.name,
       engine: index.engine,
+      titleField: index.titleField,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -35,8 +38,8 @@ export function IndexesList() {
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -102,9 +105,15 @@ export function IndexesList() {
         <Space size="middle">
           <Button type="link"
             style={{ paddingLeft: 0 }}
-            onClick={() => openSearch(record.name)}
+            onClick={() => openSearch(record)}
           >
             Search
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/indexes/${record.key}`)}
+          >
+            Edit
           </Button>
         </Space>
       ),
@@ -121,14 +130,17 @@ export function IndexesList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
+  // console.log('selectedIndex:', selectedIndex);
+
   return (
     <>
       {contextHolder}
       <SearchModal
         onCancel={onSearchCancel}
         open={isSearchModalOpen}
-        indexName={selectedIndex}
+        indexName={selectedIndex?.name}
         theme={isDarkMode ? 'dark' : 'light'}
+        titleField={selectedIndex?.titleField}
       />
       <div style={{ marginTop: 20 }}>
         <div style={{ marginBottom: 16 }}>
@@ -139,7 +151,16 @@ export function IndexesList() {
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

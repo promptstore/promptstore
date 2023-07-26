@@ -6,12 +6,12 @@ import isEmpty from 'lodash.isempty';
 import isObject from 'lodash.isobject';
 
 export function SchemaModalInput({
-  onChange,
-  value,
   buttonProps,
-  title = 'Set Schema',
-  placeholders,
   isSpec,
+  onChange,
+  placeholders,
+  title = 'Set Schema',
+  value,
 }) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,6 +38,7 @@ export function SchemaModalInput({
     if (isEmpty(val)) return true;
     if (typeof val === 'string') {
       try {
+        // TODO
         const v = eval(`(${val})`);
         if (isObject(v) && Object.values(v).length === 0) return true;
         return false;

@@ -1,0 +1,5 @@
+Openness    74
+Conscientiousness   78
+Extroversion    68
+Agreeableness   60
+Neuroticism   78

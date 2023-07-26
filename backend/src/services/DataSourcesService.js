@@ -80,6 +80,7 @@ function DataSourcesService({ pg, logger }) {
     if (dataSource === null || typeof dataSource === 'undefined') {
       return null;
     }
+    // console.log('dataSource:', dataSource);
     const val = omit(dataSource, ['id', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedDataSource = await getDataSource(dataSource.id);
     if (savedDataSource) {

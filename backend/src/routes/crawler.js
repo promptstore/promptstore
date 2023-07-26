@@ -2,9 +2,11 @@ module.exports = ({ app, auth, logger, services }) => {
 
   const { crawlerService, indexesService, searchService } = services;
 
+  // TODO de-duplication
+
   app.post('/api/crawls', async (req, res) => {
-    const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine } = req.body;
-    const schema = convertScrapingSpecToIndexSchema(spec);
+    const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField } = req.body;
+    const schema = convertScrapingSpecToIndexSchema(spec, vectorField);
     logger.debug('schema: ', JSON.stringify(schema, null, 2));
     let indexName;
     if (indexId === 'new') {
@@ -12,6 +14,8 @@ module.exports = ({ app, auth, logger, services }) => {
         name: newIndexName,
         engine,
         schema,
+        titleField,
+        vectorField,
       });
       logger.debug(`Created new index '${newIndexName}' [${id}]`);
       const fields = searchService.getSearchSchema(schema);
@@ -27,15 +31,15 @@ module.exports = ({ app, auth, logger, services }) => {
 
       indexName = index.name;
     }
-    const data = await crawlerService.crawl(url, spec, maxRequestsPerCrawl);
-    logger.debug('data: ', JSON.stringify(data, null, 2));
+    const data = await crawlerService.crawl(indexName, url, spec, maxRequestsPerCrawl);
+    logger.debug('data:', JSON.stringify(data, null, 2));
 
     // index data
     const promises = [];
+    let doc;
     for (const item of data.items) {
       if (spec.type === 'array') {
         for (const value of item.data) {
-          let doc;
           if (spec.items.type === 'string') {
             doc = {
               text: value,
@@ -54,30 +58,54 @@ module.exports = ({ app, auth, logger, services }) => {
           const promise = searchService.indexDocument(indexName, doc);
           promises.push(promise);
         }
+      } else if (spec.type === 'object') {
+        for (const item of data.items) {
+
+          doc = {
+            ...cleanObject(item.data),
+            url: item.url,
+            page_title: item.title,
+            nodeType: 'content',
+          };
+          const promise = searchService.indexDocument(indexName, doc);
+          promises.push(promise);
+        }
       }
     }
     await Promise.all(promises);
     res.sendStatus(200);
   });
 
+  const cleanObject = (obj) => {
+    return Object.entries(obj).reduce((a, [k, v]) => {
+      if (Array.isArray(v)) {
+        a[k] = v.join(', ');
+      } else {
+        a[k] = v;
+      }
+      return a;
+    }, {});
+  };
+
   const typeMappings = {
     string: 'String',
     number: 'Integer',
   };
 
-  const convertScrapingSpecToIndexSchema = ({ items, type }) => {
+  const convertScrapingSpecToIndexSchema = (spec, vectorField) => {
+    const { items, type } = spec;
     const schema = { content: {} };
     if (type === 'array') {
       if (items.type === 'string') {
         schema.content = convertStringToIndexSchema();
       }
       if (items.type === 'object') {
-        schema.content = convertObjectToIndexSchema(items);
+        schema.content = convertObjectToIndexSchema(items, vectorField);
       }
     } else if (type === 'string') {
       schema.content = convertStringToIndexSchema();
     } else if (type === 'object') {
-      schema.content = convertObjectToIndexSchema(spec);
+      schema.content = convertObjectToIndexSchema(spec, vectorField);
     }
     schema.content = {
       ...schema.content,
@@ -95,11 +123,17 @@ module.exports = ({ app, auth, logger, services }) => {
     return schema;
   };
 
-  const convertObjectToIndexSchema = ({ properties }) => {
+  const convertObjectToIndexSchema = ({ properties }, vectorField) => {
     return Object.entries(properties).reduce((a, [k, v]) => {
+      let dataType;
+      if (k === vectorField) {
+        dataType = 'Vector';
+      } else {
+        dataType = typeMappings[v.type] || 'String';
+      }
       a[k] = {
         name: k,
-        dataType: typeMappings[v.type] || 'String',
+        dataType,
         mandatory: false,
       }
       return a;

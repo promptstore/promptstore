@@ -5,7 +5,7 @@ const path = require('path');
 
 const { delay } = require('./utils');
 
-function OpenAILLM({ constants, logger }) {
+function OpenAILLM({ __name, constants, logger }) {
 
   const configuration = new Configuration({
     apiKey: constants.OPENAI_API_KEY,
@@ -13,41 +13,62 @@ function OpenAILLM({ constants, logger }) {
 
   const openai = new OpenAIApi(configuration);
 
-  async function createChatCompletion(messages, model, maxTokens, n, retryCount = 0) {
-    let resp;
+  async function createChatCompletion(messages, model, maxTokens, n, functions, stop, retryCount = 0) {
+    let res;
     try {
-      const options = {
-        model,
-        messages,
+      const opts = {
         max_tokens: maxTokens,
+        messages,
+        model,
         n,
+        functions,
+        stop,
       };
-      // logger.debug('options: ', JSON.stringify(options, null, 2));
-      resp = await openai.createChatCompletion(options);
-      logger.debug('OpenAI response: ', JSON.stringify(resp.data, null, 2));
-      return resp.data;
+      logger.debug('options:', JSON.stringify(opts, null, 2));
+      res = await openai.createChatCompletion(opts);
+      logger.debug('res:', JSON.stringify(res.data, null, 2));
+      return res.data;
     } catch (err) {
       logger.error(String(err));
-      if (resp && resp.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(messages, maxTokens, n, retryCount + 1);
+        return await createChatCompletion(messages, model, maxTokens, n, functions, stop, retryCount + 1);
       }
     }
   }
 
-  async function createCompletion(prompt, model, maxTokens, n) {
-    const resp = await openai.createCompletion({
-      model,
-      prompt,
+  async function createCompletion(prompt, model, maxTokens, n, stop) {
+    const opts = {
       max_tokens: maxTokens,
+      model,
       n,
-    });
-    logger.debug('OpenAI response: ', JSON.stringify(resp.data, null, 2));
-    return resp.data.choices;
+      prompt,
+      stop,
+    };
+    logger.debug('options:', JSON.stringify(opts, null, 2));
+    const res = await openai.createCompletion(opts);
+    return res.data;
   }
+
+  const fetchChatCompletion = async (messages, model, maxTokens, n, functions, stop) => {
+    const prompt = messages[messages.length - 1];
+    const response = await createChatCompletion(messages, model, maxTokens, n, functions, stop);
+    return {
+      ...response,
+      choices: response.choices.map((c) => ({ ...c, prompt, prompts: messages })),
+    };
+  };
+
+  const fetchCompletion = async (input, model, maxTokens, n) => {
+    const response = await createCompletion(prompt, model, maxTokens, n);
+    return {
+      ...response,
+      choices: response.choices.map((c) => ({ ...c, prompt: input })),
+    };
+  };
 
   async function createImage(prompt, n) {
     prompt = `Generate an image about "${prompt}". Do not include text in the image.`;
@@ -57,16 +78,7 @@ function OpenAILLM({ constants, logger }) {
       size: '512x512',
       response_format: 'url',
     });
-    logger.debug('OpenAI image: ', JSON.stringify(resp.data, null, 2));
     return resp.data.data;
-  }
-
-  async function extractKeywords(messages) {
-    const { choices } = await createChatCompletion(messages, 50);
-    return choices[0].message.content
-      .replace(/"/g, '')
-      .split(',')
-      .map((kw) => kw.trim());
   }
 
   async function generateImageVariant(imageUrl, n) {
@@ -85,8 +97,8 @@ function OpenAILLM({ constants, logger }) {
 
   async function downloadImage(url, filepath) {
     const resp = await axios({
-      url,
       method: 'GET',
+      url,
       responseType: 'stream'
     });
     return new Promise((resolve, reject) => {
@@ -96,44 +108,14 @@ function OpenAILLM({ constants, logger }) {
     });
   }
 
-  const fetchChatCompletion = async (messages, model, maxTokens, n) => {
-    const prompt = messages[messages.length - 1];
-    const response = await createChatCompletion(messages, model, maxTokens, n);
-    return {
-      ...response,
-      choices: response.choices.map((c) => ({ ...c, prompt })),
-    };
-  };
-
-  const fetchCompletion = async (input, model, maxTokens, n) => {
-    const response = await createCompletion(prompt, model, maxTokens, n);
-    return {
-      ...response,
-      choices: response.choices.map((c) => ({ ...c, prompt: input })),
-    };
-  };
-
-  const getSummary = async (messages) => {
-    const content = messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n\n');
-    const msgs = [
-      {
-        role: 'user',
-        content: `Summarize the following content to a maximum of three words: """${content}"""`,
-      }
-    ];
-    const resp = await createChatCompletion(msgs, 'gpt-3.5-turbo', 10);
-    return resp.choices[0].message.content;
-  };
-
   return {
+    __name,
     createChatCompletion,
     createCompletion,
-    createImage,
-    extractKeywords,
     fetchChatCompletion,
     fetchCompletion,
+    createImage,
     generateImageVariant,
-    getSummary,
   };
 
 }

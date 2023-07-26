@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, List, Progress, Space, Typography } from 'antd';
@@ -7,19 +7,23 @@ import { CopyToClipboard } from 'react-copy-to-clipboard';
 
 import NavbarContext from '../../context/NavbarContext';
 import UserContext from '../../context/UserContext';
+import WorkspaceContext from '../../context/WorkspaceContext';
+import {
+  getAppsAsync,
+  selectLoading as selectAppsLoading,
+  selectApps,
+} from '../apps/appsSlice';
 import {
   getContentsByFilterAsync,
   getContentsAsync,
   selectContents,
+  selectLoading as selectContentsLoading,
 } from '../apps/Playground/contentSlice';
 import {
   getWorkspacesAsync,
+  selectLoading as selectWorkspacesLoading,
   selectWorkspaces,
 } from '../workspaces/workspacesSlice';
-import {
-  getContentsForReviewAsync,
-  selectReviews,
-} from '../reviews/reviewsSlice';
 
 const { Text, Title } = Typography;
 
@@ -27,20 +31,40 @@ export function Home() {
 
   const [copied, setCopied] = useState({});
 
-  const workspaces = useSelector(selectWorkspaces);
+  const apps = useSelector(selectApps);
+  const appsLoading = useSelector(selectAppsLoading);
   const contents = useSelector(selectContents);
-  const reviews = useSelector(selectReviews);
+  const contentsLoading = useSelector(selectContentsLoading);
+  const workspaces = useSelector(selectWorkspaces);
+  const workspacesLoading = useSelector(selectWorkspacesLoading);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { currentUser } = useContext(UserContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const workspacesData = Object.values(workspaces).map((p) => ({ title: p.name, key: p.id }));
-  const contentsData = Object.values(contents).slice(0, 5).map((p) => ({ title: p.text, key: p.id }));
+  const appsData = useMemo(() => {
+    const list = Object.values(apps)
+      .map((p) => ({ title: p.name, key: p.id }));
+    list.sort((a, b) => a.title < b.title ? -1 : 1);
+    return list;
+  }, [apps]);
 
-  const hasReviews = Object.values(reviews).filter((r) => !r.status).length;
+  const contentsData = useMemo(() => {
+    const list = Object.values(contents).slice(0, 5)
+      .map((p) => ({ title: p.text, key: p.id }));
+    list.sort((a, b) => a.title < b.title ? -1 : 1);
+    return list;
+  }, [contents]);
+
+  const workspacesData = useMemo(() => {
+    const list = Object.values(workspaces)
+      .map((p) => ({ title: p.name, key: p.id }));
+    list.sort((a, b) => a.title < b.title ? -1 : 1);
+    return list;
+  }, [workspaces]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -59,6 +83,12 @@ export function Home() {
       // }));
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      dispatch(getAppsAsync({ workspaceId: selectedWorkspace.id }));
+    }
+  }, [selectedWorkspace]);
 
   const onCopy = (key) => {
     setCopied((state) => ({ ...state, [key]: true }));
@@ -79,71 +109,69 @@ export function Home() {
         Prompt Store
       </Title>
       <div style={{ marginTop: 40 }}>
-        <Space direction="vertical" size="large">
-          {hasReviews > 0 ? (
-            <Button type="link"
-              icon={<AlertOutlined style={{ fontSize: '2em' }} />}
-              onClick={() => navigate('/reviews')}
-            >
-              {`You have ${hasReviews} review${hasReviews > 1 ? 's' : ''} waiting`}
-            </Button>
-          )
-            : null
-          }
-          <Space align="start" size="large">
-            <Card title="My Workspaces" style={{ width: 350 }}>
-              <List
-                dataSource={workspacesData}
-                renderItem={(item) => (
-                  <List.Item key={item.key}>
-                    <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Card title="Recent Activity" style={{ width: 600 }}>
-              <List
-                dataSource={contentsData}
-                renderItem={(item, i) => (
-                  <List.Item key={item.key}>
-                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                      <div style={{ alignItems: 'center', display: 'flex', width: '100%' }}>
-                        <div style={{ flex: 1, width: '100%' }}>
-                          <Text style={{ fontSize: '1em', fontStyle: 'italic' }}>
-                            {item.title}
-                            {copied[item.key] &&
-                              <span
-                                style={{ color: '#888', fontSize: '0.85em', marginLeft: 8 }}
-                              >
-                                Copied!
-                              </span>
-                            }
-                          </Text>
-                        </div>
-                        <div style={{ marginLeft: 8, width: 12 }}>
-                          <CopyToClipboard
-                            text={item.title}
-                            onCopy={() => onCopy(item.key)}
-                          >
-                            <button
-                              style={{ background: 'none', border: 'none', color: '#888', fontSize: '0.85em' }}
-                              title="Copy to clipboard"
+        <Space align="start" size="large" wrap={true}>
+          <Card loading={workspacesLoading} title="My Workspaces" style={{ minHeight: 271, width: 350 }}>
+            <List
+              dataSource={workspacesData}
+              renderItem={(item) => (
+                <List.Item key={item.key}>
+                  <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
+                </List.Item>
+              )}
+            />
+          </Card>
+          <Card loading={appsLoading} title="My Apps" style={{ minHeight: 271, width: 350 }}>
+            <List
+              dataSource={appsData}
+              renderItem={(item) => (
+                <List.Item key={item.key}>
+                  <Link to={`/apps/${item.key}`}>{item.title}</Link>
+                </List.Item>
+              )}
+            />
+          </Card>
+          <Card loading={contentsLoading} title="Recent Activity" style={{ minHeight: 271, width: 600 }}>
+            <List
+              dataSource={contentsData}
+              renderItem={(item, i) => (
+                <List.Item key={item.key}>
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <div style={{ alignItems: 'center', display: 'flex', width: '100%' }}>
+                      <div style={{ flex: 1, width: '100%' }}>
+                        <Text style={{ fontSize: '1em', fontStyle: 'italic' }}>
+                          {item.title}
+                          {copied[item.key] &&
+                            <span
+                              style={{ color: '#888', fontSize: '0.85em', marginLeft: 8 }}
                             >
-                              <i className="icon-copy" />
-                            </button>
-                          </CopyToClipboard>
-                        </div>
+                              Copied!
+                            </span>
+                          }
+                        </Text>
                       </div>
-                      <Progress
-                        percent={getPercent(i)}
-                        style={{ fontSize: '0.85em', marginTop: 8, width: '100%' }}
-                      />
+                      <div style={{ marginLeft: 8, width: 12 }}>
+                        <CopyToClipboard
+                          text={item.title}
+                          onCopy={() => onCopy(item.key)}
+                        >
+                          <button
+                            style={{ background: 'none', border: 'none', color: '#888', fontSize: '0.85em' }}
+                            title="Copy to clipboard"
+                          >
+                            <i className="icon-copy" />
+                          </button>
+                        </CopyToClipboard>
+                      </div>
                     </div>
-                  </List.Item>
-                )}
-              />
-            </Card>
-          </Space>
+                    <Progress
+                      percent={getPercent(i)}
+                      style={{ fontSize: '0.85em', marginTop: 8, width: '100%' }}
+                    />
+                  </div>
+                </List.Item>
+              )}
+            />
+          </Card>
         </Space>
       </div>
     </div>

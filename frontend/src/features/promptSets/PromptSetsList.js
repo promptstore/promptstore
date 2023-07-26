@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
-import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button, Input, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleTwoTone } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
@@ -31,6 +31,7 @@ const intersects = (arr1 = [], arr2 = []) => {
 export function PromptSetsList() {
 
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', false);
+  const [page, setPage] = useLocalStorageState('prompt-sets-list-page', 1);
   const [searchValue, setSearchValue] = useState('');
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', []);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -75,8 +76,8 @@ export function PromptSetsList() {
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -134,7 +135,9 @@ export function PromptSetsList() {
       title: 'Summary',
       dataIndex: 'summary',
       render: (_, { summary }) => (
-        <div style={{ whiteSpace: 'nowrap' }}>{summary}</div>
+        <Typography.Text ellipsis style={{ whiteSpace: 'nowrap', width: 250 }}>
+          {summary}
+        </Typography.Text>
       )
     },
     {
@@ -168,6 +171,12 @@ export function PromptSetsList() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/prompt-sets/${record.key}`)}
+          >
+            Edit
+          </Button>
         </Space>
       ),
     },
@@ -201,10 +210,11 @@ export function PromptSetsList() {
           />
           <Select allowClear mode="multiple"
             options={tagOptions}
+            optionFilterProp="label"
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 16, width: 250 }}
+            style={{ marginLeft: 8, width: 250 }}
             value={selectedTags}
           />
           <Switch
@@ -219,6 +229,10 @@ export function PromptSetsList() {
           columns={columns}
           dataSource={data}
           loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
           rowClassName="promptset-list-row"
         />
       </div>

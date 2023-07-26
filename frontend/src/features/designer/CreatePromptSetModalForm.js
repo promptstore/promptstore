@@ -46,9 +46,15 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
     }
   }, [settings]);
 
+  const handleCancel = () => {
+    onCancel();
+    form.resetFields();
+  };
+
   const handleOk = async () => {
     const values = await form.validateFields();
     onOk(values);
+    form.resetFields();
   };
 
   const skillOptions = skills.map((skill) => ({
@@ -89,7 +95,7 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
       okText="Create"
       open={open}
       onOk={handleOk}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       width={800}
       mask={false}
     >
@@ -123,6 +129,7 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
         >
           <Select
             options={skillOptions}
+            optionFilterProp="label"
             dropdownRender={(menu) => (
               <>
                 {menu}

@@ -1,3 +1,7 @@
 const PostgresqlSource = require('./PostgresqlSource');
+const constants = require('./constants');
 
-module.exports = PostgresqlSource;
+module.exports = {
+  plugin: PostgresqlSource,
+  constants,
+}

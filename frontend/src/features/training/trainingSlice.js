@@ -2,8 +2,6 @@ import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
 
-import { setLikes } from '../apps/Playground/contentSlice';
-
 export const trainingSlice = createSlice({
   name: 'training',
   initialState: {
@@ -55,7 +53,6 @@ export const createTrainingRowAsync = (req) => async (dispatch) => {
   const url = '/api/training';
   const res = await http.post(url, req);
   dispatch(setData({ data: [{ ...req, id: res.data }] }));
-  dispatch(setLikes({ contentId: req.contentId, likes: true }));
 };
 
 export const updateTrainingRowAsync = ({ id, values }) => async (dispatch) => {
@@ -74,7 +71,6 @@ export const deleteTrainingRowAsync = ({ contentId }) => async (dispatch) => {
   const url = `/api/content/${contentId}/training`;
   const res = await http.delete(url);
   dispatch(removeData({ ids: res.data }));
-  dispatch(setLikes({ contentId, likes: false }));
 };
 
 export const selectLoaded = (state) => state.training.loaded;

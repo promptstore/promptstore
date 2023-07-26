@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Table, message } from 'antd';
+import { Button, Space, Table, message } from 'antd';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -16,11 +17,11 @@ import './AppsList.css';
 
 export function AppsList() {
 
+  const [page, setPage] = useLocalStorageState('apps-list-page', 1);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
   const apps = useSelector(selectApps);
-  const navigate = useNavigate();
 
   const data = useMemo(() => {
     const list = Object.values(apps).map((app) => ({
@@ -35,8 +36,8 @@ export function AppsList() {
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -73,10 +74,6 @@ export function AppsList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  const playground = (id) => {
-    navigate(`/playground/${id}`);
-  };
-
   const columns = [
     {
       title: 'Name',
@@ -89,12 +86,20 @@ export function AppsList() {
       key: 'action',
       render: (_, record) => (
         <div className="row-actions">
-          {/* <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={() => playground(record.key)}
-          >
-            Creative Workspace
-          </Button> */}
+          <Space>
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={() => navigate(`/apps/${record.key}`)}
+            >
+              View
+            </Button>
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={() => navigate(`/apps-edit/${record.key}`)}
+            >
+              Edit
+            </Button>
+          </Space>
         </div>
       ),
     },
@@ -122,7 +127,16 @@ export function AppsList() {
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

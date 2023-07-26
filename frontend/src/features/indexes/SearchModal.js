@@ -2,14 +2,11 @@ import { useState } from 'react';
 import { Divider, Modal } from 'antd';
 import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import {
-  InstantSearch,
   Configure,
   Hits,
-  SearchBox,
-  Panel,
-  RefinementList,
+  InstantSearch,
   Pagination,
-  Highlight,
+  SearchBox,
 } from 'react-instantsearch-dom';
 import ReactJson from 'react-json-view';
 
@@ -22,6 +19,7 @@ export function SearchModal({
   open,
   width = 800,
   theme = 'light',
+  titleField = 'text',
 }) {
 
   const [isHitOpen, setIsHitOpen] = useState({});
@@ -36,7 +34,7 @@ export function SearchModal({
       <article className="collapsible">
         <div className="header" onClick={toggleOpen}>
           {isHitOpen[hit.__uid] ? <DownOutlined /> : <RightOutlined />}
-          <span>{hit.text}</span>
+          <span>{hit[titleField]}</span>
         </div>
         <div className={'panel' + (isHitOpen[hit.__uid] ? '' : ' closed')}>
           <Divider />
@@ -48,6 +46,11 @@ export function SearchModal({
     );
   };
 
+  if (!open || !indexName) {
+    return (
+      <></>
+    );
+  }
   return (
     <Modal
       onCancel={onCancel}
@@ -59,11 +62,6 @@ export function SearchModal({
       <InstantSearch searchClient={searchClient} indexName={indexName}>
         <Configure hitsPerPage={hitsPerPage} />
         <div className="search-panel">
-          {/* <div className="search-panel__filters">
-            <Panel header="session">
-              <RefinementList attribute="sessionid" />
-            </Panel>
-          </div> */}
           <div className="search-panel__results">
             <SearchBox
               className="searchbox"

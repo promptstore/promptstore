@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Collapse, Form, Input, Select, Space, Switch } from 'antd';
+import { Button, Form, Input, Select, Space, Switch } from 'antd';
 import debounce from 'lodash.debounce';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
@@ -12,6 +12,12 @@ import {
   selectLoading as selectHfModelsLoading,
 } from './hfModelsSlice';
 import {
+  getChatProvidersAsync,
+  getCompletionProvidersAsync,
+  selectLoading as selectProvidersLoading,
+  selectProviders,
+} from './modelProvidersSlice';
+import {
   createModelAsync,
   getModelAsync,
   updateModelAsync,
@@ -19,7 +25,6 @@ import {
   selectModels,
 } from './modelsSlice';
 
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const layout = {
@@ -46,10 +51,12 @@ const typeOptions = [
   {
     label: 'LLM - Text',
     value: 'completion',
+    disabled: true,
   },
   {
     label: 'Hugging Face',
     value: 'huggingface',
+    disabled: true,
   },
   {
     label: 'Custom',
@@ -57,29 +64,12 @@ const typeOptions = [
   },
 ];
 
-const providerOptions = [
-  {
-    label: 'OpenAI',
-    value: 'openai',
-  },
-  {
-    label: 'Vertex AI',
-    value: 'vertexai',
-  },
-  {
-    label: 'Local AI (Private instance)',
-    value: 'localai',
-  },
-  // {
-  //   label: 'GPT4All',
-  //   value: 'gpt4all',
-  // },
-];
-
 export function ModelForm() {
 
   const loaded = useSelector(selectLoaded);
   const models = useSelector(selectModels);
+  const providers = useSelector(selectProviders);
+  const providersLoading = useSelector(selectProvidersLoading);
 
   const { setNavbarState } = useContext(NavbarContext);
 
@@ -97,6 +87,20 @@ export function ModelForm() {
   const model = models[id];
   const isNew = id === 'new';
 
+  const chatProviderOptions = useMemo(() => {
+    return (providers.chat || []).map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+  }, [providers]);
+
+  const completionProviderOptions = useMemo(() => {
+    return (providers.completion || []).map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+  }, [providers]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -107,6 +111,14 @@ export function ModelForm() {
       dispatch(getModelAsync(id));
     }
   }, []);
+
+  useEffect(() => {
+    if (!providers.chat && typeValue === 'gpt') {
+      dispatch(getChatProvidersAsync());
+    } else if (!providers.completion && typeValue === 'completion') {
+      dispatch(getCompletionProvidersAsync());
+    }
+  }, [typeValue]);
 
   const onCancel = () => {
     navigate('/models');
@@ -131,12 +143,6 @@ export function ModelForm() {
     navigate('/models');
   };
 
-  const PanelHeader = ({ title }) => (
-    <div style={{ borderBottom: '1px solid #d9d9d9' }}>
-      {title}
-    </div>
-  );
-
   if (!isNew && !loaded) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
@@ -152,8 +158,6 @@ export function ModelForm() {
         onFinish={onFinish}
         initialValues={model}
       >
-        {/* <Collapse defaultActiveKey={['1']} ghost> */}
-        {/* <Panel header={<PanelHeader title="Model Details" />} key="1" forceRender> */}
         <Form.Item
           label="Name"
           name="name"
@@ -185,11 +189,19 @@ export function ModelForm() {
           <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
         </Form.Item>
         <Form.Item
+          colon={false}
+          label="Disabled?"
+          name="disabled"
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
+        <Form.Item
           label="Type"
           name="type"
           wrapperCol={{ span: 10 }}
         >
-          <Select options={typeOptions} />
+          <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
         {typeValue === 'gpt' ?
           <Form.Item
@@ -197,28 +209,45 @@ export function ModelForm() {
             name="provider"
             wrapperCol={{ span: 10 }}
           >
-            <Select options={providerOptions} />
+            <Select
+              loading={providersLoading}
+              options={chatProviderOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          : null
+        }
+        {typeValue === 'completion' ?
+          <Form.Item
+            label="Provider"
+            name="provider"
+            wrapperCol={{ span: 10 }}
+          >
+            <Select
+              loading={providersLoading}
+              options={completionProviderOptions}
+              optionFilterProp="label"
+            />
           </Form.Item>
           : null
         }
         {typeValue === 'api' ?
-          <Form.Item
-            name="url"
-            label="URL"
-            wrapperCol={{ span: 10 }}
-          >
-            <Input />
-          </Form.Item>
-          : null
-        }
-        {typeValue === 'api' ?
-          <Form.Item
-            name="batchEndpoint"
-            label="Batch Endpoint"
-            wrapperCol={{ span: 10 }}
-          >
-            <Input />
-          </Form.Item>
+          <>
+            <Form.Item
+              name="url"
+              label="URL"
+              wrapperCol={{ span: 10 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="batchEndpoint"
+              label="Batch Endpoint"
+              wrapperCol={{ span: 10 }}
+            >
+              <Input />
+            </Form.Item>
+          </>
           : null
         }
         {/* {typeValue === 'huggingface' ?
@@ -233,7 +262,6 @@ export function ModelForm() {
         } */}
         {/* </Panel> */}
         {typeValue === 'api' || typeValue === 'huggingface' ?
-          // <Panel header={<PanelHeader title="Type Information" />} key="2" forceRender>
           <>
             <Form.Item
               colon={false}
@@ -256,7 +284,7 @@ export function ModelForm() {
                   name="returnType"
                   wrapperCol={{ span: 10 }}
                 >
-                  <Select options={returnTypeOptions} />
+                  <Select options={returnTypeOptions} optionFilterProp="label" />
                 </Form.Item>
                 {returnTypeValue === 'application/json' ?
                   <Form.Item
@@ -271,7 +299,6 @@ export function ModelForm() {
               : null
             }
           </>
-          // </Panel>
           : null
         }
         {typeValue === 'huggingface' ?
@@ -291,7 +318,7 @@ export function ModelForm() {
               name="instanceType"
               wrapperCol={{ span: 5 }}
             >
-              <Select options={[]} />
+              <Select options={[]} optionFilterProp="label" />
             </Form.Item>
             <Form.Item
               label="Replica Autoscaling"
@@ -317,7 +344,6 @@ export function ModelForm() {
           </>
           : null
         }
-        {/* </Collapse> */}
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
           <Space>
             <Button type="default" onClick={onCancel}>Cancel</Button>
@@ -357,6 +383,7 @@ function SearchInput({ value, onChange }) {
       allowClear
       loading={hfModelsLoading}
       options={options}
+      optionFilterProp="label"
       placeholder="Enter search query"
       showSearch
       defaultActiveFirstOption={false}

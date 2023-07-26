@@ -236,7 +236,9 @@ li img {
 }
 
 .chat .ant-checkbox {
-  align-self: baseline;
+  /* align-self: baseline; */
+  align-self: center;
+  margin-bottom: 13px;
 }
 
 .chat .ant-checkbox-wrapper {
@@ -506,10 +508,118 @@ article.collapsible .panel.closed {
 
 .model-list-row,
 .function-list-row,
-.promptset-list-row {
+.promptset-list-row,
+.document-list-row {
   vertical-align: middle;
 }
 
 .model-list-row .ant-space {
   vertical-align: bottom;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+}
+
+.chat .ant-radio-group>* {
+  margin-bottom: 8px;
+}
+
+.chatline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.chatline.assistant {
+  margin-right: 100px;
+}
+
+.chatline.user {
+  margin-left: 100px;
+}
+
+.chatline>* {
+  margin-right: 8px;
+}
+
+.chatline>*:last-child {
+  margin-right: 0;
+}
+
+.chatline .ant-radio {
+  width: 16px;
+}
+
+.chatline .avatar {
+  width: 32px;
+}
+
+.chatline .content {
+  flex: 1;
+  font-size: 14px;
+}
+
+.chatline.user .content {
+  text-align: right;
+}
+
+.chatline.user .content>div {
+  display: inline-block;
+  text-align: left;
+}
+
+#copy-params {
+  margin-top: 5px;
+}
+
+#params-form {
+  color: rgb(136, 136, 136);
+  display: flex;
+  flex-direction: column;
+}
+
+#params-form .fields-container {
+  margin-bottom: 24px;
+  width: 250px;
+}
+
+#params-form .form-section {
+  border-left: 3px solid #303030;
+  padding-left: 15px;
+}
+
+#params-form .form-section .ant-form-item {
+  margin-bottom: 6px;
+}
+
+#params-form .form-section .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+#params-form .small {
+  font-size: 0.85em;
+}
+
+.icon-copy:before {
+  content: "\7b";
+}
+
+#function-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+#function-form .ant-col .ant-form-item {
+  margin-bottom: 8px;
+}
+
+#function-form .ant-col-24.ant-form-item-label {
+  padding: 0;
+}
+
+#function-form .ant-form-item-extra {
+  margin-bottom: -8px;
 }

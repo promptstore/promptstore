@@ -1,6 +1,6 @@
 module.exports = ({ app, auth, logger, services }) => {
 
-  const { workspacesService, usersService } = services;
+  const { usersService, workspacesService } = services;
 
   /**
    * @openapi

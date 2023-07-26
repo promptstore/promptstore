@@ -1,3 +1,7 @@
 const OpenAILLM = require('./OpenAILLM');
+const constants = require('./constants');
 
-module.exports = OpenAILLM;
+module.exports = {
+  plugin: OpenAILLM,
+  constants,
+}

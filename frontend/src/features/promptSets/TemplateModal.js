@@ -66,6 +66,7 @@ export function TemplateModal({
           <Select allowClear
             loading={loading}
             options={options}
+            optionFilterProp="label"
           />
         </Form.Item>
       </Form>

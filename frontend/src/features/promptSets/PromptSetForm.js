@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -132,10 +132,10 @@ function SortableItem({ field, index, remove }) {
         <Form.Item
           name={[field.name, 'role']}
           label={index === 0 ? 'Role' : ''}
-          labelCol={{ span: 12 }}
-          wrapperCol={{ span: 12, offset: index === 0 ? 0 : 12 }}
+          labelCol={{ span: 10 }}
+          wrapperCol={{ span: 14, offset: index === 0 ? 0 : 10 }}
         >
-          <Select options={roleOptions} allowClear />
+          <Select options={roleOptions} optionFilterProp="label" allowClear />
         </Form.Item>
       </Col>
       <Col span={1}>
@@ -184,10 +184,14 @@ export function PromptSetForm() {
   const isNew = id === 'new';
   const promptSet = promptSets[id];
 
-  const skillOptions = skills.map((skill) => ({
-    label: skill,
-    value: skill,
-  }));
+  const skillOptions = useMemo(() => {
+    const list = skills.map((skill) => ({
+      label: skill,
+      value: skill,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [skills]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -397,6 +401,7 @@ export function PromptSetForm() {
           <div style={{ marginLeft: 35 }}>
             <Space direction="horizontal">
               <span style={{ whiteSpace: 'nowrap' }}>Available variables:</span>
+              <Tag key="maxTokens">maxTokens</Tag>
               {vars.map((v) => (
                 <Tag key={v}>{v}</Tag>
               ))}
@@ -437,13 +442,13 @@ export function PromptSetForm() {
             }
           </div>
         </Form.Item>
-        <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
+        <Form.Item wrapperCol={{ offset: 4, span: 12 }}>
           <div style={{ marginLeft: 35 }}>
             <Button
               icon={<PlusOutlined />}
-              type="dashed"
               onClick={() => add()}
               style={{ width: '100%' }}
+              type="dashed"
             >
               Add Prompt
             </Button>
@@ -498,7 +503,7 @@ export function PromptSetForm() {
       <VersionsModal
         handleCancel={handleCancel}
         onVersionRollback={handleVersionRollback}
-        isModalOpen={isModalOpen}
+        open={isModalOpen}
         selectedRow={promptSet}
         width={600}
         keyProp="id"
@@ -528,77 +533,95 @@ export function PromptSetForm() {
                 message: 'Please enter a name',
               },
             ]}
+            wrapperCol={{ span: 12 }}
           >
-            <Input />
+            <Input style={{ minWidth: 647 }} />
           </Form.Item>
           <Form.Item
             label="Skill"
-            name="skill"
-            rules={[
-              {
-                required: true,
-                message: 'Please select a type',
-              },
-            ]}
+            required
           >
-            <Select
-              options={skillOptions}
-              dropdownRender={(menu) => (
-                <>
-                  {menu}
-                  <Divider style={{ margin: '8px 0' }} />
-                  <Space style={{ padding: '0 8px 4px' }}>
-                    <Input
-                      placeholder="Please enter new skill"
-                      ref={newSkillInputRef}
-                      value={newSkill}
-                      onChange={onNewSkillChange}
-                    />
-                    <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
-                      Add skill
-                    </Button>
-                  </Space>
-                </>
-              )}
-            />
-          </Form.Item>
-          <Form.Item
-            label="Tags"
-            name="tags"
-          >
-            <TagsInput existingTags={existingTags} />
+            <Form.Item
+              name="skill"
+              rules={[
+                {
+                  required: true,
+                  message: 'Please select a type',
+                },
+              ]}
+              style={{ display: 'inline-block', margin: 0, width: 300 }}
+            >
+              <Select
+                options={skillOptions}
+                optionFilterProp="label"
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Space style={{ padding: '0 8px 4px' }}>
+                      <Input
+                        placeholder="Please enter new skill"
+                        ref={newSkillInputRef}
+                        value={newSkill}
+                        onChange={onNewSkillChange}
+                      />
+                      <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
+                        Add skill
+                      </Button>
+                    </Space>
+                  </>
+                )}
+              />
+            </Form.Item>
+            <Form.Item
+              colon={false}
+              label="Template?"
+              name="isTemplate"
+              valuePropName="checked"
+              style={{ display: 'inline-block', margin: '0 0 0 16px' }}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label="Tags"
+              name="tags"
+              style={{ display: 'inline-block', margin: '0 0 0 16px' }}
+            >
+              <TagsInput existingTags={existingTags} />
+            </Form.Item>
           </Form.Item>
           <Form.Item
             label="Description"
             name="description"
+            wrapperCol={{ span: 12 }}
           >
-            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
-          </Form.Item>
-          <Form.Item
-            colon={false}
-            label="Is Template?"
-            name="isTemplate"
-            valuePropName="checked"
-          >
-            <Switch />
+            <TextArea
+              autoSize={{ minRows: 1, maxRows: 14 }}
+              style={{ minWidth: 647 }}
+            />
           </Form.Item>
           <Form.Item
             colon={false}
             label="Define Types?"
-            name="isTypesDefined"
-            valuePropName="checked"
           >
-            <Switch />
-          </Form.Item>
-          {typesDefinedValue ?
             <Form.Item
-              label="Arguments"
-              name="arguments"
+              name="isTypesDefined"
+              valuePropName="checked"
+              style={{ display: 'inline-block', margin: 0 }}
             >
-              <SchemaModalInput />
+              <Switch />
             </Form.Item>
-            : null
-          }
+            {typesDefinedValue ?
+              <Form.Item
+                label="Arguments"
+                name="arguments"
+                style={{ display: 'inline-block', margin: '0 0 0 16px' }}
+              >
+                <SchemaModalInput />
+              </Form.Item>
+              : null
+            }
+          </Form.Item>
           <Form.Item
             label="Template Engine"
             name="templateEngine"

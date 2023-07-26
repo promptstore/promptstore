@@ -13,7 +13,7 @@ const ratio = defaultWidth / defaultHeight;
 
 export const EuropaLogo = ({
   theme,
-  title = 'DCSN Home',
+  title = 'Prompt Store',
   height: requestedHeight,
   width: requestedWidth
 }: LogoProps) => {

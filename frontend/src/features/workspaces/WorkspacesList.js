@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -15,6 +16,7 @@ import {
 export function WorkspacesList() {
 
   const [isLinking, setIsLinking] = useState(false);
+  const [page, setPage] = useLocalStorageState('workspaces-list-page', 1);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
@@ -33,9 +35,7 @@ export function WorkspacesList() {
   const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
-
   const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
@@ -97,15 +97,21 @@ export function WorkspacesList() {
         <Space size="middle">
           <Button type="link"
             style={{ paddingLeft: 0 }}
+            onClick={linkToApps(record.key)}
+          >
+            Apps
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
             onClick={onSelectWorkspace(record.key)}
           >
             Select
           </Button>
           <Button type="link"
             style={{ paddingLeft: 0 }}
-            onClick={linkToApps(record.key)}
+            onClick={() => navigate(`/workspaces/${record.key}`)}
           >
-            Apps
+            Edit
           </Button>
         </Space>
       ),
@@ -134,7 +140,16 @@ export function WorkspacesList() {
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

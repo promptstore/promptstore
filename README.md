@@ -47,4 +47,8 @@ curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-onlin
 
 curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"feature_service":"driver_activity","entities":{"driver_id":[1001]}}'
 
+curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"feature_service":"health_scores","entities":{"customer_id":['1234]}}'
+
 curl -vL -H 'Content-Type: application/json' "http://localhost:5556/api/executions/get_driver_stats" --data '{"args":{"entityId":1001},"modelKey":"gpt-3.5-turbo"}'
+
+curl -vL -H 'Content-Type: application/json' "https://promptstore.devsheds.io/api/executions/generate_health_report" --data '{"args":{"entityId":'1234'},"modelKey":"gpt-4"}'

@@ -43,6 +43,7 @@
     "lodash.omit": "^4.5.0",
     "lodash.pick": "^4.4.0",
     "lodash.set": "^4.3.2",
+    "lodash.trim": "^4.5.1",
     "monaco-editor": "^0.38.0",
     "qs": "^6.11.0",
     "react": "^18.0.0",

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Divider, Form, Input, Radio, Select, Space } from 'antd';
+import { Button, Divider, Form, Input, Radio, Select, Space, Switch } from 'antd';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -109,6 +109,10 @@ const sqlTypeOptions = [
 
 const typeOptions = [
   {
+    label: 'API',
+    value: 'api',
+  },
+  {
     label: 'Document',
     value: 'document',
   },
@@ -194,6 +198,7 @@ export function DataSourceForm() {
   };
 
   const onFinish = (values) => {
+    // console.log('values:', values);
     if (isNew) {
       dispatch(createDataSourceAsync({ values }));
     } else {
@@ -253,7 +258,7 @@ export function DataSourceForm() {
             ]}
             wrapperCol={{ span: 10 }}
           >
-            <Select options={typeOptions} />
+            <Select options={typeOptions} optionFilterProp="label" />
           </Form.Item>
           {typeValue === 'document' ?
             <>
@@ -262,7 +267,7 @@ export function DataSourceForm() {
                 name="documentType"
                 wrapperCol={{ span: 10 }}
               >
-                <Select options={documentTypeOptions} />
+                <Select options={documentTypeOptions} optionFilterProp="label" />
               </Form.Item>
               <Form.Item
                 label="Document"
@@ -272,6 +277,7 @@ export function DataSourceForm() {
                 <Select allowClear
                   loading={uploadsLoading}
                   options={documentOptions}
+                  optionFilterProp="label"
                 />
               </Form.Item>
             </>
@@ -325,6 +331,7 @@ export function DataSourceForm() {
               >
                 <Select allowClear
                   options={splitterOptions}
+                  optionFilterProp="label"
                 />
               </Form.Item>
               {splitterValue === 'delimiter' ?
@@ -347,6 +354,7 @@ export function DataSourceForm() {
                   <Select allowClear
                     loading={functionsLoading}
                     options={functionOptions}
+                    optionFilterProp="label"
                   />
                 </Form.Item>
                 : null
@@ -366,7 +374,7 @@ export function DataSourceForm() {
                 name="featurestore"
                 wrapperCol={{ span: 10 }}
               >
-                <Select options={featurestoreOptions} />
+                <Select options={featurestoreOptions} optionFilterProp="label" />
               </Form.Item>
               <Form.Item
                 label="HTTP Method"
@@ -514,7 +522,7 @@ export function DataSourceForm() {
                 name="dialect"
                 wrapperCol={{ span: 10 }}
               >
-                <Select allowClear options={databaseOptions} />
+                <Select allowClear options={databaseOptions} optionFilterProp="label" />
               </Form.Item>
               <Form.Item
                 label="SQL Type"
@@ -555,6 +563,24 @@ export function DataSourceForm() {
                   <Input type="password" />
                 </Form.Item>
               </Form.Item> */}
+            </>
+            : null
+          }
+          {typeValue === 'api' ?
+            <>
+              <Form.Item
+                label="Endpoint"
+                name="endpoint"
+                wrapperCol={{ span: 10 }}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="Schema"
+                name="schema"
+              >
+                <SchemaModalInput />
+              </Form.Item>
             </>
             : null
           }

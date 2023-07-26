@@ -29,8 +29,7 @@ function PromptSetsService({ pg, logger }) {
     }));
     return promptSets;
   }
-
-  async function getPromptSetBySkill(skill) {
+  async function getPromptSetsBySkill(skill) {
     if (skill === null || typeof skill === 'undefined') {
       return [];
     }
@@ -55,6 +54,17 @@ function PromptSetsService({ pg, logger }) {
       modifiedBy: row.modified_by,
     }));
     return promptSets;
+  }
+
+  async function getFirstPromptSetBySkillAsMessages(skill) {
+    const promptSets = await getPromptSetsBySkill(skill);
+    if (promptSets.length) {
+      return promptSets[0].prompts.map((p) => ({
+        role: p.role,
+        content: p.prompt,
+      }));
+    }
+    return null;
   }
 
   async function getPromptSetTemplates() {
@@ -149,8 +159,9 @@ function PromptSetsService({ pg, logger }) {
   }
 
   return {
+    getFirstPromptSetBySkillAsMessages,
     getPromptSets,
-    getPromptSetBySkill,
+    getPromptSetsBySkill,
     getPromptSetTemplates,
     getPromptSet,
     upsertPromptSet,

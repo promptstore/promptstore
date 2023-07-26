@@ -9,6 +9,7 @@ import {
   FileWordOutlined,
 } from '@ant-design/icons';
 import hr from '@tsmx/human-readable';
+import useLocalStorageState from 'use-local-storage-state';
 
 import { getExtension, getHumanFriendlyDelta } from '../../utils';
 
@@ -62,6 +63,7 @@ export function UploadsList({ sourceId }) {
 
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [page, setPage] = useLocalStorageState('documents-list-page', 1);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -192,11 +194,17 @@ export function UploadsList({ sourceId }) {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
-          <Button type="link"
+          {/* <Button type="link"
             style={{ paddingLeft: 0 }}
             onClick={() => openIndex(record)}
           >
             Index
+          </Button> */}
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => showContent(record.id)}
+          >
+            Preview
           </Button>
         </Space>
       ),
@@ -240,7 +248,17 @@ export function UploadsList({ sourceId }) {
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+          rowClassName="document-list-row"
+        />
       </div>
     </>
   );

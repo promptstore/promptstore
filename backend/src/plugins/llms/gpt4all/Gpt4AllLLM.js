@@ -1,9 +1,8 @@
 const axios = require('axios');
 
-function Gpt4AllLLM({ constants, logger }) {
+function Gpt4AllLLM({ __name, constants, logger }) {
 
-  async function createChatCompletion(messages, model, maxTokens, n, hits, retryCount = 0) {
-    // logger.debug('messages: ', messages);
+  async function createChatCompletion(messages, model, maxTokens, n) {
     const prompt = messages.map((m) => m.content).join('\n\n');
     return createCompletion(prompt, model, maxTokens, n);
   }
@@ -13,7 +12,6 @@ function Gpt4AllLLM({ constants, logger }) {
       prompt = prompt.join('\n\n');
     }
     const res = await axios.post(constants.GPT4ALL_API, { prompt });
-    logger.debug('gpt4all response: ', JSON.stringify(res.data, null, 2));
     return res.data;
   }
 
@@ -28,11 +26,22 @@ function Gpt4AllLLM({ constants, logger }) {
     return response.map((c) => ({ prompt: input, text: c.generation }));
   }
 
+  function createImage(prompt, n) {
+    throw new Error('Not implemented');
+  }
+
+  function generateImageVariant(imageUrl, n) {
+    throw new Error('Not implemented');
+  }
+
   return {
+    __name,
     createChatCompletion,
     createCompletion,
     fetchChatCompletion,
     fetchCompletion,
+    createImage,
+    generateImageVariant,
   };
 
 }

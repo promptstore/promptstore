@@ -22,7 +22,7 @@ function SearchService({ constants, logger }) {
 
   async function getIndex(name) {
     try {
-      const res = await axios.get(constants.SEARCH_API + '/index/' + name, {
+      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
         headers: {
           'Accept': 'application/json',
         }
@@ -50,7 +50,7 @@ function SearchService({ constants, logger }) {
 
   async function dropIndex(name) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + name, {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
         headers: {
           'Accept': 'application/json',
         }
@@ -64,7 +64,7 @@ function SearchService({ constants, logger }) {
 
   async function dropData(name) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + name + '/data', {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(name) + '/data', {
         headers: {
           'Accept': 'application/json',
         }
@@ -103,7 +103,7 @@ function SearchService({ constants, logger }) {
         return a;
       }, {});
     value[prefix + '__label'] = doc.nodeType;
-    // logger.debug('value: ', value);
+    // logger.debug('value:', value);
     documents.push(value);
     if (!intervalId) {
       intervalId = setInterval(sendDocuments, 1000, indexName);
@@ -112,7 +112,7 @@ function SearchService({ constants, logger }) {
 
   async function deleteDocument(indexName, uid) {
     try {
-      await axios.delete(constants.SEARCH_API + '/indexes/' + indexName + '/documents/' + uid, {
+      await axios.delete(constants.SEARCH_API + '/indexes/' + encodeURIComponent(indexName) + '/documents/' + encodeURIComponent(uid), {
         headers: {
           'Accept': 'application/json',
         }
@@ -144,7 +144,7 @@ function SearchService({ constants, logger }) {
   async function deleteDocumentsMatching(indexName, query, attrs = {}) {
     try {
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
-      let url = constants.SEARCH_API + '/delete-matching?indexName=' + indexName;
+      let url = constants.SEARCH_API + '/delete-matching?indexName=' + encodeURIComponent(indexName);
       if (query) {
         url += '&q=' + query;
       }
@@ -162,11 +162,12 @@ function SearchService({ constants, logger }) {
   }
 
   async function search(indexName, query, attrs = {}) {
+    logger.log('debug', 'searching %s for "%s"', indexName, query);
     try {
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
-      let url = constants.SEARCH_API + `/search?indexName=${indexName}`;
+      let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
       if (query) {
-        url += `&q=${query}`;
+        url += `&q=` +encodeURIComponent(query);
       }
       if (ps) {
         url += '&' + ps;
@@ -227,10 +228,10 @@ function SearchService({ constants, logger }) {
     deleteDocument,
     dropData,
     dropIndex,
-    indexDocument,
     getIndexes,
     getIndex,
     getSearchSchema,
+    indexDocument,
     search,
   };
 }

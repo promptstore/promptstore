@@ -500,8 +500,8 @@ export function Composer() {
           onConnect={onConnect}
           // onConnectStart={onConnectStart}
           // onConnectEnd={onConnectEnd}
-          onNodeDrag={onNodeDrag}
-          onNodeDragStop={onNodeDragStop}
+          // onNodeDrag={onNodeDrag}
+          // onNodeDragStop={onNodeDragStop}
           onInit={onInit}
           // fitView
           snapToGrid

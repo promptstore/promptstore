@@ -47,7 +47,7 @@ export const getPromptSetsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(setPromptSets({ promptSets: res.data }));
 };
 
-export const getPromptSetBySkillAsync = ({ skill }) => async (dispatch) => {
+export const getPromptSetsBySkillAsync = ({ skill }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/prompt-sets/by-skill/${skill}`;
   const res = await http.get(url);

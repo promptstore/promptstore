@@ -1,1 +1,0 @@
-export { CopyTable } from './CopyTable';

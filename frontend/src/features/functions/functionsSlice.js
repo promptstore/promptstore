@@ -18,8 +18,10 @@ export const functionsSlice = createSlice({
         delete state.functions[id];
       }
     },
-    setFunctions: (state, action) => {
+    resetFunctions: (state, action) => {
       state.functions = {};
+    },
+    setFunctions: (state, action) => {
       for (const func of action.payload.functions) {
         state.functions[func.id] = func;
       }
@@ -44,6 +46,7 @@ export const functionsSlice = createSlice({
 
 export const {
   removeFunctions,
+  resetFunctions,
   setFunctions,
   setTestResult,
   startLoad,
@@ -59,6 +62,7 @@ export const getFunctionsAsync = () => async (dispatch) => {
 
 export const getFunctionsByTagAsync = ({ tag }) => async (dispatch) => {
   dispatch(startLoad());
+  dispatch(resetFunctions());
   const url = `/api/functions/tags/${tag}`;
   const res = await http.get(url);
   dispatch(setFunctions({ functions: res.data }));

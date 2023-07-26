@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
 
 import NavbarContext from '../../context/NavbarContext';
@@ -30,8 +30,8 @@ export function CompositionsList() {
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
 
   const dispatch = useDispatch();
-
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -78,6 +78,12 @@ export function CompositionsList() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/compositions/${record.key}`)}
+          >
+            Edit
+          </Button>
         </Space>
       ),
     },

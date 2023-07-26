@@ -26,10 +26,10 @@
 }
 
 .navbar-menu li a:hover {
-  /* color: rgba(255, 255, 255, 0.85); */
   color: #177ddc;
 }
 
+/* Workspace selection menu on Navbar */
 .selected-entity {
   line-height: 34px;
   padding: 15px 8px 15px 0;
@@ -46,14 +46,11 @@
   padding: 0;
 }
 
-/* .selected-entity.last>div {
-  color: #77bc30ff;
-} */
-
 .selected-entity .anticon {
   vertical-align: text-top;
 }
 
+/* Navbar text colour */
 .ant-layout-header {
   color: rgba(255, 255, 255, 0.85);
 }

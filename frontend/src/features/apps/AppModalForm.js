@@ -269,9 +269,15 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
     registerResetCallback(reset);
   }, []);
 
+  const handleCancel = () => {
+    onCancel();
+    form.resetFields();
+  };
+
   const handleOk = async () => {
     const values = await form.validateFields();
     onOk(values);
+    form.resetFields();
   };
 
   const onProductCategoryChange = (value) => {
@@ -289,7 +295,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
       okText="Set"
       open={open}
       onOk={handleOk}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       width={800}
     >
       <Form
@@ -305,6 +311,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
         >
           <Select allowClear
             options={formatOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -313,6 +320,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
         >
           <Select allowClear
             options={journeyOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -321,6 +329,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
         >
           <Select allowClear
             options={needStateOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -330,6 +339,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
           <Select allowClear
             onChange={onProductCategoryChange}
             options={productCategoryOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -338,6 +348,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
         >
           <Select allowClear
             options={productOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -346,6 +357,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
         >
           <Select allowClear
             options={styleOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -355,6 +367,7 @@ export function AppModalForm({ open, onOk, onCancel, registerResetCallback, valu
           <Select allowClear
             mode="multiple"
             options={uspOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
       </Form>

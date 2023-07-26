@@ -150,6 +150,8 @@ export function IndexForm() {
     setIsSearchModalOpen(true);
   };
 
+  // console.log('index:', index);
+
   if (!isNew && !loaded) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
@@ -162,6 +164,7 @@ export function IndexForm() {
         open={isSearchModalOpen}
         indexName={index?.name}
         theme={isDarkMode ? 'dark' : 'light'}
+        titleField={index?.titleField}
       />
       <div style={{ marginTop: 20 }}>
         <Form
@@ -195,13 +198,13 @@ export function IndexForm() {
             ]}
             wrapperCol={{ span: 10 }}
           >
-            <Select options={engineOptions} />
+            <Select options={engineOptions} optionFilterProp="label" />
           </Form.Item>
           <Form.Item
             label="Description"
             name="description"
           >
-            <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
+            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
           </Form.Item>
           <Form.Item
             label="Schema"

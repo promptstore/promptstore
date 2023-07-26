@@ -119,8 +119,7 @@ function useEventListener(eventName, ieFallback, handler, element, useCapture = 
         }
       }
     }
-  }, [eventName, element] // Re-run if eventName or element changes
-  );
+  }, [eventName, element]);
 }
 
 export default JsonInput;

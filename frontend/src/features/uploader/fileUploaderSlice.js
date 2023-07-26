@@ -126,13 +126,19 @@ export const deleteUploadsAsync = ({ sourceId, uploads }) => async (dispatch) =>
   dispatch(removeUploads({ sourceId, uploads }));
 };
 
-export const indexDataAsync = ({ uploadId, params }) => async (dispatch) => {
-  const url = '/api/dataloader';
+export const indexApiAsync = ({ endpoint, schema, params }) => async (dispatch) => {
+  const url = '/api/loader/api';
+  await http.post(url, { endpoint, schema, params });
+};
+
+export const indexStructuredDocumentAsync = ({ uploadId, params }) => async (dispatch) => {
+  const url = '/api/loader/structureddocument';
   await http.post(url, { uploadId, params });
 };
 
 export const indexDocumentAsync = ({ filepath, params }) => async (dispatch) => {
-  const url = '/api/loader';
+  // console.log('indexDocumentAsync params:', params);
+  const url = '/api/loader/document';
   await http.post(url, { filepath, params });
 };
 

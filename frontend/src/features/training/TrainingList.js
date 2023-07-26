@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { Button, Table, message } from 'antd';
 import { CSVLink } from 'react-csv';
 import * as dayjs from 'dayjs';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../context/NavbarContext';
 import WorkspaceContext from '../../context/WorkspaceContext';
@@ -18,6 +19,7 @@ import './TrainingList.css';
 
 export function TrainingList() {
 
+  const [page, setPage] = useLocalStorageState('training-list-page', 1);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
@@ -146,7 +148,16 @@ export function TrainingList() {
             Download
           </CSVLink>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

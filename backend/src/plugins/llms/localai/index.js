@@ -1,3 +1,7 @@
 const LocalAILLM = require('./LocalAILLM');
+const constants = require('./constants');
 
-module.exports = LocalAILLM;
+module.exports = {
+  plugin: LocalAILLM,
+  constants,
+}

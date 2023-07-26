@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Table, Typography } from 'antd';
 import ReactMarkdown from 'react-markdown';
 
@@ -8,11 +8,9 @@ const { Text } = Typography;
 
 export const ContentView = ({ upload }) => {
 
-  console.log('upload:', upload);
-
   const [previewColumns, setPreviewColumns] = useState();
 
-  const ext = getExtension(upload?.filename);
+  const ext = useMemo(() => getExtension(upload?.filename), [upload]);
 
   useEffect(() => {
     if (upload?.content) {

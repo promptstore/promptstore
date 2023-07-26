@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Empty, Modal, Radio, Space } from 'antd';
 import * as dayjs from 'dayjs';
 
 export function VersionsModal({
   handleCancel,
   onVersionRollback,
-  isModalOpen,
+  open,
   selectedRow,
   width = 520,
   keyProp = 'hash',
@@ -15,6 +15,13 @@ export function VersionsModal({
 
   const [selectedVersion, setSelectedVersion] = useState(null);
 
+  const versions = useMemo(() => {
+    if (!selectedRow?.versions) return [];
+    const vs = [...selectedRow.versions];
+    vs.sort((a, b) => a.created < b.created ? 1 : -1);
+    return vs;
+  }, [selectedRow]);
+
   const handleVersionRollback = () => {
     onVersionRollback(selectedVersion);
   };
@@ -23,9 +30,11 @@ export function VersionsModal({
     setSelectedVersion(ev.target.value);
   };
 
-  const versions = [...(selectedRow?.versions || [])];
-  versions.sort((a, b) => a.created < b.created ? 1 : -1);
-
+  if (!open) {
+    return (
+      <></>
+    );
+  }
   return (
     <Modal
       title="Version History"
@@ -33,7 +42,7 @@ export function VersionsModal({
       okButtonProps={{
         disabled: !(selectedRow && selectedRow.versions && selectedVersion),
       }}
-      open={isModalOpen}
+      open={open}
       onOk={handleVersionRollback}
       onCancel={handleCancel}
       width={width}
@@ -42,7 +51,9 @@ export function VersionsModal({
         <Radio.Group onChange={onChange} value={selectedVersion}>
           <Space direction="vertical">
             {versions.map((v) => (
-              <Radio key={v[keyProp]} value={v[valueProp]}>{v[titleProp]} - {dayjs(v.created).format('YYYY-MM-DD HH:mm')}</Radio>
+              <Radio key={v[keyProp]} value={v[valueProp]}>
+                {v[titleProp]} - {dayjs(v.created).format('YYYY-MM-DD HH:mm')}
+              </Radio>
             ))}
           </Space>
         </Radio.Group>
