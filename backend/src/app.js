@@ -16,8 +16,8 @@ const session = require('express-session');
 const axios = require('axios');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-const winston = require('winston');
 
+const pg = require('./db');
 const { AgentsService } = require('./services/AgentsService');
 const { AppsService } = require('./services/AppsService');
 const { ChatSessionsService } = require('./services/ChatSessionsService');
@@ -42,11 +42,13 @@ const { SearchService } = require('./services/SearchService');
 const { SettingsService } = require('./services/SettingsService');
 const { SqlSourceService } = require('./services/SqlSourceService');
 const { Tool } = require('./services/Tool');
+const { TracesService } = require('./services/TracesService');
 const { TrainingService } = require('./services/TrainingService');
 const { UploadsService } = require('./services/UploadsService');
 const { UsersService } = require('./services/UsersService');
 const { WorkspacesService } = require('./services/WorkspacesService');
 const { getPlugins, installModules } = require('./utils');
+const workflowClient = require('./workflow/clients');
 
 const RedisStore = require('connect-redis')(session);
 
@@ -56,22 +58,7 @@ if (ENV === 'dev') {
   dotenv.config();
 }
 
-const config = winston.config;
-const logger = new winston.Logger({
-  transports: [
-    new (winston.transports.Console)({
-      formatter: (options) => {
-        // - Return string will be passed to logger.
-        // - Optionally, use options.colorize(options.level, <string>) to
-        //   colorize output based on the log level.
-        return config.colorize(options.level, options.level.toUpperCase()) + ' ' +
-          (options.message ? options.message : '') +
-          (options.meta && Object.keys(options.meta).length ? '\n\t' + JSON.stringify(options.meta) : '');
-      },
-    }),
-  ],
-  level: ENV === 'dev' ? 'debug' : 'info',
-});
+const logger = require('./logger');
 
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
@@ -80,6 +67,7 @@ const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
 const ONESOURCE_API_URL = process.env.ONESOURCE_API_URL;
 const PORT = process.env.PORT || '5000';
 const SEARCH_API = process.env.SEARCH_API;
+const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
@@ -128,7 +116,7 @@ const swaggerOptions = {
       contact: {
         name: 'Mark Mo',
         url: 'https://promptstore.devsheds.io',
-        email: 'markmo@acme.com',
+        email: 'promptstore.dev@gmail.com',
       },
     },
     servers: [
@@ -146,14 +134,6 @@ const mc = new Minio.Client({
   useSSL: false,
   accessKey: process.env.AWS_ACCESS_KEY,
   secretKey: process.env.AWS_SECRET_KEY,
-});
-
-const pg = new Pool({
-  user: process.env.PGUSER,
-  host: process.env.PGHOST,
-  database: process.env.PGDATABASE,
-  password: process.env.PGPASSWORD,
-  port: process.env.PGPORT,
 });
 
 const rc = redis.createClient({
@@ -213,6 +193,8 @@ const settingsService = SettingsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 
 const tool = Tool({ logger, registry: toolPlugins });
+
+const tracesService = TracesService({ pg, logger });
 
 const trainingService = TrainingService({ pg, logger });
 
@@ -291,6 +273,7 @@ const executionsService = ExecutionsService({
     promptSetsService,
     searchService,
     sqlSourceService,
+    tracesService,
   },
 });
 
@@ -302,6 +285,7 @@ const options = {
     ENV,
     FILE_BUCKET,
     IMAGES_PREFIX,
+    TEMPORAL_URL,
   },
   logger,
   mc,
@@ -332,11 +316,13 @@ const options = {
     settingsService,
     sqlSourceService,
     tool,
+    tracesService,
     trainingService,
     uploadsService,
     usersService,
     workspacesService,
   },
+  workflowClient,
 };
 
 const agents = installModules('agents', options);

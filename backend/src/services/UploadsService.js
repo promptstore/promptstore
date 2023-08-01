@@ -17,7 +17,7 @@ function UploadsService({ pg, logger }) {
       return [];
     }
     const uploads = rows.map((row) => ({
-      ...row.val,
+      ...omit(row.val, ['data']),
       id: row.id,
       workspaceId: row.workspace_id,
       filename: row.filename,

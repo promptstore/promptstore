@@ -36,14 +36,15 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/loader/structureddocument', auth, async (req, res) => {
-    const { uploadId, params } = req.body;
+    const { uploadId, params, documents } = req.body;
     const { newIndexName, engine } = params;
     let indexId = params.indexId;
     if (indexId === 'new') {
       indexId = await createStructuredDocumentIndex(newIndexName, engine);
-      await indexStructuredDocument(uploadId, { ...params, indexId });
+      // await indexStructuredDocument(uploadId, { ...params, indexId });
+      await indexStructuredDocuments(documents, { ...params, indexId });
     } else {
-      await indexStructuredDocument(uploadId, params);
+      await indexStructuredDocuments(documents, params);
     }
     res.json({ indexId });
   });
@@ -274,13 +275,31 @@ module.exports = ({ app, auth, logger, services }) => {
     await indexDocs(indexId, docs);
   }
 
-  async function indexStructuredDocument(uploadId, { indexId }) {
-    const upload = await uploadsService.getUpload(uploadId);
-    if (!upload) {
-      throw new Error('Upload not found');
+  // async function indexStructuredDocument(uploadId, { indexId }) {
+  //   const upload = await uploadsService.getUpload(uploadId);
+  //   if (!upload) {
+  //     throw new Error('Upload not found');
+  //   }
+  //   const docs = await loaderService.load('structureddocument', { upload, nodeType });
+  //   await indexDocs(indexId, docs);
+  // }
+
+  async function indexStructuredDocuments(documents, { indexId }) {
+    const index = await indexesService.getIndex(indexId);
+    if (!index) {
+      throw new Error('Index not found');
     }
-    const docs = await loaderService.load('structureddocument', { upload, nodeType });
-    await indexDocs(indexId, docs);
+    for (const uploadId of documents) {
+      const upload = await uploadsService.getUpload(uploadId);
+      if (!upload) {
+        // throw new Error('Upload not found');
+        logger.error(`Upload ${uploadId} not found`);
+        // keep processing the other documents
+      }
+      logger.debug('Loading', upload.filename);
+      const docs = await loaderService.load('structureddocument', { upload, nodeType });
+      await indexDocuments(index, docs);
+    }
   }
 
   async function indexTextDocument(filepath, params) {
@@ -319,6 +338,12 @@ module.exports = ({ app, auth, logger, services }) => {
     if (!index) {
       throw new Error('Index not found');
     }
+    const indexDoc = (doc) => searchService.indexDocument(index.name, doc);
+    const promises = chunks.map(indexDoc);
+    await Promise.all(promises);
+  }
+
+  async function indexDocuments(index, chunks) {
     const indexDoc = (doc) => searchService.indexDocument(index.name, doc);
     const promises = chunks.map(indexDoc);
     await Promise.all(promises);

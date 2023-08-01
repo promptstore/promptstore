@@ -23,6 +23,7 @@ function OpenAILLM({ __name, constants, logger }) {
         n,
         functions,
         stop,
+        temperature: 0.5,
       };
       logger.debug('options:', JSON.stringify(opts, null, 2));
       res = await openai.createChatCompletion(opts);

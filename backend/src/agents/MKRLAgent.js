@@ -111,7 +111,7 @@ module.exports = ({ logger, services }) => {
             return this._constructScratchpad({ observation })
           }
         }
-        throw new err;
+        throw err;
       }
       let result;
       if (output instanceof AgentAction) {
@@ -196,7 +196,9 @@ module.exports = ({ logger, services }) => {
     }
 
     _printMessages(messages) {
-      return messages.map((m) => m.content).join('\n\n');
+      return messages
+        .filter((m) => m.role !== 'system')
+        .map((m) => m.content).join('\n\n');
     }
 
     _getMessages() {

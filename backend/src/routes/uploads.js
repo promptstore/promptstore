@@ -4,9 +4,9 @@ const path = require('path');
 
 const { getExtension } = require('../utils');
 
-module.exports = ({ app, auth, constants, logger, mc, services }) => {
+module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }) => {
 
-  const { documentsService, extractorService, uploadsService } = services;
+  const { documentsService, uploadsService } = services;
 
   const upload = multer({ dest: os.tmpdir() });
 
@@ -35,14 +35,14 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
       });
 
       stream.on('error', (err) => {
-        logger.error(err);
+        logger.error('Error listing objects:', err);
         res.status(500).json({
           error: String(err),
         });
       });
 
     } catch (err) {
-      logger.error(err);
+      logger.error('Error getting uploads:', err);
       res.status(500).json({
         error: String(err),
       });
@@ -93,67 +93,86 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
       }
 
     } catch (err) {
-      logger.error(err);
+      logger.error('Error getting upload content:', err);
       res.status(500).json({
         error: String(err),
       });
     }
   });
 
+  // cache of results to poll
+  const jobs = {};
+
+  app.get('/api/upload-status/:correlationId', auth, async (req, res) => {
+    const { correlationId } = req.params;
+    logger.debug('Checking upload status for:', correlationId);
+    const result = jobs[correlationId];
+    if (!result) {
+      return res.sendStatus(404);
+    }
+    res.json(result);
+    delete jobs[correlationId];
+  });
+
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
-    let {
-      sourceId,
-    } = req.body;
+    const { sourceId, correlationId } = req.body;
     const workspaceId = parseInt(sourceId, 10);
+    if (isNaN(workspaceId)) {
+      return res.status(400).send({
+        error: 'Invalid workspace',
+      });
+    }
     const file = req.file;
     logger.debug('file:', file);
-    const metadata = { 'Content-Type': file.mimetype };
-    const objectName = path.join(String(workspaceId), constants.DOCUMENTS_PREFIX, file.originalname);
+    workflowClient
+      .upload(file, workspaceId, {
+        DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
+        FILE_BUCKET: constants.FILE_BUCKET,
+      }, {
+        address: constants.TEMPORAL_URL,
+      })
+      .then((result) => {
+        logger.debug('upload result:', result);
+        if (correlationId) {
+          jobs[correlationId] = result;
+        }
 
-    mc.fPutObject(constants.FILE_BUCKET, objectName, file.path, metadata, async (err) => {
-      if (err) {
-        logger.error(err);
-        return res.status(500).json({
-          error: String(err),
-        });
-      }
-      logger.info('File uploaded successfully.');
+        // allow 10m to poll for results
+        setTimeout(() => {
+          delete jobs[correlationId];
+        }, 10 * 60 * 1000);
 
-      let data;
-      if (
-        file.mimetype === 'application/pdf' ||
-        file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ) {
-        data = await extractorService.extract(file);
-      }
+      });
+    res.sendStatus(200);
+  });
 
-      // TODO
-      const userId = '1234';
-
-      try {
-        const uploadRecord = {
-          workspaceId,
-          userId,
-          filename: file.originalname,
-          data,
-        };
-        const id = await uploadsService.upsertUpload(uploadRecord);
-        logger.info('Inserted', { ...uploadRecord, id });
-
-        res.sendStatus(200);
-
-      } catch (err) {
-        logger.error(err);
-        res.status(500).json({
-          error: String(err),
-        });
-      }
+  app.post('/api/reload', auth, async (req, res) => {
+    const { sourceId, uploadId, filepath } = req.body;
+    const workspaceId = parseInt(sourceId, 10);
+    if (isNaN(workspaceId)) {
+      return res.status(400).send({
+        error: 'Invalid workspace',
+      });
+    }
+    const file = await documentsService.download(filepath);
+    logger.debug('file:', file);
+    workflowClient.reload(file, workspaceId, uploadId, {
+      DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
+      FILE_BUCKET: constants.FILE_BUCKET,
+    }, {
+      address: constants.TEMPORAL_URL,
     });
+    res.sendStatus(200);
   });
 
   app.delete('/api/uploads', auth, (req, res, next) => {
     const names = req.query.names.split(',');
     const workspaceId = parseInt(req.query.workspaceId, 10);
+    if (isNaN(workspaceId)) {
+      return res.status(400).send({
+        error: 'Invalid workspace',
+      });
+    }
     mc.removeObjects(constants.FILE_BUCKET, names, async (err) => {
       if (err) {
         return res.status(500).json({
@@ -165,6 +184,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
         await uploadsService.deleteWorkspaceFiles(workspaceId, filenames);
         res.json(names);
       } catch (e) {
+        logger.error('Error deleting documents:', e);
         res.status(500).json({
           error: String(e),
         });

@@ -12,6 +12,10 @@ function Authenticator({ __name, constants, logger, app, passport, rc }) {
   });
 
   return new Strategy(async (apikey, done) => {
+    // service account key for AGENCEE
+    if (apikey === constants.PROMPTSTORE_API_KEY) {
+      return done(null, { email: constants.PROMPTSTORE_EMAIL });
+    }
     try {
       const email = await rc.hget(constants.TOKEN_STORE_KEY, apikey);
       if (!email) return done(null, false);

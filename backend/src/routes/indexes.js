@@ -10,7 +10,7 @@ module.exports = ({ app, auth, logger, services }) => {
   app.get('/api/indexes/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const index = await indexesService.getIndex(id);
-    logger.debug('index: ', index);
+    logger.debug('index:', index);
     res.json(index);
   });
 

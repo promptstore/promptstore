@@ -1,3 +1,5 @@
 module.exports = {
+  PROMPTSTORE_API_KEY: process.env.PROMPTSTORE_API_KEY,
+  PROMPTSTORE_EMAIL: process.env.PROMPTSTORE_EMAIL,
   TOKEN_STORE_KEY: process.env.TOKEN_STORE_KEY,
 }

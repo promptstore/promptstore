@@ -24,9 +24,39 @@ function ExecutionsService({ logger, services }) {
     promptSetsService,
     searchService,
     sqlSourceService,
+    tracesService,
   } = services;
 
-  const executeFunction = async (func, args, params, functions, batch = false) => {
+  const executeFunction = async (func, args, params, functions, batch = false, tracer) => {
+
+    // const executor = new LocalExecutor({
+    //   dataSourcesService,
+    //   featureStoreService,
+    //   functionsService,
+    //   indexesService,
+    //   llmService,
+    //   modelsService,
+    //   promptSetsService,
+    //   searchService,
+    //   tracesService,
+    // });
+    // const response = await executor.run({
+    //   semanticFunctionName: func.name,
+    //   args,
+    //   modelKey: params.modelKey || 'gpt-3.5-turbo',
+    //   modelParams: {
+    //     maxTokens: 140,
+    //     n: 1,
+    //   },
+    //   isBatch: batch,
+    // });
+    // return {
+    //   data: {
+    //     ...response,
+    //     content: response.choices[0].message.content,
+    //   },
+    // };
+
     logger.log('debug', 'execute function: %s', func.name);
     logger.log('debug', 'args:', args);
     logger.log('debug', 'params:', params);
@@ -56,14 +86,47 @@ function ExecutionsService({ logger, services }) {
       }
     }
 
-    const funcArgs = batch ? args[0] : args;
+    const functionArgs = batch ? args[0] : args;
+
+    tracer = tracer || new Tracer(func.name + ' ' + new Date().toISOString(), tracesService);
+    tracer
+      .push({
+        type: 'request',
+        function: {
+          name: func.name,
+          args: functionArgs,
+        },
+        model: {
+          name: modelKey,
+          params,
+        },
+        isBatchRequest: batch,
+      })
+      .down();
 
     let validatorResult;
 
     if (func.arguments) {
-      validatorResult = validate(funcArgs, func.arguments, { required: true });
+      validatorResult = validate(functionArgs, func.arguments, { required: true });
+
+      tracer.push({
+        type: 'validate-function-arguments',
+        arguments: {
+          type: 'function',
+          values: functionArgs,
+        },
+        schema: func.arguments,
+        isValid: validatorResult.valid,
+        errors: validatorResult.errors,
+      });
 
       if (!validatorResult.valid) {
+        tracer
+          .push({
+            type: 'error',
+            errors: validatorResult.errors,
+          })
+          .close();
         return { errors: validatorResult.errors };
       }
     } else {
@@ -78,6 +141,12 @@ function ExecutionsService({ logger, services }) {
           message: 'No implementations defined',
         },
       ];
+      tracer
+        .push({
+          type: 'error',
+          errors,
+        })
+        .close();
       return { errors };
     }
 
@@ -107,9 +176,15 @@ function ExecutionsService({ logger, services }) {
           message: 'Model not found',
         },
       ];
+      tracer
+        .push({
+          type: 'error',
+          errors,
+        })
+        .close();
       return { errors };
     }
-    logger.log('debug', 'model: %s', model);
+    logger.log('debug', 'model:', model);
 
     let request;
     const mappingTemplate = impl.mappingData;
@@ -119,6 +194,17 @@ function ExecutionsService({ logger, services }) {
       } else {
         request = await mapArgs(mappingTemplate, args, func.arguments.type === 'array');
       }
+      tracer.push({
+        type: 'map-arguments',
+        in: {
+          type: 'function',
+          values: functionArgs,
+        },
+        out: {
+          type: 'prompt',
+          values: request,
+        },
+      });
     } else {
       logger.log('debug', 'skip argument mapping');
       request = args;
@@ -134,6 +220,12 @@ function ExecutionsService({ logger, services }) {
             message: 'Data Source not found',
           },
         ];
+        tracer
+          .push({
+            type: 'error',
+            errors,
+          })
+          .close();
         return { errors };
       }
 
@@ -151,6 +243,24 @@ function ExecutionsService({ logger, services }) {
       const values = await featureStoreService.getOnlineFeatures(ds.featurestore, params, request.entityId);
       // logger.log('debug', 'values:', values);
       request = { ...request, ...values };
+      tracer.push({
+        type: 'feature-store-injection',
+        featureStore: {
+          type: ds.featurestore,
+          endpoint: {
+            httpMethod: ds.httpMethod,
+            url: ds.url,
+          },
+          params: {
+            entity: ds.entity,
+            featureList: ds.featureList,
+            featureService: ds.featureService,
+            featureStoreName: ds.featureStoreName,
+          },
+        },
+        entityId: request.entityId,
+        values,
+      });
     }
 
     logger.log('debug', 'indexes:', impl.indexes);
@@ -164,6 +274,12 @@ function ExecutionsService({ logger, services }) {
               message: 'Index not found',
             },
           ];
+          tracer
+            .push({
+              type: 'error',
+              errors,
+            })
+            .close();
           return { errors };
         }
 
@@ -183,8 +299,25 @@ function ExecutionsService({ logger, services }) {
 
         logger.log('debug', 'res:', res);
 
-        let context = res.map(r => r.content_text).join('\n\n');
-        // logger.log('debug', 'context: %s', context);
+        const contextLines = res.map(r => r.content_text);
+        let context = contextLines.join('\n\n');
+        // logger.log('debug', 'context:', context);
+
+        tracer.push({
+          type: 'index-injection',
+          index: {
+            id: indexId,
+            name: index.name,
+            params: {
+              contentPath,
+              contextPath,
+              allResults,
+              summarizeResults,
+            },
+          },
+          content,
+          context: contextLines,
+        });
 
         if (summarizeResults) {
           const summarizeFunc = await functionsService.getFunctionByName('summarize');
@@ -196,17 +329,31 @@ function ExecutionsService({ logger, services }) {
             ];
             logger.log('error', errors);
             // ignore
+            tracer.push({
+              type: 'error',
+              errors,
+            });
           } else {
+            tracer
+              .push({
+                type: 'summarize-context',
+              })
+              .down();
             const { data, errors } = await executeFunction(summarizeFunc, { text: context }, {
               maxTokens: 255,
               model: 'gpt-3.5-turbo',
               n: 1,
-            });
+            }, null, false, tracer);
             if (errors) {
               logger.log('error', errors);
               // ignore
+              tracer.push({
+                type: 'error',
+                errors,
+              });
             } else {
               context = data.content;
+              tracer.up().addProperty('context', context);
             }
           }
         }
@@ -300,7 +447,24 @@ function ExecutionsService({ logger, services }) {
         if (promptSet.arguments) {
           validatorResult = validate(requestArgs, promptSet.arguments, { required: true });
 
+          tracer.push({
+            type: 'validate-prompt-arguments',
+            arguments: {
+              type: 'prompt',
+              values: requestArgs,
+            },
+            schema: promptSet.arguments,
+            isValid: validatorResult.valid,
+            errors: validatorResult.errors,
+          });
+
           if (!validatorResult.valid) {
+            tracer
+              .push({
+                type: 'error',
+                errors,
+              })
+              .close();
             return { errors: validatorResult.errors };
           }
         } else {
@@ -323,6 +487,16 @@ function ExecutionsService({ logger, services }) {
             i += 1;
           }
         } else {
+          const userContent = request.content;
+          const wordCount = userContent.split(/\s+/).length;
+          const maxWords = Math.floor(wordCount * 1.2);
+          if (userContent) {
+            request = {
+              ...request,
+              wordCount,
+              maxWords,
+            }
+          }
           messages = getMessages(promptSet.prompts, request, promptSet.templateEngine);
         }
       } else {
@@ -362,8 +536,9 @@ function ExecutionsService({ logger, services }) {
       }
       logger.log('debug', 'messages:', messages);
 
+      const textLines = messages.map((m) => m.content);
+      const text = textLines.join('\n\n');
       if (impl.inputGuardrails?.length) {
-        const text = messages.map((m) => m.content).join('\n\n');
         for (const key of impl.inputGuardrails) {
           logger.log('debug', 'guardrail: %s', key);
           const res = await guardrailsService.scan(key, text);
@@ -378,6 +553,22 @@ function ExecutionsService({ logger, services }) {
 
       try {
         const contents = response.choices.map((c) => c.message.content);
+
+        tracer.push({
+          type: 'call-model',
+          model: {
+            provider: model.provider,
+            model: model.key,
+            params: {
+              ...params,
+              functions,
+            },
+          },
+          prompt: messages,
+          response,
+        });
+        tracer.addParentProperty('input', textLines);
+
         const results = [];
 
         for (const content of contents) {
@@ -417,6 +608,12 @@ function ExecutionsService({ logger, services }) {
           }))
         };
 
+        tracer
+          .up()
+          .addProperty('response', resp)
+          .addProperty('output', response.choices[0].message.content)
+          .close();
+
         return {
           data: {
             ...resp,
@@ -425,7 +622,7 @@ function ExecutionsService({ logger, services }) {
             content: response.choices[0].message.content,
             result: results[0],
             functionCall: response.choices[0].message.function_call,
-          }
+          },
         };
 
       } catch (err) {
@@ -498,6 +695,61 @@ function ExecutionsService({ logger, services }) {
     ];
     return { errors };
   };
+
+  class Tracer {
+
+    constructor(name, db) {
+      this.name = name;
+      this.db = db;
+      this.trace = [];
+      this.stack = [this.trace];
+    }
+
+    currentTrace() {
+      return this.stack[this.stack.length - 1];
+    }
+
+    currentStep() {
+      const trace = this.currentTrace();
+      return trace[trace.length - 1];
+    }
+
+    push(step) {
+      this.currentTrace().push(step);
+      return this;
+    }
+
+    addProperty(key, value) {
+      this.currentStep()[key] = value;
+      return this;
+    }
+
+    addParentProperty(key, value) {
+      const trace = this.stack[this.stack.length - 2];
+      trace[trace.length - 1][key] = value;
+    }
+
+    down() {
+      const children = [];
+      this.currentStep().children = children;
+      this.stack.push(children);
+      return this;
+    }
+
+    up() {
+      this.stack.pop();
+      return this;
+    }
+
+    async close() {
+      const record = {
+        name: this.name,
+        trace: this.trace,
+      };
+      await this.db.upsertTrace(record);
+    }
+
+  }
 
   const executeGraph = async (args, params, nodes, edges) => {
     logger.log('debug', 'execute graph');

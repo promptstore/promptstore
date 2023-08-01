@@ -1,51 +1,40 @@
-const FormData = require('form-data');
-const axios = require('axios');
-// const fetch = require('node-fetch');
 const fs = require('fs');
+const mime = require('mime-types');
 const path = require('path');
+const { Blob } = require('buffer');
 const { parse } = require('csv-parse/sync');
 
 function DocumentsService({ constants, mc, logger }) {
 
-  async function extract(file) {
-    try {
-      const data = await fs.promises.readFile(file.path);
-      const form = new FormData();
-      form.append('file', data, {
-        filename: file.originalname,
-        contentType: 'application/pdf',
+  function download(filepath) {
+    return new Promise((resolve, reject) => {
+      const localFilePath = `/tmp/${constants.FILE_BUCKET}/${filepath}`;
+      const dirname = path.dirname(localFilePath);
+      fs.mkdirSync(dirname, { recursive: true });
+      mc.statObject(constants.FILE_BUCKET, filepath, (err, stat) => {
+        if (err) {
+          logger.error(err);
+          reject(err);
+        }
+        mc.fGetObject(constants.FILE_BUCKET, filepath, localFilePath, (err) => {
+          if (err) {
+            logger.error(err);
+            reject(err);
+          }
+          // return fake upload file
+          const mimetype = stat.metaData?.['Content-Type'] || mime.lookup(path.extname(filepath));
+          const filename = stat.metaData?.filename || path.parse(filepath).base;
+          const file = new Blob([''], { type: mimetype });
+          file.originalname = filename;
+          file.mimetype = mimetype;
+          file.path = localFilePath;
+          file.size = stat.size;
+          file.lastModified = stat.lastModified;
+          file.etag = stat.etag;
+          resolve(file);
+        });
       });
-      const res = await axios.post(constants.ONESOURCE_API_URL, form, {
-        headers: form.getHeaders(),
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
-      logger.debug('File uploaded to document service successfully.');
-      logger.debug('res: ', res.data);
-      return res.data;
-    } catch (err) {
-      logger.error(err);
-      return null;
-    }
-    // const opt = {
-    //   method: 'POST',
-    //   body: stream,
-    //   redirect: 'manual',
-    // };
-    // logger.debug('opt: ', opt);
-    // const res = await fetch(constants.ONESOURCE_API_URL, opt);
-    // logger.debug('res: ', res);
-    // logger.debug('status: ', res.status);
-    // logger.debug('headers: ', res.headers);
-    // if (res.status === 301 || res.status === 302) {
-    //   const locationURL = new URL(res.headers.get('location'), res.url);
-    //   logger.debug('locationURL: ', locationURL);
-    //   const res2 = await fetch(locationURL, { redirect: 'manual' });
-    //   const data = res2.json();
-    //   logger.debug('data: ', data);
-    //   return data;
-    // }
-    // return null;
+    });
   }
 
   function read(filepath, maxBytes = 0, transformation, options) {
@@ -54,7 +43,7 @@ function DocumentsService({ constants, mc, logger }) {
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       const fileStream = fs.createWriteStream(localFilePath);
-      mc.getPartialObject(constants.FILE_BUCKET, filepath, 0, maxBytes, async (err, dataStream) => {
+      mc.getPartialObject(constants.FILE_BUCKET, filepath, 0, maxBytes, (err, dataStream) => {
         if (err) {
           logger.error(err);
           reject(err);
@@ -88,7 +77,7 @@ function DocumentsService({ constants, mc, logger }) {
   };
 
   return {
-    extract,
+    download,
     read,
     transformations,
   };
