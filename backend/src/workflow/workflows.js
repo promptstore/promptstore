@@ -1,4 +1,4 @@
-const { proxyActivities } = require('@temporalio/workflow');
+import { proxyActivities } from '@temporalio/workflow';
 
 const { reload, upload } = proxyActivities({
   scheduleToCloseTimeout: '20m',
@@ -8,12 +8,10 @@ const { reload, upload } = proxyActivities({
   }
 });
 
-async function reloads(file, workspaceId, uploadId) {
-  return await reload(file, workspaceId, uploadId);
+export async function reloads(file, workspaceId, username, uploadId) {
+  return await reload(file, workspaceId, username, uploadId);
 }
 
-async function uploads(file, workspaceId, constants) {
-  return await upload(file, workspaceId, constants);
+export async function uploads(file, workspaceId, username, constants) {
+  return await upload(file, workspaceId, username, constants);
 }
-
-module.exports = { reloads, uploads };

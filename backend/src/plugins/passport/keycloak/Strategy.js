@@ -1,5 +1,5 @@
-const OAuth2Strategy = require('passport-oauth2');
-const util = require('util');
+import OAuth2Strategy from 'passport-oauth2';
+import util from 'util';
 
 function Strategy(options, verify) {
   [
@@ -51,4 +51,4 @@ Strategy.prototype.userProfile = function (accessToken, done) {
   });
 };
 
-module.exports = Strategy;
+export default Strategy;

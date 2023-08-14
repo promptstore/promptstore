@@ -14,12 +14,11 @@
   margin: 0 1rem;
 }
 
-.navbar-menu li.active,
+/* .navbar-menu li.active,
 .navbar-menu li:hover {
-  /* border-bottom: 2px solid #fff; */
   border-bottom: 2px solid #177ddc;
   color: #177ddc;
-}
+} */
 
 .navbar-menu li a {
   color: #177ddc;

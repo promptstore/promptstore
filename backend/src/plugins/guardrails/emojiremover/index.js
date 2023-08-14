@@ -1,7 +1,2 @@
-const EmojiRemover = require('./EmojiRemover');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: EmojiRemover,
-  constants,
-}
+export { default as plugin } from './EmojiRemover';
+export { default as constants } from './constants';

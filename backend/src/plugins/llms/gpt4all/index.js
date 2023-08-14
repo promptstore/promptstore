@@ -1,7 +1,2 @@
-const Gpt4AllLLM = require('./Gpt4AllLLM');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: Gpt4AllLLM,
-  constants,
-}
+export { default as plugin } from './Gpt4AllLLM';
+export { default as constants } from './constants';

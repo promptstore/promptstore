@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function FeastService({ __name, constants, logger }) {
 
@@ -109,4 +109,4 @@ function FeastService({ __name, constants, logger }) {
   };
 }
 
-module.exports = FeastService;
+export default FeastService;

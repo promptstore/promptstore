@@ -20,4 +20,4 @@ function ListParser({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = ListParser;
+export default ListParser;

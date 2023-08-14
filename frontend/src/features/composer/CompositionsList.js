@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteCompositionsAsync,
   getCompositionsAsync,
@@ -28,6 +29,7 @@ export function CompositionsList() {
   }, [compositions]);
 
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
@@ -41,8 +43,13 @@ export function CompositionsList() {
       createLink: '/compositions/new',
       title: 'Compositions',
     }));
-    dispatch(getCompositionsAsync());
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      dispatch(getCompositionsAsync({ workspaceId: selectedWorkspace.id }));
+    }
+  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (location.state && location.state.message) {

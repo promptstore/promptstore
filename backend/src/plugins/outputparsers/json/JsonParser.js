@@ -1,4 +1,4 @@
-const trimEnd = require('lodash.trimend');
+import trimEnd from 'lodash.trimend';
 
 function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
 
@@ -97,4 +97,4 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = JsonParser;
+export default JsonParser;

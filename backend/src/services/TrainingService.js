@@ -1,6 +1,6 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function TrainingService({ pg, logger }) {
+export function TrainingService({ pg, logger }) {
 
   async function getTrainingData(workspaceId, limit = 999, start = 0) {
     let q = `
@@ -70,7 +70,7 @@ function TrainingService({ pg, logger }) {
         INSERT INTO training (workspace_id, content_id, prompt, response, val)
         VALUES ($1, $2, $3, $4, $5) RETURNING id
         `,
-        [row.workspaceId, row.contentId, row.prompt, row.response, val]
+        [row.workspace_id, row.contentId, row.prompt, row.response, val]
       );
       return rows[0].id;
     }
@@ -98,7 +98,3 @@ function TrainingService({ pg, logger }) {
     upsertTrainingRow,
   };
 }
-
-module.exports = {
-  TrainingService,
-};

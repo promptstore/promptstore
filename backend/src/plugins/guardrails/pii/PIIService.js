@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function PIIService({ __name, __metadata, constants, logger, app, auth }) {
 
@@ -51,4 +51,4 @@ function PIIService({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = PIIService;
+export default PIIService;

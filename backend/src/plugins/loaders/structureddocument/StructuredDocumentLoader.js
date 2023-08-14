@@ -29,4 +29,4 @@ function StructuredDocumentLoader({ __name, constants, logger }) {
   };
 }
 
-module.exports = StructuredDocumentLoader;
+export default StructuredDocumentLoader;

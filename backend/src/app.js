@@ -1,64 +1,60 @@
 // const FormData = require('form-data');
-const Minio = require('minio');
-const { Pool } = require('pg');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const express = require('express');
-const http = require('http');
-const httpProxy = require('http-proxy');
-const morgan = require('morgan');
-const os = require('os');
-const passport = require('passport');
-const path = require('path');
-const redis = require('redis');
-const session = require('express-session');
-const axios = require('axios');
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
+import Minio from 'minio';
+import bodyParser from 'body-parser';
+import connectRedis from 'connect-redis';
+import cors from 'cors';
+import express from 'express';
+import http from 'http';
+import httpProxy from 'http-proxy';
+import morgan from 'morgan';
+import os from 'os';
+import passport from 'passport';
+import path from 'path';
+import redis from 'redis';
+import session from 'express-session';
+import axios from 'axios';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import { fileURLToPath } from 'url';
 
-const pg = require('./db');
-const { AgentsService } = require('./services/AgentsService');
-const { AppsService } = require('./services/AppsService');
-const { ChatSessionsService } = require('./services/ChatSessionsService');
-const { CompositionsService } = require('./services/CompositionsService');
-const { ContentService } = require('./services/ContentService');
-const { CrawlerService } = require('./services/CrawlerService');
-const { DataSourcesService } = require('./services/DataSourcesService');
-const { DocumentsService } = require('./services/DocumentsService');
-const { ExecutionsService } = require('./services/ExecutionsService');
-const { ExtractorService } = require('./services/ExtractorService');
-const { FeatureStoreService } = require('./services/FeatureStoreService');
-const { GuardrailsService } = require('./services/GuardrailsService');
-const { FunctionsService } = require('./services/FunctionsService');
-const { IndexesService } = require('./services/IndexesService');
-const { LLMService } = require('./services/LLMService');
-const { LoaderService } = require('./services/LoaderService');
-const { ModelProviderService } = require('./services/ModelProviderService');
-const { ModelsService } = require('./services/ModelsService');
-const { ParserService } = require('./services/ParserService');
-const { PromptSetsService } = require('./services/PromptSetsService');
-const { SearchService } = require('./services/SearchService');
-const { SettingsService } = require('./services/SettingsService');
-const { SqlSourceService } = require('./services/SqlSourceService');
-const { Tool } = require('./services/Tool');
-const { TracesService } = require('./services/TracesService');
-const { TrainingService } = require('./services/TrainingService');
-const { UploadsService } = require('./services/UploadsService');
-const { UsersService } = require('./services/UsersService');
-const { WorkspacesService } = require('./services/WorkspacesService');
-const { getPlugins, installModules } = require('./utils');
-const workflowClient = require('./workflow/clients');
+import firebaseAuth from './config/firebase-config.js';
+import pg from './db';
+import logger from './logger';
+// import { VerifyToken } from './middleware/VerifyToken.js';
+import { AgentsService } from './services/AgentsService';
+import { AppsService } from './services/AppsService';
+import { ChatSessionsService } from './services/ChatSessionsService';
+import { CompositionsService } from './services/CompositionsService';
+import { ContentService } from './services/ContentService';
+import { CrawlerService } from './services/CrawlerService';
+import { DataSourcesService } from './services/DataSourcesService';
+import { DocumentsService } from './services/DocumentsService';
+import { ExecutionsService } from './services/ExecutionsService';
+import { ExtractorService } from './services/ExtractorService';
+import { FeatureStoreService } from './services/FeatureStoreService';
+import { GuardrailsService } from './services/GuardrailsService';
+import { FunctionsService } from './services/FunctionsService';
+import { IndexesService } from './services/IndexesService';
+import { LLMService } from './services/LLMService';
+import { LoaderService } from './services/LoaderService';
+import { ModelProviderService } from './services/ModelProviderService';
+import { ModelsService } from './services/ModelsService';
+import { ParserService } from './services/ParserService';
+import { PromptSetsService } from './services/PromptSetsService';
+import { SearchService } from './services/SearchService';
+import { SettingsService } from './services/SettingsService';
+import { SqlSourceService } from './services/SqlSourceService';
+import { Tool } from './services/Tool';
+import { TracesService } from './services/TracesService';
+import { TrainingService } from './services/TrainingService';
+import { UploadsService } from './services/UploadsService';
+import { UsersService } from './services/UsersService';
+import { WorkspacesService } from './services/WorkspacesService';
+import { getPlugins, installModules, toAbsoluteUrl } from './utils';
+import * as workflowClient from './workflow/clients';
 
-const RedisStore = require('connect-redis')(session);
-
-const ENV = process.env.ENV?.toLowerCase();
-console.log('debug', 'ENV:', ENV);
-if (ENV === 'dev') {
-  dotenv.config();
-}
-
-const logger = require('./logger');
+let ENV = process.env.ENV;
+logger.debug('ENV:', ENV);
 
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
@@ -80,15 +76,15 @@ const PASSPORT_PLUGINS = process.env.PASSPORT_PLUGINS || '';
 const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
 const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 
-const basePath = __dirname;
-const extractorPlugins = getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
-const featureStorePlugins = getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
-const llmPlugins = getPlugins(basePath, LLM_PLUGINS, logger);
-const loaderPlugins = getPlugins(basePath, LOADER_PLUGINS, logger);
-const modelProviderPlugins = getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
-const outputParserPlugins = getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
-const sqlSourcePlugins = getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
-const toolPlugins = getPlugins(basePath, TOOL_PLUGINS, logger);
+const basePath = path.dirname(fileURLToPath(import.meta.url));
+const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
+const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
+const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
+const loaderPlugins = await getPlugins(basePath, LOADER_PLUGINS, logger);
+const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
+const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
+const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
+const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger);
 
 const app = express();
 
@@ -204,6 +200,7 @@ const usersService = UsersService({ pg });
 
 const workspacesService = WorkspacesService({ pg, logger });
 
+const RedisStore = connectRedis(session);
 const sess = {
   cookie: {},
   resave: false,
@@ -215,16 +212,16 @@ const sess = {
 app.use(session(sess));
 
 // These must come after `app.use(session(sess))`
-app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.initialize());
+// app.use(passport.session());
 
-// You can use this section to keep a smaller payload
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-passport.deserializeUser((user, done) => {
-  done(null, user)
-});
+// // You can use this section to keep a smaller payload
+// passport.serializeUser((user, done) => {
+//   done(null, user);
+// });
+// passport.deserializeUser((user, done) => {
+//   done(null, user)
+// });
 
 app.use(morgan('tiny'));
 
@@ -240,21 +237,55 @@ app.use(bodyParser.urlencoded({
   // }
 }));
 
-app.use(express.static(path.join(__dirname, FRONTEND_DIR, '/build/')));
+app.use(express.static(path.join(basePath, FRONTEND_DIR, '/build/')));
 
 app.use(cors());
 
-const passportPlugins = getPlugins(basePath, PASSPORT_PLUGINS, logger, { app, passport, rc, usersService });
+// const passportPlugins = await getPlugins(basePath, PASSPORT_PLUGINS, logger, { app, passport, rc, usersService });
 
-let auth;
-if (passportPlugins.length) {
-  Object.values(passportPlugins).map(passport.use);
-  auth = passport.authenticate(Object.keys(passportPlugins), { session: false });
-} {
-  auth = (req, res, next) => next();  // unauthenticated
-}
+// let auth;
+// if (passportPlugins.length) {
+//   Object.values(passportPlugins).map(passport.use);
+//   auth = passport.authenticate(Object.keys(passportPlugins), { session: false });
+// } {
+//   auth = (req, res, next) => next();  // unauthenticated
+// }
 
-const guardrailPlugins = getPlugins(basePath, GUARDRAIL_PLUGINS, logger, { app, auth });
+const VerifyToken = async (req, res, next) => {
+  // look for firebase token
+  const token = req.headers.authorization?.split(' ')[1];
+  // logger.debug('token:', token);
+
+  try {
+    const decodeValue = await firebaseAuth.verifyIdToken(token);
+    if (decodeValue) {
+      req.user = { ...decodeValue, username: decodeValue.email };
+      return next();
+    }
+  } catch (e) {
+    // return res.json({ message: 'Not authorized' });
+  }
+
+  // otherwise look for api key
+  const apiKey = req.headers.apikey;
+  // logger.debug('apiKey:', apiKey);
+  const resp = await workspacesService.getUsernameByApiKey(apiKey);
+  logger.debug('resp:', resp);
+  if (resp) {
+    const user = await usersService.getUser(resp.username);
+    logger.debug('user:', user);
+    req.user = user;
+    return next();
+  }
+
+  // finally send 'Not authorized' if both validation approaches fail
+  return res.status(401).send('Not authorized');
+
+};
+
+const auth = VerifyToken;
+
+const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, { app, auth });
 
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
 
@@ -325,7 +356,7 @@ const options = {
   workflowClient,
 };
 
-const agents = installModules('agents', options);
+const agents = await installModules('agents', options);
 
 const specs = swaggerJsdoc(swaggerOptions);
 app.use(
@@ -335,7 +366,7 @@ app.use(
 );
 
 logger.debug('Installing routes');
-installModules('routes', { ...options, agents });
+await installModules('routes', { ...options, agents });
 
 const parseQueryString = (str) => {
   const parts = str.split('?');
@@ -466,7 +497,7 @@ app.get('*', (req, res) => {
     clientProxy.web(req, res);
   } else {
     res.setHeader('Last-Modified', (new Date()).toUTCString());
-    res.sendFile(path.join(__dirname, FRONTEND_DIR, '/build/index.html'));
+    res.sendFile(path.join(basePath, FRONTEND_DIR, '/build/index.html'));
   }
 });
 

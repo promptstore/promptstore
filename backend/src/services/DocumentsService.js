@@ -1,10 +1,10 @@
-const fs = require('fs');
-const mime = require('mime-types');
-const path = require('path');
-const { Blob } = require('buffer');
-const { parse } = require('csv-parse/sync');
+import fs from 'fs';
+import mime from 'mime-types';
+import path from 'path';
+import { Blob } from 'buffer';
+import { parse } from 'csv-parse/sync';
 
-function DocumentsService({ constants, mc, logger }) {
+export function DocumentsService({ constants, mc, logger }) {
 
   function download(filepath) {
     return new Promise((resolve, reject) => {
@@ -28,7 +28,7 @@ function DocumentsService({ constants, mc, logger }) {
           file.originalname = filename;
           file.mimetype = mimetype;
           file.path = localFilePath;
-          file.size = stat.size;
+          // file.size = stat.size;
           file.lastModified = stat.lastModified;
           file.etag = stat.etag;
           resolve(file);
@@ -82,8 +82,4 @@ function DocumentsService({ constants, mc, logger }) {
     transformations,
   };
 
-}
-
-module.exports = {
-  DocumentsService,
 }

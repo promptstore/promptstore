@@ -49,9 +49,9 @@ export const {
   startTest,
 } = compositionsSlice.actions;
 
-export const getCompositionsAsync = () => async (dispatch) => {
+export const getCompositionsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = '/api/compositions';
+  const url = `/api/workspaces/${workspaceId}/compositions`;
   const res = await http.get(url);
   dispatch(setCompositions({ compositions: res.data }));
 };
@@ -66,14 +66,13 @@ export const getCompositionAsync = (id) => async (dispatch) => {
 export const createCompositionAsync = ({ values }) => async (dispatch) => {
   const url = '/api/compositions';
   const res = await http.post(url, values);
-  const func = { ...values, id: res.data };
-  dispatch(setCompositions({ compositions: [func] }));
+  dispatch(setCompositions({ compositions: [res.data] }));
 };
 
 export const updateCompositionAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/compositions/${id}`;
-  await http.put(url, values);
-  dispatch(setCompositions({ compositions: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setCompositions({ compositions: [res.data] }));
 };
 
 export const deleteCompositionsAsync = ({ ids }) => async (dispatch) => {
@@ -82,10 +81,10 @@ export const deleteCompositionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeCompositions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelId, modelKey, name }) => async (dispatch) => {
+export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/composition-executions/${name}`;
-  const res = await http.post(url, { args, params: { modelId, model: modelKey } });
+  const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
   dispatch(setTestResult({ result: res.data }));
 };
 

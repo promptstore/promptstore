@@ -21,6 +21,7 @@ export function Chat({
   onReset,
   onUseSelected,
   placeholder,
+  selectable,
   selectMultiple,
   suggestPrompts,
   tourRefs,
@@ -149,12 +150,12 @@ export function Chat({
   };
 
   const AssistantMessage = ({ first, message, onChange }) => {
-    if (first && !selectMultiple) {
+    if (!selectable || (first && !selectMultiple)) {
       return (
         <div className="chatline assistant">
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
-          <div className="content">{message.content}</div>
+          <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
         </div>
       );
     }
@@ -163,7 +164,7 @@ export function Chat({
         <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
           <div className="chatline assistant">
             <div className="avatar"><Avatar>A</Avatar></div>
-            <div className="content">{message.content}</div>
+            <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
           </div>
         </Checkbox>
       );
@@ -172,7 +173,7 @@ export function Chat({
       <Radio value={message.key}>
         <div className="chatline assistant">
           <div className="avatar"><Avatar>A</Avatar></div>
-          <div className="content">{message.content}</div>
+          <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
         </div>
       </Radio>
     );
@@ -213,22 +214,31 @@ export function Chat({
   };
 
   const Messages = ({ messages, onChange, value }) => {
-    if (selectMultiple) {
+    if (selectable) {
+      if (selectMultiple) {
+        return (
+          <div style={{ marginBottom: 24 }}>
+            {messages.map((m, i) => (
+              <Message key={m.key} first={i === 0} message={m} onChange={onChange} />
+            ))}
+          </div>
+        );
+      }
       return (
-        <div style={{ marginBottom: 24 }}>
+        <Radio.Group onChange={onChange} value={value}>
           {messages.map((m, i) => (
-            <Message key={m.key} first={i === 0} message={m} onChange={onChange} />
+            <Message key={m.key} first={i === 0} message={m} />
           ))}
-        </div>
+        </Radio.Group>
       );
     }
     return (
-      <Radio.Group onChange={onChange} value={value}>
+      <div style={{ marginBottom: 24 }}>
         {messages.map((m, i) => (
           <Message key={m.key} first={i === 0} message={m} />
         ))}
-      </Radio.Group>
-    );
+      </div>
+    )
   };
 
   const Loading = ({ loading }) => {
@@ -283,19 +293,22 @@ export function Chat({
     }
     return (
       <Space style={{ marginBottom: 16 }}>
-        <Button type="primary" size="small"
-          disabled={disabled || !hasSelected}
-          onClick={useContent}
-        >
-          Use Selected Content
-        </Button>
+        {selectable ?
+          <Button type="primary" size="small"
+            disabled={disabled || !hasSelected}
+            onClick={useContent}
+          >
+            Use Selected Content
+          </Button>
+          : null
+        }
         <Button type="primary" size="small"
           disabled={disabled || !hasMessages}
           onClick={startNewChatSession}
         >
           New Session
         </Button>
-        {selectMultiple ?
+        {onSave ?
           <Button type="primary" size="small"
             disabled={disabled || !hasMessages}
             onClick={saveChatSession}
@@ -324,7 +337,10 @@ export function Chat({
             autoSize={{ minRows: 1, maxRows: 14 }}
             onPressEnter={(ev) => {
               if (!ev.shiftKey) {
-                handleSubmit(ev);
+                ev.preventDefault();
+                if (!disabled) {
+                  handleSubmit(ev);
+                }
               }
             }}
             style={{ flex: 1 }}

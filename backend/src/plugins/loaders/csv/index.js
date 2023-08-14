@@ -1,7 +1,2 @@
-const CsvLoader = require('./CsvLoader');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: CsvLoader,
-  constants,
-}
+export { default as plugin } from './CsvLoader';
+export { default as constants } from './constants';

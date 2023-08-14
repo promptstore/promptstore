@@ -1,7 +1,2 @@
-const NumberedListParser = require('./NumberedListParser');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: NumberedListParser,
-  constants,
-}
+export { default as plugin } from './NumberedListParser';
+export { default as constants } from './constants';

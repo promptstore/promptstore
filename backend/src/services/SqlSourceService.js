@@ -1,13 +1,14 @@
-function SqlSourceService({ logger, registry }) {
+export function SqlSourceService({ logger, registry }) {
 
   async function getSchema(source) {
+    logger.debug(source, registry)
     const instance = registry[source.dialect];
     return await instance.getSchema(source);
   };
 
-  async function getSample(source, tableName, limit) {
+  async function getSample(source) {
     const instance = registry[source.dialect];
-    return await instance.getSample(source, tableName, limit);
+    return await instance.getSample(source);
   };
 
   return {
@@ -15,8 +16,4 @@ function SqlSourceService({ logger, registry }) {
     getSchema,
   }
 
-}
-
-module.exports = {
-  SqlSourceService,
 }

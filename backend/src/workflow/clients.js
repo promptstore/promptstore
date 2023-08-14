@@ -1,7 +1,7 @@
-const { Connection, Client } = require('@temporalio/client');
-const { reloads, uploads } = require('./workflows');
+import { Connection, Client } from '@temporalio/client';
+import { reloads, uploads } from './workflows';
 
-async function reload(file, workspaceId, uploadId, connectionOptions) {
+export async function reload(file, workspaceId, username, uploadId, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
   const connection = await Connection.connect(connectionOptions);
   // In production, pass options to configure TLS and other settings:
@@ -18,7 +18,7 @@ async function reload(file, workspaceId, uploadId, connectionOptions) {
 
   const handle = await client.workflow.start(reloads, {
     // type inference works! args: [name: string]
-    args: [file, workspaceId, uploadId],
+    args: [file, workspaceId, username, uploadId],
     taskQueue: 'reloads',
     workflowId: 'workflow-' + Date.now(),
   });
@@ -28,7 +28,7 @@ async function reload(file, workspaceId, uploadId, connectionOptions) {
   // console.log(await handle.result());
 }
 
-async function upload(file, workspaceId, constants, connectionOptions) {
+export async function upload(file, workspaceId, username, constants, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
   const connection = await Connection.connect(connectionOptions);
   // In production, pass options to configure TLS and other settings:
@@ -43,9 +43,11 @@ async function upload(file, workspaceId, constants, connectionOptions) {
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
   });
 
+  // console.log('args:', file, workspaceId, username, constants);
+
   const handle = await client.workflow.start(uploads, {
     // type inference works! args: [name: string]
-    args: [file, workspaceId, constants],
+    args: [file, workspaceId, username, constants],
     taskQueue: 'uploads',
     workflowId: 'workflow-' + Date.now(),
   });
@@ -55,5 +57,3 @@ async function upload(file, workspaceId, constants, connectionOptions) {
   // console.log(await handle.result());
   return handle.result();
 }
-
-module.exports = { reload, upload };

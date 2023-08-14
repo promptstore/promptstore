@@ -1,4 +1,4 @@
-const chrono = require('chrono-node');
+import * as chrono from 'chrono-node';
 
 function DateTimeParser({ __name, __metadata, constants, logger, app, auth }) {
 
@@ -25,4 +25,4 @@ function DateTimeParser({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = DateTimeParser;
+export default DateTimeParser;

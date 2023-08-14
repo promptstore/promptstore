@@ -1,4 +1,5 @@
-const path = require('path');
+import path from 'path';
+import omit from 'lodash.omit';
 
 const supportedMimetypes = [
   'application/pdf',
@@ -19,29 +20,25 @@ const supportedMimetypes = [
   'text/xml',
 ];
 
-const createActivities = (mc, extractorService, uploadsService, logger) => ({
+export const createActivities = (mc, extractorService, uploadsService, logger) => ({
 
-  async reload(file, workspaceId, uploadId) {
+  async reload(file, workspaceId, username, uploadId) {
     let data;
     if (supportedMimetypes.includes(file.mimetype)) {
       data = await extractorService.extract('unstructured', file);
     }
 
     if (data) {
-      // TODO
-      const userId = '1234';
-
       try {
         const uploadRecord = {
           id: uploadId,
           workspaceId,
-          userId,
           filename: file.originalname,
           data,
         };
-        const res = await uploadsService.upsertUpload(uploadRecord);
+        const res = await uploadsService.upsertUpload(uploadRecord, username);
         logger.info('Updated', res);
-        return res;
+        return 'OK';
 
       } catch (err) {
         logger.error(String(err));
@@ -52,7 +49,11 @@ const createActivities = (mc, extractorService, uploadsService, logger) => ({
     }
   },
 
-  upload(file, workspaceId, constants) {
+  upload(file, workspaceId, username, constants) {
+    logger.info('file:', file);
+    logger.info('workspaceId:', workspaceId);
+    logger.info('username:', username);
+    logger.info('constants:', constants);
     const metadata = {
       filename: file.originalname,
       'Content-Type': file.mimetype,
@@ -75,27 +76,23 @@ const createActivities = (mc, extractorService, uploadsService, logger) => ({
           data = await extractorService.extract('unstructured', file);
         }
 
-        // TODO
-        const userId = '1234';
-
         try {
           const uploadRecord = {
             workspaceId,
-            userId,
             filename: file.originalname,
             data,
           };
-          const id = await uploadsService.upsertUpload(uploadRecord);
-          logger.info('Inserted', { ...uploadRecord, id });
+          const uploaded = await uploadsService.upsertUpload(uploadRecord, username);
+          logger.info('Inserted', uploaded);
 
           mc.statObject(constants.FILE_BUCKET, objectName, (err, stat) => {
             if (err) {
               logger.error(String(err));
               reject(err);
             }
+            const record = omit(uploaded, ['data']);
             resolve({
-              ...uploadRecord,
-              id,
+              ...record,
               etag: stat.etag,
               size: stat.size,
               lastModified: stat.lastModified,
@@ -112,5 +109,3 @@ const createActivities = (mc, extractorService, uploadsService, logger) => ({
   },
 
 });
-
-module.exports = { createActivities };

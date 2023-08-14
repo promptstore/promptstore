@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Descriptions, Form, Input, Popconfirm, Select, Space, Table } from 'antd';
 
 import JsonInput from '../../components/JsonInput';
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { engineOptions } from '../../options';
 
 import { SearchModal } from './SearchModal';
@@ -54,7 +54,7 @@ export function IndexForm() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Index',
+      title: 'Semantic Index',
     }));
     if (!isNew) {
       dispatch(getIndexAsync(id));

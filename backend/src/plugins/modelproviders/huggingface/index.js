@@ -1,7 +1,2 @@
-const HuggingFaceService = require('./HuggingFaceService');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: HuggingFaceService,
-  constants,
-}
+export { default as plugin } from './HuggingFaceService';
+export { default as constants } from './constants';

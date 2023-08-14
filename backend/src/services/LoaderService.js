@@ -1,4 +1,4 @@
-function LoaderService({ logger, registry }) {
+export function LoaderService({ logger, registry }) {
 
   async function load(loader, params) {
     const instance = registry[loader];
@@ -9,8 +9,4 @@ function LoaderService({ logger, registry }) {
     load,
   }
 
-}
-
-module.exports = {
-  LoaderService,
 }

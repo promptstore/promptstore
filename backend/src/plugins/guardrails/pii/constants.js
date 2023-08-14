@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   EUROPA_PII_API_URL: process.env.EUROPA_PII_API_URL,
   HUGGINGFACE_PII_API_URL: process.env.HUGGINGFACE_PII_API_URL,
   HUGGINGFACE_TOKEN: process.env.HUGGINGFACE_TOKEN,

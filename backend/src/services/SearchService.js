@@ -1,6 +1,6 @@
-const axios = require('axios');
+import axios from 'axios';
 
-function SearchService({ constants, logger }) {
+export function SearchService({ constants, logger }) {
 
   const documents = [];
 
@@ -167,7 +167,7 @@ function SearchService({ constants, logger }) {
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
       let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
       if (query) {
-        url += `&q=` +encodeURIComponent(query);
+        url += `&q=` + encodeURIComponent(query);
       }
       if (ps) {
         url += '&' + ps;
@@ -235,7 +235,3 @@ function SearchService({ constants, logger }) {
     search,
   };
 }
-
-module.exports = {
-  SearchService,
-};

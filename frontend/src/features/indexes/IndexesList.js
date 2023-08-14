@@ -4,7 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, Tag, message } from 'antd';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 
 import { SearchModal } from './SearchModal';
 import {
@@ -36,6 +37,7 @@ export function IndexesList() {
   }, [indexes]);
 
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
@@ -47,10 +49,16 @@ export function IndexesList() {
     setNavbarState((state) => ({
       ...state,
       createLink: '/indexes/new',
-      title: 'Indexes',
+      title: 'Semantic Indexes',
     }));
-    dispatch(getIndexesAsync());
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getIndexesAsync({ workspaceId }));
+    }
+  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (location.state && location.state.message) {

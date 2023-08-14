@@ -1,6 +1,6 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function SettingsService({ pg, logger }) {
+export function SettingsService({ pg, logger }) {
 
   async function getSettings(workspaceId) {
     let q = `
@@ -20,7 +20,7 @@ function SettingsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       key: row.key,
       created: row.created,
       createdBy: row.created_by,
@@ -49,7 +49,7 @@ function SettingsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       key: row.key,
       created: row.created,
       createdBy: row.created_by,
@@ -76,7 +76,7 @@ function SettingsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       key: row.key,
       created: row.created,
       createdBy: row.created_by,
@@ -132,7 +132,3 @@ function SettingsService({ pg, logger }) {
     deleteSettings,
   };
 }
-
-module.exports = {
-  SettingsService,
-};

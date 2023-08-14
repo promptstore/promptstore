@@ -1,23 +1,23 @@
-function LLMService({ logger, registry }) {
+export function LLMService({ logger, registry }) {
 
-  async function createChatCompletion(provider, messages, model, maxTokens, n, functions, stop) {
+  async function createChatCompletion({ provider, messages, model, modelParams }) {
     const instance = registry[provider || 'openai'];
-    return await instance.createChatCompletion(messages, model, maxTokens, n, functions, stop);
+    return await instance.createChatCompletion(messages, model, modelParams);
   }
 
-  async function createCompletion(provider, prompt, model, maxTokens, n, stop) {
+  async function createCompletion({ provider, prompt, model, modelParams }) {
     const instance = registry[provider || 'openai'];
-    return await instance.createCompletion(prompt, model, maxTokens, n, stop);
+    return await instance.createCompletion(prompt, model, modelParams);
   }
 
-  async function fetchChatCompletion(provider, messages, model, maxTokens, n, functions, stop) {
+  async function fetchChatCompletion({ provider, messages, model, modelParams }) {
     const instance = registry[provider || 'openai'];
-    return await instance.fetchChatCompletion(messages, model, maxTokens, n, functions, stop);
+    return await instance.fetchChatCompletion(messages, model, modelParams);
   }
 
-  async function fetchCompletion(provider, input, model, maxTokens, n) {
+  async function fetchCompletion({ provider, input, model, modelParams }) {
     const instance = registry[provider || 'openai'];
-    return await instance.fetchCompletion(input, model, maxTokens, n);
+    return await instance.fetchCompletion(input, model, modelParams);
   }
 
   async function createImage(provider, prompt, n) {
@@ -55,8 +55,4 @@ function LLMService({ logger, registry }) {
     generateImageVariant,
   }
 
-}
-
-module.exports = {
-  LLMService,
 }

@@ -6,8 +6,8 @@ import { CheckCircleTwoTone } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteFunctionsAsync,
   getFunctionsAsync,
@@ -56,13 +56,13 @@ export function FunctionsList() {
       .filter((func) => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
       .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
       .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
-      .filter((func) => filterSystem ? func.isSystem : true)
+      .filter((func) => filterSystem ? func.isPublic : true)
       .map((func) => ({
         key: func.id,
         name: func.name,
         implementations: func.implementations,
         tags: func.tags,
-        isSystem: func.isSystem,
+        isPublic: func.isPublic,
       }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -106,13 +106,14 @@ export function FunctionsList() {
       createLink: '/functions/new',
       title: 'Semantic Functions',
     }));
-    dispatch(getModelsAsync());
-    dispatch(getFunctionsAsync());
   }, []);
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getModelsAsync({ workspaceId }));
+      dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
     }
   }, [selectedWorkspace]);
 
@@ -156,15 +157,6 @@ export function FunctionsList() {
       )
     },
     {
-      title: 'System',
-      dataIndex: 'isSystem',
-      render: (_, { isSystem }) => (
-        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isSystem ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
-        </div>
-      )
-    },
-    {
       title: 'Implementations',
       dataIndex: 'implementations',
       render: (_, { implementations = [] }) => (
@@ -179,6 +171,15 @@ export function FunctionsList() {
               : null
           ))}
         </Space>
+      )
+    },
+    {
+      title: 'Public',
+      dataIndex: 'isPublic',
+      render: (_, { isPublic }) => (
+        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+          <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+        </div>
       )
     },
     {
@@ -258,7 +259,7 @@ export function FunctionsList() {
             onChange={setFilterSystem}
             style={{ marginLeft: 8 }}
           />
-          <span style={{ marginLeft: 8 }}>System functions</span>
+          <span style={{ marginLeft: 8 }}>Public functions</span>
         </div>
         <Table
           rowSelection={rowSelection}

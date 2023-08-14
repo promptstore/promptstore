@@ -1,13 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
+import { Button, Divider, Input, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleTwoTone } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deletePromptSetsAsync,
   getPromptSetsAsync,
@@ -30,6 +30,7 @@ const intersects = (arr1 = [], arr2 = []) => {
 
 export function PromptSetsList() {
 
+  const [filterPublic, setFilterPublic] = useLocalStorageState('public-prompt-sets', false);
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', false);
   const [page, setPage] = useLocalStorageState('prompt-sets-list-page', 1);
   const [searchValue, setSearchValue] = useState('');
@@ -47,6 +48,7 @@ export function PromptSetsList() {
         .filter((ps) => ps.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
         .filter((ps) => selectedTags?.length ? intersects(ps.tags, selectedTags) : true)
         .filter((ps) => filterTemplates ? ps.isTemplate : true)
+        .filter((ps) => filterPublic ? ps.isPublic : true)
         .map((ps) => ({
           key: ps.id,
           name: ps.name,
@@ -54,10 +56,11 @@ export function PromptSetsList() {
           skill: ps.skill,
           tags: ps.tags,
           isTemplate: ps.isTemplate,
+          isPublic: ps.isPublic,
         }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
-  }, [promptSets, searchValue, filterTemplates, selectedTags]);
+  }, [promptSets, searchValue, filterPublic, filterTemplates, selectedTags]);
 
   const tagOptions = useMemo(() => {
     const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
@@ -85,7 +88,7 @@ export function PromptSetsList() {
     setNavbarState((state) => ({
       ...state,
       createLink: '/prompt-sets/new',
-      title: 'Prompts',
+      title: 'Prompt Templates',
     }));
   }, []);
 
@@ -135,7 +138,7 @@ export function PromptSetsList() {
       title: 'Summary',
       dataIndex: 'summary',
       render: (_, { summary }) => (
-        <Typography.Text ellipsis style={{ whiteSpace: 'nowrap', width: 250 }}>
+        <Typography.Text ellipsis style={{ minWidth: 250 }}>
           {summary}
         </Typography.Text>
       )
@@ -144,6 +147,15 @@ export function PromptSetsList() {
       title: 'Skill',
       dataIndex: 'skill',
       render: (_, { skill }) => <span>{skill}</span>
+    },
+    {
+      title: 'Public',
+      dataIndex: 'public',
+      render: (_, { isPublic }) => (
+        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+          <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+        </div>
+      )
     },
     {
       title: 'Template',
@@ -223,6 +235,13 @@ export function PromptSetsList() {
             style={{ marginLeft: 8 }}
           />
           <span style={{ marginLeft: 8 }}>Templates</span>
+          <Divider type="vertical" style={{ marginLeft: 16 }} />
+          <Switch
+            checked={filterPublic}
+            onChange={setFilterPublic}
+            style={{ marginLeft: 8 }}
+          />
+          <span style={{ marginLeft: 8 }}>Public</span>
         </div>
         <Table
           rowSelection={rowSelection}

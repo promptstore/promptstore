@@ -1,7 +1,2 @@
-const Authenticator = require('./Authenticator');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: Authenticator,
-  constants,
-}
+export { default as plugin } from './Authenticator';
+export { default as constants } from './constants';

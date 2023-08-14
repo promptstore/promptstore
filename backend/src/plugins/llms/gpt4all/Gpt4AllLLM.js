@@ -1,13 +1,13 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function Gpt4AllLLM({ __name, constants, logger }) {
 
-  async function createChatCompletion(messages, model, maxTokens, n) {
+  async function createChatCompletion(messages, model, modelParams) {
     const prompt = messages.map((m) => m.content).join('\n\n');
     return createCompletion(prompt, model, maxTokens, n);
   }
 
-  async function createCompletion(prompt, model, maxTokens, n) {
+  async function createCompletion(prompt, model, modelParams) {
     if (Array.isArray(prompt)) {
       prompt = prompt.join('\n\n');
     }
@@ -15,14 +15,14 @@ function Gpt4AllLLM({ __name, constants, logger }) {
     return res.data;
   }
 
-  async function fetchChatCompletion(messages, model, maxTokens, n) {
+  async function fetchChatCompletion(messages, model, modelParams) {
     const prompt = messages[messages.length - 1];  // user prompt
-    const response = await createChatCompletion(messages, model, maxTokens, n);
+    const response = await createChatCompletion(messages, model, modelParams);
     return response.map((c) => ({ prompt, text: c.generation }));
   }
 
-  async function fetchCompletion(input, model, maxTokens, n) {
-    const response = await createCompletion(input, model, maxTokens, n);
+  async function fetchCompletion(input, model, modelParams) {
+    const response = await createCompletion(input, model, modelParams);
     return response.map((c) => ({ prompt: input, text: c.generation }));
   }
 
@@ -46,4 +46,4 @@ function Gpt4AllLLM({ __name, constants, logger }) {
 
 }
 
-module.exports = Gpt4AllLLM;
+export default Gpt4AllLLM;

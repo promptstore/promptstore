@@ -1,0 +1,110 @@
+[
+  {
+    "name": "org_code",
+    "type": "String"
+  },
+  {
+    "name": "retail_year_number",
+    "type": "Nullable(Decimal(10, 4))"
+  },
+  {
+    "name": "week_number",
+    "type": "Nullable(Decimal(10, 4))"
+  },
+  {
+    "name": "id",
+    "type": "String"
+  },
+  {
+    "name": "sale_date",
+    "type": "Date"
+  },
+  {
+    "name": "location_id",
+    "type": "String"
+  },
+  {
+    "name": "sale_id",
+    "type": "String"
+  },
+  {
+    "name": "customer_id",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "staff_id",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "line_type",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "tr_type",
+    "type": "Decimal(38, 0)"
+  },
+  {
+    "name": "qty",
+    "type": "Decimal(18, 2)"
+  },
+  {
+    "name": "total_cost",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "unit_price",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "gross",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "discount",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "markdown",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "total",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "total_tax",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "total_discount_tax",
+    "type": "Decimal(18, 4)"
+  },
+  {
+    "name": "staff_created_at",
+    "type": "Nullable(Date)"
+  },
+  {
+    "name": "staff_tenure_months",
+    "type": "Nullable(Int64)"
+  },
+  {
+    "name": "style_code",
+    "type": "String"
+  },
+  {
+    "name": "style_group_a_code",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "style_group_a_name",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "style_group_b_code",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "style_group_b_name",
+    "type": "Nullable(String)"
+  }
+]

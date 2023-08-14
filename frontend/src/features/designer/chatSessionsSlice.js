@@ -15,9 +15,12 @@ export const chatSessionsSlice = createSlice({
         delete state.chatSessions[id];
       }
     },
+    resetChatSessions: (state, action) => {
+      state.chatSessions = {};
+    },
     setChatSessions: (state, action) => {
-      for (const s of action.payload.chatSessions) {
-        state.chatSessions[s.id] = s;
+      for (const session of action.payload.chatSessions) {
+        state.chatSessions[session.id] = session;
       }
       state.loaded = true;
       state.loading = false;
@@ -31,15 +34,16 @@ export const chatSessionsSlice = createSlice({
 
 export const {
   removeChatSessions,
+  resetChatSessions,
   setChatSessions,
   setTestResult,
   startLoad,
   startTest,
 } = chatSessionsSlice.actions;
 
-export const getChatSessionsAsync = () => async (dispatch) => {
+export const getChatSessionsAsync = ({ workspaceId, type }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = '/api/chat-sessions';
+  const url = `/api/workspaces/${workspaceId}/chat-sessions?type=${type}`;
   const res = await http.get(url);
   dispatch(setChatSessions({ chatSessions: res.data }));
 };
@@ -51,17 +55,16 @@ export const getChatSessionAsync = (id) => async (dispatch) => {
   dispatch(setChatSessions({ chatSessions: [res.data] }));
 };
 
-export const createChatSessionAsync = ({ values }) => async (dispatch) => {
-  const url = '/api/chat-sessions';
+export const createChatSessionAsync = ({ uuid, values }) => async (dispatch) => {
+  const url = `/api/chat-sessions`;
   const res = await http.post(url, values);
-  const func = { ...values, id: res.data };
-  dispatch(setChatSessions({ chatSessions: [func] }));
+  dispatch(setChatSessions({ chatSessions: [{ ...res.data, uuid }] }));
 };
 
 export const updateChatSessionAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/chat-sessions/${id}`;
-  await http.put(url, values);
-  dispatch(setChatSessions({ chatSessions: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setChatSessions({ chatSessions: [res.data] }));
 };
 
 export const deleteChatSessionsAsync = ({ ids }) => async (dispatch) => {

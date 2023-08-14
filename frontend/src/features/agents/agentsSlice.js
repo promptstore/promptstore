@@ -61,9 +61,9 @@ export const {
   stopRun,
 } = agentsSlice.actions;
 
-export const getAgentsAsync = () => async (dispatch) => {
+export const getAgentsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = '/api/agents';
+  const url = `/api/workspaces/${workspaceId}/agents`;
   const res = await http.get(url);
   dispatch(setAgents({ agents: res.data }));
 };
@@ -78,14 +78,13 @@ export const getAgentAsync = (id) => async (dispatch) => {
 export const createAgentAsync = ({ values }) => async (dispatch) => {
   const url = '/api/agents';
   const res = await http.post(url, values);
-  const func = { ...values, id: res.data };
-  dispatch(setAgents({ agents: [func] }));
+  dispatch(setAgents({ agents: [res.data] }));
 };
 
 export const updateAgentAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/agents/${id}`;
-  await http.put(url, values);
-  dispatch(setAgents({ agents: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setAgents({ agents: [res.data] }));
 };
 
 export const deleteAgentsAsync = ({ ids }) => async (dispatch) => {
@@ -94,7 +93,7 @@ export const deleteAgentsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeAgents({ ids }));
 };
 
-export const runAgentAsync = ({ agent }) => async (dispatch) => {
+export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   dispatch(startRun());
   const events = new EventSource('/api/agent-events');
   events.onmessage = (event) => {
@@ -102,7 +101,7 @@ export const runAgentAsync = ({ agent }) => async (dispatch) => {
     const output = trim(parsedData, '"');
     dispatch(addAgentOutput({ output: { key: Date.now(), output } }));
   }
-  http.post('/api/agent-executions/', { agent: { ...agent, tools: agent.tools || [] } })
+  http.post('/api/agent-executions/', { agent: { ...agent, tools: agent.tools || [] }, workspaceId })
     .then(() => {
       dispatch(stopRun());
     })

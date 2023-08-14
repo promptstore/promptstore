@@ -1,6 +1,6 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function UsersService({ pg }) {
+export function UsersService({ pg }) {
 
   async function getUsers() {
     let q = `SELECT id, username, val from users `;
@@ -74,14 +74,15 @@ function UsersService({ pg }) {
         `WHERE username = $2`,
         [val, user.username]
       );
+      return { ...savedUser, ...user };
     } else {
       const { rows } = await pg.query(
         `INSERT INTO users (username, val) ` +
         `VALUES ($1, $2) RETURNING id`,
         [user.username, user]
       );
+      return { ...user, id: rows[0].id };
     }
-    return user.username;
   }
 
   return {
@@ -92,7 +93,3 @@ function UsersService({ pg }) {
     upsertUser,
   };
 }
-
-module.exports = {
-  UsersService,
-};

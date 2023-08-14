@@ -1,14 +1,14 @@
-const Handlebars = require('handlebars');
-const axios = require('axios');
-const fs = require('fs');
-const isObject = require('lodash.isobject');
-const path = require('path');
-const winston = require('winston');
+import Handlebars from 'handlebars';
+import StackTrace from 'stacktrace-js/stacktrace.js';
+import axios from 'axios';
+import fs from 'fs';
+import isObject from 'lodash.isobject';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const logger = new winston.Logger({
-  transports: [new winston.transports.Console()],
-  level: process.env.ENV?.toLowerCase() === 'dev' ? 'debug' : 'info',
-});
+import logger from './logger';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 Handlebars.registerHelper('list', (arr) => {
   if (Array.isArray(arr)) {
@@ -50,13 +50,13 @@ Handlebars.registerHelper('ifmultiple', (conditional, options) => {
   return options.inverse(this);
 });
 
-const delay = (t) => {
+export const delay = (t) => {
   return new Promise((resolve) => {
     setTimeout(resolve, t);
   })
 };
 
-const downloadImage = async (url, filepath) => {
+export const downloadImage = async (url, filepath) => {
   const resp = await axios({
     url,
     method: 'GET',
@@ -75,7 +75,7 @@ const downloadImage = async (url, filepath) => {
  * @param {*} str 
  * @returns hash
  */
-const hashStr = (str) => {
+export const hashStr = (str) => {
   var hash = 0, i, chr;
   if (str) {
     for (i = 0; i < str.length; i++) {
@@ -87,7 +87,7 @@ const hashStr = (str) => {
   return String(Math.abs(hash));
 };
 
-const installModules = (dir, options) => {
+export const installModules = async (dir, options) => {
   const root = path.join(__dirname, dir);
   const files = fs.readdirSync(root);
   const ret = {};
@@ -95,9 +95,9 @@ const installModules = (dir, options) => {
     const { name, ext } = path.parse(file);
     // skip non-js files
     if (ext !== '.js') continue;
-    const mod = require(path.join(root, file));
-    if (typeof mod === 'function') {
-      ret[name] = mod(options);
+    const mod = await import(path.join(root, file));
+    if (typeof mod.default === 'function') {
+      ret[name] = mod.default(options);
     }
   }
   return ret;
@@ -105,27 +105,27 @@ const installModules = (dir, options) => {
 
 const sentenceEndings = ['!', '?', '.'];
 
-const hasSentenceEnding = (content) => {
+export const hasSentenceEnding = (content) => {
   if (!content) {
     return false;
   }
   return sentenceEndings.some((e) => content.endsWith(e));
 };
 
-const appendSentence = (content, sentence) => {
+export const appendSentence = (content, sentence) => {
   content = content.trim();
   const sep = hasSentenceEnding(content) ? ' ' : '. ';
   return content + sep + sentence;
 };
 
-const list = (arr) => {
+export const list = (arr) => {
   if (Array.isArray(arr)) {
     return arr.map((x) => String(x)).join(', ');
   }
   return String(arr);
 };
 
-const replaceUndefinedAndNullValues = (obj, replacementValue) => {
+export const replaceUndefinedAndNullValues = (obj, replacementValue) => {
   const inner = (value) => {
     if (Array.isArray(value)) {
       return value.map(inner);
@@ -145,7 +145,7 @@ const replaceUndefinedAndNullValues = (obj, replacementValue) => {
   return inner(obj);
 };
 
-const fillTemplate = (templateString, templateVars, engine = 'es6') => {
+export const fillTemplate = (templateString, templateVars, engine = 'es6') => {
   if (!templateString) {
     return null;
   }
@@ -177,19 +177,63 @@ const fillTemplate = (templateString, templateVars, engine = 'es6') => {
   }
 };
 
-const getExtension = (filepath) => {
+export const getExtension = (filepath) => {
   if (!filepath) return null;
   const index = filepath.lastIndexOf('.');
   return filepath.slice(index + 1);
 }
 
-const getMessages = (prompts, features, engine) => prompts.map((p, i) => ({
+export const getMessages = (prompts, features, engine) => prompts.map((p, i) => ({
   role: p.role || (i < prompts.length - 1 ? 'system' : 'user'),
   content: fillTemplate(isObject(p) ? p.prompt : p, features, engine),
 }));
 
-const getPlugins = (basePath, config, logger, options) => {
-  return config.split(',').reduce((a, p) => {
+let numberOfFramesToRemove = 0;
+
+/**
+ * @param {String?} path Relative path.
+ * @param {Number} [depth=0] Depth in the stacktrace.
+ * @returns {string} The absolute url of the current running code.
+ */
+export function toAbsoluteUrl(path, depth) {
+  // default depth
+  depth = depth || 0;
+
+  // get stack
+  let stack = StackTrace.getSync()
+    .filter(entry => entry.fileName !== '[native code]'); // browsers (like safari) may inject native functions entries
+
+  if (!numberOfFramesToRemove) {
+    let found;
+    do {
+      found = (stack[numberOfFramesToRemove].functionName === currentFunction.name);
+      numberOfFramesToRemove++;
+    } while (numberOfFramesToRemove < stack.length && !found)
+  }
+
+  // remove current function & stacktrace depth
+  stack = stack.slice(numberOfFramesToRemove);
+
+  // correct depth
+  if (depth < 0)
+    depth = 0;
+  else if (depth > stack.length - 1)
+    depth = stack.length - 1;
+
+  // get caller absolute path
+  let absolute = stack[depth].fileName;
+  // follow given path from caller absolute path
+  if (path)
+    absolute = new URL(path, absolute).href;
+  // return absolute path
+  return absolute;
+};
+
+const currentFunction = toAbsoluteUrl;
+
+export const getPlugins = async (basePath, config, logger, options) => {
+  const a = {};
+  for (const p of config.split(',')) {
     const [key, name, path, metadata = ''] = p.split('|').map(e => e.trim());
     const __metadata = metadata.split(',').reduce((a, p) => {
       const [k, v] = p.split('=').map(x => x.trim());
@@ -202,10 +246,10 @@ const getPlugins = (basePath, config, logger, options) => {
       }
       return a;
     }, {});
-    const resolvedPath = require.resolve(path, { paths: [basePath] });
-    logger.log('debug', 'requiring: %s', resolvedPath);
-    const { constants, plugin } = require(resolvedPath);
-    logger.log('debug', 'constants: %s', constants);
+    const resolvedPath = toAbsoluteUrl(path);
+    logger.log('debug', 'requiring:', resolvedPath);
+    const { constants, plugin } = await import(resolvedPath);
+    logger.log('debug', 'constants:', constants);
     logger.log('debug', 'plugin: %s - %s', name, typeof plugin);
     a[key] = plugin({
       __key: key,
@@ -215,16 +259,16 @@ const getPlugins = (basePath, config, logger, options) => {
       logger,
       ...options,
     });
-    return a;
-  }, {});
+  }
+  return a;
 };
 
-const isNumber = (str) => {
+export const isNumber = (str) => {
   return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
     !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
 };
 
-const makePromiseFromObject = (obj) => {
+export const makePromiseFromObject = (obj) => {
   const keys = Object.keys(obj);
   const values = Object.values(obj);
   logger.debug('obj:', keys, values);
@@ -235,20 +279,6 @@ const makePromiseFromObject = (obj) => {
     }, {}));
 }
 
-const sleep = (ms) => {
+export const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-module.exports = {
-  appendSentence,
-  delay,
-  downloadImage,
-  fillTemplate,
-  getExtension,
-  getMessages,
-  getPlugins,
-  hashStr,
-  installModules,
-  makePromiseFromObject,
-  sleep,
-};

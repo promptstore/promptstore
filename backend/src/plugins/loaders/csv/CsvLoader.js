@@ -1,4 +1,4 @@
-const { parse } = require('csv-parse/sync');
+import { parse } from 'csv-parse/sync';
 
 function CsvLoader({ __name, constants, logger }) {
 
@@ -27,4 +27,4 @@ function CsvLoader({ __name, constants, logger }) {
   };
 }
 
-module.exports = CsvLoader;
+export default CsvLoader;

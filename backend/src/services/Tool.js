@@ -1,4 +1,4 @@
-function Tool({ logger, registry }) {
+export function Tool({ logger, registry }) {
 
   logger.log('debug', 'Tool registry includes', getToolsList());
 
@@ -55,8 +55,4 @@ function Tool({ logger, registry }) {
     getTool,
     getTools,
   }
-}
-
-module.exports = {
-  Tool,
 }

@@ -69,14 +69,13 @@ export const getAppAsync = (id) => async (dispatch) => {
 export const createAppAsync = ({ values }) => async (dispatch) => {
   const url = '/api/apps';
   const res = await http.post(url, values);
-  dispatch(setApps({ apps: [{ ...values, id: res.data }] }));
+  dispatch(setApps({ apps: [res.data] }));
 };
 
-export const updateAppAsync = ({ id, values }) => async (dispatch, getState) => {
+export const updateAppAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/apps/${id}`;
-  await http.put(url, values);
-  const app = getState().apps.apps[id];
-  dispatch(setApps({ apps: [{ ...app, ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setApps({ apps: [res.data] }));
 };
 
 export const deleteAppsAsync = ({ ids }) => async (dispatch) => {

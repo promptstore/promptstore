@@ -1,43 +1,47 @@
+import { Callback } from './Callback';
 import { ModelParams } from './Model_types';
 import { Message } from './PromptTemplate_types';
 import { PromptTemplate } from './PromptTemplate';
 import { SemanticFunction } from './SemanticFunction';
-import { Trace } from './Tracer';
+// import { Tracer, Trace } from './Tracer';
 
 export interface PromptEnrichmentCallParams {
   args: any;
+  callbacks?: Callback[];
 }
 
 export interface PromptEnrichmentStep {
   call: (args: any) => Promise<object>;
+  // tracer?: Tracer;
+  callbacks?: Callback[];
 }
 
-export interface OnPromptEnrichmentEndParams {
-  messages: Message[];
+export interface PromptEnrichmentOnEndParams {
+  messages?: Message[];
+  errors?: any;
 }
 
-interface OnPromptEnrichmentStartResponse {
+export interface PromptEnrichmentOnStartResponse {
   args: any;
-  trace: Trace;
+  // trace: Trace;
 }
 
-interface OnPromptEnrichmentEndResponse {
-  messages: Message[];
-  trace: Trace;
+export interface PromptEnrichmentOnEndResponse {
+  messages?: Message[];
+  errors?: any;
+  // trace: Trace;
 }
 
-export type OnPromptEnrichmentStartCallbackFunction = (params: OnPromptEnrichmentStartResponse) => void;
+export type PromptEnrichmentOnStartCallbackFunction = (params: PromptEnrichmentOnStartResponse) => void;
 
-export type OnPromptEnrichmentEndCallbackFunction = (params: OnPromptEnrichmentEndResponse) => void;
+export type PromptEnrichmentOnEndCallbackFunction = (params: PromptEnrichmentOnEndResponse) => void;
 
-export type OnPromptEnrichmentErrorCallbackFunction = (errors: any) => void;
+export type PromptEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface PromptEnrichmentPipelineParams {
   promptTemplate: PromptTemplate;
   steps: PromptEnrichmentStep[];
-  onPromptEnrichmentStart?: OnPromptEnrichmentStartCallbackFunction;
-  onPromptEnrichmentEnd?: OnPromptEnrichmentEndCallbackFunction;
-  onPromptEnrichmentError?: OnPromptEnrichmentErrorCallbackFunction;
+  callbacks?: Callback[];
 }
 
 export interface FeatureStoreParams {
@@ -57,34 +61,34 @@ interface FeatureStore {
 }
 
 export interface OnFeatureStoreEnrichmentEndParams {
-  args: any;
+  enrichedArgs?: any;
+  errors?: any;
 }
 
-interface OnFeatureStoreEnrichmentStartResponse {
+export interface FeatureStoreEnrichmentOnStartResponse {
   featureStore: FeatureStore;
   args: any;
-  trace: Trace;
+  // trace: Trace;
 }
 
-interface OnFeatureStoreEnrichmentEndResponse {
+export interface FeatureStoreEnrichmentOnEndResponse {
   featureStore: FeatureStore;
-  args: any;
-  trace: Trace;
+  enrichedArgs?: any;
+  errors?: any;
+  // trace: Trace;
 }
 
-export type OnFeatureStoreEnrichmentStartCallbackFunction = (params: OnFeatureStoreEnrichmentStartResponse) => void;
+export type FeatureStoreEnrichmentOnStartCallbackFunction = (params: FeatureStoreEnrichmentOnStartResponse) => void;
 
-export type OnFeatureStoreEnrichmentEndCallbackFunction = (params: OnFeatureStoreEnrichmentEndResponse) => void;
+export type FeatureStoreEnrichmentOnEndCallbackFunction = (params: FeatureStoreEnrichmentOnEndResponse) => void;
 
-export type OnFeatureStoreEnrichmentErrorCallbackFunction = (errors: any) => void;
+export type FeatureStoreEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface FeatureStoreEnrichmentParams {
   featureStoreService: any;
   featurestore: string;
   featureStoreParams: FeatureStoreParams;
-  onFeatureStoreEnrichmentStart?: OnFeatureStoreEnrichmentStartCallbackFunction;
-  onFeatureStoreEnrichmentEnd?: OnFeatureStoreEnrichmentEndCallbackFunction;
-  onFeatureStoreEnrichmentError?: OnFeatureStoreEnrichmentErrorCallbackFunction;
+  callbacks?: Callback[];
 }
 
 export interface IndexParams {
@@ -99,65 +103,67 @@ interface Index {
 }
 
 export interface OnSemanticSearchEnrichmentEndParams {
-  args: any;
+  enrichedArgs?: any;
+  errors?: any;
 }
 
-interface OnSemanticSearchEnrichmentStartResponse {
+export interface SemanticSearchEnrichmentOnStartResponse {
   index: Index;
   args: any;
-  trace: Trace;
+  // trace: Trace;
 }
 
-interface OnSemanticSearchEnrichmentEndResponse {
+export interface SemanticSearchEnrichmentOnEndResponse {
   index: Index;
-  args: any;
-  trace: Trace;
+  enrichedArgs?: any;
+  errors?: any;
+  // trace: Trace;
 }
 
-export type OnSemanticSearchEnrichmentStartCallbackFunction = (params: OnSemanticSearchEnrichmentStartResponse) => void;
+export type SemanticSearchEnrichmentOnStartCallbackFunction = (params: SemanticSearchEnrichmentOnStartResponse) => void;
 
-export type OnSemanticSearchEnrichmentEndCallbackFunction = (params: OnSemanticSearchEnrichmentEndResponse) => void;
+export type SemanticSearchEnrichmentOnEndCallbackFunction = (params: SemanticSearchEnrichmentOnEndResponse) => void;
 
-export type OnSemanticSearchEnrichmentErrorCallbackFunction = (errors: any) => void;
+export type SemanticSearchEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface SearchIndexEnrichmentParams {
   indexName: string;
   indexParams: IndexParams;
   searchService: any;
-  onSemanticSearchEnrichmentStart?: OnSemanticSearchEnrichmentStartCallbackFunction;
-  onSemanticSearchEnrichmentEnd?: OnSemanticSearchEnrichmentEndCallbackFunction;
-  onSemanticSearchEnrichmentError?: OnSemanticSearchEnrichmentErrorCallbackFunction;
+  callbacks?: Callback[];
 }
 
 export interface OnFunctionEnrichmentEndParams {
-  args: any;
+  enrichedArgs?: any;
+  errors?: any;
 }
 
-interface OnFunctionEnrichmentStartResponse {
+export interface FunctionEnrichmentOnStartResponse {
   functionName: string;
   modelKey: string;
   modelParams: ModelParams;
   contentPropertyPath: string;
   contextPropertyPath: string;
   args: any;
-  trace: Trace;
+  // trace: Trace;
 }
 
-interface OnFunctionEnrichmentEndResponse {
+export interface FunctionEnrichmentOnEndResponse {
   functionName: string;
   modelKey: string;
   modelParams: ModelParams;
   contentPropertyPath: string;
   contextPropertyPath: string;
-  args: any;
-  trace: Trace;
+  enrichedArgs?: any;
+  errors?: any;
+  // trace: Trace;
 }
 
-export type OnFunctionEnrichmentStartCallbackFunction = (params: OnFunctionEnrichmentStartResponse) => void;
+export type FunctionEnrichmentOnStartCallbackFunction = (params: FunctionEnrichmentOnStartResponse) => void;
 
-export type OnFunctionEnrichmentEndCallbackFunction = (params: OnFunctionEnrichmentEndResponse) => void;
+export type FunctionEnrichmentOnEndCallbackFunction = (params: FunctionEnrichmentOnEndResponse) => void;
 
-export type OnFunctionEnrichmentErrorCallbackFunction = (errors: any) => void;
+export type FunctionEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface FunctionEnrichmentParams {
   semanticFunction: SemanticFunction;
@@ -165,7 +171,35 @@ export interface FunctionEnrichmentParams {
   modelParams: ModelParams;
   contentPropertyPath: string;
   contextPropertyPath: string;
-  onFunctionEnrichmentStart?: OnFunctionEnrichmentStartCallbackFunction;
-  onFunctionEnrichmentEnd?: OnFunctionEnrichmentEndCallbackFunction;
-  onFunctionEnrichmentError?: OnFunctionEnrichmentErrorCallbackFunction;
+  callbacks?: Callback[];
+}
+
+export interface OnSqlEnrichmentEndParams {
+  enrichedArgs?: any;
+  errors?: any;
+}
+
+export interface SqlEnrichmentOnStartResponse {
+  // sqlSourceInfo: any;
+  args: any;
+  // trace: Trace;
+}
+
+export interface SqlEnrichmentOnEndResponse {
+  // sqlSourceInfo: any;
+  enrichedArgs?: any;
+  errors?: any;
+  // trace: Trace;
+}
+
+export type SqlEnrichmentOnStartCallbackFunction = (params: SqlEnrichmentOnStartResponse) => void;
+
+export type SqlEnrichmentOnEndCallbackFunction = (params: SqlEnrichmentOnEndResponse) => void;
+
+export type SqlEnrichmentOnErrorCallbackFunction = (errors: any) => void;
+
+export interface SqlEnrichmentParams {
+  sqlSourceInfo: any;
+  sqlSourceService: any;
+  callbacks?: Callback[];
 }

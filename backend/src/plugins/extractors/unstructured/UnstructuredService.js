@@ -1,6 +1,6 @@
-const FormData = require('form-data');
-const axios = require('axios');
-const fs = require('fs');
+import FormData from 'form-data';
+import axios from 'axios';
+import fs from 'fs';
 
 function UnstructuredService({ __name, constants, logger }) {
 
@@ -139,4 +139,4 @@ function UnstructuredService({ __name, constants, logger }) {
   };
 }
 
-module.exports = UnstructuredService;
+export default UnstructuredService;

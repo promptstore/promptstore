@@ -1,4 +1,4 @@
-const AnamlFeatureStore = require('./AnamlFeatureStore');
+import AnamlFeatureStore from './AnamlFeatureStore';
 
 function AnamlService({ __name, constants, logger }) {
 
@@ -20,4 +20,4 @@ function AnamlService({ __name, constants, logger }) {
   };
 }
 
-module.exports = AnamlService;
+export default AnamlService;

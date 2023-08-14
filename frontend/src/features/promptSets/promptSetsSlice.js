@@ -37,21 +37,9 @@ export const {
 
 export const getPromptSetsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  let url;
-  if (workspaceId) {
-    url = `/api/workspaces/${workspaceId}/prompt-sets`;
-  } else {
-    url = `/api/prompt-sets`;
-  }
+  const url = `/api/workspaces/${workspaceId}/prompt-sets`;
   const res = await http.get(url);
   dispatch(setPromptSets({ promptSets: res.data }));
-};
-
-export const getPromptSetsBySkillAsync = ({ skill }) => async (dispatch) => {
-  dispatch(startLoad());
-  const url = `/api/prompt-sets/by-skill/${skill}`;
-  const res = await http.get(url);
-  dispatch(setPromptSets({ promptSets: [res.data] }));
 };
 
 export const getPromptSetAsync = (id) => async (dispatch) => {
@@ -64,7 +52,7 @@ export const getPromptSetAsync = (id) => async (dispatch) => {
 export const createPromptSetAsync = ({ values }) => async (dispatch) => {
   const url = '/api/prompt-sets';
   const res = await http.post(url, values);
-  dispatch(setPromptSets({ promptSets: [{ ...values, id: res.data }] }));
+  dispatch(setPromptSets({ promptSets: [res.data] }));
 };
 
 export const updatePromptSetAsync = ({ id, values }) => async (dispatch) => {

@@ -17,4 +17,4 @@ function EmojiRemover({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = EmojiRemover;
+export default EmojiRemover;

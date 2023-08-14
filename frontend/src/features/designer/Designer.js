@@ -3,9 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Button, Layout, Table } from 'antd';
+import { v4 as uuidv4 } from 'uuid';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { Chat } from '../../components/Chat';
 import { createPromptSetAsync } from '../promptSets/promptSetsSlice';
 
@@ -15,6 +16,7 @@ import {
   createChatSessionAsync,
   deleteChatSessionsAsync,
   getChatSessionsAsync,
+  resetChatSessions,
   selectChatSessions,
   selectLoaded,
   selectLoading,
@@ -31,6 +33,7 @@ const { Content, Sider } = Layout;
 
 export function Designer() {
 
+  const [createdUuid, setCreatedUuid] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -54,12 +57,31 @@ export function Designer() {
       ...state,
       title: 'Prompt Designer',
     }));
-    dispatch(getChatSessionsAsync());
+    return () => {
+      onReset();
+    };
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getChatSessionsAsync({ workspaceId, type: 'design' }));
+    }
+  }, [selectedWorkspace]);
+
+  useEffect(() => {
+    if (createdUuid && chatSessions) {
+      const session = Object.values(chatSessions).find(s => s.uuid === createdUuid);
+      if (session) {
+        setSelectedSession(session);
+        setCreatedUuid(null);
+      }
+    }
+  }, [chatSessions, createdUuid]);
 
   const columns = [
     {
-      title: 'Session',
+      title: 'Sessions',
       dataIndex: 'name',
       width: '100%',
       render: (_, { key, name }) => (
@@ -80,11 +102,16 @@ export function Designer() {
   const openSession = (id) => {
     const session = chatSessions[id];
     dispatch(setMessages({ messages: session.messages }));
+    console.log('session:', session)
     setSelectedSession(session);
   };
 
   const handleChatSubmit = (values) => {
-    dispatch(getChatResponseAsync({ ...values, ...copyParams }));
+    dispatch(getChatResponseAsync({
+      ...values,
+      ...copyParams,
+      workspaceId: selectedWorkspace.id,
+    }));
   };
 
   const handleCreateCancel = () => {
@@ -97,22 +124,26 @@ export function Designer() {
 
   const onReset = () => {
     dispatch(setMessages({ messages: [] }));
+    dispatch(resetChatSessions());
   };
 
   const onSave = () => {
     if (selectedSession) {
       dispatch(updateChatSessionAsync({
         id: selectedSession.id,
-        values: {
-          messages,
-        },
+        values: { messages },
       }));
     } else {
+      const uuid = uuidv4();
       dispatch(createChatSessionAsync({
+        uuid,
         values: {
           messages,
+          workspaceId: selectedWorkspace.id,
+          type: 'design',
         },
       }));
+      setCreatedUuid(uuid);
     }
   };
 
@@ -138,7 +169,8 @@ export function Designer() {
 
   const onDelete = () => {
     dispatch(deleteChatSessionsAsync({ ids: selectedRowKeys }));
-    if (selectedSession && selectedRowKeys.indexOf(selectedSession.id) !== -1) {
+    if (selectedSession && selectedRowKeys.includes(selectedSession.id)) {
+      onReset();
       setSelectedSession(null);
     }
     setSelectedRowKeys([]);

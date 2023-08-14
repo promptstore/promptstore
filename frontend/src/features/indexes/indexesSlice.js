@@ -39,10 +39,10 @@ export const {
   startLoad,
 } = indexesSlice.actions;
 
-export const getIndexesAsync = () => async (dispatch) => {
+export const getIndexesAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
   dispatch(resetIndexes());
-  const url = '/api/indexes';
+  const url = `/api/workspaces/${workspaceId}/indexes`;
   const res = await http.get(url);
   dispatch(setIndexes({ indexes: res.data }));
 };
@@ -83,14 +83,14 @@ export const getIndexAsync = (id) => async (dispatch) => {
 export const createIndexAsync = ({ values }) => async (dispatch) => {
   const url = '/api/indexes';
   const res = await http.post(url, values);
-  const index = { ...values, id: res.data, store: null };
+  const index = { ...res.data, store: null };
   dispatch(setIndexes({ indexes: [index] }));
 };
 
 export const updateIndexAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/indexes/${id}`;
-  await http.put(url, values);
-  dispatch(setIndexes({ indexes: [{ ...values, id, store: null }] }));
+  const res = await http.put(url, values);
+  dispatch(setIndexes({ indexes: [{ ...res.data, store: null }] }));
 };
 
 export const deleteIndexesAsync = ({ ids }) => async (dispatch) => {

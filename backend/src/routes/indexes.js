@@ -1,30 +1,33 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { indexesService } = services;
 
-  app.get('/api/indexes', auth, async (req, res, next) => {
-    const indexes = await indexesService.getIndexes();
+  app.get('/api/workspaces/:workspaceId/indexes', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const indexes = await indexesService.getIndexes(workspaceId);
     res.json(indexes);
   });
 
   app.get('/api/indexes/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const index = await indexesService.getIndex(id);
-    logger.debug('index:', index);
+    // logger.debug('index:', index);
     res.json(index);
   });
 
   app.post('/api/indexes', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const id = await indexesService.upsertIndex(values);
-    res.json(id);
+    const index = await indexesService.upsertIndex(values, username);
+    res.json(index);
   });
 
   app.put('/api/indexes/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await indexesService.upsertIndex({ id, ...values });
-    res.json({ status: 'OK' });
+    const index = await indexesService.upsertIndex({ ...values, id }, username);
+    res.json(index);
   });
 
   app.delete('/api/indexes/:id', auth, async (req, res, next) => {

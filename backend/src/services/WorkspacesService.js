@@ -1,6 +1,6 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function WorkspacesService({ pg, logger }) {
+export function WorkspacesService({ pg, logger }) {
 
   async function getWorkspaces(limit = 999, start = 0) {
     let q = `
@@ -21,14 +21,15 @@ function WorkspacesService({ pg, logger }) {
     return workspaces;
   }
 
-  async function getWorkspacesByUser(username, limit = 999, start = 0) {
+  async function getWorkspacesByUser(userId, limit = 999, start = 0) {
     let q = `
       SELECT id, name, created, created_by, modified, modified_by, val
       FROM workspaces p
       WHERE $1 = ANY(json_property_to_int_array(p.val->'members', 'id'))
+      OR (val->>'isPublic')::boolean = true
       LIMIT $2 OFFSET $3
       `;
-    const { rows } = await pg.query(q, [username, limit, start]);
+    const { rows } = await pg.query(q, [userId, limit, start]);
     const workspaces = rows.map((row) => ({
       ...row.val,
       id: row.id,
@@ -39,6 +40,24 @@ function WorkspacesService({ pg, logger }) {
       modifiedBy: row.modified_by,
     }));
     return workspaces;
+  }
+
+  async function getUsernameByApiKey(apiKey) {
+    let q = `
+      SELECT id, val->'apiKeys'->>'${apiKey}' AS username
+      FROM workspaces
+      WHERE val->'apiKeys'->>'${apiKey}' <> ''
+    `;
+    logger.debug('q:', q);
+    const { rows } = await pg.query(q);
+    if (rows.length === 0) {
+      return null;
+    }
+    const row = rows[0];
+    return {
+      workspaceId: row.id,
+      username: row.username,
+    };
   }
 
   async function getWorkspace(id) {
@@ -66,26 +85,38 @@ function WorkspacesService({ pg, logger }) {
     };
   }
 
-  async function upsertWorkspace(workspace) {
-    const val = omit(workspace, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+  async function upsertWorkspace(workspace, user) {
+    let val = omit(workspace, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedWorkspace = await getWorkspace(workspace.id);
     if (savedWorkspace) {
       await pg.query(`
         UPDATE workspaces
-        SET name = $1, val = $2
-        WHERE id = $3
+        SET name = $1, val = $2, modified = $3, modified_by = $4
+        WHERE id = $5
         `,
-        [workspace.name, val, workspace.id]
+        [workspace.name, val, new Date(), user.username, workspace.id]
       );
-      return workspace.id;
+      return { ...savedWorkspace, ...workspace };
     } else {
+      val = {
+        ...val,
+        members: [
+          {
+            id: user.id,
+            fullName: user.fullName,
+            username: user.username,
+            email: user.email,
+          }
+        ]
+      };
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO workspaces (name, val)
-        VALUES ($1, $2) RETURNING id
+        INSERT INTO workspaces (name, val, created, created_by, modified, modified_by)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
         `,
-        [workspace.name, workspace]
+        [workspace.name, val, created, user.username, created, user.username]
       );
-      return rows[0].id;
+      return { ...workspace, ...val, id: rows[0].id };
     }
   }
 
@@ -98,13 +129,10 @@ function WorkspacesService({ pg, logger }) {
 
   return {
     deleteWorkspaces,
+    getUsernameByApiKey,
     getWorkspaces,
     getWorkspacesByUser,
     getWorkspace,
     upsertWorkspace,
   };
 }
-
-module.exports = {
-  WorkspacesService,
-};

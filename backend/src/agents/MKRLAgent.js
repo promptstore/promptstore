@@ -1,11 +1,11 @@
-const EventEmitter = require('events');
-const trim = require('lodash.trim');
+import EventEmitter from 'events';
+import trim from 'lodash.trim';
 
-const utils = require('../utils');
+import * as utils from '../utils';
 
-const { AgentAction, AgentFinish } = require('./actionTypes');
-const { OutputParserException } = require('./errorTypes');
-const { Message, UserMessage } = require('./messageTypes');
+import { AgentAction, AgentFinish } from './actionTypes';
+import { OutputParserException } from './errorTypes';
+import { Message, UserMessage } from './messageTypes';
 
 const FINAL_ANSWER_ACTION = 'Final Answer:';
 const PROMPTSET_SKILL = 'react_plan';
@@ -15,15 +15,17 @@ const STOP = [
   '	Observation:'
 ];
 
-module.exports = ({ logger, services }) => {
+export default ({ logger, services }) => {
 
   const { llmService, promptSetsService, tool } = services;
 
   class MKRLAgent {
 
-    constructor({ isChat = false, model, modelParams }) {
+    constructor({ isChat = false, model, modelParams, workspaceId, username }) {
       this.model = model || (isChat ? 'gpt-3.5-turbo' : 'text-davinci-003');
       this.modelParams = modelParams || {};
+      this.workspaceId = workspaceId;
+      this.username = username;
       this.history = [];
       this.emitter = new EventEmitter();
       this.maxIterations = 6;
@@ -46,7 +48,7 @@ module.exports = ({ logger, services }) => {
         tool_names: tool.getToolNames(toolKeys),
         agent_scratchpad: '',  // TODO variables should be optional by default
       };
-      const promptSets = await promptSetsService.getPromptSetsBySkill(PROMPTSET_SKILL);
+      const promptSets = await promptSetsService.getPromptSetsBySkill(this.workspaceId, PROMPTSET_SKILL);
       if (!promptSets.length) {
         throw new Error('Prompt not found');
       }
@@ -75,11 +77,16 @@ module.exports = ({ logger, services }) => {
         maxTokens = 255,
         n = 1
       } = this.modelParams;
+      const modelParams = {
+        max_tokens: maxTokens,
+        n,
+        stop: STOP,
+      };
       let res;
       if (this.isChat) {
-        res = await llmService.createChatCompletion('openai', this._getMessages(), this.model, maxTokens, n, undefined, STOP);
+        res = await llmService.createChatCompletion({ provider: 'openai', messages: this._getMessages(), model: this.model, modelParams });
       } else {
-        res = await llmService.createCompletion('openai', this._getPrompt(), this.model, maxTokens, n, STOP);
+        res = await llmService.createCompletion({ provider: 'openai', messages: this._getPrompt(), model: this.model, modelParams });
       }
       logger.log('debug', 'res:', res);
       const message = await this._processResult(this.isChat ? res.choices[0].message : res.choices[0]);

@@ -1,7 +1,7 @@
-const omit = require('lodash.omit');
-const pick = require('lodash.pick');
+import omit from 'lodash.omit';
+import pick from 'lodash.pick';
 
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { contentService, imagesService, searchService } = services;
 

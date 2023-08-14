@@ -1,4 +1,4 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { guardrailsService } = services;
 

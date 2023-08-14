@@ -1,7 +1,2 @@
-const Calculator = require('./Calculator');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: Calculator,
-  constants,
-}
+export { default as plugin } from './Calculator';
+export { default as constants } from './constants';

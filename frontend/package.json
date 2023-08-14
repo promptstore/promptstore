@@ -31,6 +31,7 @@
     "axios-auth-refresh": "^3.3.6",
     "dayjs": "^1.11.7",
     "emotion-theming": "^10",
+    "firebase": "^10.1.0",
     "instantsearch.css": "^8.0.0",
     "jquery": "^3.6.4",
     "lodash.clonedeep": "^4.5.0",

@@ -35,9 +35,9 @@ export const {
   startLoad,
 } = modelsSlice.actions;
 
-export const getModelsAsync = () => async (dispatch) => {
+export const getModelsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = '/api/models';
+  const url = `/api/workspace/${workspaceId}/models`;
   const res = await http.get(url);
   dispatch(setModels({ models: res.data }));
 };
@@ -52,14 +52,13 @@ export const getModelAsync = (id) => async (dispatch) => {
 export const createModelAsync = ({ values }) => async (dispatch) => {
   const url = '/api/models';
   const res = await http.post(url, values);
-  const model = { ...values, id: res.data };
-  dispatch(setModels({ models: [model] }));
+  dispatch(setModels({ models: [res.data] }));
 };
 
 export const updateModelAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/models/${id}`;
-  await http.put(url, values);
-  dispatch(setModels({ models: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setModels({ models: [res.data] }));
 };
 
 export const deleteModelsAsync = ({ ids }) => async (dispatch) => {

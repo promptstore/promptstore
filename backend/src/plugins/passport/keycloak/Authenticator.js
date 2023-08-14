@@ -1,7 +1,7 @@
-const KeycloakBearerStrategy = require('passport-keycloak-bearer');
-const axios = require('axios');
+import KeycloakBearerStrategy from 'passport-keycloak-bearer';
+import axios from 'axios';
 
-const Strategy = require('./Strategy');
+import Strategy from './Strategy';
 
 function Authenticator({ __name, constants, logger, app, passport, usersService }) {
 
@@ -155,4 +155,4 @@ function Authenticator({ __name, constants, logger, app, passport, usersService 
   });
 }
 
-module.exports = Authenticator;
+export default Authenticator;

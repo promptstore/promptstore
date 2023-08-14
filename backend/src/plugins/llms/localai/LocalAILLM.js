@@ -1,6 +1,6 @@
-const { Configuration, OpenAIApi } = require('openai');
+import { Configuration, OpenAIApi } from 'openai';
 
-const { delay } = require('./utils');
+import { delay } from './utils';
 
 function LocalAILLM({ __name, constants, logger }) {
 
@@ -12,14 +12,13 @@ function LocalAILLM({ __name, constants, logger }) {
   // The LocalAI API is OpenAI compatible
   const openai = new OpenAIApi(configuration);
 
-  async function createChatCompletion(messages, model, maxTokens, n, retryCount = 0) {
+  async function createChatCompletion(messages, model, modelParams, retryCount = 0) {
     let resp;
     try {
       const opts = {
-        max_tokens: maxTokens,
+        ...modelParams,
         messages,
         model,
-        n,
       };
       resp = await openai.createChatCompletion(opts);
       return resp.data;
@@ -30,32 +29,31 @@ function LocalAILLM({ __name, constants, logger }) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(messages, maxTokens, n, retryCount + 1);
+        return await createChatCompletion(messages, model, modelParams, retryCount + 1);
       }
     }
   }
 
-  async function createCompletion(prompt, model, maxTokens, n) {
+  async function createCompletion(prompt, model, modelParams) {
     const resp = await openai.createCompletion({
-      max_tokens: maxTokens,
+      ...modelParams,
       model,
-      n,
       prompt,
     });
     return resp.data.choices;
   }
 
-  const fetchChatCompletion = async (messages, model, maxTokens, n) => {
+  const fetchChatCompletion = async (messages, model, modelParams) => {
     const prompt = messages[messages.length - 1];
-    const response = await createChatCompletion(messages, model, maxTokens, n);
+    const response = await createChatCompletion(messages, model, modelParams);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt })),
     };
   };
 
-  const fetchCompletion = async (input, model, maxTokens, n) => {
-    const response = await createCompletion(prompt, model, maxTokens, n);
+  const fetchCompletion = async (input, model, modelParams) => {
+    const response = await createCompletion(prompt, model, modelParams);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt: input })),
@@ -82,4 +80,4 @@ function LocalAILLM({ __name, constants, logger }) {
 
 }
 
-module.exports = LocalAILLM;
+export default LocalAILLM;

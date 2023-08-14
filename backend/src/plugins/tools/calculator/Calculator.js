@@ -1,4 +1,4 @@
-const Parser = require('expr-eval').Parser;
+import { Parser } from 'expr-eval';
 
 function Calculator({ __key, __name, constants, logger }) {
 
@@ -37,4 +37,4 @@ function Calculator({ __key, __name, constants, logger }) {
   };
 }
 
-module.exports = Calculator;
+export default Calculator;

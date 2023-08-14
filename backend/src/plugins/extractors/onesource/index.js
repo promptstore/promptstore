@@ -1,7 +1,2 @@
-const OnesourceService = require('./OnesourceService');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: OnesourceService,
-  constants,
-}
+export { default as plugin } from './OnesourceService';
+export { default as constants } from './constants';

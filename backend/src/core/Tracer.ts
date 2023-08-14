@@ -3,12 +3,14 @@ export type Trace = object[];
 export class Tracer {
 
   name: string;
+  type: string;
   db: any;
   trace: Trace;
   stack: Trace[];
 
-  constructor(name: string) {
+  constructor(name: string, type: string = 'semfn') {
     this.name = name;
+    this.type = type;
     this.trace = [];
     this.stack = [this.trace];
   }
@@ -52,6 +54,7 @@ export class Tracer {
   close() {
     const record = {
       name: this.name,
+      traceType: this.type,
       trace: this.trace,
     };
     return record;

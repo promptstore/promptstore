@@ -1,4 +1,4 @@
-class Message {
+export class Message {
 
   constructor({ role, content, name, function_call }) {
     this.role = role;
@@ -17,7 +17,7 @@ class Message {
   }
 }
 
-class AssistantMessage extends Message {
+export class AssistantMessage extends Message {
 
   constructor(content) {
     super({
@@ -27,7 +27,7 @@ class AssistantMessage extends Message {
   }
 }
 
-class FunctionMessage extends Message {
+export class FunctionMessage extends Message {
 
   constructor(name, content) {
     super({
@@ -38,7 +38,7 @@ class FunctionMessage extends Message {
   }
 }
 
-class SystemMessage extends Message {
+export class SystemMessage extends Message {
 
   constructor(content) {
     super({
@@ -48,7 +48,7 @@ class SystemMessage extends Message {
   }
 }
 
-class UserMessage extends Message {
+export class UserMessage extends Message {
 
   constructor(content) {
     super({
@@ -56,12 +56,4 @@ class UserMessage extends Message {
       content
     });
   }
-}
-
-module.exports = {
-  AssistantMessage,
-  FunctionMessage,
-  Message,
-  SystemMessage,
-  UserMessage,
 }

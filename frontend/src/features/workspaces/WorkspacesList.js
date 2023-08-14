@@ -2,10 +2,12 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
+import { CheckCircleTwoTone } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteWorkspacesAsync,
   getWorkspacesAsync,
@@ -23,15 +25,17 @@ export function WorkspacesList() {
   const workspaces = useSelector(selectWorkspaces);
 
   const data = useMemo(() => {
-    const list = Object.values(workspaces).map((workspace) => ({
-      key: workspace.id,
-      name: workspace.name,
+    const list = Object.values(workspaces).map((ws) => ({
+      key: ws.id,
+      name: ws.name,
+      isPublic: ws.isPublic,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
   }, [workspaces]);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { currentUser } = useContext(UserContext);
   const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
@@ -90,6 +94,24 @@ export function WorkspacesList() {
       width: '100%',
       render: (_, { key, name }) => <Link to={`/workspaces/${key}`}>{name}</Link>
     },
+  ];
+
+  if (currentUser?.roles?.includes('admin')) {
+    columns.push(
+      {
+        title: 'Public',
+        dataIndex: 'isPublic',
+        width: '100%',
+        render: (_, { isPublic }) => (
+          <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+            <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+          </div>
+        )
+      },
+    );
+  }
+
+  columns.push(
     {
       title: 'Action',
       key: 'action',
@@ -116,7 +138,7 @@ export function WorkspacesList() {
         </Space>
       ),
     },
-  ];
+  );
 
   const rowSelection = {
     selectedRowKeys,

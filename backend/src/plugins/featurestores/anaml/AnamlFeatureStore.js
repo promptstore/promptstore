@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 class AnamlFeatureStore {
 
@@ -662,4 +662,4 @@ const buildDebugCurlPut = (url, token, data) => {
   return `curl -vL -X PUT -H 'Accept: application/json' -H 'Authorization: Basic ${token}' -H 'Content-Type: application/json' "${url}" --data '${JSON.stringify(data)}'`;
 };
 
-module.exports = AnamlFeatureStore;
+export default AnamlFeatureStore;

@@ -4,8 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteAppsAsync,
   getAppsAsync,
@@ -44,7 +44,7 @@ export function AppsList() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      createLink: '/apps/new',
+      createLink: '/apps-edit/new',
       title: 'Apps',
     }));
   }, []);

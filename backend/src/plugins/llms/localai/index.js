@@ -1,7 +1,2 @@
-const LocalAILLM = require('./LocalAILLM');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: LocalAILLM,
-  constants,
-}
+export { default as plugin } from './LocalAILLM';
+export { default as constants } from './constants';

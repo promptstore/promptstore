@@ -1,5 +1,5 @@
-const axios = require('axios');
-const chrono = require('chrono-node');
+import axios from 'axios';
+import * as chrono from 'chrono-node';
 
 function SerpApiTool({ __key, __name, constants, logger }) {
 
@@ -165,4 +165,4 @@ function SerpApiTool({ __key, __name, constants, logger }) {
   };
 }
 
-module.exports = SerpApiTool;
+export default SerpApiTool;

@@ -1,4 +1,4 @@
-function ModelProviderService({ logger, registry }) {
+export function ModelProviderService({ logger, registry }) {
 
   async function getModels(provider, q) {
     const instance = registry[provider];
@@ -14,8 +14,4 @@ function ModelProviderService({ logger, registry }) {
     getModels,
     query,
   }
-}
-
-module.exports = {
-  ModelProviderService,
 }

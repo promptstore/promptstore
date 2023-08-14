@@ -1,7 +1,2 @@
-const JsonParser = require('./JsonParser');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: JsonParser,
-  constants,
-}
+export { default as plugin } from './JsonParser';
+export { default as constants } from './constants';

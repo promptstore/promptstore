@@ -1,4 +1,4 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { functionsService } = services;
 
@@ -8,14 +8,9 @@ module.exports = ({ app, auth, logger, services }) => {
     res.json(functions);
   });
 
-  app.get('/api/functions', auth, async (req, res, next) => {
-    const functions = await functionsService.getFunctions();
-    res.json(functions);
-  });
-
-  app.get('/api/functions/tags/:tag', auth, async (req, res, next) => {
-    const tag = req.params.tag;
-    const functions = await functionsService.getFunctionsByTag(tag);
+  app.get('/api/workspaces/:workspaceId/functions/tags/:tag', auth, async (req, res, next) => {
+    const { tag, workspaceId } = req.params;
+    const functions = await functionsService.getFunctionsByTag(workspaceId, tag);
     res.json(functions);
   });
 
@@ -26,16 +21,18 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/functions', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const id = await functionsService.upsertFunction(values);
-    res.json(id);
+    const func = await functionsService.upsertFunction(values, username);
+    res.json(func);
   });
 
   app.put('/api/functions/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await functionsService.upsertFunction({ id, ...values });
-    res.json({ status: 'OK' });
+    const func = await functionsService.upsertFunction({ ...values, id }, username);
+    res.json(func);
   });
 
   app.delete('/api/functions/:id', auth, async (req, res, next) => {

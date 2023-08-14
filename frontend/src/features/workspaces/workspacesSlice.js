@@ -52,20 +52,29 @@ export const getWorkspaceAsync = (id) => async (dispatch) => {
 export const createWorkspaceAsync = ({ values }) => async (dispatch) => {
   const url = '/api/workspaces';
   const res = await http.post(url, values);
-  const workspace = { ...values, id: res.data };
-  dispatch(setWorkspaces({ workspaces: [workspace] }));
+  dispatch(setWorkspaces({ workspaces: [res.data] }));
 };
 
 export const updateWorkspaceAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/workspaces/${id}`;
-  await http.put(url, values);
-  dispatch(setWorkspaces({ workspaces: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setWorkspaces({ workspaces: [res.data] }));
 };
 
 export const deleteWorkspacesAsync = ({ ids }) => async (dispatch) => {
   const url = `/api/workspaces?ids=${ids.join(',')}`;
   await http.delete(url);
   dispatch(removeWorkspaces({ ids }));
+};
+
+export const handleKeyAssignmentAsync = ({ workspaceId, apiKey }) => async (dispatch) => {
+  const url = `/api/workspaces/${workspaceId}/keys`;
+  const res = http.post(url, { apiKey });
+};
+
+export const revokeKeyAssignmentAsync = ({ workspaceId }) => async (dispatch) => {
+  const url = `/api/workspaces/${workspaceId}/keys`;
+  const res = http.delete(url);
 };
 
 export const selectLoaded = (state) => state.workspaces.loaded;

@@ -29,12 +29,13 @@ export const {
   startLoad,
 } = chatSlice.actions;
 
+// Not used
 export const getPromptsAsync = (req) => async (dispatch) => {
   const url = '/api/prompts';
   const res = await http.post(url, req.app);
   const messages = res.data.map(formatMessage);
   dispatch(getResponseAsync({
-    app: req.app,
+    ...req,
     messages: [...req.messages, ...messages],
   }));
 };
@@ -73,6 +74,26 @@ export const getResponseAsync = (req) => async (dispatch) => {
       }
     }));
   }
+};
+
+export const getFunctionResponseAsync = ({ functionName, args, history, params, workspaceId }) => async (dispatch) => {
+  dispatch(startLoad());
+  const url = `/api/executions/${functionName}`;
+  const res = await http.post(url, { args, history, params, workspaceId });
+  const { choices, model, usage } = res.data;
+  const messages = choices.map(formatMessage).map((m) => ({
+    ...m,
+    model,
+    usage,
+  }));
+  const message = { role: 'user', content: args.content };
+  dispatch(setMessages({
+    messages: [
+      ...history,
+      formatMessage({ message }),
+      ...messages,
+    ]
+  }));
 };
 
 export const selectLoaded = (state) => state.chat.loaded;

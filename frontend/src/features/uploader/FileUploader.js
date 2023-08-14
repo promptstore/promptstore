@@ -1,17 +1,16 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Form, Upload, message } from 'antd';
+import { Upload, message } from 'antd';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
-import FileUploadForm from './FileUploadForm';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
+
+import { UploadsList } from './UploadsList';
 import {
   fileUploadAsync,
   selectUploading,
 } from './fileUploaderSlice';
-import { UploadsList } from './UploadsList';
 
 const beforeUpload = (file) => {
   console.log('file:', file);
@@ -46,19 +45,9 @@ const dummyRequest = ({ file, onSuccess }) => {
   }, 20);
 };
 
-const layout = {
-  labelCol: { span: 4 },
-  wrapperCol: { span: 20 },
-};
-
 export function FileUploader() {
 
-  const [form] = Form.useForm();
-  const [formDirty, setFormDirty] = useState(false);
-  const [formValues, setFormValues] = useState(null);
-
   const uploading = useSelector(selectUploading);
-  const navigate = useNavigate();
 
   const dispatch = useDispatch();
 
@@ -85,16 +74,11 @@ export function FileUploader() {
   const uploadButton = (
     <div>
       {uploading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div
-        style={{
-          marginTop: 8,
-        }}
-      >
+      <div style={{ marginTop: 8 }}>
         {uploading ? 'Uploading...' : 'Upload'}
       </div>
     </div>
   );
-
   return (
     <>
       <UploadsList sourceId={selectedWorkspace.id} />

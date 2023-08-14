@@ -1,6 +1,6 @@
-const { Pool } = require('pg');
+import pg from 'pg';
 
-const pg = new Pool({
+const db = new pg.Pool({
   user: process.env.PGUSER,
   host: process.env.PGHOST,
   database: process.env.PGDATABASE,
@@ -8,4 +8,4 @@ const pg = new Pool({
   port: process.env.PGPORT,
 });
 
-module.exports = pg;
+export default db;

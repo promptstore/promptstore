@@ -1,23 +1,40 @@
-const EventEmitter = require('events');
+import EventEmitter from 'events';
+import { default as dayjs } from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 
-const utils = require('../utils');
+import { Tracer } from '../core/Tracer';
+import * as utils from '../utils';
 
-const { AssistantMessage, FunctionMessage, Message, UserMessage } = require('./messageTypes');
+import { AssistantMessage, FunctionMessage, Message, UserMessage } from './messageTypes';
+
+dayjs.extend(relativeTime);
 
 const PLAN_OUTPUT_PARSER = 'numberedlist';
 const PROMPTSET_SKILL = 'plan';
 
-module.exports = ({ logger, services }) => {
+export default ({ logger, services }) => {
 
-  const { llmService, parserService, promptSetsService, searchService, tool } = services;
+  const { llmService, parserService, promptSetsService, searchService, tracesService, tool } = services;
 
   class PlanAndExecuteAgent {
 
-    constructor({ model, modelParams }) {
+    model;
+    modelParams;
+    workspaceId;
+    username;
+    history;
+    emitter;
+    tracer;
+    startTime;
+
+    constructor({ model, modelParams, workspaceId, username }) {
       this.model = model || 'gpt-3.5-turbo';
       this.modelParams = modelParams || {};
+      this.workspaceId = workspaceId;
+      this.username = username;
       this.history = [];
       this.emitter = new EventEmitter();
+      this.tracer = new Tracer('plan-and-execute agent - ' + new Date().toISOString(), 'agent');
     }
 
     reset() {
@@ -25,6 +42,19 @@ module.exports = ({ logger, services }) => {
     }
 
     async run(goal, toolKeys, callParams, selfEvaluate) {
+      logger.info('start plan-and-execute agent');
+      let startTime, endTime;
+      this.startTime = new Date();
+      this.tracer
+        .push({
+          type: 'plan-and-execute agent',
+          goal,
+          allowedTools: toolKeys,
+          callParams,
+          selfEvaluate,
+          startTime: this.startTime.getTime(),
+        })
+        .down();
       this.emitter.emit('event', 'Goal:\n' + goal);
       // query
       const request = {
@@ -32,31 +62,63 @@ module.exports = ({ logger, services }) => {
       };
 
       // get plan
-      const promptSets = await promptSetsService.getPromptSetsBySkill(PROMPTSET_SKILL);
+      const promptSets = await promptSetsService.getPromptSetsBySkill(this.workspaceId, PROMPTSET_SKILL);
       if (!promptSets.length) {
         throw new Error('Prompt not found');
       }
 
+      logger.info('start filling template');
+      startTime = new Date();
+      this.tracer.push({
+        type: 'call-prompt-template',
+        messages: promptSets[0].prompts,
+        args: request,
+        startTime: startTime.getTime(),
+      });
       const rawMessages = utils.getMessages(promptSets[0].prompts, request, 'es6');
       const messages = this._mapMessagesToTypes(rawMessages);
       this.history.push(...messages);
+      endTime = new Date();
+      this.tracer
+        .addProperty('messages', rawMessages)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
 
       const {
         maxTokens = 255,
         n = 1
       } = this.modelParams;
-      const modelParams = { maxTokens, n };
+      const modelParams = { max_tokens: maxTokens, n };
 
+      logger.info('start model:', this.model);
+      startTime = new Date()
+      this.tracer.push({
+        type: 'call-model: plan',
+        model: this.model,
+        modelParams,
+        messages: rawMessages,
+        startTime,
+      });
       let res;
-
-      res = await llmService.createChatCompletion('openai', messages, this.model, maxTokens, n);
+      res = await llmService.createChatCompletion({ provider: 'openai', messages, model: this.model, modelParams });
       logger.debug('res:', res);
+
       this.history.push(new AssistantMessage(res.choices[0].message.content));
       const plan = await parserService.parse(PLAN_OUTPUT_PARSER, res.choices[0].message.content);
       this.emitter.emit('event', 'Plan:' + plan.reduce((a, step, i) => {
         a += `\n${i + 1}. ${step}`;
         return a;
       }, ''));
+      endTime = new Date();
+      this.tracer
+        .addProperty('response', res)
+        .addProperty('plan', plan)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
 
       let functions = tool.getAllMetadata(toolKeys);
 
@@ -83,14 +145,47 @@ module.exports = ({ logger, services }) => {
         functions = undefined;
       }
 
+      logger.info('start execution loop');
+      startTime = new Date()
+      this.tracer
+        .push({
+          type: 'execute-plan',
+          plan: plan,
+          startTime,
+        })
+        .down();
+
       // execute plan loop
       let i = 1;
       for (const step of plan) {
         this.emitter.emit('event', `Step ${i}. ${step}`);
         this.history.push(new UserMessage(step));
-        res = await llmService.createChatCompletion('openai', this._getMessages(), this.model, maxTokens, n, functions);
+        startTime = new Date()
+        this.tracer.push({
+          type: 'evaluate-step',
+          step,
+          messages: this._getMessages(),
+          model: this.model,
+          modelParams: { ...modelParams, functions },
+          startTime,
+        });
+        res = await llmService.createChatCompletion({
+          provider: 'openai',
+          messages: this._getMessages(),
+          model: this.model,
+          modelParams: { ...modelParams, functions },
+        });
         this.history.push(new Message(res.choices[0].message));
         const call = res.choices[0].message.function_call;
+        endTime = new Date();
+        this.tracer
+          .addProperty('response', res)
+          .addProperty('call', call)
+          .addProperty('endTime', endTime.getTime())
+          .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+          .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+          .addProperty('success', true)
+          .down();
 
         if (call) {
           res = await this._makeObservation(call, callParams, modelParams);
@@ -98,7 +193,9 @@ module.exports = ({ logger, services }) => {
           if (selfEvaluate) {
             this.emitter.emit('event', 'Thought: Is this a valid answer?');
             // validate answer
+            this.tracer.down();
             const [valid, r] = await this._checkValidObservation(step, res, call, callParams, modelParams);
+            this.tracer.up();
             if (!valid) {
               return res.choices[0].message.content;
             }
@@ -111,8 +208,20 @@ module.exports = ({ logger, services }) => {
           this.emitter.emit('event', 'Response:\n' + res.choices[0].message.content);
         }
 
+        this.tracer.up();
         i += 1;
       }
+      endTime = new Date();
+      this.tracer
+        .up()
+        .addProperty('response', res)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
+
+      const traceRecord = this.tracer.close();
+      tracesService.upsertTrace({ ...traceRecord, workspaceId: this.workspaceId }, this.username);
 
       return res.choices[0].message.content;
     }
@@ -126,7 +235,10 @@ module.exports = ({ logger, services }) => {
         this.emitter.emit('event', 'Thought: Is this a valid answer?');
         if (retryCount === 0) {
           // validate answer again
-          return await this._checkValidObservation(step, res, call, agentName, email, indexName, modelParams, retryCount + 1);
+          this.tracer.down();
+          const result = await this._checkValidObservation(step, res, call, agentName, email, indexName, modelParams, retryCount + 1);
+          this.tracer.up();
+          return result;
         } else {
           this.emitter.emit('event', 'Response: No');
           return [valid, res];
@@ -137,11 +249,44 @@ module.exports = ({ logger, services }) => {
     }
 
     async _makeObservation(call, callParams, modelParams) {
+      let startTime = new Date();
+      let endTime;
+      this.tracer.push({
+        type: 'call-tool',
+        call,
+        model: this.model,
+        modelParams,
+        startTime,
+      });
       this.emitter.emit('event', 'Call External Tool: ' + call.name);
       let res = await this._callFunction(call, callParams);
       this.history.push(new FunctionMessage(call.name, res));
-      res = await llmService.createChatCompletion('openai', this._getMessages(), this.model, modelParams.maxTokens, modelParams.n);
+      endTime = new Date();
+      this.tracer
+        .addProperty('response', res)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
+
+      startTime = new Date();
+      this.tracer.push({
+        type: 'call-model: observe',
+        messages: this._getMessages(),
+        model: this.model,
+        modelParams,
+        startTime,
+      });
+      res = await llmService.createChatCompletion({ provider: 'openai', messages: this._getMessages(), model: this.model, modelParams });
       this.emitter.emit('event', 'Observation:\n' + res.choices[0].message.content);
+      endTime = new Date();
+      this.tracer
+        .addProperty('response', res)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
+
       return res;
     }
 
@@ -192,9 +337,30 @@ ${question}
 Answer:`
         }
       ];
-      const res = await llmService.createChatCompletion('openai', messages, 'gpt-4', 1, 1);
+      const modelParams = {
+        max_tokens: 5,
+        n: 1,
+      };
+      const startTime = new Date()
+      this.tracer.push({
+        type: 'evaluate-response',
+        messages,
+        response,
+        model: 'gpt-4',
+        modelParams,
+        startTime,
+      });
+      const res = await llmService.createChatCompletion({ provider: 'openai', messages, model: 'gpt-4', modelParams });
       const ans = res.choices[0].message.content;
-      return ans !== "I don't know";
+      const valid = ans !== "I don't know";
+      const endTime = new Date();
+      this.tracer
+        .addProperty('valid', valid)
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('success', true);
+      return valid;
     }
   }
 

@@ -1,10 +1,11 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { usersService } = services;
 
-  app.get('/api/users/current', async (req, res, next) => {
+  app.get('/api/users/current', auth, async (req, res, next) => {
     if (req.user) {
-      res.json(req.user);
+      const user = await usersService.getUser(req.user.username);
+      res.json(user);
     } else {
       res.sendStatus(401);
     }
@@ -28,6 +29,11 @@ module.exports = ({ app, auth, logger, services }) => {
     const { getUsers } = usersService;
     const users = await getUsers();
     res.json(users);
+  });
+
+  app.post('/api/users', auth, async (req, res) => {
+    const user = await usersService.upsertUser(req.body);
+    res.json(user);
   });
 
 };

@@ -1,5 +1,7 @@
-const { GoogleAuth } = require('google-auth-library');
-const { TextServiceClient } = require('@google-ai/generativelanguage').v1beta2;
+import { GoogleAuth } from 'google-auth-library';
+import genlang from '@google-ai/generativelanguage';
+
+const { TextServiceClient } = genlang.v1beta2;
 
 function PalmLLM({ __name, constants, logger }) {
 
@@ -7,7 +9,7 @@ function PalmLLM({ __name, constants, logger }) {
     authClient: new GoogleAuth().fromAPIKey(constants.GOOGLE_API_KEY),
   });
 
-  async function createChatCompletion(messages, model, maxTokens, n, retryCount = 0) {
+  async function createChatCompletion(messages, model, modelParams, retryCount = 0) {
     const res = await client.generateText({
       model: constants.PALM2_MODEL_NAME,
       prompt: {
@@ -17,7 +19,7 @@ function PalmLLM({ __name, constants, logger }) {
     return res;
   }
 
-  async function createCompletion(prompt, model, maxTokens, n) {
+  async function createCompletion(prompt, model, modelParams) {
     const res = await client.generateText({
       model: constants.PALM2_MODEL_NAME,
       prompt: {
@@ -27,17 +29,17 @@ function PalmLLM({ __name, constants, logger }) {
     return res;
   }
 
-  const fetchChatCompletion = async (messages, model, maxTokens, n) => {
+  const fetchChatCompletion = async (messages, model, modelParams) => {
     const prompt = messages[messages.length - 1];
-    const response = await createChatCompletion(messages, model, maxTokens, n);
+    const response = await createChatCompletion(messages, model, modelParams);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt })),
     };
   };
 
-  const fetchCompletion = async (input, model, maxTokens, n) => {
-    const response = await createCompletion(prompt, model, maxTokens, n);
+  const fetchCompletion = async (input, model, modelParams) => {
+    const response = await createCompletion(prompt, model, modelParams);
     return {
       ...response,
       choices: response.choices.map((c) => ({ ...c, prompt: input })),
@@ -64,4 +66,4 @@ function PalmLLM({ __name, constants, logger }) {
 
 }
 
-module.exports = PalmLLM;
+export default PalmLLM;

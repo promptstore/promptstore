@@ -52,3 +52,23 @@ curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-onlin
 curl -vL -H 'Content-Type: application/json' "http://localhost:5556/api/executions/get_driver_stats" --data '{"args":{"entityId":1001},"modelKey":"gpt-3.5-turbo"}'
 
 curl -vL -H 'Content-Type: application/json' "https://promptstore.devsheds.io/api/executions/generate_health_report" --data '{"args":{"entityId":'1234'},"modelKey":"gpt-4"}'
+
+ALTER TABLE models ADD COLUMN workspace_id INTEGER;
+
+ALTER TABLE data_sources ADD COLUMN workspace_id INTEGER;
+
+ALTER TABLE file_uploads ADD COLUMN created TIMESTAMP(0) NOT NULL DEFAULT NOW();
+
+ALTER TABLE file_uploads ADD COLUMN created_by character varying(255) COLLATE pg_catalog."default";
+
+ALTER TABLE file_uploads ADD COLUMN modified TIMESTAMP(0) NOT NULL DEFAULT NOW();
+
+ALTER TABLE file_uploads ADD COLUMN modified_by character varying(255) COLLATE pg_catalog."default";
+
+ALTER TABLE chat_sessions ADD COLUMN type character varying(255) COLLATE pg_catalog."default";
+
+Temporal
+Create namespace
+
+
+docker run --rm -it --entrypoint tctl --network host --env TEMPORAL_CLI_ADDRESS=localhost:7233 temporalio/admin-tools:1.14.0 --namespace promptstore namespace register

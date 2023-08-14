@@ -1,7 +1,2 @@
-const UnstructuredService = require('./UnstructuredService');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: UnstructuredService,
-  constants,
-}
+export { default as plugin } from './UnstructuredService';
+export { default as constants } from './constants';

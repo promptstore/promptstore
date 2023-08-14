@@ -1,53 +1,76 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button, Modal, Space, Table } from 'antd';
 import {
   FileExcelOutlined,
+  FileMarkdownOutlined,
   FileOutlined,
   FilePdfOutlined,
+  FilePptOutlined,
   FileTextOutlined,
   FileWordOutlined,
 } from '@ant-design/icons';
 import hr from '@tsmx/human-readable';
 import useLocalStorageState from 'use-local-storage-state';
+import { v4 as uuidv4 } from 'uuid';
 
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { getExtension, getHumanFriendlyDelta } from '../../utils';
 
 import { ContentView } from '../../components/ContentView';
 import { IndexModal } from './IndexModal';
 import {
+  createDataSourceAsync,
+  selectDataSources,
+} from '../dataSources/dataSourcesSlice';
+import {
   deleteUploadsAsync,
   getUploadContentAsync,
   getUploadsAsync,
   indexDocumentAsync,
+  reloadContentAsync,
   selectLoading,
-  selectUploaded,
   selectUploads,
 } from './fileUploaderSlice';
 
 const getDocIcon = (ext) => {
   switch (ext) {
     case 'csv':
+    case 'xlsx':
       return <FileExcelOutlined style={{
         color: '#217346',
         fontSize: '1.5em',
       }} />;
 
-    case 'txt':
-      return <FileTextOutlined style={{
-        color: 'rgba(0, 0, 0, 0.88)',
-        fontSize: '1.5em',
-      }} />;
-
+    case 'doc':
     case 'docx':
       return <FileWordOutlined style={{
         color: '#2b579a',
         fontSize: '1.5em',
       }} />;
 
+    case 'md':
+      return <FileMarkdownOutlined style={{
+        color: '#094ab2',
+        fontSize: '1.5em',
+      }} />;
+
     case 'pdf':
       return <FilePdfOutlined style={{
         color: '#F40F02',
+        fontSize: '1.5em',
+      }} />;
+
+    case 'ppt':
+    case 'pptx':
+      return <FilePptOutlined style={{
+        color: '#d24726',
+        fontSize: '1.5em',
+      }} />;
+
+    case 'txt':
+      return <FileTextOutlined style={{
+        color: 'rgba(0, 0, 0, 0.88)',
         fontSize: '1.5em',
       }} />;
 
@@ -61,6 +84,7 @@ const getDocIcon = (ext) => {
 
 export function UploadsList({ sourceId }) {
 
+  const [correlationId, setCorrelationId] = useState(null);
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useLocalStorageState('documents-list-page', 1);
@@ -68,20 +92,27 @@ export function UploadsList({ sourceId }) {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
 
+  const dataSources = useSelector(selectDataSources);
   const loading = useSelector(selectLoading);
-  const uploaded = useSelector(selectUploaded);
   const uploads = useSelector(selectUploads);
 
   const sourceUploads = uploads[sourceId] || [];
 
-  const data = useMemo(() => sourceUploads.map((doc) => ({
-    key: doc.etag,
-    id: doc.id,
-    name: doc.name,
-    size: doc.size,
-    lastModified: doc.lastModified,
-    ext: getExtension(doc.name),
-  })), [uploads]);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+
+  const data = useMemo(() => {
+    const list = sourceUploads.map((doc) => ({
+      key: doc.etag,
+      id: doc.id,
+      name: doc.name,
+      size: doc.size,
+      lastModified: doc.lastModified,
+      ext: getExtension(doc.name),
+      filename: doc.filename,
+    }));
+    list.sort((a, b) => a.name < b.name ? -1 : 1);
+    return list;
+  }, [sourceUploads]);
 
   const upload = useMemo(() => {
     if (!selectedId) return null;
@@ -94,17 +125,25 @@ export function UploadsList({ sourceId }) {
     dispatch(getUploadsAsync({ sourceId }));
   }, []);
 
-  useEffect(() => {
-    if (uploaded) {
-      dispatch(getUploadsAsync({ sourceId }));
-    }
-  }, [uploaded]);
+  // not needed anymore because I'm polling for the uploaded document
+  // useEffect(() => {
+  //   if (uploaded) {
+  //     dispatch(getUploadsAsync({ sourceId }));
+  //   }
+  // }, [uploaded]);
 
   useEffect(() => {
     if (selectedId && !upload.content) {
       dispatch(getUploadContentAsync(sourceId, selectedId, 1000 * 1024));
     }
   }, [selectedId]);
+
+  useEffect(() => {
+    const source = Object.values(dataSources).find(s => s.correlationId === correlationId);
+    if (source) {
+      setCorrelationId(null);
+    }
+  }, [correlationId, dataSources]);
 
   const onCancel = () => {
     setIsModalOpen(false);
@@ -131,6 +170,7 @@ export function UploadsList({ sourceId }) {
     dispatch(indexDocumentAsync({
       filepath: selectedRow.name,
       params: values,
+      workspaceId: selectedWorkspace,
     }));
     setIsIndexModalOpen(false);
     setSelectedRow(null);
@@ -143,6 +183,31 @@ export function UploadsList({ sourceId }) {
   const openIndex = (record) => {
     setSelectedRow(record);
     setIsIndexModalOpen(true);
+  };
+
+  const createSource = (record) => {
+    const { filename, id } = record;
+    const re = /(?:\.([^.]+))?$/;
+    const name = filename.replace(re, '');
+    const ext = re.exec(filename)[1];
+    const values = {
+      name,
+      type: 'document',
+      documentType: ext,
+      documents: [id],
+      workspaceId: selectedWorkspace.id,
+    };
+    const correlationId = uuidv4();
+    dispatch(createDataSourceAsync({ correlationId, values }));
+    setCorrelationId(correlationId);
+  };
+
+  const reloadContent = (record) => {
+    dispatch(reloadContentAsync({
+      sourceId,
+      uploadId: record.id,
+      filepath: record.name,
+    }));
   };
 
   const showContent = (id) => {
@@ -193,18 +258,27 @@ export function UploadsList({ sourceId }) {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-        <Space size="middle">
-          {/* <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={() => openIndex(record)}
-          >
-            Index
-          </Button> */}
+        <Space direction="vertical">
+          <Space size="middle">
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={() => showContent(record.id)}
+            >
+              Preview
+            </Button>
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={() => reloadContent(record)}
+            >
+              Reload
+            </Button>
+          </Space>
           <Button type="link"
+            loading={!!correlationId}
             style={{ paddingLeft: 0 }}
-            onClick={() => showContent(record.id)}
+            onClick={() => createSource(record)}
           >
-            Preview
+            Create Source
           </Button>
         </Space>
       ),

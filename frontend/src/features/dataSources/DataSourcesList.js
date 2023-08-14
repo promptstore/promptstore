@@ -6,8 +6,8 @@ import useLocalStorageState from 'use-local-storage-state';
 
 // import { ContentView } from '../../components/ContentView';
 import { DataSourceContentView } from '../../components/DataSourceContentView';
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { IndexModal } from '../uploader/IndexModal';
 import {
   // getUploadContentAsync,
@@ -48,6 +48,7 @@ export function DataSourcesList() {
       type: ds.type,
       instance: ds.featurestore || ds.documentType || ds.dialect,
       documentId: ds.documentId,
+      documents: ds.documents,
       baseUrl: ds.baseUrl,
       scrapingSpec: ds.scrapingSpec,
       maxRequestsPerCrawl: ds.maxRequestsPerCrawl,
@@ -73,7 +74,6 @@ export function DataSourcesList() {
       createLink: '/data-sources/new',
       title: 'Data Sources',
     }));
-    dispatch(getDataSourcesAsync());
   }, []);
 
   useEffect(() => {
@@ -87,7 +87,9 @@ export function DataSourcesList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getUploadsAsync({ sourceId: selectedWorkspace.id }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getUploadsAsync({ sourceId: workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -122,6 +124,7 @@ export function DataSourcesList() {
         engine: values.engine,
         titleField: values.titleField,
         vectorField: values.vectorField,
+        workspaceId: selectedWorkspace.id,
       }));
 
     } else if (dataSource.type === 'api') {
@@ -133,11 +136,24 @@ export function DataSourcesList() {
           newIndexName: values.newIndexName,
           engine: values.engine,
           vectorField: values.vectorField,
-        }
+        },
+        workspaceId: selectedWorkspace.id,
       }));
 
     } else if (dataSource.type === 'document') {
 
+      dispatch(indexStructuredDocumentAsync({
+        documents: dataSource.documents,
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          engine: values.engine,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+
+      // sources can now have more than one document
+      /*
       const workspaceUploads = uploads[selectedWorkspace.id];
       const upload = workspaceUploads.find((doc) => doc.id === dataSource.documentId);
       // console.log('upload:', upload);
@@ -185,6 +201,7 @@ export function DataSourcesList() {
           }));
         }
       }
+      */
     }
 
     setIsIndexModalOpen(false);
@@ -266,7 +283,13 @@ export function DataSourcesList() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
-          {record.type === 'document' && record.documentId ?
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/data-sources/${record.key}`)}
+          >
+            Edit
+          </Button>
+          {record.type === 'document' && record.documents ?
             <>
               <Button type="link"
                 disabled={!uploadsLoaded}
@@ -275,12 +298,12 @@ export function DataSourcesList() {
               >
                 Index
               </Button>
-              <Button type="link"
+              {/* <Button type="link"
                 style={{ paddingLeft: 0 }}
                 onClick={() => openPreview(record)}
               >
                 Preview
-              </Button>
+              </Button> */}
             </>
             : null
           }
@@ -294,12 +317,6 @@ export function DataSourcesList() {
             </Button>
             : null
           }
-          <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={() => navigate(`/data-sources/${record.key}`)}
-          >
-            Edit
-          </Button>
         </Space>
       ),
     },

@@ -1,7 +1,2 @@
-const DateTimeParser = require('./DateTimeParser');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: DateTimeParser,
-  constants,
-}
+export { default as plugin } from './DateTimeParser';
+export { default as constants } from './constants';

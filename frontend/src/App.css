@@ -623,3 +623,69 @@ article.collapsible .panel.closed {
 #function-form .ant-form-item-extra {
   margin-bottom: -8px;
 }
+
+.trace-step div.ant-typography {
+  margin-bottom: 0;
+  margin-top: 1em;
+}
+
+.trace-step div.ant-typography.first {
+  margin-top: 0;
+}
+
+.trace-step .ant-typography-secondary {
+  font-style: italic;
+}
+
+.trace .ant-descriptions-item-content .ant-tree {
+  width: 100%;
+}
+
+.trace-status .ant-descriptions-item-content .anticon {
+  margin-right: 8px;
+}
+
+.trace-status .ant-descriptions-item-content .anticon svg {
+  fill: #f5222d;
+}
+
+.trace-status .ant-descriptions-item-content .success .anticon svg {
+  fill: #52c41a;
+}
+
+.trace-status {
+  background-color: #d8d8d9;
+  border-radius: 6px;
+  min-height: 900px;
+}
+
+.trace,
+.trace-step,
+.trace-status {
+  padding: 10px 15px;
+}
+
+.trace .ant-descriptions-header {
+  margin-bottom: 0;
+}
+
+.trace-step ul,
+.trace-step ol {
+  margin-left: 16px;
+}
+
+#avatar-gallery .image-section {
+  display: flex;
+  flex-wrap: wrap;
+  height: 150px;
+  align-items: space-between;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+#avatar-gallery .single-image {
+  width: 70px;
+  height: 70px;
+  margin: 0;
+}

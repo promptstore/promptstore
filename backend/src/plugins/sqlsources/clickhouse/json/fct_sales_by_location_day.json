@@ -1,0 +1,114 @@
+[
+  {
+    "name": "org_code",
+    "type": "String"
+  },
+  {
+    "name": "retail_year_number",
+    "type": "Nullable(Decimal(10, 4))"
+  },
+  {
+    "name": "week_number",
+    "type": "Nullable(Decimal(10, 4))"
+  },
+  {
+    "name": "sale_date",
+    "type": "Date"
+  },
+  {
+    "name": "location",
+    "type": "Map(String, Nullable(String))"
+  },
+  {
+    "name": "location_categories",
+    "type": "Map(String, Nullable(String))"
+  },
+  {
+    "name": "location_state",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "location_channel",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "location_segment",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "location_id",
+    "type": "String"
+  },
+  {
+    "name": "location_name",
+    "type": "Nullable(String)"
+  },
+  {
+    "name": "item_count",
+    "type": "Decimal(38, 2)"
+  },
+  {
+    "name": "total",
+    "type": "Decimal(38, 4)"
+  },
+  {
+    "name": "sale_count",
+    "type": "UInt64"
+  },
+  {
+    "name": "loyalty_sale_count",
+    "type": "UInt64"
+  },
+  {
+    "name": "discount_total",
+    "type": "Decimal(38, 4)"
+  },
+  {
+    "name": "discount_sale_count",
+    "type": "UInt64"
+  },
+  {
+    "name": "loyalty_discount_total",
+    "type": "Decimal(38, 4)"
+  },
+  {
+    "name": "loyalty_discount_sale_count",
+    "type": "UInt64"
+  },
+  {
+    "name": "staff_count",
+    "type": "UInt64"
+  },
+  {
+    "name": "weighted_avg_staff_tenure_months",
+    "type": "Nullable(Float64)"
+  },
+  {
+    "name": "avg_staff_tenure_months",
+    "type": "Nullable(Float64)"
+  },
+  {
+    "name": "avg_sale_count_by_staff",
+    "type": "Float64"
+  },
+  {
+    "name": "foot_traffic_outside",
+    "type": "Float64"
+  },
+  {
+    "name": "foot_traffic_inside",
+    "type": "Float64"
+  },
+  {
+    "name": "dwell_time",
+    "type": "Float64"
+  },
+  {
+    "name": "foot_traffic_fitting_room",
+    "type": "Float64"
+  },
+  {
+    "name": "foot_traffic_return_visits",
+    "type": "Float64"
+  }
+]

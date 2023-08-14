@@ -1,10 +1,10 @@
-const multer = require('multer');
-const os = require('os');
-const path = require('path');
+import multer from 'multer';
+import os from 'os';
+import path from 'path';
 
-const { getExtension } = require('../utils');
+import { getExtension } from '../utils';
 
-module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }) => {
+export default ({ app, auth, constants, logger, mc, services, workflowClient }) => {
 
   const { documentsService, uploadsService } = services;
 
@@ -116,6 +116,7 @@ module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }
 
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
     const { sourceId, correlationId } = req.body;
+    const { username } = req.user;
     const workspaceId = parseInt(sourceId, 10);
     if (isNaN(workspaceId)) {
       return res.status(400).send({
@@ -125,7 +126,7 @@ module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }
     const file = req.file;
     logger.debug('file:', file);
     workflowClient
-      .upload(file, workspaceId, {
+      .upload(file, workspaceId, username, {
         DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
         FILE_BUCKET: constants.FILE_BUCKET,
       }, {
@@ -148,6 +149,7 @@ module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }
 
   app.post('/api/reload', auth, async (req, res) => {
     const { sourceId, uploadId, filepath } = req.body;
+    const { username } = req.user;
     const workspaceId = parseInt(sourceId, 10);
     if (isNaN(workspaceId)) {
       return res.status(400).send({
@@ -156,7 +158,7 @@ module.exports = ({ app, auth, constants, logger, mc, services, workflowClient }
     }
     const file = await documentsService.download(filepath);
     logger.debug('file:', file);
-    workflowClient.reload(file, workspaceId, uploadId, {
+    workflowClient.reload(file, workspaceId, username, uploadId, {
       DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
       FILE_BUCKET: constants.FILE_BUCKET,
     }, {

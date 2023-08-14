@@ -35,9 +35,9 @@ export const {
   startLoad,
 } = templatesSlice.actions;
 
-export const getTemplatesAsync = () => async (dispatch) => {
+export const getTemplatesAsync = (workspaceId) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/prompt-set-templates`;
+  const url = `/api/workspaces/${workspaceId}/prompt-set-templates`;
   const res = await http.get(url);
   dispatch(setTemplates({ templates: res.data }));
 };

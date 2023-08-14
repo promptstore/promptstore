@@ -1,18 +1,14 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function ChatSessionsService({ pg, logger }) {
+export function ChatSessionsService({ pg, logger }) {
 
-  async function getChatSessions(workspaceId) {
+  async function getChatSessions(workspaceId, type, username) {
     let q = `
-      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
       FROM chat_sessions
+      WHERE workspace_id = $1 AND type = $2 AND created_by = $3
       `;
-    let params = [];
-    if (workspaceId) {
-      q += `WHERE workspace_id = $1`;
-      params = [workspaceId];
-    }
-    const { rows } = await pg.query(q, params);
+    const { rows } = await pg.query(q, [workspaceId, type, username]);
     if (rows.length === 0) {
       return [];
     }
@@ -20,7 +16,8 @@ function ChatSessionsService({ pg, logger }) {
       ...row.val,
       id: row.id,
       name: row.name,
-      workspaceId: row.workspaceId,
+      type: row.type,
+      workspaceId: row.workspace_id,
       created: row.created,
       createdBy: row.created_by,
       modified: row.modified,
@@ -34,7 +31,7 @@ function ChatSessionsService({ pg, logger }) {
       return null;
     }
     let q = `
-      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
       FROM chat_sessions
       WHERE id = $1
       `;
@@ -47,7 +44,8 @@ function ChatSessionsService({ pg, logger }) {
       ...row.val,
       id: row.id,
       name: row.name,
-      workspaceId: row.workspaceId,
+      type: row.type,
+      workspaceId: row.workspace_id,
       created: row.created,
       createdBy: row.created_by,
       modified: row.modified,
@@ -55,29 +53,30 @@ function ChatSessionsService({ pg, logger }) {
     };
   }
 
-  async function upsertChatSession(session) {
+  async function upsertChatSession(session, username) {
     if (session === null || typeof session === 'undefined') {
       return null;
     }
-    const val = omit(session, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const val = omit(session, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedChatSession = await getChatSession(session.id);
     if (savedChatSession) {
       await pg.query(`
         UPDATE chat_sessions
-        SET val = $1
-        WHERE id = $2
+        SET name = $1, val = $2, modified_by = $3, modified = $4
+        WHERE id = $5
         `,
-        [val, session.id]
+        [session.name, val, username, new Date(), session.id]
       );
-      return session.id;
+      return { ...savedChatSession, ...session };
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO chat_sessions (workspace_id, name, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO chat_sessions (workspace_id, name, type, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
         `,
-        [session.workspaceId, session.name, val]
+        [session.workspaceId, session.name, session.type, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...session, id: rows[0].id };
     }
   }
 
@@ -101,7 +100,3 @@ function ChatSessionsService({ pg, logger }) {
     deleteChatSessions,
   };
 }
-
-module.exports = {
-  ChatSessionsService,
-};

@@ -1,7 +1,7 @@
-const { Table } = require('tableschema');
-const unescapeJs = require('unescape-js');
+import { Table } from 'tableschema';
+import unescapeJs from 'unescape-js';
 
-const { getExtension } = require('../utils');
+import { getExtension } from '../utils';
 
 const nodeType = 'content';
 
@@ -10,7 +10,7 @@ const typeMappings = {
   'integer': 'Integer',
 };
 
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const {
     documentsService,
@@ -23,11 +23,11 @@ module.exports = ({ app, auth, logger, services }) => {
   } = services;
 
   app.post('/api/loader/api', auth, async (req, res) => {
-    const { endpoint, schema, params } = req.body;
+    const { endpoint, schema, params, workspaceId } = req.body;
     const { newIndexName, engine, vectorField } = params;
     let indexId = params.indexId;
     if (indexId === 'new') {
-      indexId = await createIndexFromJsonSchema(newIndexName, engine, vectorField, schema);
+      indexId = await createIndexFromJsonSchema(workspaceId, newIndexName, engine, vectorField, schema);
       await indexApi(endpoint, schema, { ...params, indexId });
     } else {
       await indexApi(endpoint, schema, params);
@@ -36,11 +36,11 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/loader/structureddocument', auth, async (req, res) => {
-    const { uploadId, params, documents } = req.body;
+    const { uploadId, params, documents, workspaceId } = req.body;
     const { newIndexName, engine } = params;
     let indexId = params.indexId;
     if (indexId === 'new') {
-      indexId = await createStructuredDocumentIndex(newIndexName, engine);
+      indexId = await createStructuredDocumentIndex(workspaceId, newIndexName, engine);
       // await indexStructuredDocument(uploadId, { ...params, indexId });
       await indexStructuredDocuments(documents, { ...params, indexId });
     } else {
@@ -50,14 +50,15 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/loader/document', auth, async (req, res) => {
-    const { filepath, params } = req.body;
+    const { username } = req.user;
+    const { filepath, params, workspaceId } = req.body;
     const { newIndexName, engine } = params;
     const ext = getExtension(filepath);
 
     let indexId = params.indexId;
     if (ext === 'csv') {
       if (indexId === 'new') {
-        indexId = await createIndexFromCsv(newIndexName, engine, filepath, params);
+        indexId = await createIndexFromCsv(workspaceId, newIndexName, engine, filepath, params);
         await indexCsv(filepath, { ...params, indexId });
       } else {
         await indexCsv(filepath, params);
@@ -65,10 +66,10 @@ module.exports = ({ app, auth, logger, services }) => {
 
     } else if (ext === 'txt') {
       if (indexId === 'new') {
-        indexId = await createTextDocumentIndex(newIndexName, engine, params);
-        await indexTextDocument(filepath, { ...params, indexId });
+        indexId = await createTextDocumentIndex(workspaceId, newIndexName, engine, params);
+        await indexTextDocument(workspaceId, username, filepath, { ...params, indexId });
       } else {
-        await indexTextDocument(filepath, params);
+        await indexTextDocument(workspaceId, username, filepath, params);
       }
 
     } else {
@@ -81,7 +82,7 @@ module.exports = ({ app, auth, logger, services }) => {
 
   // ---- create indexes ---- //
 
-  async function createIndexFromCsv(newIndexName, engine, filepath, params) {
+  async function createIndexFromCsv(workspaceId, newIndexName, engine, filepath, params) {
     const options = {
       bom: true,
       delimiter: params.delimiter,
@@ -96,33 +97,35 @@ module.exports = ({ app, auth, logger, services }) => {
     logger.debug('descriptor:', descriptor);
     logger.debug('vectorField:', params.vectorField);
     const indexSchema = convertSqlSchemaToIndexSchema(descriptor, params.vectorField);
-    const indexId = await indexesService.upsertIndex({
+    const index = await indexesService.upsertIndex({
       name: newIndexName,
       engine,
       schema: indexSchema,
       titleField: params.titleField,
       vectorField: params.vectorField,
+      workspaceId,
     });
-    logger.debug(`Created new index '${newIndexName}' [${indexId}]`);
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
     const fields = searchService.getSearchSchema(indexSchema);
     await searchService.createIndex(newIndexName, fields);
-    return indexId;
+    return index.id;
   }
 
-  async function createIndexFromJsonSchema(newIndexName, engine, vectorField, jsonSchema) {
+  async function createIndexFromJsonSchema(workspaceId, newIndexName, engine, vectorField, jsonSchema) {
     const indexSchema = convertJsonSchemaToIndexSchema(jsonSchema, vectorField);
-    const indexId = await indexesService.upsertIndex({
+    const index = await indexesService.upsertIndex({
       name: newIndexName,
       engine,
       schema: indexSchema,
+      workspaceId,
     });
-    logger.debug(`Created new index '${newIndexName}' [${indexId}]`);
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
     const fields = searchService.getSearchSchema(indexSchema);
     await searchService.createIndex(newIndexName, fields);
-    return indexId;
+    return index.id;
   }
 
-  async function createStructuredDocumentIndex(newIndexName, engine) {
+  async function createStructuredDocumentIndex(workspaceId, newIndexName, engine) {
     const indexSchema = {
       content: {
         text: {
@@ -142,18 +145,19 @@ module.exports = ({ app, auth, logger, services }) => {
         },
       }
     };
-    const indexId = await indexesService.upsertIndex({
+    const index = await indexesService.upsertIndex({
       name: newIndexName,
       engine,
       schema: indexSchema,
+      workspaceId,
     });
-    logger.debug(`Created new index '${newIndexName}' [${indexId}]`);
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
     const fields = searchService.getSearchSchema(indexSchema);
     await searchService.createIndex(newIndexName, fields);
-    return indexId;
+    return index.id;
   }
 
-  async function createTextDocumentIndex(newIndexName, engine, params) {
+  async function createTextDocumentIndex(workspaceId, newIndexName, engine, params) {
     const indexSchema = {
       content: {
         text: {
@@ -163,17 +167,18 @@ module.exports = ({ app, auth, logger, services }) => {
         }
       }
     };
-    const indexId = await indexesService.upsertIndex({
+    const index = await indexesService.upsertIndex({
       name: newIndexName,
       engine,
       schema: indexSchema,
       titleField: params.titleField,
       vectorField: params.vectorField,
+      workspaceId,
     });
-    logger.debug(`Created new index '${newIndexName}' [${indexId}]`);
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
     const fields = searchService.getSearchSchema(indexSchema);
     await searchService.createIndex(newIndexName, fields);
-    return indexId;
+    return index.id;
   }
 
 
@@ -302,7 +307,7 @@ module.exports = ({ app, auth, logger, services }) => {
     }
   }
 
-  async function indexTextDocument(filepath, params) {
+  async function indexTextDocument(workspaceId, username, filepath, params) {
     const {
       characters = '\n\n',
       functionId,
@@ -322,7 +327,12 @@ module.exports = ({ app, auth, logger, services }) => {
       if (!func) {
         throw new Error('Chunker function not found');
       }
-      const res = await executionsService.executeFunction('chunk', { text });
+      const res = await executionsService.executeFunction({
+        workspaceId,
+        username,
+        semanticFunctionName: 'chunk',
+        args: { text },
+      });
       chunks = res.chunks;
 
     } else {

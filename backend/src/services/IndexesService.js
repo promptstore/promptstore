@@ -1,13 +1,17 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function IndexesService({ pg, logger }) {
+export function IndexesService({ pg, logger }) {
 
-  async function getIndexes() {
+  async function getIndexes(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
       SELECT id, workspace_id, name, engine, created, created_by, modified, modified_by, val
       FROM doc_indexes
+      WHERE workspace_id = $1
       `;
-    const { rows } = await pg.query(q);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
@@ -25,16 +29,20 @@ function IndexesService({ pg, logger }) {
     return indexes;
   }
 
-  async function getIndexByKey(key) {
+  async function getIndexByKey(workspaceId, key) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return null;
+    }
     if (key === null || typeof key === 'undefined') {
       return null;
     }
     let q = `
       SELECT id, workspace_id, name, engine, created, created_by, modified, modified_by, val
       FROM doc_indexes
-      WHERE val->>'key' = $1
+      WHERE workspace_id = $1
+      AND val->>'key' = $1
       `;
-    const { rows } = await pg.query(q, [key]);
+    const { rows } = await pg.query(q, [workspaceId, key]);
     if (rows.length === 0) {
       return null;
     }
@@ -79,29 +87,30 @@ function IndexesService({ pg, logger }) {
     };
   }
 
-  async function upsertIndex(index) {
+  async function upsertIndex(index, username) {
     if (index === null || typeof index === 'undefined') {
       return null;
     }
-    const val = omit(index, ['id', 'workspace_id', 'name', 'engine', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const val = omit(index, ['id', 'workspaceId', 'name', 'engine', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedIndex = await getIndex(index.id);
     if (savedIndex) {
       await pg.query(`
         UPDATE doc_indexes
-        SET name = $1, engine = $2, val = $3
-        WHERE id = $4
+        SET name = $1, engine = $2, val = $3, modified_by = $4, modified = $5
+        WHERE id = $6
         `,
-        [index.name, index.engine, val, index.id]
+        [index.name, index.engine, val, username, new Date(), index.id]
       );
-      return index.id;
+      return { ...savedIndex, ...index };
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO doc_indexes (name, engine, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO doc_indexes (workspace_id, name, engine, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
         `,
-        [index.name, index.engine, val]
+        [index.workspaceId, index.name, index.engine, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...index, id: rows[0].id };
     }
   }
 
@@ -126,7 +135,3 @@ function IndexesService({ pg, logger }) {
     deleteIndexes,
   };
 }
-
-module.exports = {
-  IndexesService,
-};

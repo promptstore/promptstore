@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Button, Table } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
 import {
   getUsersAsync,
   selectLoading,

@@ -1,6 +1,6 @@
-const FormData = require('form-data');
-const axios = require('axios');
-const fs = require('fs');
+import FormData from 'form-data';
+import axios from 'axios';
+import fs from 'fs';
 
 function OnesourceService({ __name, constants, logger }) {
 
@@ -57,4 +57,4 @@ function OnesourceService({ __name, constants, logger }) {
   };
 }
 
-module.exports = OnesourceService;
+export default OnesourceService;

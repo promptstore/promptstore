@@ -5,9 +5,9 @@ import { Button, Card, List, Progress, Space, Typography } from 'antd';
 import { AlertOutlined } from '@ant-design/icons';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
-import NavbarContext from '../../context/NavbarContext';
-import UserContext from '../../context/UserContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getAppsAsync,
   selectLoading as selectAppsLoading,

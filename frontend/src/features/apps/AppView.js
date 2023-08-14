@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import { Card, List, Space } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getAppAsync,
   selectLoaded,
@@ -90,9 +90,6 @@ export function AppView() {
   }, [app, indexes]);
 
   useEffect(() => {
-    dispatch(getDataSourcesAsync());
-    dispatch(getFunctionsAsync());
-    dispatch(getIndexesAsync());
     dispatch(getAppAsync(id));
   }, []);
 
@@ -106,7 +103,11 @@ export function AppView() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getIndexesAsync({ workspaceId }));
+      dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 

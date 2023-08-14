@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   HUGGINGFACE_BASE_URL: process.env.HUGGINGFACE_BASE_URL,
   HUGGINGFACE_HUB_API: process.env.HUGGINGFACE_HUB_API,
   HUGGINGFACE_TOKEN: process.env.HUGGINGFACE_TOKEN,

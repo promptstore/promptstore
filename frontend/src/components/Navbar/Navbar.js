@@ -1,14 +1,14 @@
 import { Suspense, useContext, useEffect, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { Avatar, Button, Divider, Dropdown } from 'antd';
-import { TeamOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import { Avatar, Button, Divider, Dropdown, Modal } from 'antd';
+import { ExclamationCircleFilled, TeamOutlined } from '@ant-design/icons';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
-import UserContext from '../../context/UserContext';
+import { useAuth } from '../../contexts/AuthContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
+import UserContext from '../../contexts/UserContext';
 import {
-  getWorkspacesAsync,
   selectLoaded as selectWorkspacesLoaded,
   selectWorkspaces,
 } from '../../features/workspaces/workspacesSlice';
@@ -18,15 +18,19 @@ import './Navbar.css';
 
 function Navbar() {
 
+  const { currentUser, logout, setError } = useAuth();
   const { isDarkMode, navbarState, setIsDarkMode } = useContext(NavbarContext);
   const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
-  const { currentUser } = useContext(UserContext);
+  // const { currentUser } = useContext(UserContext);
 
-  const dispatch = useDispatch();
+  const [firstName] = (currentUser.displayName || currentUser.email).split(' ');
+  const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
+
+  const navigate = useNavigate();
 
   const workspaces = useSelector(selectWorkspaces);
   const workspacesLoaded = useSelector(selectWorkspacesLoaded);
-  const isWorkspacesEmpty = Object.keys(workspaces).length === 0;
+  const isWorkspacesEmpty = !Object.keys(workspaces).length;
 
   const workspacesList = useMemo(() => {
     const list = Object.values(workspaces);
@@ -34,11 +38,17 @@ function Navbar() {
     return list;
   }, [workspaces]);
 
-  useEffect(() => {
-    dispatch(getWorkspacesAsync());
-  }, []);
+  const handleLogout = async () => {
+    try {
+      setError('');
+      await logout();
+      navigate('/login');
+    } catch {
+      setError('Failed to logout');
+    }
+  };
 
-  const handleWorkspacesMenuClick = (item) => {
+  const handleSelectWorkspace = (item) => {
     const workspace = workspaces[item.key];
     setSelectedWorkspace(workspace);
   };
@@ -47,12 +57,36 @@ function Navbar() {
     setIsDarkMode((current) => !current);
   };
 
+  const showLogoutConfirm = () => {
+    Modal.confirm({
+      title: 'Logging out',
+      icon: <ExclamationCircleFilled />,
+      content: 'Are you sure you want to log out?',
+      onOk: handleLogout,
+      okText: 'Yes',
+      okType: 'primary',
+      okButtonProps: { danger: true },
+      cancelText: 'No',
+    });
+  };
+
   const profileMenuItems = [
     {
       key: 'profile',
       label: (
-        <Link to={process.env.REACT_APP_USER_PROFILE_URL}>View Profile</Link>
+        // <Link to={process.env.REACT_APP_USER_PROFILE_URL}>View Profile</Link>
+        <Link to="/profile">View Profile</Link>
       ),
+    },
+    {
+      key: 'logout',
+      label: (
+        // eslint-disable-next-line
+        <a href="#" onClick={showLogoutConfirm}>
+          Logout
+        </a>
+
+      )
     },
     {
       key: 'theme',
@@ -80,8 +114,34 @@ function Navbar() {
 
   const workspacesMenu = {
     items: workspacesMenuItems,
-    onClick: handleWorkspacesMenuClick,
+    onClick: handleSelectWorkspace,
   };
+
+  function MyAvatar(props) {
+    if (currentUser.photoURL) {
+      return (
+        <Avatar
+          {...props}
+          alt={firstName}
+          src={currentUser.photoURL}
+          style={{
+            cursor: 'pointer',
+          }}
+        />
+      );
+    }
+    return (
+      <Avatar
+        {...props}
+        style={{
+          backgroundColor: getColor(firstName),
+          cursor: 'pointer',
+        }}
+      >
+        {avatarName}
+      </Avatar>
+    );
+  }
 
   const Loading = () => (
     <div>Loading...</div>
@@ -95,12 +155,16 @@ function Navbar() {
           <ul>
             {navbarState.createLink && typeof navbarState.createLink === 'string' &&
               <li>
-                <Link to={navbarState.createLink}>Create</Link>
+                <Button type="primary"
+                  onClick={() => navigate(navbarState.createLink)}
+                >
+                  Create
+                </Button>
               </li>
             }
             {navbarState.createLink && typeof navbarState.createLink === 'function' &&
               <li>
-                <Button type="link"
+                <Button type="primary"
                   onClick={navbarState.createLink}
                 >
                   Create
@@ -124,7 +188,7 @@ function Navbar() {
                         {selectedWorkspace ?
                           <span>{selectedWorkspace.name}</span>
                           :
-                          <span style={{ fontWeight: 600 }}>{'Select Workspace'}</span>
+                          <span style={{ fontWeight: 600 }}>Select Workspace</span>
                         }
                       </div>
                     </div>
@@ -134,7 +198,7 @@ function Navbar() {
                     <div><TeamOutlined /></div>
                     <div style={{ marginLeft: 7 }}>
                       <Link to="/workspaces/new">
-                        <span style={{ fontWeight: 600 }}>{'Create Workspace'}</span>
+                        <span style={{ fontWeight: 600 }}>Create Workspace</span>
                       </Link>
                     </div>
                   </div>
@@ -146,14 +210,7 @@ function Navbar() {
         {currentUser !== null &&
           <div>
             <Dropdown menu={profileMenu} placement="bottomRight" arrow>
-              <Avatar
-                style={{
-                  backgroundColor: getColor(currentUser.firstName),
-                  cursor: 'pointer',
-                }}
-              >
-                {currentUser.firstName}
-              </Avatar>
+              <MyAvatar />
             </Dropdown>
           </div>
         }

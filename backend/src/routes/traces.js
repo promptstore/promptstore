@@ -1,30 +1,33 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { tracesService } = services;
 
-  app.get('/api/traces', auth, async (req, res, next) => {
-    const traces = await tracesService.getTraces();
+  app.get('/api/workspaces/:workspaceId/traces', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const traces = await tracesService.getTraces(workspaceId);
     res.json(traces);
   });
 
   app.get('/api/traces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const trace = await tracesService.getTrace(id);
-    logger.debug('trace:', trace);
+    // logger.debug('trace:', trace);
     res.json(trace);
   });
 
   app.post('/api/traces', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const id = await tracesService.upsertTrace(values);
-    res.json(id);
+    const trace = await tracesService.upsertTrace(values, username);
+    res.json(trace);
   });
 
   app.put('/api/traces/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await tracesService.upsertTrace({ id, ...values });
-    res.json({ status: 'OK' });
+    const trace = await tracesService.upsertTrace({ ...values, id }, username);
+    res.json(trace);
   });
 
   app.delete('/api/traces/:id', auth, async (req, res, next) => {

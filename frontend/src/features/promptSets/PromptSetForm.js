@@ -37,8 +37,9 @@ import omit from 'lodash.omit';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { VersionsModal } from '../apps/Playground/VersionsModal';
 import { TemplateModal } from './TemplateModal';
 import {
@@ -166,6 +167,7 @@ export function PromptSetForm() {
   const settings = useSelector(selectSettings);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { currentUser } = useContext(UserContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
@@ -197,7 +199,7 @@ export function PromptSetForm() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Prompt',
+      title: 'Prompt Template',
     }));
     if (!isNew) {
       dispatch(getPromptSetAsync(id));
@@ -283,6 +285,7 @@ export function PromptSetForm() {
       }
     } else {
       values = {
+        ...promptSet,
         ...values,
         key: values.skill,
       };
@@ -397,9 +400,9 @@ export function PromptSetForm() {
             ) : null}
           </DragOverlay>
         </DndContext>
-        <Form.Item wrapperCol={{ offset: 4, span: 8 }}>
+        <Form.Item wrapperCol={{ offset: 4, span: 12 }}>
           <div style={{ marginLeft: 35 }}>
-            <Space direction="horizontal">
+            <Space direction="horizontal" wrap={true}>
               <span style={{ whiteSpace: 'nowrap' }}>Available variables:</span>
               <Tag key="maxTokens">maxTokens</Tag>
               {vars.map((v) => (
@@ -590,6 +593,17 @@ export function PromptSetForm() {
               <TagsInput existingTags={existingTags} />
             </Form.Item>
           </Form.Item>
+          {currentUser?.roles?.includes('admin') ?
+            <Form.Item
+              colon={false}
+              label="Public?"
+              name="isPublic"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+            : null
+          }
           <Form.Item
             label="Description"
             name="description"

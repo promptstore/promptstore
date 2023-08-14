@@ -5,7 +5,9 @@ import { Button, Form, Input, Select, Space, Switch } from 'antd';
 import debounce from 'lodash.debounce';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getModelsAsync as getHfModelsAsync,
   selectModels as selectHfModels,
@@ -72,6 +74,8 @@ export function ModelForm() {
   const providersLoading = useSelector(selectProvidersLoading);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { currentUser } = useContext(UserContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
@@ -129,6 +133,7 @@ export function ModelForm() {
       dispatch(createModelAsync({
         values: {
           ...values,
+          workspaceId: selectedWorkspace.id,
         },
       }));
     } else {
@@ -191,10 +196,26 @@ export function ModelForm() {
         <Form.Item
           colon={false}
           label="Disabled?"
-          name="disabled"
-          valuePropName="checked"
         >
-          <Switch />
+          <Form.Item
+            name="disabled"
+            valuePropName="checked"
+            style={{ display: 'inline-block', margin: 0 }}
+          >
+            <Switch />
+          </Form.Item>
+          {currentUser?.roles?.includes('admin') ?
+            <Form.Item
+              colon={false}
+              label="Public?"
+              name="isPublic"
+              valuePropName="checked"
+              style={{ display: 'inline-block', margin: '0 16px' }}
+            >
+              <Switch />
+            </Form.Item>
+            : null
+          }
         </Form.Item>
         <Form.Item
           label="Type"
@@ -308,7 +329,7 @@ export function ModelForm() {
             </Form.Item>
             <Form.Item
               label="Model Name"
-              name="modeName"
+              name="modelName"
               wrapperCol={{ span: 5 }}
             >
               <SearchInput />

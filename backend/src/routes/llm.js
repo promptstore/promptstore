@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
-const { appendSentence, downloadImage, getMessages } = require('../utils');
+import { appendSentence, downloadImage, getMessages } from '../utils';
 
 const COPY_GENERATION_SKILL = 'copy_generation';
 
@@ -14,7 +14,7 @@ const maxTokensByFormat = {
   'sms': 25,
 };
 
-module.exports = ({ app, auth, constants, logger, mc, services }) => {
+export default ({ app, auth, constants, logger, mc, services }) => {
 
   const {
     llmService,
@@ -84,7 +84,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
 
   app.post('/api/chat', auth, async (req, res) => {
     logger.debug('body:', req.body);
-    let { indexName, maxTokens, messages, model } = req.body;
+    let { indexName, maxTokens, messages, model, workspaceId } = req.body;
     let hits;
     if (indexName) {
       const message = messages[messages.length - 1];
@@ -94,7 +94,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
       logger.log('debug', 'hits: %s', hits);
       if (hits?.length) {
         const context = hits.map(h => h.content_text).join('\n\n');
-        const promptSets = await promptSetsService.getPromptSetsBySkill('qa');
+        const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, 'qa');
         if (promptSets.length) {
           const prompts = promptSets[0].prompts;
           const features = { content, context };
@@ -102,8 +102,11 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
         }
       }
     }
-    const completion = await llmService.createChatCompletion('openai', messages, model, maxTokens, 1);
-
+    const modelParams = {
+      max_tokens: maxTokens,
+      n: 1,
+    };
+    const completion = await llmService.createChatCompletion({ provider: 'openai', messages, model, modelParams });
     res.json(completion);
   });
 
@@ -190,7 +193,11 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
 
     logger.debug('messages:', messages);
 
-    return llmService.fetchChatCompletion(provider, messages, model, maxTokens, n);
+    const modelParams = {
+      max_tokens: maxTokens,
+      n,
+    }
+    return llmService.fetchChatCompletion({ provider, messages, model, modelParams });
   };
 
   const getMaxTokens = (app) => {
@@ -207,7 +214,6 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
     return maxTokens || DEFAULT_MAX_TOKENS;
   };
 
-  // TODO should promptsets be scoped by workspace
   const getPromptSet = async (workspaceId, promptSetId) => {
     if (promptSetId) {
       const promptSet = await promptSetsService.getPromptSet(promptSetId);
@@ -216,7 +222,7 @@ module.exports = ({ app, auth, constants, logger, mc, services }) => {
       }
       return promptSet;
     }
-    const promptSets = promptSetsService.getPromptSetsBySkill(COPY_GENERATION_SKILL);
+    const promptSets = promptSetsService.getPromptSetsBySkill(workspaceId, COPY_GENERATION_SKILL);
     if (!promptSets.length) {
       throw new Error(`PromptSet (${COPY_GENERATION_SKILL}) not found`);
     }

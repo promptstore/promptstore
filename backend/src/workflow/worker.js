@@ -1,21 +1,18 @@
-const Minio = require('minio');
-const { NativeConnection, Worker } = require('@temporalio/worker');
-const dotenv = require('dotenv');
-const path = require('path');
+import Minio from 'minio';
+import { NativeConnection, Worker } from '@temporalio/worker';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const pg = require('../db');
-const { ExtractorService } = require('../services/ExtractorService');
-const { UploadsService } = require('../services/UploadsService');
-const { getPlugins } = require('../utils');
+import logger from '../logger';
+import pg from '../db';
+import { ExtractorService } from '../services/ExtractorService';
+import { UploadsService } from '../services/UploadsService';
+import { getPlugins } from '../utils';
 
-const { createActivities } = require('./activities');
+import { createActivities } from './activities';
 
-console.log('ENV:', process.env.ENV);
-if (process.env.ENV === 'dev') {
-  dotenv.config();
-}
-
-const logger = require('../logger');
+let ENV = process.env.ENV;
+logger.debug('ENV:', ENV);
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
@@ -32,10 +29,11 @@ const mc = new Minio.Client({
   secretKey: AWS_SECRET_KEY,
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(__dirname, '..');
 
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
-const extractorPlugins = getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
+const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const uploadsService = UploadsService({ pg, logger });
@@ -49,7 +47,7 @@ async function runUploadsWorker() {
   // the Temporal server.
   const worker = await Worker.create({
     connection,
-    workflowsPath: require.resolve('./workflows'),
+    workflowsPath: path.join(__dirname, 'workflows.js'),
     activities: createActivities(mc, extractorService, uploadsService, logger),
     taskQueue: 'uploads',
     namespace: TEMPORAL_NAMESPACE || 'promptstore',
@@ -79,7 +77,7 @@ async function runReloadsWorker() {
   // the Temporal server.
   const worker = await Worker.create({
     connection,
-    workflowsPath: require.resolve('./workflows'),
+    workflowsPath: path.join(__dirname, 'workflows.js'),
     activities: createActivities(mc, extractorService, uploadsService, logger),
     taskQueue: 'reloads',
     namespace: TEMPORAL_NAMESPACE || 'promptstore',

@@ -69,11 +69,19 @@ export const getUserAsync = (id) => async (dispatch) => {
 export const getCurrentUserAsync = () => async (dispatch) => {
   const url = `/api/users/current`;
   try {
-    const res = await axios.get(url);
+    // const res = await axios.get(url);
+    const res = await http.get(url);
     dispatch(setCurrentUser({ currentUser: res.data }));
-  } catch (error) {
-    window.location.replace('/login');
+  } catch (err) {
+    console.error(err);
+    // window.location.replace('/login');
   }
+};
+
+export const upsertUserAsync = ({ user }) => async (dispatch) => {
+  const url = '/api/users';
+  const res = await http.post(url, user);
+  dispatch(setUsers({ users: [res.data] }));
 };
 
 export const selectAuthStatusChecked = (state) => state.users.authStatusChecked;

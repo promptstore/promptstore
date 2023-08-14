@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function ApiLoader({ __name, constants, logger }) {
 
@@ -38,4 +38,4 @@ function ApiLoader({ __name, constants, logger }) {
   };
 }
 
-module.exports = ApiLoader;
+export default ApiLoader;

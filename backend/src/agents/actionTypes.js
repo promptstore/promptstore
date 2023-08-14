@@ -1,4 +1,4 @@
-class AgentAction {
+export class AgentAction {
 
   constructor(action, toolInput, originalText) {
     this.action = action;
@@ -7,15 +7,10 @@ class AgentAction {
   }
 }
 
-class AgentFinish {
+export class AgentFinish {
 
   constructor(returnValues, originalText) {
     this.returnValues = returnValues;
     this.originalText = originalText;
   }
-}
-
-module.exports = {
-  AgentAction,
-  AgentFinish,
 }

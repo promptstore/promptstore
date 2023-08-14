@@ -6,8 +6,8 @@ import { CSVLink } from 'react-csv';
 import * as dayjs from 'dayjs';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteTrainingDataAsync,
   getTrainingDataAsync,

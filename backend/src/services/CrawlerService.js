@@ -1,6 +1,6 @@
-const { PlaywrightCrawler, Dataset } = require('crawlee');
+import { PlaywrightCrawler, Dataset } from 'crawlee';
 
-function CrawlerService({ logger }) {
+export function CrawlerService({ logger }) {
 
   async function crawl(indexName, url, spec, maxRequestsPerCrawl) {
 
@@ -88,5 +88,3 @@ function CrawlerService({ logger }) {
   };
 
 }
-
-module.exports = { CrawlerService };

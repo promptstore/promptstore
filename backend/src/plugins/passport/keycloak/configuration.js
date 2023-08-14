@@ -1,4 +1,4 @@
-module.exports = class KeycloakEnvConfig {
+class KeycloakEnvConfig {
 
   constructor(inputOptions) {
     const defaultOptions = {
@@ -22,3 +22,5 @@ module.exports = class KeycloakEnvConfig {
   }
 
 }
+
+export default KeycloakEnvConfig;

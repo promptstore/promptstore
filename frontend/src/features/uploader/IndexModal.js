@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button, Divider, Form, Input, Modal, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { engineOptions } from '../../options';
 import {
   getFunctionsByTagAsync,
@@ -55,6 +56,8 @@ export function IndexModal({
   const indexesLoaded = useSelector(selectIndexesLoaded);
   const indexesLoading = useSelector(selectIndexesLoading);
 
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+
   const functionOptions = useMemo(() => {
     return Object.values(functions)
       .filter((func) => func.tags?.includes(CHUNKER_TAG))
@@ -84,15 +87,15 @@ export function IndexModal({
 
   useEffect(() => {
     if (!indexesLoaded && open) {
-      dispatch(getIndexesAsync());
+      dispatch(getIndexesAsync({ workspaceId: selectedWorkspace.id }));
     }
   }, [indexesLoaded, open]);
 
   useEffect(() => {
-    if (!functionsLoaded && splitterValue === 'chunker') {
-      dispatch(getFunctionsByTagAsync({ tag: CHUNKER_TAG }));
+    if (!functionsLoaded && splitterValue === 'chunker' && selectedWorkspace) {
+      dispatch(getFunctionsByTagAsync({ tag: CHUNKER_TAG, workspace: selectedWorkspace.id }));
     }
-  }, [functionsLoaded, splitterValue]);
+  }, [functionsLoaded, splitterValue, selectedWorkspace]);
 
   const createNewIndex = (ev) => {
     ev.preventDefault();

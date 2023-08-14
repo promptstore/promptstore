@@ -1,7 +1,2 @@
-const StructuredDocumentLoader = require('./StructuredDocumentLoader');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: StructuredDocumentLoader,
-  constants,
-}
+export { default as plugin } from './StructuredDocumentLoader';
+export { default as constants } from './constants';

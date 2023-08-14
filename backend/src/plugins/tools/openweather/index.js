@@ -1,7 +1,2 @@
-const OpenWeather = require('./OpenWeather');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: OpenWeather,
-  constants,
-}
+export { default as plugin } from './OpenWeather';
+export { default as constants } from './constants';

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Button, Divider, Form, Input, Modal, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
-import WorkspaceContext from '../../context/WorkspaceContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   createSettingAsync,
   getSettingAsync,

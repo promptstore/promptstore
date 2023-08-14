@@ -17,6 +17,10 @@ CREATE TABLE public.file_uploads
     user_id character varying(255) COLLATE pg_catalog."default",
     filename character varying(255) COLLATE pg_catalog."default",
     val json,
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
     CONSTRAINT file_uploads_pkey PRIMARY KEY (id)
 )
 WITH (
@@ -333,6 +337,7 @@ CREATE SEQUENCE public."models_id_seq" AS bigint;
 CREATE TABLE public."models"
 (
     id integer NOT NULL DEFAULT nextval('"models_id_seq"'::regclass),
+    workspace_id integer,
     name character varying(255) COLLATE pg_catalog."default",
     source character varying(255) COLLATE pg_catalog."default",
     created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
@@ -456,6 +461,7 @@ CREATE TABLE public."chat_sessions"
     id integer NOT NULL DEFAULT nextval('"chat_sessions_id_seq"'::regclass),
     workspace_id integer,
     name character varying(255) COLLATE pg_catalog."default",
+    type character varying(255) COLLATE pg_catalog."default",
     created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
     created_by character varying(255) COLLATE pg_catalog."default",
     modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
@@ -556,6 +562,7 @@ CREATE SEQUENCE public."data_sources_id_seq" AS bigint;
 CREATE TABLE public."data_sources"
 (
     id integer NOT NULL DEFAULT nextval('"data_sources_id_seq"'::regclass),
+    workspace_id integer,
     name character varying(255) COLLATE pg_catalog."default",
     type character varying(255) COLLATE pg_catalog."default",
     created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
@@ -633,3 +640,40 @@ ALTER SEQUENCE public."agents_id_seq"
 
 ALTER SEQUENCE public."agents_id_seq"
     OWNED BY public."agents"."id";
+
+
+-- Table: public."traces"
+
+DROP TABLE IF EXISTS public."traces";
+
+-- Sequence: public."traces_id_seq"
+
+DROP SEQUENCE IF EXISTS public."traces_id_seq";
+
+CREATE SEQUENCE public."traces_id_seq" AS bigint;
+
+CREATE TABLE public."traces"
+(
+    id integer NOT NULL DEFAULT nextval('"traces_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "traces_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."traces"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."traces_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."traces_id_seq"
+    OWNED BY public."traces"."id";

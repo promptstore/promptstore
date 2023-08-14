@@ -1,19 +1,25 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function ModelsService({ pg, logger }) {
+export function ModelsService({ pg, logger }) {
 
-  async function getModels() {
+  async function getModels(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
-      SELECT id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
+      WHERE workspace_id = $1
+      OR (val->>'isPublic')::boolean = true
       `;
-    const { rows } = await pg.query(q);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
     const models = rows.map((row) => ({
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       created: row.created,
       createdBy: row.created_by,
@@ -23,16 +29,20 @@ function ModelsService({ pg, logger }) {
     return models;
   }
 
-  async function getModelByKey(key) {
+  async function getModelByKey(workspaceId, key) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return null;
+    }
     if (key === null || typeof key === 'undefined') {
       return null;
     }
     let q = `
-      SELECT id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE val->>'key' = $1
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND val->>'key' = $2
       `;
-    const { rows } = await pg.query(q, [key]);
+    const { rows } = await pg.query(q, [workspaceId, key]);
     if (rows.length === 0) {
       return null;
     }
@@ -40,6 +50,7 @@ function ModelsService({ pg, logger }) {
     return {
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       created: row.created,
       createdBy: row.created_by,
@@ -48,16 +59,20 @@ function ModelsService({ pg, logger }) {
     };
   }
 
-  async function getModelByName(name) {
+  async function getModelByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return null;
+    }
     if (name === null || typeof name === 'undefined') {
       return null;
     }
     let q = `
-      SELECT id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE name = $1
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND name = $2
       `;
-    const { rows } = await pg.query(q, [name]);
+    const { rows } = await pg.query(q, [workspaceId, name]);
     if (rows.length === 0) {
       return null;
     }
@@ -65,6 +80,7 @@ function ModelsService({ pg, logger }) {
     return {
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       created: row.created,
       createdBy: row.created_by,
@@ -78,7 +94,7 @@ function ModelsService({ pg, logger }) {
       return null;
     }
     let q = `
-      SELECT id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
       WHERE id = $1
       `;
@@ -90,6 +106,7 @@ function ModelsService({ pg, logger }) {
     return {
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       created: row.created,
       createdBy: row.created_by,
@@ -98,29 +115,30 @@ function ModelsService({ pg, logger }) {
     };
   }
 
-  async function upsertModel(model) {
+  async function upsertModel(model, username) {
     if (model === null || typeof model === 'undefined') {
       return null;
     }
-    const val = omit(model, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const val = omit(model, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedModel = await getModel(model.id);
     if (savedModel) {
       await pg.query(`
         UPDATE models
-        SET name = $1, val = $2
-        WHERE id = $3
+        SET name = $1, val = $2, modified_by = $3, modified = $4
+        WHERE id = $5
         `,
-        [model.name, val, model.id]
+        [model.name, val, username, new Date(), model.id]
       );
-      return model.id;
+      return { ...savedModel, ...model };
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO models (name, val)
-        VALUES ($1, $2) RETURNING id
+        INSERT INTO models (workspace_id, name, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `,
-        [model.name, val]
+        [model.workspaceId, model.name, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...model, id: rows[0].id };
     }
   }
 
@@ -146,7 +164,3 @@ function ModelsService({ pg, logger }) {
     deleteModels,
   };
 }
-
-module.exports = {
-  ModelsService,
-};

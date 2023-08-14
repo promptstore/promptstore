@@ -1,4 +1,4 @@
-function FeatureStoreService({ logger, registry }) {
+export function FeatureStoreService({ logger, registry }) {
 
   async function getOnlineFeatures(featurestore, params, entityId) {
     logger.debug('featurestore:', featurestore);
@@ -10,8 +10,4 @@ function FeatureStoreService({ logger, registry }) {
     getOnlineFeatures,
   }
 
-}
-
-module.exports = {
-  FeatureStoreService,
 }

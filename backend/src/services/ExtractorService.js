@@ -1,4 +1,4 @@
-function ExtractorService({ registry, logger }) {
+export function ExtractorService({ registry, logger }) {
 
   async function extract(provider, file) {
     const instance = registry[provider];
@@ -18,8 +18,4 @@ function ExtractorService({ registry, logger }) {
     extract,
   };
 
-}
-
-module.exports = {
-  ExtractorService,
 }

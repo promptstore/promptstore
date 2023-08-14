@@ -1,15 +1,19 @@
-const axios = require('axios');
-const get = require('lodash.get');
-const isEmpty = require('lodash.isempty');
-const isObject = require('lodash.isobject');
-const merge = require('lodash.merge');
-const set = require('lodash.set');
-const { mapJsonAsync } = require('jsonpath-mapper');
-const { validate } = require('jsonschema');
+import axios from 'axios';
+import get from 'lodash.get';
+import isEmpty from 'lodash.isempty';
+import isObject from 'lodash.isobject';
+import set from 'lodash.set';
+import { mapJsonAsync } from 'jsonpath-mapper';
+import { validate } from 'jsonschema';
 
-const { fillTemplate, getMessages } = require('../utils');
+import { DebugCallback } from '../core/DebugCallback.ts';
+import { TracingCallback } from '../core/TracingCallback.ts';
+import { LocalExecutor } from '../core/LocalExecutor.ts';
+import { getInputString } from '../core/utils.js';
+import { fillTemplate, getMessages } from '../utils';
+import CoreModelAdapter from './CoreModelAdapter.ts'
 
-function ExecutionsService({ logger, services }) {
+export function ExecutionsService({ logger, services }) {
 
   const {
     dataSourcesService,
@@ -27,35 +31,71 @@ function ExecutionsService({ logger, services }) {
     tracesService,
   } = services;
 
-  const executeFunction = async (func, args, params, functions, batch = false, tracer) => {
+  const adapter = CoreModelAdapter({
+    logger, services: {
+      dataSourcesService,
+      featureStoreService,
+      functionsService,
+      indexesService,
+      llmService,
+      modelProviderService,
+      modelsService,
+      promptSetsService,
+      searchService,
+      sqlSourceService,
+    }
+  });
 
-    // const executor = new LocalExecutor({
-    //   dataSourcesService,
-    //   featureStoreService,
-    //   functionsService,
-    //   indexesService,
-    //   llmService,
-    //   modelsService,
-    //   promptSetsService,
-    //   searchService,
-    //   tracesService,
-    // });
-    // const response = await executor.run({
-    //   semanticFunctionName: func.name,
-    //   args,
-    //   modelKey: params.modelKey || 'gpt-3.5-turbo',
-    //   modelParams: {
-    //     maxTokens: 140,
-    //     n: 1,
-    //   },
-    //   isBatch: batch,
-    // });
-    // return {
-    //   data: {
-    //     ...response,
-    //     content: response.choices[0].message.content,
-    //   },
-    // };
+  const executeFunction = async ({ workspaceId, username, semanticFunctionName, func, args, history, params, functions, batch = false, tracer }) => {
+    const semanticFunctionInfo = func || await functionsService.getFunctionByName(workspaceId, semanticFunctionName);
+    if (!semanticFunctionInfo) {
+      const errors = [
+        {
+          message: `Function ${semanticFunctionName} not found`,
+        },
+      ];
+      return { errors };
+    }
+
+    const debugCallback = new DebugCallback();
+    const tracingCallback = new TracingCallback({ workspaceId, username, tracesService });
+    const semanticFunction = await adapter.createSemanticFunction(workspaceId, semanticFunctionInfo, [debugCallback, tracingCallback]);
+
+    const executor = new LocalExecutor();
+    const userContent = args.content;
+    if (userContent) {
+      const wordCount = userContent.split(/\s+/).length;
+      const maxWords = Math.floor(wordCount * 1.2);
+      args = {
+        ...args,
+        wordCount,
+        maxWords,
+      };
+    }
+    try {
+      const response = await executor.runFunction({
+        semanticFunction,
+        args,
+        history,
+        modelKey: params.modelKey || params.model || 'gpt-3.5-turbo',
+        modelParams: {
+          max_tokens: params.maxTokens,
+          n: params.n,
+        },
+        isBatch: batch,
+        workspaceId,
+        username,
+      });
+      return { data: response };
+    } catch (err) {
+      logger.error(err, err.stack);
+      const errors = [
+        {
+          message: String(err),
+        },
+      ];
+      return { errors };
+    }
 
     logger.log('debug', 'execute function: %s', func.name);
     logger.log('debug', 'args:', args);
@@ -549,7 +589,13 @@ function ExecutionsService({ logger, services }) {
       }
 
       logger.log('debug', 'params: modelKey=%s maxTokens=%s n=%s', model.key, maxTokens, n);
-      const response = await llmService.fetchChatCompletion(model.provider, messages, model.key, maxTokens, n, functions, stop);
+      const modelParams = {
+        max_tokens: maxTokens,
+        n,
+        functions,
+        stop,
+      };
+      const response = await llmService.fetchChatCompletion({ provider: model.provider, messages, model: model.key, modelParams });
 
       try {
         const contents = response.choices.map((c) => c.message.content);
@@ -696,136 +742,55 @@ function ExecutionsService({ logger, services }) {
     return { errors };
   };
 
-  class Tracer {
-
-    constructor(name, db) {
-      this.name = name;
-      this.db = db;
-      this.trace = [];
-      this.stack = [this.trace];
+  const executeComposition = async ({ workspaceId, username, compositionName, args, params, batch = false }) => {
+    const compositionInfo = await compositionsService.getCompositionByName(workspaceId, compositionName);
+    if (!compositionInfo) {
+      const errors = [
+        {
+          message: `Composition ${compositionName} not found`,
+        },
+      ];
+      return { errors };
     }
 
-    currentTrace() {
-      return this.stack[this.stack.length - 1];
-    }
+    const debugCallback = new DebugCallback();
+    const tracingCallback = new TracingCallback({ workspaceId, username, tracesService });
+    const composition = await adapter.createComposition(workspaceId, compositionInfo, [debugCallback, tracingCallback]);
 
-    currentStep() {
-      const trace = this.currentTrace();
-      return trace[trace.length - 1];
-    }
-
-    push(step) {
-      this.currentTrace().push(step);
-      return this;
-    }
-
-    addProperty(key, value) {
-      this.currentStep()[key] = value;
-      return this;
-    }
-
-    addParentProperty(key, value) {
-      const trace = this.stack[this.stack.length - 2];
-      trace[trace.length - 1][key] = value;
-    }
-
-    down() {
-      const children = [];
-      this.currentStep().children = children;
-      this.stack.push(children);
-      return this;
-    }
-
-    up() {
-      this.stack.pop();
-      return this;
-    }
-
-    async close() {
-      const record = {
-        name: this.name,
-        trace: this.trace,
+    const executor = new LocalExecutor();
+    const userContent = getInputString(args);
+    if (userContent) {
+      const wordCount = userContent.split(/\s+/).length;
+      const maxWords = Math.floor(wordCount * 1.2);
+      args = {
+        ...args,
+        wordCount,
+        maxWords,
       };
-      await this.db.upsertTrace(record);
     }
-
+    try {
+      const response = await executor.runComposition({
+        composition,
+        args,
+        modelKey: params.modelKey || params.model || 'gpt-3.5-turbo',
+        modelParams: {
+          max_tokens: params.maxTokens,
+          n: params.n,
+        },
+        isBatch: batch,
+        workspaceId,
+        username,
+      });
+      return { data: response };
+    } catch (err) {
+      const errors = [
+        {
+          message: String(err),
+        },
+      ];
+      return { errors };
+    }
   }
-
-  const executeGraph = async (args, params, nodes, edges) => {
-    logger.log('debug', 'execute graph');
-    logger.log('debug', 'args: %s', args);
-    logger.log('debug', 'params: %s', params);
-
-    const inner = async (node) => {
-      // logger.log('debug', 'node: %s', node);
-      if (node.type === 'requestNode') {
-        return args;
-      }
-
-      const sourceIds = edges.filter((e) => e.target === node.id).map((e) => e.source);
-      let res = {};
-      for (const sourceId of sourceIds) {
-        const sourceNode = nodes.find((n) => n.id === sourceId);
-        if (!sourceNode) {
-          throw new Error(`Source node (${sourceId}) not found.`);
-        }
-        const input = await inner(sourceNode);
-        if (node.type === 'functionNode') {
-          const functionId = node.data.functionId;
-          const func = await functionsService.getFunction(functionId);
-          const { data, errors } = await executeFunction(func, input, params);
-          if (errors) {
-            logger.log('error', errors);
-            throw new Error();
-          }
-          res = merge(res, data);
-        } else if (node.type === 'mapperNode') {
-          const mappingData = node.data.mappingData;
-          const template = eval(`(${mappingData})`);
-          const data = await mapJsonAsync(input, template);
-          res = merge(res, data);
-        } else {
-          res = merge(res, input);
-        }
-      }
-
-      return res;
-    };
-
-    const output = nodes.find((n) => n.type === 'outputNode');
-    if (!output) {
-      return {
-        error: 'No output node found',
-      };
-    }
-
-    const result = await inner(output);
-    return result;
-  };
-
-  const mapArgs = async (mappingTemplate, args, isArrayType) => {
-    let request;
-    if (!isEmpty(mappingTemplate)) {
-      mappingTemplate = mappingTemplate.trim();
-      // logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
-      const template = eval(`(${mappingTemplate})`);
-      // logger.log('debug', 'template: ', template, ' ', typeof template);
-      // logger.log('debug', 'args: ', args, ' ', typeof args);
-      if (isArrayType) {
-        // Looks like `mapEntries/mapEntriesAsync` was planned but not built
-        // request = await mapEntriesAsync(args, template);
-        const promises = args.map((val) => mapJsonAsync(val, template));
-        request = Promise.all(promises);
-      } else {
-        request = await mapJsonAsync(args, template);
-      }
-    } else {
-
-      request = args;
-    }
-
-    return request;
-  };
 
   /**
    * Current order of operation is:
@@ -838,13 +803,13 @@ function ExecutionsService({ logger, services }) {
    * @returns 
    */
   const mapReturnType = async (mappingTemplate, ret, isArrayType) => {
-    // logger.log('debug', 'ret: %s', ret);
+    // logger.debug('ret:', ret);
     let response;
     if (!isEmpty(mappingTemplate)) {
       mappingTemplate = mappingTemplate.trim();
       logger.log('debug', 'mappingTemplate: ', mappingTemplate, ' ', typeof mappingTemplate);
       const template = eval(`(${mappingTemplate})`);
-      // logger.log('debug', 'template: ', template, ' ', typeof template);
+      // logger.debug('template:', template, typeof template);
       if (isArrayType) {
         // Looks like `mapEntries/mapEntriesAsync` was planned but not built
         // response = await mapEntriesAsync(ret, template);
@@ -857,18 +822,14 @@ function ExecutionsService({ logger, services }) {
 
       response = ret;
     }
-    logger.log('debug', 'response: %s', response);
+    logger.debug('response:', response);
 
     return response;
   };
 
   return {
+    executeComposition,
     executeFunction,
-    executeGraph,
   };
 
-}
-
-module.exports = {
-  ExecutionsService,
 }

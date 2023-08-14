@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Form, Modal, Select } from 'antd';
 
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getTemplatesAsync,
   selectLoading,
@@ -23,6 +24,8 @@ export function TemplateModal({
   const loading = useSelector(selectLoading);
   const templates = useSelector(selectTemplates);
 
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+
   const dispatch = useDispatch();
 
   const [form] = Form.useForm();
@@ -34,7 +37,7 @@ export function TemplateModal({
   })));
 
   useEffect(() => {
-    dispatch(getTemplatesAsync());
+    dispatch(getTemplatesAsync(selectedWorkspace.id));
   }, []);
 
   const onOk = async () => {

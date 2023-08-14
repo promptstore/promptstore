@@ -25,8 +25,9 @@ import isObject from 'lodash.isobject';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getDataSourcesAsync,
   selectDataSources,
@@ -156,6 +157,7 @@ export function FunctionForm() {
   const testResultLoading = useSelector(selectTestResultLoading);
 
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
+  const { currentUser } = useContext(UserContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
@@ -269,10 +271,6 @@ export function FunctionForm() {
       createLink: null,
       title: 'Semantic Function',
     }));
-    dispatch(getModelsAsync());
-    // dispatch(getDataSourcesAsync({ type: 'featurestore' }));
-    dispatch(getDataSourcesAsync());
-    dispatch(getIndexesAsync());
     dispatch(getGuardrailsAsync());
     dispatch(getOutputParsersAsync());
     if (!isNew) {
@@ -282,11 +280,13 @@ export function FunctionForm() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
-      dispatch(getSettingAsync({
-        workspaceId: selectedWorkspace.id,
-        key: TAGS_KEY,
-      }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getIndexesAsync({ workspaceId }));
+      // dispatch(getDataSourcesAsync({ type: 'featurestore', workspaceId }));
+      dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getModelsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
+      dispatch(getSettingAsync({ key: TAGS_KEY, workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -320,6 +320,7 @@ export function FunctionForm() {
       dispatch(createFunctionAsync({
         values: {
           ...values,
+          workspaceId: selectedWorkspace.id,
         },
       }));
     } else {
@@ -476,6 +477,7 @@ export function FunctionForm() {
         args: formData,
         modelId: impl.modelId,
         name: func.name,
+        workspaceId: selectedWorkspace.id,
       }));
     }
   };
@@ -956,24 +958,33 @@ export function FunctionForm() {
           >
             <TextArea autoSize={{ minRows: 1, maxRows: 14 }} style={{ minWidth: 437 }} />
           </Form.Item>
-          <Form.Item
-            label="System Function?"
-          >
+          {currentUser?.roles?.includes('admin') ?
             <Form.Item
-              name="isSystem"
-              valuePropName="checked"
-              style={{ display: 'inline-block', margin: 0 }}
+              label="Public?"
             >
-              <Switch />
+              <Form.Item
+                name="isPublic"
+                valuePropName="checked"
+                style={{ display: 'inline-block', margin: 0 }}
+              >
+                <Switch />
+              </Form.Item>
+              <Form.Item
+                label="Tags"
+                name="tags"
+                style={{ display: 'inline-block', margin: '0 24px' }}
+              >
+                <TagsInput existingTags={existingTags} />
+              </Form.Item>
             </Form.Item>
+            :
             <Form.Item
               label="Tags"
               name="tags"
-              style={{ display: 'inline-block', margin: '0 24px' }}
             >
               <TagsInput existingTags={existingTags} />
             </Form.Item>
-          </Form.Item>
+          }
           <Form.Item
             label="Arguments"
           >
@@ -1023,25 +1034,37 @@ export function FunctionForm() {
                       borderRight: 'none',
                       padding: '8px 20px',
                     }}>
-                      <Form.Item
-                        name={[field.name, 'modelId']}
-                        label="Model"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
-                        rules={[
-                          {
-                            required: true,
-                            message: 'Please select a model',
-                          },
-                        ]}
-                      >
-                        <Select options={modelOptions} optionFilterProp="label" />
-                      </Form.Item>
+                      <div style={{ display: 'flex' }}>
+                        <Form.Item
+                          name={[field.name, 'modelId']}
+                          label="Model"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                          rules={[
+                            {
+                              required: true,
+                              message: 'Please select a model',
+                            },
+                          ]}
+                          style={{ flex: 1 }}
+                        >
+                          <Select options={modelOptions} optionFilterProp="label" />
+                        </Form.Item>
+                        {implementationsValue?.[index]?.modelId ?
+                          <Button
+                            type="link"
+                            icon={<LinkOutlined />}
+                            onClick={() => navigate(`/models/${implementationsValue?.[index]?.modelId}`)}
+                            style={{ marginTop: 32, width: 32 }}
+                          />
+                          : null
+                        }
+                      </div>
                       {getModel(index)?.type === 'gpt' ?
                         <div style={{ display: 'flex' }}>
                           <Form.Item
                             name={[field.name, 'promptSetId']}
-                            label="Prompt"
+                            label="Prompt Template"
                             labelCol={{ span: 24 }}
                             wrapperCol={{ span: 24 }}
                             style={{ flex: 1 }}
@@ -1183,7 +1206,7 @@ export function FunctionForm() {
                           lineHeight: '22px',
                           whiteSpace: 'nowrap',
                         }}>
-                          Indexes
+                          Semantic Indexes
                         </label>
                       </div>
                       <Form.List name={[field.name, 'indexes']}>

@@ -1,8 +1,8 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-const { hashStr } = require('../utils');
+import { hashStr } from '../utils';
 
-function ContentService({ pg, logger }) {
+export function ContentService({ pg, logger }) {
 
   // TODO - upgrade postgres
   // async function getContentsForReview(userId, limit = 999, start = 0) {
@@ -229,7 +229,3 @@ function ContentService({ pg, logger }) {
     upsertContent,
   };
 }
-
-module.exports = {
-  ContentService,
-};

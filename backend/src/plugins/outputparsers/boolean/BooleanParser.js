@@ -54,4 +54,4 @@ function BooleanParser({ __name, __metadata, constants, logger, app, auth }) {
 
 }
 
-module.exports = BooleanParser;
+export default BooleanParser;

@@ -1,18 +1,18 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function PromptSetsService({ pg, logger }) {
+export function PromptSetsService({ pg, logger }) {
 
   async function getPromptSets(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
+      WHERE workspace_id = $1
+      OR (val->>'isPublic')::boolean = true
       `;
-    let params = [];
-    if (workspaceId) {
-      q += `WHERE workspace_id = $1`;
-      params = [workspaceId];
-    }
-    const { rows } = await pg.query(q, params);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
@@ -20,7 +20,7 @@ function PromptSetsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       skill: row.skill,
       created: row.created,
       createdBy: row.created_by,
@@ -29,16 +29,21 @@ function PromptSetsService({ pg, logger }) {
     }));
     return promptSets;
   }
-  async function getPromptSetsBySkill(skill) {
+
+  async function getPromptSetsBySkill(workspaceId, skill) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     if (skill === null || typeof skill === 'undefined') {
       return [];
     }
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
-      WHERE skill = $1
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND skill = $2
       `;
-    const { rows } = await pg.query(q, [skill]);
+    const { rows } = await pg.query(q, [workspaceId, skill]);
     if (rows.length === 0) {
       return [];
     }
@@ -46,7 +51,7 @@ function PromptSetsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       skill: row.skill,
       created: row.created,
       createdBy: row.created_by,
@@ -56,8 +61,8 @@ function PromptSetsService({ pg, logger }) {
     return promptSets;
   }
 
-  async function getFirstPromptSetBySkillAsMessages(skill) {
-    const promptSets = await getPromptSetsBySkill(skill);
+  async function getFirstPromptSetBySkillAsMessages(workspaceId, skill) {
+    const promptSets = await getPromptSetsBySkill(workspaceId, skill);
     if (promptSets.length) {
       return promptSets[0].prompts.map((p) => ({
         role: p.role,
@@ -67,13 +72,17 @@ function PromptSetsService({ pg, logger }) {
     return null;
   }
 
-  async function getPromptSetTemplates() {
+  async function getPromptSetTemplates(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets p
-      WHERE p.val->>'isTemplate' = 'true'
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND p.val->>'isTemplate' = 'true'
       `;
-    const { rows } = await pg.query(q);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
@@ -81,7 +90,7 @@ function PromptSetsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       skill: row.skill,
       created: row.created,
       createdBy: row.created_by,
@@ -109,7 +118,7 @@ function PromptSetsService({ pg, logger }) {
       ...row.val,
       name: row.val.name || row.key,
       id: row.id,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       skill: row.skill,
       created: row.created,
       createdBy: row.created_by,
@@ -118,7 +127,7 @@ function PromptSetsService({ pg, logger }) {
     };
   }
 
-  async function upsertPromptSet(promptSet) {
+  async function upsertPromptSet(promptSet, username) {
     if (promptSet === null || typeof promptSet === 'undefined') {
       return null;
     }
@@ -127,21 +136,21 @@ function PromptSetsService({ pg, logger }) {
     if (savedPromptSet) {
       await pg.query(`
         UPDATE prompt_sets
-        SET skill = $1, val = $2
-        WHERE id = $3
+        SET skill = $1, val = $2, modified_by = $3, modified = $4
+        WHERE id = $5
         `,
-        [promptSet.skill, val, promptSet.id]
+        [promptSet.skill, val, username, new Date(), promptSet.id]
       );
-      return promptSet;
+      return { ...savedPromptSet, ...promptSet };
     } else {
-      console.log([promptSet.workspaceId, promptSet.skill, val])
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO prompt_sets (workspace_id, skill, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO prompt_sets (workspace_id, skill, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `,
-        [promptSet.workspaceId, promptSet.skill, val]
+        [promptSet.workspaceId, promptSet.skill, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...promptSet, id: rows[0].id };
     }
   }
 
@@ -168,7 +177,3 @@ function PromptSetsService({ pg, logger }) {
     deletePromptSets,
   };
 }
-
-module.exports = {
-  PromptSetsService,
-};

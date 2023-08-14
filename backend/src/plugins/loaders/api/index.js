@@ -1,7 +1,2 @@
-const ApiLoader = require('./ApiLoader');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: ApiLoader,
-  constants,
-}
+export { default as plugin } from './ApiLoader';
+export { default as constants } from './constants';

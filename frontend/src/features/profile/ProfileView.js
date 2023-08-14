@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { Avatar, Card } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
-import UserContext from '../../context/UserContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
 import { getColor } from '../../utils';
 import {
   getUserAsync,

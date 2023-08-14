@@ -1,4 +1,4 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { usersService, workspacesService } = services;
 
@@ -58,7 +58,7 @@ module.exports = ({ app, auth, logger, services }) => {
    *           description: The date-time the workspace was last modified
    *         modifiedBy:
    *           type: string
-   *           description: The username of the user who kast modified the workspace.
+   *           description: The username of the user who last modified the workspace.
    *       example:
    *         id: 1
    *         name: J08 - X-sell Mobile
@@ -182,6 +182,25 @@ module.exports = ({ app, auth, logger, services }) => {
     res.json(workspaces);
   });
 
+  /*
+  req.user: {
+  name: 'Mark Mo',
+  picture: 'https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg',
+  iss: 'https://securetoken.google.com/XXX',
+  aud: 'XXX',
+  auth_time: 1691469874,
+  user_id: 'bIDaybdzZIOpsyHXfgkF88o41tn2',
+  sub: 'bIDaybdzZIOpsyHXfgkF88o41tn2',
+  iat: 1691469874,
+  exp: 1691473474,
+  email: 'markmo@acme.com',
+  email_verified: false,
+  firebase: { identities: { email: [Array] }, sign_in_provider: 'password' },
+  uid: 'bIDaybdzZIOpsyHXfgkF88o41tn2'
+}
+
+  */
+
   /**
    * @openapi
    * /api/workspaces/:id:
@@ -212,6 +231,46 @@ module.exports = ({ app, auth, logger, services }) => {
     res.json(workspace);
   });
 
+  app.post('/api/workspaces/:workspaceId/keys', auth, async (req, res) => {
+    const { workspaceId } = req.params;
+    const { username } = req.user;
+    const { apiKey } = req.body;
+    const workspace = await workspacesService.getWorkspace(workspaceId);
+    const apiKeys = workspace.apiKeys || {};
+    const key = Object.keys(apiKeys).find(k => apiKeys[k] === username);
+    if (key) {
+      delete apiKeys[key];
+    }
+    const values = {
+      ...workspace,
+      apiKeys: {
+        ...apiKeys,
+        [apiKey]: username,
+      },
+    };
+    await workspacesService.upsertWorkspace(values, username);
+    res.json({ status: 'OK' });
+  });
+
+  app.delete('/api/workspaces/:workspaceId/keys', auth, async (req, res) => {
+    const { workspaceId } = req.params;
+    const { username } = req.user;
+    const workspace = await workspacesService.getWorkspace(workspaceId);
+    const apiKeys = workspace.apiKeys;
+    if (apiKeys) {
+      const key = Object.keys(apiKeys).find(k => apiKeys[k] === username);
+      if (key) {
+        delete apiKeys[key];
+        const values = {
+          ...workspace,
+          apiKeys,
+        };
+        await workspacesService.upsertWorkspace(values, username);
+      }
+    }
+    res.json({ status: 'OK' });
+  });
+
   /**
    * @openapi
    * /api/workspaces:
@@ -231,14 +290,15 @@ module.exports = ({ app, auth, logger, services }) => {
    *         content:
    *           text/plain:
    *             schema:
-   *               type: string
+   *               type: integer
    *       500:
    *         description: Error
    */
   app.post('/api/workspaces', auth, async (req, res, next) => {
     const values = req.body;
-    const id = await workspacesService.upsertWorkspace(values);
-    res.json(id);
+    const user = await usersService.getUser(req.user.username);
+    const workspace = await workspacesService.upsertWorkspace(values, user);
+    res.json(workspace);
   });
 
   /**
@@ -254,7 +314,7 @@ module.exports = ({ app, auth, logger, services }) => {
    *         schema:
    *           type: integer
    *     requestBody:
-   *       description: The new workspace values
+   *       description: The updated workspace values
    *       required: true
    *       content:
    *         application/json:
@@ -271,17 +331,18 @@ module.exports = ({ app, auth, logger, services }) => {
    *         description: Error
    */
   app.put('/api/workspaces/:id', auth, async (req, res, next) => {
-    const id = req.params.id;
+    const { id } = req.params;
     const values = req.body;
-    await workspacesService.upsertWorkspace({ id, ...values });
-    res.json({ status: 'OK' });
+    const user = await usersService.getUser(req.user.username);
+    const workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
+    res.json(workspace);
   });
 
   /**
    * @openapi
    * /api/workspaces/:id:
-   *   put:
-   *     description: Update a workspace.
+   *   delete:
+   *     description: Delete a workspace.
    *     tags: [Workspaces]
    *     parameters:
    *       - name: id
@@ -289,20 +350,13 @@ module.exports = ({ app, auth, logger, services }) => {
    *         in: path
    *         schema:
    *           type: integer
-   *     requestBody:
-   *       description: The new workspace values
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             $ref: '#/components/schemas/WorkspaceInput'
    *     responses:
    *       200:
-   *         description: The return status
+   *         description: The deleted id
    *         content:
-   *           application/json:
+   *           text/plain:
    *             schema:
-   *               $ref: '#/components/schemas/Status'
+   *               type: integer
    *       500:
    *         description: Error
    */

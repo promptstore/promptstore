@@ -22,4 +22,4 @@ function NumberedListParser({ __name, __metadata, constants, logger, app, auth }
 
 }
 
-module.exports = NumberedListParser;
+export default NumberedListParser;

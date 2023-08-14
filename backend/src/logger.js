@@ -1,8 +1,8 @@
-const LokiTransport = require('winston-loki');
-const isObject = require('lodash.isobject');
-const isString = require('lodash.isstring');
-const util = require('util');
-const winston = require('winston');
+import LokiTransport from 'winston-loki';
+import isObject from 'lodash.isobject';
+import isString from 'lodash.isstring';
+import util from 'util';
+import winston from 'winston';
 
 const winstonConfig = {
   levels: {
@@ -37,7 +37,7 @@ const { colorize, combine, printf, timestamp } = format;
 const formatObject = (value, i = 0, arr = []) => {
   if (isObject(value)) {
     if (i === arr.length - 1) {
-      return '\n' + JSON.stringify(value, null, 2);
+      return '\n' + JSON.stringify(value, refReplacer(), 2);
     }
     return JSON.stringify(value);
   }
@@ -100,4 +100,26 @@ const logger = createLogger({
   ],
 });
 
-module.exports = logger;
+const refReplacer = () => {
+  let m = new Map(), v = new Map(), init = null;
+
+  // in TypeScript add "this: any" param to avoid compliation errors - as follows
+  //    return function (this: any, field: any, value: any) {
+  return function (field, value) {
+    let p = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
+    let isComplex = value === Object(value)
+
+    if (isComplex) m.set(value, p);
+
+    let pp = v.get(value) || '';
+    let path = p.replace(/undefined\.\.?/, '');
+    let val = pp ? `#REF:${pp[0] == '[' ? '$' : '$.'}${pp}` : value;
+
+    !init ? (init = value) : (val === init ? val = "#REF:$" : 0);
+    if (!pp && isComplex) v.set(value, path);
+
+    return val;
+  }
+};
+
+export default logger;

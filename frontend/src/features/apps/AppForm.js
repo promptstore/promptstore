@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Select, Space } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 
 import {
   createAppAsync,
@@ -109,9 +109,6 @@ export function AppForm() {
       createLink: null,
       title: 'App',
     }));
-    dispatch(getDataSourcesAsync());
-    dispatch(getFunctionsAsync());
-    dispatch(getIndexesAsync());
     if (!isNew) {
       dispatch(getAppAsync(id));
     }
@@ -119,7 +116,11 @@ export function AppForm() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getIndexesAsync({ workspaceId }));
+      dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -188,7 +189,7 @@ export function AppForm() {
               />
             </Form.Item>
             <Form.Item
-              label="Prompts"
+              label="Prompt Templates"
               name="promptSets"
             >
               <Select
@@ -224,7 +225,7 @@ export function AppForm() {
               />
             </Form.Item>
             <Form.Item
-              label="Indexes"
+              label="Semantic Indexes"
               name="indexes"
             >
               <Select

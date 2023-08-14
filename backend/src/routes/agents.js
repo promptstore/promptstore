@@ -1,4 +1,4 @@
-module.exports = ({ agents, app, auth, logger, services }) => {
+export default ({ agents, app, auth, logger, services }) => {
 
   const { agentsService, tool } = services;
 
@@ -39,14 +39,15 @@ module.exports = ({ agents, app, auth, logger, services }) => {
 
   app.post('/api/agent-executions', auth, async (req, res, next) => {
     const { agentType, goal, indexName, name, selfEvaluate, tools } = req.body.agent;
-    logger.log('debug', 'user:', req.user);
-    const email = req.user?.email;
+    const workspaceId = req.body.workspaceId;
+    // logger.log('debug', 'user:', req.user);
+    const { email, username } = (req.user || {});
     events = [];
     let agent;
     if (agentType === 'plan') {
-      agent = new agents.PlanAndExecuteAgent({});
+      agent = new agents.PlanAndExecuteAgent({ workspaceId, username });
     } else {
-      agent = new agents.MKRLAgent({ isChat: true });
+      agent = new agents.MKRLAgent({ isChat: true, workspaceId, username });
     }
     if (!agent) {
       return res.sendStatus(400);
@@ -75,11 +76,6 @@ module.exports = ({ agents, app, auth, logger, services }) => {
     res.json(agents);
   });
 
-  app.get('/api/agents', auth, async (req, res, next) => {
-    const agents = await agentsService.getAgents();
-    res.json(agents);
-  });
-
   app.get('/api/agents/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const session = await agentsService.getAgent(id);
@@ -87,6 +83,7 @@ module.exports = ({ agents, app, auth, logger, services }) => {
   });
 
   app.post('/api/agents', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
     // const content = values.messages
     //   .filter((m) => m.role === 'user')
@@ -95,15 +92,16 @@ module.exports = ({ agents, app, auth, logger, services }) => {
     // const args = { content };
     // const resp = await executionsService.executeFunction('create_summary_label', args, {});
     // const name = resp.choices[0].message.content;
-    const id = await agentsService.upsertAgent({ ...values });
-    res.json(id);
+    const agent = await agentsService.upsertAgent(values, username);
+    res.json(agent);
   });
 
   app.put('/api/agents/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await agentsService.upsertAgent({ id, ...values });
-    res.json({ status: 'OK' });
+    const agent = await agentsService.upsertAgent({ ...values, id }, username);
+    res.json(agent);
   });
 
   app.delete('/api/agents/:id', auth, async (req, res, next) => {

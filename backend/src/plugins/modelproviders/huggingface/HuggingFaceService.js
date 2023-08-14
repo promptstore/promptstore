@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function HuggingFaceService({ __name, constants, logger }) {
 
@@ -27,4 +27,4 @@ function HuggingFaceService({ __name, constants, logger }) {
 
 }
 
-module.exports = HuggingFaceService;
+export default HuggingFaceService;

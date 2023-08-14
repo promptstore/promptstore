@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Button, Form, Input, Layout, Select, Space, Switch, Table, Typography } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 
 import {
   createAgentAsync,
@@ -37,7 +38,6 @@ const agentTypeOptions = [
   {
     label: 'ReAct Zero-shot Learning',
     value: 'react',
-    // disabled: true,
   },
 ];
 
@@ -86,6 +86,7 @@ export function Agents() {
   const toolsValue = Form.useWatch('tools', form);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
 
@@ -94,10 +95,19 @@ export function Agents() {
       ...state,
       title: 'Agents',
     }));
-    dispatch(getIndexesAsync());
     dispatch(getToolsAsync());
-    dispatch(getAgentsAsync());
+    return () => {
+      dispatch(resetAgentOutput());
+    }
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getIndexesAsync({ workspaceId }));
+      dispatch(getAgentsAsync({ workspaceId }));
+    }
+  }, [selectedWorkspace]);
 
   const columns = [
     {
@@ -152,14 +162,14 @@ export function Agents() {
       setSelectedAgent(newAgent);
     } else {
       dispatch(createAgentAsync({
-        values,
+        values: { ...values, workspaceId: selectedWorkspace.id },
       }));
     }
   };
 
   const onRun = () => {
     dispatch(resetAgentOutput());
-    dispatch(runAgentAsync({ agent: selectedAgent }));
+    dispatch(runAgentAsync({ agent: selectedAgent, workspaceId: selectedWorkspace.id }));
   };
 
   const onSelectChange = (newSelectedRowKeys) => {

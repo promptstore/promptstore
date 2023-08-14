@@ -37,7 +37,7 @@ export const {
 
 export const getDataSourcesAsync = (params) => async (dispatch) => {
   dispatch(startLoad());
-  let url = '/api/data-sources';
+  let url = `/api/workspaces/${params.workspaceId}/data-sources`;
   if (params?.type) {
     url += '?type=' + params.type;
   }
@@ -77,17 +77,16 @@ export const getDataSourceContentAsync = (id, maxBytes) => async (dispatch, getS
   dispatch(setDataSources({ dataSources: newDataSources }));
 };
 
-export const createDataSourceAsync = ({ values }) => async (dispatch) => {
+export const createDataSourceAsync = ({ correlationId, values }) => async (dispatch) => {
   const url = '/api/data-sources';
   const res = await http.post(url, values);
-  const ds = { ...values, id: res.data };
-  dispatch(setDataSources({ dataSources: [ds] }));
+  dispatch(setDataSources({ dataSources: [{ ...res.data, correlationId }] }));
 };
 
 export const updateDataSourceAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/data-sources/${id}`;
-  await http.put(url, values);
-  dispatch(setDataSources({ dataSources: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setDataSources({ dataSources: [res.data] }));
 };
 
 export const deleteDataSourcesAsync = ({ ids }) => async (dispatch) => {

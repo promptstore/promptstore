@@ -1,4 +1,4 @@
-function GuardrailsService({ registry, logger }) {
+export function GuardrailsService({ registry, logger }) {
 
   async function scan(provider, text) {
     const instance = registry[provider];
@@ -20,8 +20,4 @@ function GuardrailsService({ registry, logger }) {
     scan,
   };
 
-}
-
-module.exports = {
-  GuardrailsService,
 }

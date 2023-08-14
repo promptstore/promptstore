@@ -1,11 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Modal, Select, Space, Table } from 'antd';
+import { Button, Descriptions, Form, Input, Modal, Select, Space, Switch, Table, Typography } from 'antd';
+import { v4 as uuidv4 } from 'uuid';
 
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
-import UserContext from '../../context/UserContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import UserContext from '../../contexts/UserContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getUsersAsync,
   selectLoaded as selectUsersLoaded,
@@ -14,9 +15,11 @@ import {
 import {
   createWorkspaceAsync,
   getWorkspaceAsync,
-  updateWorkspaceAsync,
+  handleKeyAssignmentAsync,
+  revokeKeyAssignmentAsync,
   selectLoaded,
   selectWorkspaces,
+  updateWorkspaceAsync,
 } from './workspacesSlice';
 
 const { TextArea } = Input;
@@ -28,6 +31,7 @@ const layout = {
 
 export function WorkspaceForm() {
 
+  const [apiKey, setApiKey] = useState(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -42,8 +46,8 @@ export function WorkspaceForm() {
   const dispatch = useDispatch();
 
   const { setNavbarState } = useContext(NavbarContext);
-  const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
   const { currentUser } = useContext(UserContext);
+  const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
 
   const id = location.pathname.match(/\/workspaces\/(.*)/)[1];
   const workspace = workspaces[id];
@@ -73,7 +77,7 @@ export function WorkspaceForm() {
     if (workspace) {
       const members = workspace.members || [];
       return members.map((m) => ({
-        key: m.username,
+        key: m.id,
         name: m.fullName,
         email: m.email,
       }));
@@ -89,6 +93,15 @@ export function WorkspaceForm() {
   }, [users]);
 
   const hasSelected = selectedRowKeys.length > 0;
+
+  const closeKeyModal = () => {
+    setApiKey(null);
+  };
+
+  const handleKeyAssignment = () => {
+    dispatch(handleKeyAssignmentAsync({ apiKey, workspaceId: id }));
+    setApiKey(null);
+  };
 
   const handleInvite = async () => {
     const values = await inviteMembersForm.validateFields();
@@ -109,6 +122,14 @@ export function WorkspaceForm() {
     setIsInviteModalOpen(false);
   };
 
+  const getKey = () => {
+    setApiKey(uuidv4());
+  };
+
+  const revokeKey = () => {
+    dispatch(revokeKeyAssignmentAsync({ workspaceId: id }));
+  };
+
   const linkToApps = (ev) => {
     if (!isNew) {
       setSelectedWorkspace(workspace);
@@ -122,20 +143,7 @@ export function WorkspaceForm() {
 
   const onFinish = (values) => {
     if (isNew) {
-      const { id, fullName, email, username } = currentUser;
-      const owner = {
-        id,
-        fullName,
-        email,
-        username,
-        isOwner: true,
-      };
-      dispatch(createWorkspaceAsync({
-        values: {
-          ...values,
-          members: [owner],
-        },
-      }));
+      dispatch(createWorkspaceAsync({ values }));
     } else {
       dispatch(updateWorkspaceAsync({
         id,
@@ -149,7 +157,8 @@ export function WorkspaceForm() {
   };
 
   const onRemoveMembers = () => {
-    const members = workspace.members.filter((u) => selectedRowKeys.indexOf(u.id) === -1);
+
+    const members = workspace.members.filter((u) => !selectedRowKeys.includes(u.id));
     dispatch(updateWorkspaceAsync({ id, values: { ...workspace, members } }));
     setSelectedRowKeys([]);
   };
@@ -217,25 +226,42 @@ export function WorkspaceForm() {
         width={800}
       >
         <div style={{ height: 300 }}>
-        {loaded && usersLoaded ?
-          <Form
-            form={inviteMembersForm}
-            initialValues={{ members: workspace.members?.map(({ id }) => id) }}
-          >
-            <Form.Item
-              name="members"
+          {loaded && usersLoaded ?
+            <Form
+              form={inviteMembersForm}
+              initialValues={{ members: workspace?.members?.map(({ id }) => id) }}
             >
-              <Select allowClear
-                mode="multiple"
-                options={userOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-          </Form>
-          :
-          <div>Loading...</div>
-        }
+              <Form.Item
+                name="members"
+              >
+                <Select allowClear
+                  mode="multiple"
+                  options={userOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+            </Form>
+            :
+            <div>Loading...</div>
+          }
         </div>
+      </Modal>
+      <Modal
+        title="API Key"
+        open={apiKey}
+        onCancel={closeKeyModal}
+        onOk={handleKeyAssignment}
+      >
+        <Descriptions column={1} layout="vertical">
+          <Descriptions.Item label="Key">
+            <Typography.Text code copyable>
+              {apiKey}
+            </Typography.Text>
+          </Descriptions.Item>
+          <Descriptions.Item>
+            This will only be shown once.
+          </Descriptions.Item>
+        </Descriptions>
       </Modal>
       <div style={{ marginTop: 20 }}>
         <div style={{ display: 'flex' }}>
@@ -282,6 +308,17 @@ export function WorkspaceForm() {
             >
               <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
             </Form.Item>
+            {currentUser?.roles?.includes('admin') ?
+              <Form.Item
+                colon={false}
+                label="Public?"
+                name="isPublic"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+              : null
+            }
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>
                 <Button type="default" onClick={onCancel}>Cancel</Button>
@@ -307,6 +344,24 @@ export function WorkspaceForm() {
                   {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
                 </span>
               </div>
+            </Form.Item>
+            <Form.Item
+              label="API"
+            >
+              <Space>
+                <Button type="default" size="small"
+                  disabled={isNew}
+                  onClick={getKey}
+                >
+                  Get API Key
+                </Button>
+                <Button type="default" size="small"
+                  disabled={isNew}
+                  onClick={revokeKey}
+                >
+                  Revoke API Key
+                </Button>
+              </Space>
             </Form.Item>
           </Form>
         </div>

@@ -1,21 +1,19 @@
-import * as dayjs from 'dayjs';
+import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { ValidatorResult, validate } from 'jsonschema';
 
 import logger from '../logger';
 
 import { Validator } from './common_types';
+import { SchemaError, SemanticFunctionError } from './errors';
+import { Callback } from './Callback';
 import {
   SemanticFunctionParams,
   SemanticFunctionCallParams,
-  OnSemanticFunctionStartCallbackFunction,
-  OnSemanticFunctionEndCallbackFunction,
-  OnSemanticFunctionErrorCallbackFunction,
-  OnSemanticFunctionEndParams,
+  SemanticFunctionOnEndParams,
 } from './SemanticFunction_types';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
-import { Tracer } from './Tracer';
-import { SchemaError, SemanticFunctionError } from './errors';
+// import { Tracer } from './Tracer';
 
 dayjs.extend(relativeTime);
 
@@ -32,62 +30,70 @@ export class SemanticFunction {
   name: string;
   argsSchema: object;
   implementations: SemanticFunctionImplementation[]
-  tracer: Tracer;
   validator: Validator;
-  onSemanticFunctionStart?: OnSemanticFunctionStartCallbackFunction;
-  onSemanticFunctionEnd?: OnSemanticFunctionEndCallbackFunction;
-  onSemanticFunctionError?: OnSemanticFunctionErrorCallbackFunction;
-  startTime: Date;
+  callbacks: Callback[];
+  currentCallbacks: Callback[];
+  // tracer: Tracer;
+  // startTime: Date;
 
   constructor({
     name,
     argsSchema,
     implementations,
     validator,
-    onSemanticFunctionStart,
-    onSemanticFunctionEnd,
-    onSemanticFunctionError,
+    callbacks,
   }: SemanticFunctionParams) {
     this.name = name;
     this.argsSchema = argsSchema;
     this.implementations = implementations;
     this.validator = validator || validate;
-    this.tracer = new Tracer(this.getTraceName());
-    this.onSemanticFunctionStart = onSemanticFunctionStart;
-    this.onSemanticFunctionEnd = onSemanticFunctionEnd;
-    this.onSemanticFunctionError = onSemanticFunctionError;
+    this.callbacks = callbacks || [];
+    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({
     args,
+    history,
     modelKey,
     modelParams,
     isBatch,
+    callbacks = []
   }: SemanticFunctionCallParams) {
-    let instance: object;
-    if (isBatch) {
-      this.assertBatch(args);
-      instance = args[0];
-    } else {
-      instance = args;
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
+    this.onStart({ args, history, modelKey, modelParams, isBatch });
+    try {
+      let instance: object;
+      if (isBatch) {
+        this.assertBatch(args);
+        instance = args[0];
+      } else {
+        instance = args;
+      }
+      if (this.argsSchema) {
+        this.validate(instance, this.argsSchema);
+      }
+      const impl = this.getImplementation(modelKey);
+      // impl.tracer = this.tracer;
+      const response = await impl.call({
+        args,
+        history,
+        modelKey,
+        modelParams,
+        isBatch,
+        callbacks,
+      });
+      this.onEnd({ response });
+      return response;
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors });
+      throw err;
     }
-    if (this.argsSchema) {
-      this.validate(instance, this.argsSchema);
-    }
-    const impl = this.getImplementation(modelKey);
-
-    this.onStart({ args, modelKey, modelParams, isBatch });
-    const response = await impl.call({
-      args,
-      modelKey,
-      modelParams,
-      isBatch,
-    });
-    this.onEnd({ response });
-    return response;
   }
 
   getImplementation(modelKey: string) {
+    // logger.debug('implementations:', this.implementations);
+    // logger.debug('modelKey:', modelKey);
     const finder = modelKey ?
       (impl: SemanticFunctionImplementation) => impl.model.modelKey === modelKey :
       (impl: SemanticFunctionImplementation) => impl.isDefault;
@@ -98,53 +104,65 @@ export class SemanticFunction {
     return impl;
   }
 
-  getTraceName() {
-    return [this.name, new Date().toISOString()].join(' - ');
-  }
+  // getTraceName() {
+  //   return [this.name, new Date().toISOString()].join(' - ');
+  // }
 
-  onStart({ args, modelKey, modelParams, isBatch }: SemanticFunctionCallParams) {
-    logger.info('start function:', this.name);
-    this.startTime = new Date();
-    this.tracer.push({
-      type: 'call-function',
-      function: {
+  onStart({ args, history, modelKey, modelParams, isBatch }: SemanticFunctionCallParams) {
+    // logger.info('start function:', this.name);
+    // this.startTime = new Date();
+    // this.tracer.push({
+    //   type: 'call-function',
+    //   function: name,
+    //   implementation: {
+    //     model: modelKey,
+    //     modelParams,
+    //   },
+    //   isBatch,
+    //   args,
+    //   history,
+    //   startTime: this.startTime.getTime(),
+    // });
+    for (let callback of this.currentCallbacks) {
+      callback.onSemanticFunctionStart({
         name: this.name,
-        argsSchema: this.argsSchema,
-      },
-      implementation: {
-        model: {
-          modelKey,
-          modelParams,
-        },
-      },
-      isBatch,
-      args,
-      startTime: this.startTime.getTime(),
-    });
-    if (this.onSemanticFunctionStart) {
-      this.onSemanticFunctionStart({
         args,
+        history,
         modelKey,
         modelParams,
         isBatch,
-        trace: this.tracer.currentTrace(),
+        // trace: this.tracer.currentTrace(),
       });
     }
+    // this.tracer.down();
   }
 
-  onEnd({ response }: OnSemanticFunctionEndParams) {
-    logger.info('end function:', this.name);
-    const endTime = new Date();
-    this.tracer
-      .addProperty('response', response)
-      .addProperty('endTime', endTime.getTime())
-      .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-      .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-      .addProperty('success', true);
-    if (this.onSemanticFunctionEnd) {
-      this.onSemanticFunctionEnd({
+  onEnd({ response, errors }: SemanticFunctionOnEndParams) {
+    // logger.info('end function:', this.name);
+    // const endTime = new Date();
+    // this.tracer
+    //   .up()
+    //   .addProperty('endTime', endTime.getTime())
+    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
+    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
+    //   ;
+    // if (errors) {
+    //   this.tracer
+    //     .addProperty('errors', errors)
+    //     .addProperty('success', false)
+    //     ;
+    // } else {
+    //   this.tracer
+    //     .addProperty('response', response)
+    //     .addProperty('success', true)
+    //     ;
+    // }
+    for (let callback of this.currentCallbacks) {
+      callback.onSemanticFunctionEnd({
+        name: this.name,
         response,
-        traceRecord: this.tracer.close(),
+        errors,
+        // traceRecord: this.tracer.close(),
       });
     }
   }
@@ -157,42 +175,59 @@ export class SemanticFunction {
 
   validate(instance: object, schema: object) {
     const validatorResult = this.validator(instance, schema, { required: true });
-    this.tracer.push({
-      type: 'validate-function-args',
-      args: instance,
-      schema: this.argsSchema,
-      result: validatorResult,
-    });
-    logger.debug('validating function args');
-    logger.debug('instance:', instance);
-    logger.debug('schema:', schema);
-    logger.debug('result:', validatorResult.valid ? 'valid' : validatorResult.errors);
+    // this.tracer.push({
+    //   type: 'validate-function-args',
+    //   instance: validatorResult.instance,
+    //   schema: validatorResult.schema,
+    //   valid: validatorResult.valid,
+    //   errors: validatorResult.errors,
+    // });
+    // logger.debug('validating function args');
+    // logger.debug('instance:', instance);
+    // logger.debug('schema:', schema);
+    // logger.debug('result:', validatorResult.valid ? 'valid' : validatorResult.errors);
+    for (let callback of this.currentCallbacks) {
+      callback.onValidateArguments(validatorResult);
+    }
     if (!validatorResult.valid) {
       this.throwSchemaError(validatorResult);
     }
   }
 
   throwSchemaError(validatorResult: ValidatorResult) {
-    this.tracer.push({
-      type: 'error',
-      errors: validatorResult.errors,
-    });
-    if (this.onSemanticFunctionError) {
-      this.onSemanticFunctionError(validatorResult.errors);
+    // this.tracer.push({
+    //   type: 'error',
+    //   errors: validatorResult.errors,
+    // });
+    for (let callback of this.currentCallbacks) {
+      callback.onSemanticFunctionError(validatorResult.errors);
     }
     throw new SchemaError(validatorResult);
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    this.tracer.push({
-      type: 'error',
-      errors,
-    });
-    if (this.onSemanticFunctionError) {
-      this.onSemanticFunctionError(errors);
+    // this.tracer.push({
+    //   type: 'error',
+    //   errors,
+    // });
+    for (let callback of this.currentCallbacks) {
+      callback.onSemanticFunctionError(errors);
     }
     throw new SemanticFunctionError(message);
   }
 
+}
+
+interface SemanticFunctionOptions {
+  argsSchema: any;
+  callbacks: Callback[];
+}
+
+export const semanticFunction = (name: string, options: SemanticFunctionOptions) => (implementations: SemanticFunctionImplementation | SemanticFunctionImplementation[]) => {
+  return new SemanticFunction({
+    ...options,
+    name,
+    implementations: Array.isArray(implementations) ? implementations : [implementations],
+  });
 }

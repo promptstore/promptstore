@@ -1,7 +1,2 @@
-const EmailService = require('./EmailService');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: EmailService,
-  constants,
-}
+export { default as plugin } from './EmailService';
+export { default as constants } from './constants';

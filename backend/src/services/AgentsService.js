@@ -1,18 +1,17 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function AgentsService({ pg, logger }) {
+export function AgentsService({ pg, logger }) {
 
   async function getAgents(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM agents
+      WHERE workspace_id = $1
       `;
-    let params = [];
-    if (workspaceId) {
-      q += `WHERE workspace_id = $1`;
-      params = [workspaceId];
-    }
-    const { rows } = await pg.query(q, params);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
@@ -20,7 +19,7 @@ function AgentsService({ pg, logger }) {
       ...row.val,
       id: row.id,
       name: row.name,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       created: row.created,
       createdBy: row.created_by,
       modified: row.modified,
@@ -47,7 +46,7 @@ function AgentsService({ pg, logger }) {
       ...row.val,
       id: row.id,
       name: row.name,
-      workspaceId: row.workspaceId,
+      workspaceId: row.workspace_id,
       created: row.created,
       createdBy: row.created_by,
       modified: row.modified,
@@ -55,29 +54,30 @@ function AgentsService({ pg, logger }) {
     };
   }
 
-  async function upsertAgent(session) {
-    if (session === null || typeof session === 'undefined') {
+  async function upsertAgent(agent, username) {
+    if (agent === null || typeof agent === 'undefined') {
       return null;
     }
-    const val = omit(session, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
-    const savedAgent = await getAgent(session.id);
+    const val = omit(agent, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const savedAgent = await getAgent(agent.id);
     if (savedAgent) {
       await pg.query(`
         UPDATE agents
-        SET val = $1
-        WHERE id = $2
+        SET name = $1, val = $2, modified_by = $3, modified = $4
+        WHERE id = $5
         `,
-        [val, session.id]
+        [agent.name, val, username, new Date(), agent.id]
       );
-      return session.id;
+      return { ...savedAgent, ...agent };
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO agents (workspace_id, name, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO agents (workspace_id, name, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `,
-        [session.workspaceId, session.name, val]
+        [agent.workspaceId, agent.name, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...agent, id: rows[0].id };
     }
   }
 
@@ -101,7 +101,3 @@ function AgentsService({ pg, logger }) {
     deleteAgents,
   };
 }
-
-module.exports = {
-  AgentsService,
-};

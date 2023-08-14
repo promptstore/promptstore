@@ -1,7 +1,7 @@
 import { useContext, useEffect } from 'react';
 import { Typography } from 'antd';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
 
 import PromptStore from '../../images/Prompt Store.png';
 

@@ -19,8 +19,8 @@ import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
-import NavbarContext from '../../context/NavbarContext';
-import WorkspaceContext from '../../context/WorkspaceContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   createCompositionAsync,
   getCompositionAsync,
@@ -144,10 +144,16 @@ export function Composer() {
     if (!isNew) {
       dispatch(getCompositionAsync(id));
     }
-    dispatch(getFunctionsAsync());
-    dispatch(getModelsAsync());
-    dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getModelsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
+      dispatch(getFunctionsAsync({ workspaceId }));
+    }
+  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (composition && composition.flow) {
@@ -173,6 +179,7 @@ export function Composer() {
           ...values,
           flow: rfInstance.toObject(),
           returnType: 'application/json',
+          workspaceId: selectedWorkspace.id,
         },
       }));
     } else {
@@ -353,6 +360,7 @@ export function Composer() {
     dispatch(runTestAsync({
       args: formData,
       name: composition.name,
+      workspaceId: selectedWorkspace.id,
     }));
   };
 

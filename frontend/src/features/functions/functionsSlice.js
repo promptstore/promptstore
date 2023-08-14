@@ -53,17 +53,17 @@ export const {
   startTest,
 } = functionsSlice.actions;
 
-export const getFunctionsAsync = () => async (dispatch) => {
+export const getFunctionsAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = '/api/functions';
+  const url = `/api/workspaces/${workspaceId}/functions`;
   const res = await http.get(url);
   dispatch(setFunctions({ functions: res.data }));
 };
 
-export const getFunctionsByTagAsync = ({ tag }) => async (dispatch) => {
+export const getFunctionsByTagAsync = ({ tag, workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
   dispatch(resetFunctions());
-  const url = `/api/functions/tags/${tag}`;
+  const url = `/api/workspaces/${workspaceId}/functions/tags/${tag}`;
   const res = await http.get(url);
   dispatch(setFunctions({ functions: res.data }));
 };
@@ -78,14 +78,13 @@ export const getFunctionAsync = (id) => async (dispatch) => {
 export const createFunctionAsync = ({ values }) => async (dispatch) => {
   const url = '/api/functions';
   const res = await http.post(url, values);
-  const func = { ...values, id: res.data };
-  dispatch(setFunctions({ functions: [func] }));
+  dispatch(setFunctions({ functions: [res.data] }));
 };
 
 export const updateFunctionAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/functions/${id}`;
-  await http.put(url, values);
-  dispatch(setFunctions({ functions: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setFunctions({ functions: [res.data] }));
 };
 
 export const deleteFunctionsAsync = ({ ids }) => async (dispatch) => {
@@ -94,10 +93,10 @@ export const deleteFunctionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeFunctions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelId, modelKey, name }) => async (dispatch) => {
+export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/executions/${name}`;
-  const res = await http.post(url, { args, params: { modelId, model: modelKey } });
+  const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
   dispatch(setTestResult({ result: res.data }));
 };
 

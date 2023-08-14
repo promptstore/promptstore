@@ -1,4 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { v4 as uuidv4 } from 'uuid';
+import omit from 'lodash.omit';
 
 import { http } from '../../http';
 
@@ -71,13 +73,51 @@ export const processUploadsAsync = (sourceId) => async (dispatch) => {
   dispatch(endProcessing());
 };
 
-export const fileUploadAsync = (file, source) => async (dispatch) => {
+export const fileUploadAsync = (file, source) => async (dispatch, getState) => {
   dispatch(startUpload());
+  const correlationId = uuidv4();
   const form = new FormData();
   form.append('sourceId', source.id);
+  form.append('correlationId', correlationId);
   form.append('file', file.originFileObj);
   await http.post('/api/upload', form);
-  dispatch(uploaded());
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/upload-status/' + correlationId);
+      clearInterval(intervalId);
+      console.log('get upload-status res:', res);
+      const upload = {
+        ...omit(res.data, ['data']),
+        content: res.data.data,
+      };
+      const { uploads } = getState().fileUploader;
+      dispatch(setUploads({
+        sourceId: source.id,
+        uploads: [...uploads[source.id], upload],
+      }));
+      dispatch(uploaded());
+    } catch (err) {
+      console.log(err);
+      // 404 not ready
+      if (!res.status === '400') {
+        throw err;
+      }
+    }
+  }, 2000);
+};
+
+export const reloadContentAsync = ({ sourceId, uploadId, filepath }) => async (dispatch, getState) => {
+  const url = 'api/reload';
+  await http.post(url, { sourceId, uploadId, filepath });
+  // set `content` on upload to null to force refetch when previewing
+  const { uploads } = getState().fileUploader;
+  let newUploads = getNewUploads(uploads[sourceId], uploadId, null);
+  if (!newUploads) {
+    const workspaceUploads = await fetchUploads(sourceId);
+    newUploads = getNewUploads(workspaceUploads, uploadId, null);
+  }
+  dispatch(setUploads({ sourceId, uploads: newUploads }));
 };
 
 const fetchUploads = async (workspaceId) => {
@@ -110,7 +150,7 @@ export const getUploadContentAsync = (workspaceId, id, maxBytes) => async (dispa
     url += `?maxBytes=${maxBytes}`;
   }
   const res = await http.get(url);
-  const content = res.data;
+  const content = res.data || { data: { structured_content: [{ type: 'text', text: 'None' }] } };
   let newUploads = getNewUploads(uploads[workspaceId], id, content);
   if (!newUploads) {
     const workspaceUploads = await fetchUploads(workspaceId);
@@ -126,20 +166,24 @@ export const deleteUploadsAsync = ({ sourceId, uploads }) => async (dispatch) =>
   dispatch(removeUploads({ sourceId, uploads }));
 };
 
-export const indexApiAsync = ({ endpoint, schema, params }) => async (dispatch) => {
+export const indexApiAsync = ({ endpoint, schema, params, workspaceId }) => async (dispatch) => {
   const url = '/api/loader/api';
-  await http.post(url, { endpoint, schema, params });
+  await http.post(url, { endpoint, schema, params, workspaceId });
 };
 
-export const indexStructuredDocumentAsync = ({ uploadId, params }) => async (dispatch) => {
+export const indexStructuredDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
   const url = '/api/loader/structureddocument';
-  await http.post(url, { uploadId, params });
+  await http.post(url, { documents, params, workspaceId });
 };
 
-export const indexDocumentAsync = ({ filepath, params }) => async (dispatch) => {
-  // console.log('indexDocumentAsync params:', params);
+// export const indexStructuredDocumentAsync = ({ uploadId, params }) => async (dispatch) => {
+//   const url = '/api/loader/structureddocument';
+//   await http.post(url, { uploadId, params });
+// };
+
+export const indexDocumentAsync = ({ filepath, params, workspaceId }) => async (dispatch) => {
   const url = '/api/loader/document';
-  await http.post(url, { filepath, params });
+  await http.post(url, { filepath, params, workspaceId });
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;

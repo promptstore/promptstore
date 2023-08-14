@@ -1,12 +1,12 @@
-const { v4: uuidv4 } = require('uuid');
+import uuid from 'uuid';
 
-const Strategy = require('./Strategy');
+import Strategy from './Strategy';
 
 function Authenticator({ __name, constants, logger, app, passport, rc }) {
 
   app.post('/api/auth/one-time-token', passport.authenticate('keycloak', { session: false }), async (req, res, next) => {
     const { email } = req.body;
-    const token = uuidv4();
+    const token = uuid.v4();
     rc.hset(constants.TOKEN_STORE_KEY, token, email);
     res.send({ token });
   });
@@ -27,4 +27,4 @@ function Authenticator({ __name, constants, logger, app, passport, rc }) {
   })
 }
 
-module.exports = Authenticator;
+export default Authenticator;

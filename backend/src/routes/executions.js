@@ -1,4 +1,4 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { compositionsService, executionsService, functionsService } = services;
 
@@ -49,22 +49,24 @@ module.exports = ({ app, auth, logger, services }) => {
    *       500:
    *         description: Error
    */
-  app.post('/api/executions/:name', async (req, res, next) => {
-    const name = req.params.name;
+  app.post('/api/executions/:name', auth, async (req, res, next) => {
+    const semanticFunctionName = req.params.name;
+    const { username } = req.user;
     const batch = req.query.batch;
-    const { args, params = {} } = req.body;
-    logger.debug('body:', req.body);
-    const func = await functionsService.getFunctionByName(name);
-    if (!func) {
-      const errors = [
-        {
-          message: 'Function not found',
-        },
-      ];
-      return res.status(500).send({ errors });
-    }
+    // logger.debug('body:', req.body);
 
-    const { data, errors } = await executionsService.executeFunction(func, args, params, batch);
+    // TODO
+    const { args, history, params = {}, workspaceId = 1 } = req.body;
+
+    const { data, errors } = await executionsService.executeFunction({
+      workspaceId,
+      username,
+      semanticFunctionName,
+      args,
+      history,
+      params,
+      batch,
+    });
     if (errors) {
       return res.status(500).send({ errors });
     }
@@ -72,34 +74,24 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/composition-executions/:name', async (req, res, next) => {
-    const name = req.params.name;
-    const { args, params = {} } = req.body;
+    const compositionName = req.params.name;
+    const { username } = req.user;
+    const batch = req.query.batch;
+    // logger.debug('body:', req.body);
+    const { args, params = {}, workspaceId = 1 } = req.body;
 
-    logger.log('debug', 'args: %s', args);
-    logger.log('debug', 'params: %s', params);
-
-    const composition = await compositionsService.getCompositionByName(name);
-
-    if (!composition) {
-      const errors = [
-        {
-          message: 'Composition not found',
-        },
-      ];
-      return res.status(404).send({ errors });
+    const { data, errors } = await executionsService.executeComposition({
+      workspaceId,
+      username,
+      compositionName,
+      args,
+      params,
+      batch,
+    });
+    if (errors) {
+      return res.status(500).send({ errors });
     }
-
-    const { edges, nodes } = composition.flow;
-    // logger.log('debug', 'edges: %s', JSON.stringify(edges, null, 2));
-    // logger.log('debug', 'nodes: %s', JSON.stringify(nodes, null, 2));
-
-    try {
-      const result = await executionsService.executeGraph(args, params, nodes, edges);
-      res.json(result);
-    } catch (err) {
-      logger.log('error', err);
-      res.sendStatus(500);
-    }
+    res.json(data);
   });
 
 };

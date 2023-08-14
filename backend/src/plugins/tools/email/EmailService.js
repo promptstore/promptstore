@@ -1,4 +1,4 @@
-const { MailtrapClient } = require('mailtrap');
+import { MailtrapClient } from 'mailtrap';
 
 function EmailService({ __key, __name, constants, logger }) {
 
@@ -67,4 +67,4 @@ function EmailService({ __key, __name, constants, logger }) {
   };
 }
 
-module.exports = EmailService;
+export default EmailService;

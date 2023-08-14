@@ -1,8 +1,11 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function AppsService({ pg, logger }) {
+export function AppsService({ pg, logger }) {
 
   async function getApps(workspaceId, limit = 999, start = 0) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM apps
@@ -49,29 +52,31 @@ function AppsService({ pg, logger }) {
     };
   }
 
-  async function upsertApp(app) {
-    let val;
+  async function upsertApp(app, username) {
+    if (app === null || typeof app === 'undefined') {
+      return null;
+    }
+    const val = omit(app, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedApp = await getApp(app.id);
     if (savedApp) {
       app = { ...savedApp, ...app };
-      val = omit(app, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
       await pg.query(`
         UPDATE apps
-        SET name = $1, val = $2
-        WHERE id = $3
+        SET name = $1, val = $2, modified_by = $3, modified = $4
+        WHERE id = $5
         `,
-        [app.name, val, app.id]
+        [app.name, val, username, new Date(), app.id]
       );
-      return app.id;
+      return { ...savedApp, ...app };
     } else {
-      val = omit(app, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO apps (workspace_id, name, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO apps (workspace_id, name, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `,
-        [app.workspaceId, app.name, val]
+        [app.workspaceId, app.name, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...app, id: rows[0].id };
     }
   }
 
@@ -89,7 +94,3 @@ function AppsService({ pg, logger }) {
     upsertApp,
   };
 }
-
-module.exports = {
-  AppsService,
-};

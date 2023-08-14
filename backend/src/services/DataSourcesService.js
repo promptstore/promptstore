@@ -1,19 +1,24 @@
-const omit = require('lodash.omit');
+import omit from 'lodash.omit';
 
-function DataSourcesService({ pg, logger }) {
+export function DataSourcesService({ pg, logger }) {
 
-  async function getDataSources() {
+  async function getDataSources(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     let q = `
-      SELECT id, name, type, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
       FROM data_sources
+      WHERE workspace_id = $1
       `;
-    const { rows } = await pg.query(q);
+    const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
       return [];
     }
     const dataSources = rows.map((row) => ({
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       type: row.type,
       created: row.created,
@@ -24,22 +29,27 @@ function DataSourcesService({ pg, logger }) {
     return dataSources;
   }
 
-  async function getDataSourcesByType(type) {
+  async function getDataSourcesByType(workspaceId, type) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
     if (type === null || typeof type === 'undefined') {
-      return null;
+      return [];
     }
     let q = `
-      SELECT id, name, type, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
       FROM data_sources
-      WHERE type = $1
+      WHERE workspace_id = $1
+      AND type = $2
       `;
-    const { rows } = await pg.query(q, [type]);
+    const { rows } = await pg.query(q, [workspaceId, type]);
     if (rows.length === 0) {
-      return null;
+      return [];
     }
     const dataSources = rows.map((row) => ({
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       type: row.type,
       created: row.created,
@@ -55,7 +65,7 @@ function DataSourcesService({ pg, logger }) {
       return null;
     }
     let q = `
-      SELECT id, name, type, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
       FROM data_sources
       WHERE id = $1
       `;
@@ -67,6 +77,7 @@ function DataSourcesService({ pg, logger }) {
     return {
       ...row.val,
       id: row.id,
+      workspaceId: row.workspace_id,
       name: row.name,
       type: row.type,
       created: row.created,
@@ -76,30 +87,30 @@ function DataSourcesService({ pg, logger }) {
     };
   }
 
-  async function upsertDataSource(dataSource) {
+  async function upsertDataSource(dataSource, username) {
     if (dataSource === null || typeof dataSource === 'undefined') {
       return null;
     }
-    // console.log('dataSource:', dataSource);
-    const val = omit(dataSource, ['id', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const val = omit(dataSource, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedDataSource = await getDataSource(dataSource.id);
     if (savedDataSource) {
       await pg.query(`
         UPDATE data_sources
-        SET name = $1, type = $2, val = $3
-        WHERE id = $4
+        SET name = $1, type = $2, val = $3, modified_by = $4, modified = $5
+        WHERE id = $6
         `,
-        [dataSource.name, dataSource.type, val, dataSource.id]
+        [dataSource.name, dataSource.type, val, username, new Date(), dataSource.id]
       );
-      return dataSource.id;
+      return { ...savedDataSource, ...dataSource };
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO data_sources (name, type, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO data_sources (workspace_id, name, type, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
         `,
-        [dataSource.name, dataSource.type, val]
+        [dataSource.workspaceId, dataSource.name, dataSource.type, val, username, created, username, created]
       );
-      return rows[0].id;
+      return { ...dataSource, id: rows[0].id };
     }
   }
 
@@ -124,7 +135,3 @@ function DataSourcesService({ pg, logger }) {
     deleteDataSources,
   };
 }
-
-module.exports = {
-  DataSourcesService,
-};

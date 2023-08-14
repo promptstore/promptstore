@@ -1,4 +1,4 @@
-const { OpenWeatherAPI } = require('openweather-api-node');
+import { OpenWeatherAPI } from 'openweather-api-node';
 
 const temperatureRating = (temp) => {
   if (temp < 5) {
@@ -80,4 +80,4 @@ function OpenWeather({ __key, __name, constants, logger }) {
   };
 }
 
-module.exports = OpenWeather;
+export default OpenWeather;

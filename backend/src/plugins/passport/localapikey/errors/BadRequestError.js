@@ -15,4 +15,4 @@ function BadRequestError(message) {
  */
 BadRequestError.prototype.__proto__ = Error.prototype;
 
-module.exports = BadRequestError;
+export default BadRequestError;

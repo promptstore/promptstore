@@ -1,23 +1,24 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { crawlerService, indexesService, searchService } = services;
 
   // TODO de-duplication
 
   app.post('/api/crawls', async (req, res) => {
-    const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField } = req.body;
+    const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField, workspaceId } = req.body;
     const schema = convertScrapingSpecToIndexSchema(spec, vectorField);
     logger.debug('schema: ', JSON.stringify(schema, null, 2));
     let indexName;
     if (indexId === 'new') {
-      const id = await indexesService.upsertIndex({
+      const newIndex = await indexesService.upsertIndex({
         name: newIndexName,
         engine,
         schema,
         titleField,
         vectorField,
+        workspaceId,
       });
-      logger.debug(`Created new index '${newIndexName}' [${id}]`);
+      logger.debug(`Created new index '${newIndexName}' [${newIndex.id}]`);
       const fields = searchService.getSearchSchema(schema);
       await searchService.createIndex(newIndexName, fields);
       indexName = newIndexName;

@@ -1,4 +1,4 @@
-function ParserService({ registry, logger }) {
+export function ParserService({ registry, logger }) {
 
   async function parse(provider, text) {
     const instance = registry[provider];
@@ -18,8 +18,4 @@ function ParserService({ registry, logger }) {
     parse,
   };
 
-}
-
-module.exports = {
-  ParserService,
 }

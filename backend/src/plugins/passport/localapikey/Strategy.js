@@ -1,6 +1,6 @@
-const passport = require('passport')
-  , util = require('util')
-  , BadRequestError = require('./errors/BadRequestError');
+import passport from 'passport';
+import util from 'util';
+import BadRequestError from './errors/BadRequestError';
 
 /**
  * `Strategy` constructor.
@@ -99,4 +99,4 @@ Strategy.prototype.authenticate = function (req, options) {
   }
 }
 
-module.exports = Strategy;
+export default Strategy;

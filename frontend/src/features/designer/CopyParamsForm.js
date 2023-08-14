@@ -22,7 +22,7 @@ import {
   MinusCircleOutlined,
 } from '@ant-design/icons';
 
-import WorkspaceContext from '../../context/WorkspaceContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getPromptSetsAsync,
   selectPromptSets,

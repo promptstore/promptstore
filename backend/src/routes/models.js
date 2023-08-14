@@ -1,9 +1,10 @@
-module.exports = ({ app, auth, logger, services }) => {
+export default ({ app, auth, logger, services }) => {
 
   const { modelsService } = services;
 
-  app.get('/api/models', auth, async (req, res, next) => {
-    const models = await modelsService.getModels();
+  app.get('/api/workspace/:workspaceId/models', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const models = await modelsService.getModels(workspaceId);
     res.json(models);
   });
 
@@ -14,16 +15,18 @@ module.exports = ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/models', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const id = await modelsService.upsertModel(values);
-    res.json(id);
+    const model = await modelsService.upsertModel(values, username);
+    res.json(model);
   });
 
   app.put('/api/models/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await modelsService.upsertModel({ id, ...values });
-    res.json({ status: 'OK' });
+    const model = await modelsService.upsertModel({ id, ...values }, username);
+    res.json(model);
   });
 
   app.delete('/api/models/:id', auth, async (req, res, next) => {

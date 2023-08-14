@@ -18,6 +18,7 @@ import outputParsersReducer from '../features/functions/outputParsersSlice';
 import promptSetsReducer from '../features/promptSets/promptSetsSlice';
 import settingsReducer from '../features/promptSets/settingsSlice';
 import templatesReducer from '../features/promptSets/templatesSlice';
+import tracesReducer from '../features/traces/tracesSlice';
 import trainingReducer from '../features/training/trainingSlice';
 import usersReducer from '../features/users/usersSlice';
 import workspacesReducer from '../features/workspaces/workspacesSlice';
@@ -43,6 +44,7 @@ export const store = configureStore({
     promptSets: promptSetsReducer,
     settings: settingsReducer,
     templates: templatesReducer,
+    traces: tracesReducer,
     training: trainingReducer,
     users: usersReducer,
     workspaces: workspacesReducer,

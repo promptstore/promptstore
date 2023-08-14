@@ -1,39 +1,46 @@
 import { ChatCompletionResponse, Validator } from './common_types';
+import { Callback } from './Callback';
 import { ModelParams } from './Model_types';
+import { IMessage } from './PromptTemplate_types';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
-import { Trace } from './Tracer';
+// import { Trace } from './Tracer';
 
 export interface SemanticFunctionCallParams {
   args: any;
+  history?: IMessage[],
   modelKey: string;
   modelParams: ModelParams;
-  isBatch: boolean;
+  isBatch?: boolean;
+  callbacks?: Callback[];
 }
 
-interface OnSemanticFunctionStartResponse extends SemanticFunctionCallParams {
-  trace: Trace;
+export interface SemanticFunctionOnStartResponse extends SemanticFunctionCallParams {
+  name: string;
+  // trace: Trace;
 }
 
-export interface OnSemanticFunctionEndParams {
-  response: ChatCompletionResponse;
+export interface SemanticFunctionOnEndParams {
+  response?: ChatCompletionResponse;
+  errors?: any;
 }
 
-interface OnSemanticFunctionEndResponse extends OnSemanticFunctionEndParams {
-  traceRecord: object;
+export interface SemanticFunctionOnEndResponse extends SemanticFunctionOnEndParams {
+  name: string;
+  response?: ChatCompletionResponse;
+  errors?: any;
+  // traceRecord: object;
 }
 
-export type OnSemanticFunctionStartCallbackFunction = (params: OnSemanticFunctionStartResponse) => void;
+export type SemanticFunctionOnStartCallbackFunction = (params: SemanticFunctionOnStartResponse) => void;
 
-export type OnSemanticFunctionEndCallbackFunction = (params: OnSemanticFunctionEndResponse) => void;
+export type SemanticFunctionOnEndCallbackFunction = (params: SemanticFunctionOnEndResponse) => void;
 
-export type OnSemanticFunctionErrorCallbackFunction = (errors: any) => void;
+export type SemanticFunctionOnErrorCallbackFunction = (errors: any) => void;
 
 export interface SemanticFunctionParams {
   name: string;
   argsSchema: object;
   implementations: SemanticFunctionImplementation[];
   validator?: Validator;
-  onSemanticFunctionStart?: OnSemanticFunctionStartCallbackFunction;
-  onSemanticFunctionEnd?: OnSemanticFunctionEndCallbackFunction;
-  onSemanticFunctionError?: OnSemanticFunctionErrorCallbackFunction;
+  callbacks?: Callback[];
 }

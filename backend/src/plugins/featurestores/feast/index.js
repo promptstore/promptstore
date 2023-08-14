@@ -1,7 +1,2 @@
-const FeastService = require('./FeastService');
-const constants = require('./constants');
-
-module.exports = {
-  plugin: FeastService,
-  constants,
-}
+export { default as plugin } from './FeastService';
+export { default as constants } from './constants';

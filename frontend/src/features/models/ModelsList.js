@@ -1,10 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Space, Table, message } from 'antd';
+import { Button, Input, Space, Switch, Table, message } from 'antd';
+import { CheckCircleTwoTone } from '@ant-design/icons';
+import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
-import NavbarContext from '../../context/NavbarContext';
+import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteModelsAsync,
   getModelsAsync,
@@ -12,27 +15,36 @@ import {
   selectModels,
 } from './modelsSlice';
 
+const { Search } = Input;
+
 export function ModelsList() {
 
+  const [filterPublic, setFilterPublic] = useLocalStorageState('models-filter-system', false);
   const [page, setPage] = useLocalStorageState('models-list-page', 1);
+  const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
 
   const data = useMemo(() => {
-    const list = Object.values(models).map((model) => ({
-      key: model.id,
-      modelKey: model.key,
-      name: model.name,
-      provider: model.provider || model.type,
-      type: model.type,
-    }));
+    const list = Object.values(models)
+      .filter((model) => model.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+      .filter((model) => filterPublic ? model.isPublic : true)
+      .map((model) => ({
+        key: model.id,
+        modelKey: model.key,
+        name: model.name,
+        provider: model.provider || model.type,
+        type: model.type,
+        isPublic: model.isPublic,
+      }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
-  }, [models]);
+  }, [models, filterPublic, searchValue]);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
@@ -46,8 +58,13 @@ export function ModelsList() {
       createLink: '/models/new',
       title: 'Models',
     }));
-    dispatch(getModelsAsync());
   }, []);
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id }));
+    }
+  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (location.state && location.state.message) {
@@ -62,6 +79,10 @@ export function ModelsList() {
     dispatch(deleteModelsAsync({ ids: selectedRowKeys }));
     setSelectedRowKeys([]);
   };
+
+  const onSearch = debounce((q) => {
+    setSearchValue(q);
+  }, 1000);
 
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -151,6 +172,15 @@ export function ModelsList() {
     //   )
     // },
     {
+      title: 'Public',
+      dataIndex: 'isPublic',
+      render: (_, { isPublic }) => (
+        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+          <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+        </div>
+      )
+    },
+    {
       title: 'Provider',
       dataIndex: 'provider',
       width: '100%',
@@ -195,6 +225,17 @@ export function ModelsList() {
           <span style={{ marginLeft: 8 }}>
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
           </span>
+          <Search allowClear
+            placeholder="find entries"
+            onSearch={onSearch}
+            style={{ marginLeft: 16, width: 200 }}
+          />
+          <Switch
+            checked={filterPublic}
+            onChange={setFilterPublic}
+            style={{ marginLeft: 8 }}
+          />
+          <span style={{ marginLeft: 8 }}>Public models</span>
         </div>
         <Table
           rowSelection={rowSelection}
