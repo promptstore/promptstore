@@ -3,7 +3,6 @@ import { Callback } from './Callback';
 import { ModelParams } from './Model_types';
 import { IMessage } from './PromptTemplate_types';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
-// import { Trace } from './Tracer';
 
 export interface SemanticFunctionCallParams {
   args: any;
@@ -16,7 +15,6 @@ export interface SemanticFunctionCallParams {
 
 export interface SemanticFunctionOnStartResponse extends SemanticFunctionCallParams {
   name: string;
-  // trace: Trace;
 }
 
 export interface SemanticFunctionOnEndParams {
@@ -28,7 +26,6 @@ export interface SemanticFunctionOnEndResponse extends SemanticFunctionOnEndPara
   name: string;
   response?: ChatCompletionResponse;
   errors?: any;
-  // traceRecord: object;
 }
 
 export type SemanticFunctionOnStartCallbackFunction = (params: SemanticFunctionOnStartResponse) => void;

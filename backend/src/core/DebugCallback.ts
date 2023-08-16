@@ -2,11 +2,15 @@ import { ValidatorResult } from 'jsonschema';
 
 import logger from '../logger';
 
-import { MapArgumentsResponse } from './common_types';
+import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
   CompositionOnStartResponse,
   CompositionOnEndResponse,
 } from './Composition_types';
+import {
+  InputGuardrailsOnEndResponse,
+  InputGuardrailsOnStartResponse,
+} from './InputGuardrails_types';
 import {
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
@@ -41,6 +45,8 @@ import {
 } from './Model_types';
 import {
   OutputProcessingResponse,
+  OutputGuardrailStartResponse,
+  OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
 
 export class DebugCallback {
@@ -93,6 +99,22 @@ export class DebugCallback {
       output = mapped?.length ? mapped[0] : mapped;
     } else {
       input = args;
+      output = mapped;
+    }
+    logger.debug('input:', input);
+    logger.debug('output:', output);
+    logger.debug('mapping template:', mappingTemplate);
+  }
+
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
+    logger.debug('mapping response');
+    logger.debug('batch:', isBatch ? 'true' : 'false');
+    let input: any, output: any;
+    if (isBatch) {
+      input = response?.length ? response[0] : response;
+      output = mapped?.length ? mapped[0] : mapped;
+    } else {
+      input = response;
       output = mapped;
     }
     logger.debug('input:', input);
@@ -185,6 +207,18 @@ export class DebugCallback {
     logger.error(errors);
   }
 
+  onInputGuardrailStart({ guardrails, messages }: InputGuardrailsOnStartResponse) {
+    logger.debug('start input guardrails');
+  }
+
+  onInputGuardrailEnd({ valid, errors }: InputGuardrailsOnEndResponse) {
+    logger.debug('end input guardrails');
+  }
+
+  onInputGuardrailError(errors: any) {
+    logger.error(errors);
+  }
+
   onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
     logger.debug('start model:', modelKey, modelParams);
     logger.debug('input:', messages);
@@ -196,6 +230,18 @@ export class DebugCallback {
   }
 
   onModelError(errors: any) {
+    logger.error(errors);
+  }
+
+  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+    logger.debug('start completion model:', modelKey);
+  }
+
+  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
+    logger.debug('end completion model:', modelKey);
+  }
+
+  onCompletionModelError(errors: any) {
     logger.error(errors);
   }
 
@@ -223,15 +269,39 @@ export class DebugCallback {
     logger.error(errors);
   }
 
-  onOutputProcessingStart({ result }: OutputProcessingResponse) {
+  onOutputProcessingStart({ response }: OutputProcessingResponse) {
     logger.debug('start output processing pipeline');
   }
 
-  onOutputProcessingEnd({ result, errors }: OutputProcessingResponse) {
+  onOutputProcessingEnd({ response, errors }: OutputProcessingResponse) {
     logger.debug('end output processing pipeline');
   }
 
   onOutputProcessingError(errors: any) {
+    logger.error(errors);
+  }
+
+  onOutputGuardrailStart({ guardrail, response }: OutputGuardrailStartResponse) {
+    logger.debug('start output guardrail check');
+  }
+
+  onOutputGuardrailEnd({ response, errors }: OutputProcessingResponse) {
+    logger.debug('end output guardrail check');
+  }
+
+  onOutputGuardrailError(errors: any) {
+    logger.error(errors);
+  }
+
+  onOutputParserStart({ outputParser, response }: OutputParserStartResponse) {
+    logger.debug('start output parser');
+  }
+
+  onOutputParserEnd({ response, errors }: OutputProcessingResponse) {
+    logger.debug('end output parser');
+  }
+
+  onOutputParserError(errors: any) {
     logger.error(errors);
   }
 

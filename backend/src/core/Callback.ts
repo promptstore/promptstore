@@ -1,10 +1,14 @@
 import { ValidatorResult } from 'jsonschema';
 
-import { MapArgumentsResponse } from './common_types';
+import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
   CompositionOnStartResponse,
   CompositionOnEndResponse,
 } from './Composition_types';
+import {
+  InputGuardrailsOnEndResponse,
+  InputGuardrailsOnStartResponse,
+} from './InputGuardrails_types';
 import {
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
@@ -39,6 +43,8 @@ import {
 } from './Model_types';
 import {
   OutputProcessingResponse,
+  OutputGuardrailStartResponse,
+  OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
 
 export class Callback {
@@ -72,6 +78,10 @@ export class Callback {
   }
 
   onMapArguments({ args, mapped, mappingTemplate, isBatch }: MapArgumentsResponse) {
+
+  }
+
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
 
   }
 
@@ -159,6 +169,18 @@ export class Callback {
 
   }
 
+  onInputGuardrailStart({ guardrails, messages }: InputGuardrailsOnStartResponse) {
+
+  }
+
+  onInputGuardrailEnd({ valid, errors }: InputGuardrailsOnEndResponse) {
+
+  }
+
+  onInputGuardrailError(errors: any) {
+
+  }
+
   onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
 
   }
@@ -168,6 +190,18 @@ export class Callback {
   }
 
   onModelError(errors: any) {
+
+  }
+
+  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+
+  }
+
+  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
+
+  }
+
+  onCompletionModelError(errors: any) {
 
   }
 
@@ -195,15 +229,39 @@ export class Callback {
 
   }
 
-  onOutputProcessingStart({ result }: OutputProcessingResponse) {
+  onOutputProcessingStart({ response }: OutputProcessingResponse) {
 
   }
 
-  onOutputProcessingEnd({ result, errors }: OutputProcessingResponse) {
+  onOutputProcessingEnd({ response, errors }: OutputProcessingResponse) {
 
   }
 
   onOutputProcessingError(errors: any) {
+
+  }
+
+  onOutputGuardrailStart({ guardrail, response }: OutputGuardrailStartResponse) {
+
+  }
+
+  onOutputGuardrailEnd({ response, errors }: OutputProcessingResponse) {
+
+  }
+
+  onOutputGuardrailError(errors: any) {
+
+  }
+
+  onOutputParserStart({ outputParser, response }: OutputParserStartResponse) {
+
+  }
+
+  onOutputParserEnd({ response, errors }: OutputProcessingResponse) {
+
+  }
+
+  onOutputParserError(errors: any) {
 
   }
 

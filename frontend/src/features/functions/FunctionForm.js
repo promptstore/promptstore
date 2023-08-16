@@ -22,6 +22,7 @@ import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 import isFunction from 'lodash.isfunction';
 import isObject from 'lodash.isobject';
+import * as dayjs from 'dayjs';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
@@ -82,6 +83,7 @@ import 'react-data-mapping/dist/index.css';
 const { TextArea } = Input;
 
 const TAGS_KEY = 'functionTags';
+const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 const layout = {
   labelCol: { span: 4 },
@@ -186,6 +188,16 @@ export function FunctionForm() {
     return list;
   }, [dataSources]);
 
+  const indexOptions = useMemo(() => {
+    const list = Object.values(indexes)
+      .map((idx) => ({
+        label: idx.name,
+        value: idx.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [indexes]);
+
   const inputGuardrailOptions = useMemo(() => {
     const list = guardrails
       .filter((g) => g.type === 'input')
@@ -207,16 +219,6 @@ export function FunctionForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [guardrails]);
-
-  const indexOptions = useMemo(() => {
-    const list = Object.values(indexes)
-      .map((idx) => ({
-        label: idx.name,
-        value: idx.id,
-      }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [indexes]);
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
@@ -246,6 +248,22 @@ export function FunctionForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [promptSets]);
+
+  const promptSetVersionOptions = (index) => {
+    const promptSetId = implementationsValue[index].promptSetId;
+    if (promptSetId) {
+      const promptSet = promptSets[promptSetId];
+      const versions = promptSet.versions || [];
+      const list = versions.map((v) => ({
+        label: v.title,
+        value: v.id,
+        created: v.created,
+      }));
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      return list;
+    }
+    return [];
+  };
 
   const sqlSourceOptions = useMemo(() => {
     const list = Object.values(dataSources)
@@ -1061,39 +1079,58 @@ export function FunctionForm() {
                         }
                       </div>
                       {getModel(index)?.type === 'gpt' ?
-                        <div style={{ display: 'flex' }}>
+                        <>
+                          <div style={{ display: 'flex' }}>
+                            <Form.Item
+                              name={[field.name, 'promptSetId']}
+                              label="Prompt Template"
+                              labelCol={{ span: 24 }}
+                              wrapperCol={{ span: 24 }}
+                              style={{ flex: 1 }}
+                            >
+                              <Select
+                                allowClear
+                                options={promptSetOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            {implementationsValue?.[index]?.promptSetId ?
+                              <Button
+                                type="link"
+                                icon={<LinkOutlined />}
+                                onClick={() => navigate(`/prompt-sets/${implementationsValue?.[index]?.promptSetId}`)}
+                                style={{ marginTop: 32, width: 32 }}
+                              />
+                              : null
+                            }
+                          </div>
                           <Form.Item
-                            name={[field.name, 'promptSetId']}
-                            label="Prompt Template"
+                            name={[field.name, 'promptSetVersion']}
+                            label="Template Version"
                             labelCol={{ span: 24 }}
                             wrapperCol={{ span: 24 }}
-                            style={{ flex: 1 }}
                           >
-                            <Select allowClear options={promptSetOptions} optionFilterProp="label" />
+                            <Select
+                              allowClear
+                              optionFilterProp="label"
+                              placeholder="latest"
+                            >
+                              {promptSetVersionOptions(index).map(v => (
+                                <Option key={v.value} value={v.value} label={v.label}>
+                                  <div>{v.label}</div>
+                                  <div
+                                    className="text-secondary"
+                                    style={{ marginTop: 5 }}
+                                  >
+                                    {dayjs(v.created).format(TIME_FORMAT)}
+                                  </div>
+                                </Option>
+                              ))}
+                            </Select>
                           </Form.Item>
-                          {implementationsValue?.[index]?.promptSetId ?
-                            <Button
-                              type="link"
-                              icon={<LinkOutlined />}
-                              onClick={() => navigate(`/prompt-sets/${implementationsValue?.[index]?.promptSetId}`)}
-                              style={{ marginTop: 32, width: 32 }}
-                            />
-                            : null
-                          }
-                        </div>
+                        </>
                         : null
                       }
-                      {/* {getModel(index)?.type === 'api' ?
-                        <Form.Item
-                          name={[field.name, 'url']}
-                          label="URL"
-                          labelCol={{ span: 24 }}
-                          wrapperCol={{ span: 24 }}
-                        >
-                          <Input />
-                        </Form.Item>
-                        : null
-                      } */}
                       <div>
                         <label style={{
                           alignItems: 'center',

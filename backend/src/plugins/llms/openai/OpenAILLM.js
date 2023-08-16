@@ -21,9 +21,13 @@ function OpenAILLM({ __name, constants, logger }) {
         messages,
         model,
       };
-      logger.debug('options:', JSON.stringify(opts, null, 2));
-      res = await openai.createChatCompletion(opts);
-      logger.debug('res:', JSON.stringify(res.data, null, 2));
+      // logger.debug('options:', opts);
+      if (modelParams.stream) {
+        res = await openai.createChatCompletion(opts, { responseType: 'stream' });
+      } else {
+        res = await openai.createChatCompletion(opts);
+      }
+      // logger.debug('res:', res.data);
       return res.data;
     } catch (err) {
       logger.error(String(err));
@@ -43,7 +47,7 @@ function OpenAILLM({ __name, constants, logger }) {
       model,
       prompt,
     };
-    logger.debug('options:', JSON.stringify(opts, null, 2));
+    // logger.debug('options:', opts);
     const res = await openai.createCompletion(opts);
     return res.data;
   }

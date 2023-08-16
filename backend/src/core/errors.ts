@@ -12,6 +12,30 @@ export class CompositionError extends Error {
 
 }
 
+export class GuardrailError extends Error {
+
+  constructor(message: string) {
+    super(message);
+  }
+
+  get errors() {
+    return [{ message: this.message }];
+  }
+
+}
+
+export class ParserError extends Error {
+
+  constructor(message: string) {
+    super(message);
+  }
+
+  get errors() {
+    return [{ message: this.message }];
+  }
+
+}
+
 export class SemanticFunctionError extends Error {
 
   constructor(message: string) {

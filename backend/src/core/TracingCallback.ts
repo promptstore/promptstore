@@ -1,11 +1,15 @@
 import { default as dayjs } from 'dayjs';
 import { ValidatorResult } from 'jsonschema';
 
-import { MapArgumentsResponse } from './common_types';
+import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
   CompositionOnStartResponse,
   CompositionOnEndResponse,
 } from './Composition_types';
+import {
+  InputGuardrailsOnEndResponse,
+  InputGuardrailsOnStartResponse,
+} from './InputGuardrails_types';
 import {
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
@@ -40,6 +44,8 @@ import {
 } from './Model_types';
 import {
   OutputProcessingResponse,
+  OutputGuardrailStartResponse,
+  OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
 import { Tracer } from './Tracer';
 
@@ -192,6 +198,26 @@ export class TracingCallback {
       this.tracer.push({
         type: 'map-args',
         input: args,
+        output: mapped,
+        isBatch,
+        mappingTemplate,
+      });
+    }
+  }
+
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
+    if (isBatch) {
+      this.tracer.push({
+        type: 'map-response',
+        input: response?.length ? response[0] : response,
+        output: mapped?.length ? mapped[0] : mapped,
+        isBatch,
+        mappingTemplate,
+      });
+    } else {
+      this.tracer.push({
+        type: 'map-response',
+        input: response,
         output: mapped,
         isBatch,
         mappingTemplate,
@@ -501,6 +527,41 @@ export class TracingCallback {
     });
   }
 
+  onInputGuardrailStart({ guardrails, messages }: InputGuardrailsOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        type: 'check-input-guardrails',
+        guardrails,
+        messages,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onInputGuardrailEnd({ valid, errors }: InputGuardrailsOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      .addProperty('valid', valid)
+      ;
+    if (errors) {
+      this.tracer.addProperty('errors', errors);
+    }
+  }
+
+  onInputGuardrailError(errors: any) {
+    this.tracer.push({
+      type: 'error',
+      errors: errors,
+    });
+  }
+
   onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -538,6 +599,49 @@ export class TracingCallback {
   }
 
   onModelError(errors: any) {
+    this.tracer.push({
+      type: 'error',
+      errors,
+    });
+  }
+
+  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        type: 'call-model',
+        model: modelKey,
+        modelParams,
+        messages,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('response', response)
+        .addProperty('success', true)
+        ;
+    }
+  }
+
+  onCompletionModelError(errors: any) {
     this.tracer.push({
       type: 'error',
       errors,
@@ -630,19 +734,19 @@ export class TracingCallback {
     });
   }
 
-  onOutputProcessingStart({ result }: OutputProcessingResponse) {
+  onOutputProcessingStart({ response }: OutputProcessingResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
         type: 'output-processing-pipeline',
-        input: result,
+        input: response,
         startTime: startTime.getTime(),
       })
       .down();
   }
 
-  onOutputProcessingEnd({ result, errors }) {
+  onOutputProcessingEnd({ response, errors }) {
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -658,13 +762,97 @@ export class TracingCallback {
         ;
     } else {
       this.tracer
-        .addProperty('output', result)
+        .addProperty('output', response)
         .addProperty('success', true)
         ;
     }
   }
 
   onOutputProcessingError(errors: any) {
+    this.tracer.push({
+      type: 'error',
+      errors,
+    });
+  }
+
+  onOutputGuardrailStart({ guardrail, response }: OutputGuardrailStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        type: 'output-guardrail',
+        guardrail,
+        input: response,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onOutputGuardrailEnd({ response, errors }: OutputProcessingResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('output', response)
+        .addProperty('success', true)
+        ;
+    }
+  }
+
+  onOutputGuardrailError(errors: any) {
+    this.tracer.push({
+      type: 'error',
+      errors,
+    });
+  }
+
+  onOutputParserStart({ outputParser, response }: OutputParserStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        type: 'output-parser',
+        outputParser,
+        input: response,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onOutputParserEnd({ response, errors }: OutputProcessingResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('output', response)
+        .addProperty('success', true)
+        ;
+    }
+  }
+
+  onOutputParserError(errors: any) {
     this.tracer.push({
       type: 'error',
       errors,

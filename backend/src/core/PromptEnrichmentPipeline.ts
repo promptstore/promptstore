@@ -4,8 +4,6 @@ import get from 'lodash.get';
 import set from 'lodash.set';  // mutable
 import clone from 'lodash.clonedeep';
 
-import logger from '../logger';
-
 import { SemanticFunctionError } from './errors';
 import { Callback } from './Callback';
 import { ModelParams } from './Model_types';
@@ -27,7 +25,6 @@ import {
 } from './PromptEnrichmentPipeline_types';
 import { PromptTemplate } from './PromptTemplate';
 import { SemanticFunction } from './SemanticFunction';
-// import { Tracer } from './Tracer';
 
 dayjs.extend(relativeTime);
 
@@ -37,8 +34,6 @@ export class PromptEnrichmentPipeline {
   steps: PromptEnrichmentStep[];
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     promptTemplate,
@@ -48,7 +43,6 @@ export class PromptEnrichmentPipeline {
     this.promptTemplate = promptTemplate;
     this.steps = steps;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
@@ -56,10 +50,8 @@ export class PromptEnrichmentPipeline {
     this.onStart({ args });
     try {
       for (const step of this.steps) {
-        // step.tracer = this.tracer;
         args = await step.call({ args, callbacks });
       }
-      // this.promptTemplate.tracer = this.tracer;
       const messages = this.promptTemplate.call({ args, callbacks });
       this.onEnd({ messages });
       return messages;
@@ -70,62 +62,25 @@ export class PromptEnrichmentPipeline {
     }
   }
 
-  getTraceName() {
-    return ['prompt-enrichment-pipeline', new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptEnrichmentCallParams) {
-    // logger.info('start enrichment pipeline');
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'enrichment-pipeline',
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onPromptEnrichmentStart({
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ messages, errors }: PromptEnrichmentOnEndParams) {
-    // logger.info('end enrichment pipeline');
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('messages', messages)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onPromptEnrichmentEnd({
         messages,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onPromptEnrichmentError(errors);
     }
@@ -141,8 +96,6 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
   featureStoreService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     featurestore,
@@ -154,7 +107,6 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
     this.featureStoreParams = featureStoreParams;
     this.featureStoreService = featureStoreService;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks }: PromptEnrichmentCallParams) {
@@ -179,22 +131,7 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
     }
   }
 
-  getTraceName() {
-    return [this.featurestore, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptEnrichmentCallParams) {
-    // logger.info('start enrichment from feature store', this.featurestore);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'feature-store-enrichment',
-    //   featureStore: {
-    //     name: this.featurestore,
-    //     params: this.featureStoreParams,
-    //   },
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onFeatureStoreEnrichmentStart({
         featureStore: {
@@ -202,32 +139,11 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
           params: this.featureStoreParams,
         },
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ enrichedArgs, errors }: OnFeatureStoreEnrichmentEndParams) {
-    // logger.info('end enrichment from feature store', this.featurestore);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('enrichedArgs', enrichedArgs)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onFeatureStoreEnrichmentEnd({
         featureStore: {
@@ -236,17 +152,12 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
         },
         enrichedArgs,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onFeatureStoreEnrichmentError(errors);
     }
@@ -262,8 +173,6 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
   searchService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     indexName,
@@ -275,7 +184,6 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     this.indexParams = indexParams;
     this.searchService = searchService;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
@@ -319,22 +227,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     return get(args, indexContentPropertyPath);
   }
 
-  getTraceName() {
-    return [this.indexName, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptEnrichmentCallParams) {
-    // logger.info('start enrichment from index', this.indexName);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'semantic-search-enrichment',
-    //   index: {
-    //     name: this.indexName,
-    //     params: this.indexParams,
-    //   },
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onSemanticSearchEnrichmentStart({
         index: {
@@ -342,32 +235,11 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
           params: this.indexParams,
         },
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ enrichedArgs, errors }: OnSemanticSearchEnrichmentEndParams) {
-    // logger.info('end enrichment from index', this.indexName);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('enrichedArgs', enrichedArgs)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onSemanticSearchEnrichmentEnd({
         index: {
@@ -376,17 +248,12 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         },
         enrichedArgs,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onSemanticSearchEnrichmentError(errors);
     }
@@ -404,8 +271,6 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
   contextPropertyPath: string;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     semanticFunction,
@@ -421,7 +286,6 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
     this.contentPropertyPath = contentPropertyPath;
     this.contextPropertyPath = contextPropertyPath;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
@@ -446,23 +310,7 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
     }
   }
 
-  getTraceName() {
-    return [this.semanticFunction.name, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptEnrichmentCallParams) {
-    // logger.info('start function enrichment', this.semanticFunction.name);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'function-enrichment',
-    //   functionName: this.semanticFunction.name,
-    //   modelKey: this.modelKey,
-    //   modelParams: this.modelParams,
-    //   contentPropertyPath: this.contentPropertyPath,
-    //   contextPropertyPath: this.contextPropertyPath,
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onFunctionEnrichmentStart({
         functionName: this.semanticFunction.name,
@@ -471,32 +319,11 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
         contentPropertyPath: this.contentPropertyPath,
         contextPropertyPath: this.contextPropertyPath,
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ enrichedArgs, errors }: OnFunctionEnrichmentEndParams) {
-    // logger.info('end function enrichment', this.semanticFunction.name);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('enrichedArgs', enrichedArgs)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onFunctionEnrichmentEnd({
         functionName: this.semanticFunction.name,
@@ -506,17 +333,12 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
         contextPropertyPath: this.contextPropertyPath,
         enrichedArgs,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onFunctionEnrichmentError(errors);
     }
@@ -531,8 +353,6 @@ export class SqlEnrichment implements PromptEnrichmentStep {
   sqlSourceService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     sqlSourceInfo,
@@ -542,15 +362,13 @@ export class SqlEnrichment implements PromptEnrichmentStep {
     this.sqlSourceInfo = sqlSourceInfo;
     this.sqlSourceService = sqlSourceService;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ args });
     try {
-      // const query = this.getQuery(args);
-      let context;
+      let context: string;
       if (this.sqlSourceInfo.sqlType === 'schema') {
         context = await this.sqlSourceService.getSchema(this.sqlSourceInfo);
       } else if (this.sqlSourceInfo.sqlType === 'sample') {
@@ -590,61 +408,24 @@ export class SqlEnrichment implements PromptEnrichmentStep {
   //   return get(args, indexContentPropertyPath);
   // }
 
-  getTraceName() {
-    return [this.sqlSourceInfo.databaseName, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptEnrichmentCallParams) {
-    // logger.info('start enrichment from SQL');
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'sql-enrichment',
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onSqlEnrichmentStart({
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ enrichedArgs, errors }: OnSqlEnrichmentEndParams) {
-    // logger.info('end enrichment from SQL');
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('enrichedArgs', enrichedArgs)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onSqlEnrichmentEnd({
         enrichedArgs,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onSqlEnrichmentError(errors);
     }

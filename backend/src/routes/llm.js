@@ -186,18 +186,18 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const messages = getMessages(prompts, features);
 
     // TODO find a better approach
-    if (app.allowEmojis) {
-      const last = messages[messages.length - 1];
-      last.content = appendSentence(last.content, 'Use emojis judiciously.');
-    }
+    // if (app.allowEmojis) {
+    //   const last = messages[messages.length - 1];
+    //   last.content = appendSentence(last.content, 'Use emojis judiciously.');
+    // }
 
-    logger.debug('messages:', messages);
+    // logger.debug('messages:', messages);
 
     const modelParams = {
       max_tokens: maxTokens,
       n,
     }
-    return llmService.fetchChatCompletion({ provider, messages, model, modelParams });
+    return llmService.createChatCompletion({ provider, messages, model, modelParams });
   };
 
   const getMaxTokens = (app) => {

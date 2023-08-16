@@ -1,26 +1,23 @@
 import { Callback } from './Callback';
-// import { Tracer, Trace } from './Tracer';
 
 export interface OutputProcessingStep {
-  call: (result: any) => Promise<object>;
-  // tracer?: Tracer;
+  call: (params: OutputProcessingCallParams) => Promise<object>;
   callbacks?: Callback[];
 }
 
 export interface OutputProcessingCallParams {
-  result: any;
+  response: any;
   callbacks?: Callback[];
 }
 
 export interface OutputProcessingEndParams {
-  result?: any;
+  response?: any;
   errors?: any;
 }
 
 export interface OutputProcessingResponse {
-  result?: any;
+  response?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type OutputProcessingOnStartCallbackFunction = (params: OutputProcessingResponse) => void;
@@ -32,4 +29,26 @@ export type OutputProcessingOnErrorCallbackFunction = (errors: any) => void;
 export interface OutputProcessingPipelineParams {
   steps: OutputProcessingStep[];
   callbacks?: Callback[];
+}
+
+export interface OutputGuardrailParams {
+  guardrail: string;
+  guardrailsService: any;
+  callbacks?: Callback[];
+}
+
+export interface OutputParserParams {
+  outputParser: string;
+  parserService: any;
+  callbacks?: Callback[];
+}
+
+export interface OutputGuardrailStartResponse {
+  guardrail: string;
+  response: any;
+}
+
+export interface OutputParserStartResponse {
+  outputParser: string;
+  response: any;
 }

@@ -1,6 +1,5 @@
 import { Validator } from './common_types';
 import { Callback } from './Callback';
-// import { Trace } from './Tracer';
 
 export type TemplateFiller = (content: string, args: object) => string;
 
@@ -91,7 +90,6 @@ export class SystemMessage implements IMessage {
 export interface PromptTemplateOnStartResponse {
   args: any;
   messageTemplates: IMessage[];
-  // trace: Trace;
 }
 
 export interface OnPromptTemplateEndParams {
@@ -102,7 +100,6 @@ export interface OnPromptTemplateEndParams {
 export interface PromptTemplateOnEndResponse {
   messages?: IMessage[];
   errors?: any;
-  // trace: Trace;
 }
 
 export type PromptTemplateOnStartCallbackFunction = (params: PromptTemplateOnStartResponse) => void;

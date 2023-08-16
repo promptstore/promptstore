@@ -2,7 +2,7 @@ import { ValidatorResult } from 'jsonschema';
 
 import { IMessage } from './PromptTemplate_types';
 
-interface ChatCompletionChoice {
+export interface ChatCompletionChoice {
   finish_reason: string;
   index: number;
   message: IMessage;
@@ -43,13 +43,29 @@ export interface OpenAIChatCompletionRequest {
 }
 
 export interface ChatCompletionResponse {
-  choices: ChatCompletionChoice[];
-  created: Date;
   id: string;
-  model: string;
   object: string;
+  created: Date;
+  model: string;
+  choices: ChatCompletionChoice[];
   usage: ChatCompletionUsage;
 };
+
+interface CompletionChoice {
+  text: string;
+  index: number;
+  logprobs?: object;
+  finish_reason: string;
+}
+
+export interface CompletionResponse {
+  id: string;  // A unique identifier for the completion.
+  object: string;  // The object type, which is always "text_completion"
+  created: Date;
+  model: string;
+  choices: CompletionChoice[];  // The list of completion choices the model generated for the input prompt.
+  usage: ChatCompletionUsage;
+}
 
 export type DataMapper = (instance: object, template: any) => Promise<object>;
 
@@ -60,6 +76,13 @@ export type Validator = (args: any, schema: object, options: object) => Validato
 
 export interface MapArgumentsResponse {
   args: any;
+  mapped: any;
+  isBatch: boolean;
+  mappingTemplate: any;
+}
+
+export interface MapReturnTypeResponse {
+  response: any;
   mapped: any;
   isBatch: boolean;
   mappingTemplate: any;

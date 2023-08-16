@@ -2,7 +2,6 @@ import { DataMapper } from './common_types';
 import { Callback } from './Callback';
 import { ModelParams } from './Model_types';
 import { SemanticFunction } from './SemanticFunction';
-// import { Trace } from './Tracer';
 
 interface INode {
   id: string;
@@ -46,7 +45,6 @@ export interface CompositionOnEndResponse extends CompositionOnEndParams {
   name: string;
   response?: any;
   errors?: any;
-  // traceRecord: object;
 }
 
 export interface CompositionCallParams {
@@ -59,7 +57,6 @@ export interface CompositionCallParams {
 
 export interface CompositionOnStartResponse extends CompositionCallParams {
   name: string;
-  // trace: Trace;
 }
 
 export type CompositionOnStartCallbackFunction = (params: CompositionOnStartResponse) => void;

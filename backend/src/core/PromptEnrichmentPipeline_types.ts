@@ -3,7 +3,6 @@ import { ModelParams } from './Model_types';
 import { Message } from './PromptTemplate_types';
 import { PromptTemplate } from './PromptTemplate';
 import { SemanticFunction } from './SemanticFunction';
-// import { Tracer, Trace } from './Tracer';
 
 export interface PromptEnrichmentCallParams {
   args: any;
@@ -12,7 +11,6 @@ export interface PromptEnrichmentCallParams {
 
 export interface PromptEnrichmentStep {
   call: (args: any) => Promise<object>;
-  // tracer?: Tracer;
   callbacks?: Callback[];
 }
 
@@ -23,13 +21,11 @@ export interface PromptEnrichmentOnEndParams {
 
 export interface PromptEnrichmentOnStartResponse {
   args: any;
-  // trace: Trace;
 }
 
 export interface PromptEnrichmentOnEndResponse {
   messages?: Message[];
   errors?: any;
-  // trace: Trace;
 }
 
 export type PromptEnrichmentOnStartCallbackFunction = (params: PromptEnrichmentOnStartResponse) => void;
@@ -68,14 +64,12 @@ export interface OnFeatureStoreEnrichmentEndParams {
 export interface FeatureStoreEnrichmentOnStartResponse {
   featureStore: FeatureStore;
   args: any;
-  // trace: Trace;
 }
 
 export interface FeatureStoreEnrichmentOnEndResponse {
   featureStore: FeatureStore;
   enrichedArgs?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type FeatureStoreEnrichmentOnStartCallbackFunction = (params: FeatureStoreEnrichmentOnStartResponse) => void;
@@ -110,14 +104,12 @@ export interface OnSemanticSearchEnrichmentEndParams {
 export interface SemanticSearchEnrichmentOnStartResponse {
   index: Index;
   args: any;
-  // trace: Trace;
 }
 
 export interface SemanticSearchEnrichmentOnEndResponse {
   index: Index;
   enrichedArgs?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type SemanticSearchEnrichmentOnStartCallbackFunction = (params: SemanticSearchEnrichmentOnStartResponse) => void;
@@ -145,7 +137,6 @@ export interface FunctionEnrichmentOnStartResponse {
   contentPropertyPath: string;
   contextPropertyPath: string;
   args: any;
-  // trace: Trace;
 }
 
 export interface FunctionEnrichmentOnEndResponse {
@@ -156,7 +147,6 @@ export interface FunctionEnrichmentOnEndResponse {
   contextPropertyPath: string;
   enrichedArgs?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type FunctionEnrichmentOnStartCallbackFunction = (params: FunctionEnrichmentOnStartResponse) => void;
@@ -182,14 +172,12 @@ export interface OnSqlEnrichmentEndParams {
 export interface SqlEnrichmentOnStartResponse {
   // sqlSourceInfo: any;
   args: any;
-  // trace: Trace;
 }
 
 export interface SqlEnrichmentOnEndResponse {
   // sqlSourceInfo: any;
   enrichedArgs?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type SqlEnrichmentOnStartCallbackFunction = (params: SqlEnrichmentOnStartResponse) => void;

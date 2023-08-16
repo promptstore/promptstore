@@ -52,7 +52,7 @@ export default ({ app, auth, logger, services }) => {
   app.post('/api/executions/:name', auth, async (req, res, next) => {
     const semanticFunctionName = req.params.name;
     const { username } = req.user;
-    const batch = req.query.batch;
+    const { batch, stream } = req.query;
     // logger.debug('body:', req.body);
 
     // TODO
@@ -70,7 +70,33 @@ export default ({ app, auth, logger, services }) => {
     if (errors) {
       return res.status(500).send({ errors });
     }
-    res.json(data);
+    if (stream) {
+      const headers = {
+        'Content-Type': 'text/event-stream',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+      };
+      res.writeHead(200, headers);
+      data.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          const message = line.replace(/^data: /, '');
+          if (message === '[DONE]') {
+            // Stream finished
+            res.close();
+          }
+          try {
+            const parsed = JSON.parse(message);
+            console.log(parsed.choices[0].text);
+            res.write('data: ' + parsed.choices[0].text + '\n\n');
+          } catch (error) {
+            console.error('Could not JSON parse stream message', message, error);
+          }
+        }
+      });
+    } else {
+      res.json(data);
+    }
   });
 
   app.post('/api/composition-executions/:name', async (req, res, next) => {

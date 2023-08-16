@@ -8,8 +8,9 @@ import {
   requestNode,
   outputNode,
 } from '../core/Composition';
-import { ChatCompletionService, Model } from '../core/Model_types';
-import { customModel, huggingfaceModel, llmModel } from '../core/Model';
+import { InputGuardrails } from '../core/InputGuardrails';
+import { ChatCompletionService, CompletionService, Model } from '../core/Model_types';
+import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/Model';
 import { PromptEnrichmentStep } from '../core/PromptEnrichmentPipeline_types';
 import {
   PromptEnrichmentPipeline,
@@ -20,8 +21,15 @@ import {
   sqlEnrichment,
 } from '../core/PromptEnrichmentPipeline';
 import { message, promptTemplate } from '../core/PromptTemplate';
-import { SemanticFunction, semanticFunction } from '../core/SemanticFunction';
+import { semanticFunction } from '../core/SemanticFunction';
 import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/SemanticFunctionImplementation';
+import {
+  OutputProcessingPipeline,
+  outputProcessingPipeline,
+  outputGuardrail,
+  outputParser,
+} from '../core/OutputProcessingPipeline';
+import { OutputProcessingStep } from '../core/OutputProcessingPipeline_types';
 
 export default ({ logger, services }) => {
 
@@ -29,10 +37,12 @@ export default ({ logger, services }) => {
     dataSourcesService,
     featureStoreService,
     functionsService,
+    guardrailsService,
     indexesService,
     llmService,
     modelProviderService,
     modelsService,
+    parserService,
     promptSetsService,
     searchService,
     sqlSourceService,
@@ -52,10 +62,18 @@ export default ({ logger, services }) => {
     })(messages);
   }
 
-  function createModel(modelInfo: any, chatCompletionService: ChatCompletionService, callbacks: Callback[]) {
+  function createChatModel(modelInfo: any, chatCompletionService: ChatCompletionService, callbacks: Callback[]) {
     return llmModel({
       modelKey: modelInfo.key,
       chatCompletionService,
+      callbacks,
+    });
+  }
+
+  function createCompletionModel(modelInfo: any, completionService: CompletionService, callbacks: Callback[]) {
+    return completionModel({
+      modelKey: modelInfo.key,
+      completionService,
       callbacks,
     });
   }
@@ -135,6 +153,19 @@ export default ({ logger, services }) => {
     });
   }
 
+  function createOutputProcessingPipeline(implInfo: any, callbacks: Callback[]) {
+    const steps: OutputProcessingStep[] = [];
+    if (implInfo.outputGuardrails) {
+      for (const guardrail of implInfo.outputGuardrails) {
+        steps.push(outputGuardrail({ guardrail, guardrailsService, callbacks }));
+      }
+    }
+    if (implInfo.outputParser) {
+      steps.push(outputParser({ outputParser: implInfo.outputParser, parserService, callbacks }));
+    }
+    return outputProcessingPipeline({ callbacks })(steps);
+  }
+
   async function createPromptEnrichmentPipeline(workspaceId: number, implInfo: any, callbacks: Callback[]) {
     const steps: PromptEnrichmentStep[] = [];
     if (implInfo.dataSourceId) {
@@ -167,11 +198,18 @@ export default ({ logger, services }) => {
       const modelInfo = await modelsService.getModel(implInfo.modelId);
       let model: Model;
       let promptEnrichmentPipeline: PromptEnrichmentPipeline;
+      let inputGuardrails: InputGuardrails;
+      let outputProcessingPipeline: OutputProcessingPipeline;
 
       // batching doesn't work with the chat interface. a different technique is required.
       // See https://community.openai.com/t/batching-with-chatcompletion-endpoint/137723
       if (modelInfo.type === 'gpt') {
-        model = createModel(modelInfo, llmService.fetchChatCompletion, callbacks);
+        model = createChatModel(modelInfo, llmService.fetchChatCompletion, callbacks);
+        if (implInfo.promptSetId) {
+          promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
+        }
+      } else if (modelInfo.type === 'completion') {
+        model = createCompletionModel(modelInfo, llmService.fetchCompletion, callbacks);
         if (implInfo.promptSetId) {
           promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
         }
@@ -182,11 +220,22 @@ export default ({ logger, services }) => {
       } else {
         throw new Error(`model type ${modelInfo.type} not supported`);
       }
+      if (implInfo.inputGuardrails) {
+        inputGuardrails = new InputGuardrails({
+          guardrails: implInfo.inputGuardrails,
+          guardrailsService,
+          callbacks
+        });
+      }
+      if (implInfo.outputGuardrails || implInfo.outputParser) {
+        outputProcessingPipeline = createOutputProcessingPipeline(implInfo, callbacks);
+      }
       const impl = semanticFunctionImplementation({
         argsMappingTemplate: implInfo.mappingData,
+        returnMappingTemplate: implInfo.returnMappingData,
         isDefault: implInfo.isDefault,
         callbacks,
-      })(model, promptEnrichmentPipeline);
+      })(model, promptEnrichmentPipeline, inputGuardrails, outputProcessingPipeline);
       implementations.push(impl);
     }
     const options = { argsSchema: semanticFunctionInfo.arguments, callbacks };

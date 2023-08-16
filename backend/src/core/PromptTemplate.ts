@@ -2,7 +2,6 @@ import { ValidatorResult, validate } from 'jsonschema';
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
-import logger from '../logger';
 import { fillTemplate } from '../utils';
 
 import { Validator } from './common_types';
@@ -16,7 +15,6 @@ import {
   TemplateFiller,
   OnPromptTemplateEndParams,
 } from './PromptTemplate_types';
-// import { Tracer } from './Tracer';
 
 dayjs.extend(relativeTime);
 
@@ -32,8 +30,6 @@ export class PromptTemplate {
   validator?: Validator;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     messages,
@@ -50,7 +46,6 @@ export class PromptTemplate {
       ((content: string, args: object) => fillTemplate(content, args, templateEngine)) as TemplateFiller;
     this.validator = validator || validate;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   call({ args, callbacks = [] }: PromptTemplateCallParams) {
@@ -75,82 +70,33 @@ export class PromptTemplate {
 
   validate(instance: object, schema: object) {
     const validatorResult = this.validator(instance, schema, { required: true });
-    // this.tracer.push({
-    //   type: 'validate-prompt-args',
-    //   instance: validatorResult.instance,
-    //   schema: validatorResult.schema,
-    //   valid: validatorResult.valid,
-    //   errors: validatorResult.errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onValidateArguments(validatorResult);
     }
-    // logger.debug('validating prompt args');
-    // logger.debug('instance:', instance);
-    // logger.debug('schema:', schema);
-    // logger.debug('result:', validatorResult.valid ? 'valid' : validatorResult.errors);
     if (!validatorResult.valid) {
       this.throwSchemaError(validatorResult);
     }
   }
 
-  getTraceName() {
-    return ['prompt-template', new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: PromptTemplateCallParams) {
-    // logger.info('start filling template');
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'call-prompt-template',
-    //   messages: this.messages,
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onPromptTemplateStart({
         messageTemplates: this.messages,
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ messages, errors }: OnPromptTemplateEndParams) {
-    // logger.info('end filling template');
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('messages', messages)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onPromptTemplateEnd({
         messages,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSchemaError(validatorResult: ValidatorResult) {
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors: validatorResult.errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onPromptTemplateError(validatorResult.errors);
     }

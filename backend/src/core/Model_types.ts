@@ -1,13 +1,11 @@
-import { ChatCompletionResponse, Function } from './common_types';
+import { ChatCompletionResponse, CompletionResponse, Function } from './common_types';
 import { Callback } from './Callback';
 import { Message } from './PromptTemplate_types';
-// import { Tracer, Trace } from './Tracer';
 
 export interface ModelOnStartResponse {
   messages: Message[];
   modelKey: string;
   modelParams: ModelParams;
-  // trace: Trace;
 }
 
 export interface ModelOnEndParams {
@@ -15,11 +13,21 @@ export interface ModelOnEndParams {
   errors?: any;
 }
 
+export interface CompletionModelOnEndParams {
+  response?: CompletionResponse;
+  errors?: any;
+}
+
 export interface ModelOnEndResponse {
   modelKey: string;
   response?: ChatCompletionResponse;
   errors?: any;
-  // trace: Trace;
+}
+
+export interface CompletionModelOnEndResponse {
+  modelKey: string;
+  response?: CompletionResponse;
+  errors?: any;
 }
 
 export type ModelOnStartCallbackFunction = (params: ModelOnStartResponse) => void;
@@ -27,6 +35,8 @@ export type ModelOnStartCallbackFunction = (params: ModelOnStartResponse) => voi
 export type ModelOnEndCallbackFunction = (params: ModelOnEndResponse) => void;
 
 export type ModelOnErrorCallbackFunction = (errors: any) => void;
+
+export type CompletionModelOnEndCallbackFunction = (params: CompletionModelOnEndResponse) => void;
 
 export interface ModelParams {
   max_tokens?: number;  // The maximum number of tokens to generate in the chat completion. The total length of input tokens and generated tokens is limited by the model's context length. Defaults to inf.
@@ -49,10 +59,26 @@ interface ChatCompletionRequest {
 
 export type ChatCompletionService = (request: ChatCompletionRequest) => Promise<ChatCompletionResponse>;
 
+interface CompletionRequest {
+  provider: string;
+  prompt: string | string[];
+  model: string;
+  modelParams: ModelParams;
+}
+
+export type CompletionService = (request: CompletionRequest) => Promise<CompletionResponse>;
+
 export interface LLMChatModelParams {
   modelType: string;
   modelKey: string;
   chatCompletionService: ChatCompletionService;
+  callbacks?: Callback[];
+}
+
+export interface LLMCompletionModelParams {
+  modelType: string;
+  modelKey: string;
+  completionService: CompletionService;
   callbacks?: Callback[];
 }
 
@@ -61,7 +87,6 @@ export interface CustomModelOnStartResponse {
   url: string;
   args: any;
   isBatch: boolean;
-  // trace: Trace;
 }
 
 export interface CustomModelOnEndParams {
@@ -73,7 +98,6 @@ export interface CustomModelOnEndResponse {
   modelKey: string;
   response?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type CustomModelOnStartCallbackFunction = (params: CustomModelOnStartResponse) => void;
@@ -99,7 +123,6 @@ export interface CustomModelCallParams {
 export interface HuggingfaceModelOnStartResponse {
   modelKey: string;
   args: any;
-  // trace: Trace;
 }
 
 export interface HuggingfaceModelOnEndParams {
@@ -111,7 +134,6 @@ export interface HuggingfaceModelOnEndResponse {
   modelKey: string;
   response?: any;
   errors?: any;
-  // trace: Trace;
 }
 
 export type HuggingfaceModelOnStartCallbackFunction = (params: HuggingfaceModelOnStartResponse) => void;
@@ -143,6 +165,5 @@ export interface Model {
   modelType: string;
   modelKey: string;
   call: (params: any) => Promise<any>;
-  // tracer: Tracer;
   callbacks: Callback[];
 }

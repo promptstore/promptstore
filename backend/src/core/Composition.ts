@@ -3,8 +3,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import merge from 'lodash.merge';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
-import logger from '../logger';
-
 import { DataMapper } from './common_types';
 import { CompositionError } from './errors';
 import { Callback } from './Callback';
@@ -21,7 +19,6 @@ import {
   CompositionOnEndParams,
 } from './Composition_types';
 import { SemanticFunction } from './SemanticFunction';
-// import { Tracer } from './Tracer';
 
 dayjs.extend(relativeTime);
 
@@ -33,8 +30,6 @@ export class Composition {
   dataMapper: DataMapper;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     name,
@@ -48,7 +43,6 @@ export class Composition {
     this.edges = edges;
     this.dataMapper = dataMapper || mapJsonAsync;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, modelKey, modelParams, isBatch, callbacks = [] }: CompositionCallParams) {
@@ -70,7 +64,6 @@ export class Composition {
         if (node.type === 'functionNode') {
           let functionNode = node as IFunctionNode;
           let func = functionNode.func;
-          // func.tracer = this.tracer;
           let response = await func.call({
             args: myargs,
             modelKey,
@@ -109,12 +102,6 @@ export class Composition {
 
   async mapArgs(args: any, mappingTemplate: any, isBatch: boolean) {
     const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
-    // logger.debug('mapping node-to-node args');
-    // logger.debug('args:', args);
-    // logger.debug('mappingTemplate:', mappingTemplate);
-    // if (!isBatch) {
-    //   logger.debug('result:', mapped);
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onMapArguments({
         args,
@@ -123,18 +110,6 @@ export class Composition {
         isBatch,
       });
     }
-    // this.tracer.push({
-    //   type: 'map-args',
-    //   input: {
-    //     type: 'function-node-args',
-    //     values: !isBatch && args,
-    //   },
-    //   output: {
-    //     type: 'args',
-    //     values: !isBatch && mapped,
-    //   },
-    //   mappingTemplate,
-    // });
     return mapped;
   }
 
@@ -147,23 +122,7 @@ export class Composition {
     return mapData(args);
   }
 
-  getTraceName() {
-    return ['impl', this.name, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args, modelKey, modelParams, isBatch }: CompositionCallParams) {
-    // logger.info('start composition');
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'call-composition',
-    //   model: {
-    //     model: modelKey,
-    //     modelParams,
-    //   },
-    //   isBatch,
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onCompositionStart({
         name: this.name,
@@ -171,48 +130,22 @@ export class Composition {
         modelKey,
         modelParams,
         isBatch,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ response, errors }: CompositionOnEndParams) {
-    // logger.info('end composition');
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('response', response)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onCompositionEnd({
         name: this.name,
         response,
         errors,
-        // traceRecord: this.tracer.close(),
       });
     }
   }
 
   throwCompositionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onCompositionError(errors);
     }

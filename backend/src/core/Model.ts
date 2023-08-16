@@ -2,25 +2,28 @@ import axios from 'axios';
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
-import logger from '../logger';
-
+import {
+  ChatCompletionChoice,
+  ChatCompletionResponse,
+  CompletionResponse,
+} from './common_types';
 import { SemanticFunctionError } from './errors';
 import { Callback } from './Callback';
-
 import {
   Model,
   LLMChatModelParams,
+  LLMCompletionModelParams,
   ModelCallParams,
   CustomModelParams,
   CustomModelCallParams,
   HuggingfaceModelParams,
   HuggingfaceModelCallParams,
   ChatCompletionService,
+  CompletionService,
   ModelOnEndParams,
   CustomModelOnEndParams,
   HuggingfaceModelOnEndParams,
 } from './Model_types';
-// import { Tracer } from './Tracer';
 
 dayjs.extend(relativeTime);
 
@@ -37,8 +40,6 @@ export class LLMChatModel implements Model {
   chatCompletionService: ChatCompletionService;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     modelType,
@@ -50,7 +51,6 @@ export class LLMChatModel implements Model {
     this.modelKey = modelKey;
     this.chatCompletionService = chatCompletionService;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ messages, modelKey, modelParams, callbacks = [] }: ModelCallParams) {
@@ -69,6 +69,78 @@ export class LLMChatModel implements Model {
         modelParams: modelParamsWithDefaults,
       });
       this.onEnd({ response });
+      // return {
+      //   ...response,
+      //   content: response.choices[0].message.content
+      // };
+      return response;
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors });
+      throw err;
+    }
+  }
+
+  onStart({ messages, modelKey, modelParams }: ModelCallParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onModelStart({
+        messages,
+        modelKey,
+        modelParams,
+      });
+    }
+  }
+
+  onEnd({ response, errors }: ModelOnEndParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onModelEnd({
+        modelKey: this.modelKey,
+        response,
+        errors,
+      });
+    }
+  }
+
+}
+
+export class LLMCompletionModel implements Model {
+
+  modelType: string;
+  modelKey: string;
+  completionService: CompletionService;
+  callbacks: Callback[];
+  currentCallbacks: Callback[];
+
+  constructor({
+    modelType,
+    modelKey,
+    completionService,
+    callbacks,
+  }: LLMCompletionModelParams) {
+    this.modelType = modelType;
+    this.modelKey = modelKey;
+    this.completionService = completionService;
+    this.callbacks = callbacks || [];
+  }
+
+  async call({ messages, modelKey, modelParams, callbacks = [] }: ModelCallParams) {
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
+    const myModelKey = modelKey || this.modelKey;
+    const modelParamsWithDefaults = {
+      ...defaultLLMChatModelParams,
+      ...modelParams
+    };
+    this.onStart({ messages, modelKey: myModelKey, modelParams: modelParamsWithDefaults });
+    try {
+      const prompt = messages.map(m => m.content);
+      const completion = await this.completionService({
+        provider: 'openai',
+        prompt,
+        model: myModelKey,
+        modelParams: modelParamsWithDefaults,
+      });
+      const response = this.formatCompletionAsChat(completion);
+      this.onEnd({ response });
       return {
         ...response,
         content: response.choices[0].message.content
@@ -80,57 +152,37 @@ export class LLMChatModel implements Model {
     }
   }
 
-  getTraceName() {
-    return [this.modelKey, new Date().toISOString()].join(' - ');
+  formatCompletionAsChat(completion: CompletionResponse): ChatCompletionResponse {
+    const choices = completion.choices.map(c => ({
+      index: c.index,
+      finish_reason: c.finish_reason,
+      message: {
+        role: 'assistant',
+        content: c.text,
+      },
+    })) as ChatCompletionChoice[];
+    return {
+      ...completion,
+      choices,
+    };
   }
 
   onStart({ messages, modelKey, modelParams }: ModelCallParams) {
-    // logger.info('start model:', modelKey);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'call-model',
-    //   model: modelKey,
-    //   modelParams,
-    //   messages,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
-      callback.onModelStart({
+      callback.onCompletionModelStart({
         messages,
         modelKey,
         modelParams,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ response, errors }: ModelOnEndParams) {
-    // logger.info('end model:', this.modelKey);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('response', response)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
-      callback.onModelEnd({
+      callback.onCompletionModelEnd({
         modelKey: this.modelKey,
         response,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
@@ -145,8 +197,6 @@ export class CustomModel implements Model {
   batchEndpoint: string;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     modelType,
@@ -160,7 +210,6 @@ export class CustomModel implements Model {
     this.url = url;
     this.batchEndpoint = batchEndpoint;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, isBatch, callbacks = [] }: CustomModelCallParams) {
@@ -187,69 +236,29 @@ export class CustomModel implements Model {
     }
   }
 
-  getTraceName() {
-    return [this.modelKey, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args, isBatch }: CustomModelCallParams) {
-    // logger.info('start custom model:', this.modelKey);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'call-custom-model',
-    //   model: this.modelKey,
-    //   url: isBatch ? this.batchEndpoint : this.url,
-    //   args,
-    //   isBatch,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onCustomModelStart({
         modelKey: this.modelKey,
         url: isBatch ? this.batchEndpoint : this.url,
         args,
         isBatch,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ response, errors }: CustomModelOnEndParams) {
-    // logger.info('end custom model:', this.modelKey);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('response', response)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onCustomModelEnd({
         modelKey: this.modelKey,
         response,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onCustomModelError(errors);
     }
@@ -265,8 +274,6 @@ export class HuggingfaceModel implements Model {
   modelProviderService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     modelType,
@@ -278,7 +285,6 @@ export class HuggingfaceModel implements Model {
     this.modelKey = modelKey;
     this.modelProviderService = modelProviderService;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
   async call({ args, callbacks = [] }: HuggingfaceModelCallParams) {
@@ -295,65 +301,27 @@ export class HuggingfaceModel implements Model {
     }
   }
 
-  getTraceName() {
-    return [this.modelKey, new Date().toISOString()].join(' - ');
-  }
-
   onStart({ args }: HuggingfaceModelCallParams) {
-    // logger.info('start huggingface model:', this.modelKey);
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'call-huggingface-model',
-    //   model: this.modelKey,
-    //   args,
-    //   startTime: this.startTime.getTime(),
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onHuggingfaceModelStart({
         modelKey: this.modelKey,
         args,
-        // trace: this.tracer.currentTrace(),
       });
     }
-    // this.tracer.down();
   }
 
   onEnd({ response, errors }: HuggingfaceModelOnEndParams) {
-    // logger.info('end huggingface model:', this.modelKey);
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('response', response)
-    //     .addProperty('success', true)
-    //     ;
-    // }
     for (let callback of this.currentCallbacks) {
       callback.onHuggingfaceModelEnd({
         modelKey: this.modelKey,
         response,
         errors,
-        // trace: this.tracer.currentTrace(),
       });
     }
   }
 
   throwSemanticFunctionError(message: string) {
     const errors = [{ message }];
-    // this.tracer.push({
-    //   type: 'error',
-    //   errors,
-    // });
     for (let callback of this.currentCallbacks) {
       callback.onHuggingfaceModelError(errors);
     }
@@ -372,6 +340,19 @@ export const llmModel = (options: LLMModelOptions) => {
   return new LLMChatModel({
     ...options,
     modelType: 'gpt',
+  });
+}
+
+interface LLMCompletionModelOptions {
+  modelKey: string;
+  completionService: CompletionService;
+  callbacks: Callback[];
+}
+
+export const completionModel = (options: LLMCompletionModelOptions) => {
+  return new LLMCompletionModel({
+    ...options,
+    modelType: 'completion',
   });
 }
 

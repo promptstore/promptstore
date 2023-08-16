@@ -1,16 +1,18 @@
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
+import { GuardrailError, ParserError } from './errors';
 import { Callback } from './Callback';
 import {
   OutputProcessingCallParams,
   OutputProcessingEndParams,
   OutputProcessingPipelineParams,
   OutputProcessingStep,
+  OutputGuardrailParams,
+  OutputParserParams,
+  OutputGuardrailStartResponse,
+  OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
-// import { Tracer } from './Tracer';
-
-import logger from '../logger';
 
 dayjs.extend(relativeTime);
 
@@ -19,8 +21,6 @@ export class OutputProcessingPipeline {
   steps: OutputProcessingStep[];
   callbacks: Callback[];
   currentCallbacks: Callback[];
-  // tracer: Tracer;
-  // startTime: Date;
 
   constructor({
     steps,
@@ -28,18 +28,16 @@ export class OutputProcessingPipeline {
   }: OutputProcessingPipelineParams) {
     this.steps = steps;
     this.callbacks = callbacks || [];
-    // this.tracer = new Tracer(this.getTraceName());
   }
 
-  async call({ result, callbacks = [] }: OutputProcessingCallParams) {
+  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ result });
+    this.onStart({ response });
     try {
       for (const step of this.steps) {
-        // step.tracer = this.tracer;
-        result = await step.call({ result, callbacks });
+        response = await step.call({ response, callbacks });
       }
-      return result;
+      return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -47,53 +45,174 @@ export class OutputProcessingPipeline {
     }
   }
 
-  getTraceName() {
-    return ['output-processing-pipeline', new Date().toISOString()].join(' - ');
-  }
-
-  onStart({ result }: OutputProcessingCallParams) {
-    // logger.info('start output processing pipeline');
-    // this.startTime = new Date();
-    // this.tracer.push({
-    //   type: 'output-processing-pipeline',
-    //   input: result,
-    //   startTime: this.startTime.getTime(),
-    // });
+  onStart({ response }: OutputProcessingCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onOutputProcessingStart({
-        result,
-        // trace: this.tracer.currentTrace(),
+        response,
       });
     }
-    // this.tracer.down();
   }
 
-  onEnd({ result, errors }: OutputProcessingEndParams) {
-    // logger.info('end output processing pipeline');
-    // const endTime = new Date();
-    // this.tracer
-    //   .up()
-    //   .addProperty('endTime', endTime.getTime())
-    //   .addProperty('elapsedMillis', endTime.getTime() - this.startTime.getTime())
-    //   .addProperty('elapsedReadable', dayjs(endTime).from(this.startTime))
-    //   ;
-    // if (errors) {
-    //   this.tracer
-    //     .addProperty('errors', errors)
-    //     .addProperty('success', false)
-    //     ;
-    // } else {
-    //   this.tracer
-    //     .addProperty('output', result)
-    //     .addProperty('success', true)
-    //     ;
-    // }
+  onEnd({ response, errors }: OutputProcessingEndParams) {
     for (let callback of this.currentCallbacks) {
       callback.onOutputProcessingEnd({
-        result,
-        // trace: this.tracer.currentTrace(),
+        response,
+        errors,
       });
     }
   }
 
+}
+
+export class OutputGuardrail implements OutputProcessingStep {
+
+  guardrail: string;
+  guardrailsService: any;
+  callbacks: Callback[];
+  currentCallbacks: Callback[];
+
+  constructor({
+    guardrail,
+    guardrailsService,
+    callbacks,
+  }: OutputGuardrailParams) {
+    this.guardrail = guardrail;
+    this.guardrailsService = guardrailsService;
+    this.callbacks = callbacks || [];
+  }
+
+  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
+    this.onStart({ guardrail: this.guardrail, response });
+    try {
+      const res = await this.guardrailsService.scan(this.guardrail, response);
+      if (res.error) {
+        this.throwGuardrailError(res.error);
+      }
+      response = res.text;
+      this.onEnd({ response })
+      return response;
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors });
+      throw err;
+    }
+  }
+
+  onStart({ guardrail, response }: OutputGuardrailStartResponse) {
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputGuardrailStart({
+        guardrail,
+        response,
+      });
+    }
+  }
+
+  onEnd({ response, errors }: OutputProcessingEndParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputGuardrailEnd({
+        response,
+        errors,
+      });
+    }
+  }
+
+  throwGuardrailError(message: string) {
+    const errors = [{ message }];
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputGuardrailError(errors);
+    }
+    throw new GuardrailError(message);
+  }
+
+}
+
+export class OutputParser implements OutputProcessingStep {
+
+  outputParser: string;
+  parserService: any;
+  callbacks: Callback[];
+  currentCallbacks: Callback[];
+
+  constructor({
+    outputParser,
+    parserService,
+    callbacks,
+  }: OutputParserParams) {
+    this.outputParser = outputParser;
+    this.parserService = parserService;
+    this.callbacks = callbacks || [];
+  }
+
+  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
+    this.onStart({ outputParser: this.outputParser, response });
+    try {
+      const res = await this.parserService.parse(this.outputParser, response);
+      if (res.error) {
+        this.throwParserError(res.error);
+      }
+      response = res.text;
+      this.onEnd({ response })
+      return response;
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors });
+      throw err;
+    }
+  }
+
+  onStart({ outputParser, response }: OutputParserStartResponse) {
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputParserStart({
+        outputParser,
+        response,
+      });
+    }
+  }
+
+  onEnd({ response, errors }: OutputProcessingEndParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputParserEnd({
+        response,
+        errors,
+      });
+    }
+  }
+
+  throwParserError(message: string) {
+    const errors = [{ message }];
+    for (let callback of this.currentCallbacks) {
+      callback.onOutputParserError(errors);
+    }
+    throw new ParserError(message);
+  }
+
+}
+
+type OutputProcessingComponent = OutputProcessingStep | OutputProcessingStep[];
+
+interface OutputProcessingPipelineOptions {
+  callbacks?: Callback[];
+}
+
+export const outputProcessingPipeline = (options: OutputProcessingPipelineOptions) => (...components: OutputProcessingComponent[]) => {
+  let steps: OutputProcessingStep[];
+  if (Array.isArray(components[0])) {
+    steps = components[0];
+  } else {
+    steps = components as OutputProcessingStep[];
+  }
+  return new OutputProcessingPipeline({
+    ...options,
+    steps
+  });
+}
+
+export const outputGuardrail = (options: OutputGuardrailParams) => {
+  return new OutputGuardrail(options);
+}
+
+export const outputParser = (options: OutputParserParams) => {
+  return new OutputParser(options);
 }
