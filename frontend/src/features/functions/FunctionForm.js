@@ -81,6 +81,7 @@ import {
 import 'react-data-mapping/dist/index.css';
 
 const { TextArea } = Input;
+const { Option } = Select;
 
 const TAGS_KEY = 'functionTags';
 const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';

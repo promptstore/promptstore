@@ -11,3 +11,4 @@ __pycache__/
 *.pyc
 002_create_db.sh
 backend/storage/
+.DS_Store
