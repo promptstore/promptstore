@@ -5,6 +5,32 @@ export default ({ agents, app, auth, logger, services }) => {
   let clients = [];
   let events = [];
 
+  const sendEventToAllClients = (event) => {
+    clients.forEach(client => client.response.write(`data: ${JSON.stringify(event)}\n\n`));
+  };
+
+  const addEvent = (event) => {
+    events.push(event);
+    sendEventToAllClients(event);
+  };
+
+  const eventsHandler = (req, res) => {
+    const headers = {
+      'Content-Type': 'text/event-stream',
+      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+    };
+    res.writeHead(200, headers);
+    res.write('data: ' + JSON.stringify(events.join('\n\n')) + '\n\n');
+    const clientId = Date.now();
+    const newClient = { id: clientId, response: res };
+    clients.push(newClient);
+    req.on('close', () => {
+      logger.log('debug', '%s connection closed', clientId);
+      clients = clients.filter(client => client.id !== clientId);
+    });
+  };
+
   /**
    * @openapi
    * components:
@@ -31,12 +57,12 @@ export default ({ agents, app, auth, logger, services }) => {
    *           description: The allowed tools as a list of keys.
    *           items:
    *             type: string
-   *          indexName:
-   *            type: string
-   *            description: A parameter required by a tool - the name of a semantic index to query.
-   *          selfEvaluate:
-   *            type: boolean
-   *            description: A flag to tell the agent to evaluate its own output using a model.
+   *         indexName:
+   *           type: string
+   *           description: A parameter required by a tool - the name of a semantic index to query.
+   *         selfEvaluate:
+   *           type: boolean
+   *           description: A flag to tell the agent to evaluate its own output using a model.
    *       
    *     AgentExecutionRequest:
    *       type: object
@@ -78,7 +104,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/agent-events
+   * /api/agent-events:
    *   get:
    *     description: Get agent output as server-side events (SSE).
    *     tags: [Agents]
@@ -94,7 +120,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/agent-status
+   * /api/agent-status:
    *   get:
    *     description: Get the number of clients currently connected
    *     tags: [Agents]
@@ -171,7 +197,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/tools
+   * /api/tools:
    *   get:
    *     description: Get the list of available tools.
    *     tags: [Agents]
@@ -232,31 +258,5 @@ export default ({ agents, app, auth, logger, services }) => {
     await agentsService.deleteAgents(ids);
     res.json(ids);
   });
-
-  const sendEventToAllClients = (event) => {
-    clients.forEach(client => client.response.write(`data: ${JSON.stringify(event)}\n\n`));
-  };
-
-  const addEvent = (event) => {
-    events.push(event);
-    sendEventToAllClients(event);
-  };
-
-  const eventsHandler = (req, res) => {
-    const headers = {
-      'Content-Type': 'text/event-stream',
-      'Connection': 'keep-alive',
-      'Cache-Control': 'no-cache',
-    };
-    res.writeHead(200, headers);
-    res.write('data: ' + JSON.stringify(events.join('\n\n')) + '\n\n');
-    const clientId = Date.now();
-    const newClient = { id: clientId, response: res };
-    clients.push(newClient);
-    req.on('close', () => {
-      logger.log('debug', '%s connection closed', clientId);
-      clients = clients.filter(client => client.id !== clientId);
-    });
-  };
 
 }

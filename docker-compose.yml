@@ -1,10 +1,4 @@
 version: '3.4'
-networks:
-  promptstore_dev:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.99.9.0/24
 
 x-defaults:
   &defaults
@@ -22,9 +16,6 @@ services:
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
       - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.2"
 
   redis:
     <<: *defaults
@@ -33,11 +24,9 @@ services:
       - "6379:6379"
     volumes:
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data:delegated"
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.3"
 
   minio:
+    <<: *defaults
     image: minio/minio:RELEASE.2020-12-03T00-03-10Z
     environment:
       - MINIO_ACCESS_KEY=minio
@@ -56,12 +45,10 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.4"
 
   elasticsearch:
-    container_name: temporal-elasticsearch
+    <<: *defaults
+    container_name: elasticsearch
     environment:
       - cluster.routing.allocation.disk.threshold_enabled=true
       - cluster.routing.allocation.disk.watermark.low=512mb
@@ -75,14 +62,12 @@ services:
       - 9200
     volumes:
       - /var/lib/elasticsearch/data
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.5"
 
   temporal:
+    <<: *defaults
     container_name: temporal
     depends_on:
-      - postgresql
+      - db
       - elasticsearch
     environment:
       - DB=db
@@ -101,11 +86,9 @@ services:
       kompose.volume.type: configMap
     volumes:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.6"
 
   temporal-admin-tools:
+    <<: *defaults
     container_name: temporal-admin-tools
     depends_on:
       - temporal
@@ -115,11 +98,9 @@ services:
     image: temporalio/admin-tools:${TEMPORAL_VERSION}
     stdin_open: true
     tty: true
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.7"
 
   temporal-ui:
+    <<: *defaults
     container_name: temporal-ui
     depends_on:
       - temporal
@@ -129,9 +110,6 @@ services:
     image: temporalio/ui:${TEMPORAL_UI_VERSION}
     ports:
       - 8080:8080
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.8"
 
   app:
     <<: *defaults
@@ -146,6 +124,6 @@ services:
       PORT: 5000
     depends_on:
       - db
-    networks:
-      promptstore_dev:
-        ipv4_address: "172.99.9.3"
+      - redis
+      - minio
+      - temporal
