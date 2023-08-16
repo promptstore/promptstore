@@ -4,7 +4,6 @@ node_modules/
 *.env
 volumes/
 configmap.yaml
-docker-compose.yml
 venv/
 .venv/
 __pycache__/

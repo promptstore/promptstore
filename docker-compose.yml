@@ -1,0 +1,151 @@
+version: '3.4'
+networks:
+  promptstore_dev:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.99.9.0/24
+
+x-defaults:
+  &defaults
+  networks:
+    - promptstore_dev
+
+services:
+  db:
+    <<: *defaults
+    image: postgres:11
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: changeme
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.2"
+
+  redis:
+    <<: *defaults
+    image: redislabs/redisearch:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data:delegated"
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.3"
+
+  minio:
+    image: minio/minio:RELEASE.2020-12-03T00-03-10Z
+    environment:
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=changeme
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/minio:/minio_data
+    command: minio server /minio_data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:9000/minio/health/live"
+        ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.4"
+
+  elasticsearch:
+    container_name: temporal-elasticsearch
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    image: elasticsearch:${ELASTICSEARCH_VERSION}
+    expose:
+      - 9200
+    volumes:
+      - /var/lib/elasticsearch/data
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.5"
+
+  temporal:
+    container_name: temporal
+    depends_on:
+      - postgresql
+      - elasticsearch
+    environment:
+      - DB=db
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=elasticsearch
+      - ES_VERSION=v7
+    image: temporalio/auto-setup:${TEMPORAL_VERSION}
+    ports:
+      - 7233:7233
+    labels:
+      kompose.volume.type: configMap
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.6"
+
+  temporal-admin-tools:
+    container_name: temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    image: temporalio/admin-tools:${TEMPORAL_VERSION}
+    stdin_open: true
+    tty: true
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.7"
+
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    image: temporalio/ui:${TEMPORAL_UI_VERSION}
+    ports:
+      - 8080:8080
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.8"
+
+  app:
+    <<: *defaults
+    build: .
+    ports:
+      - 5000:5000
+    env_file:
+      - ./backend/.env
+    environment:
+      ENVIRON: prod
+      PGHOST: db
+      PORT: 5000
+    depends_on:
+      - db
+    networks:
+      promptstore_dev:
+        ipv4_address: "172.99.9.3"
