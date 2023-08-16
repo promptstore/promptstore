@@ -115,15 +115,20 @@ services:
     <<: *defaults
     build: .
     ports:
-      - 5000:5000
+      - 5556:5556
     env_file:
       - ./backend/.env
     environment:
       ENVIRON: prod
       PGHOST: db
-      PORT: 5000
+      PORT: 5556
     depends_on:
       - db
       - redis
       - minio
       - temporal
+
+networks:
+  promptstore_dev:
+    driver: bridge
+    name: promptstore_dev
