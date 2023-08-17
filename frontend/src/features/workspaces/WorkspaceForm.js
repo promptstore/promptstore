@@ -11,6 +11,7 @@ import {
   getUsersAsync,
   selectLoaded as selectUsersLoaded,
   selectUsers,
+  setAdmin,
 } from '../users/usersSlice';
 import {
   createWorkspaceAsync,
@@ -143,6 +144,12 @@ export function WorkspaceForm() {
 
   const onFinish = (values) => {
     if (isNew) {
+      if (!workspaces.length) {
+        dispatch(setAdmin());
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
       dispatch(createWorkspaceAsync({ values }));
     } else {
       dispatch(updateWorkspaceAsync({
@@ -157,7 +164,6 @@ export function WorkspaceForm() {
   };
 
   const onRemoveMembers = () => {
-
     const members = workspace.members.filter((u) => !selectedRowKeys.includes(u.id));
     dispatch(updateWorkspaceAsync({ id, values: { ...workspace, members } }));
     setSelectedRowKeys([]);

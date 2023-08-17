@@ -51,6 +51,9 @@ function Navbar() {
   const handleSelectWorkspace = (item) => {
     const workspace = workspaces[item.key];
     setSelectedWorkspace(workspace);
+    setTimeout(() => {
+      window.location.reload();
+    }, 20);
   };
 
   const handleThemeChange = () => {

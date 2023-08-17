@@ -13,6 +13,15 @@ export function UsersService({ pg }) {
     return users;
   }
 
+  async function setRole(username, role) {
+    let q = `
+      UPDATE users
+      SET val = jsonb_set(val::jsonb, '{roles}', '["${role}"]'::jsonb)
+      WHERE username = $1
+    `;
+    await pg.query(q, [username]);
+  }
+
   async function getUser(username) {
     let q =
       `SELECT id, username, val from users ` +
@@ -90,6 +99,7 @@ export function UsersService({ pg }) {
     getUser,
     getUserById,
     getUserByKeycloakId,
+    setRole,
     upsertUser,
   };
 }

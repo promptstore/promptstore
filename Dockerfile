@@ -8,6 +8,8 @@ WORKDIR /usr/src/app
 # where available (npm@5+)
 COPY ./backend/package*.json ./
 COPY ./backend/tsconfig.json ./
+COPY ./backend/scripts/wait-for-it.sh ./
+RUN chmod +x wait-for-it.sh
 
 RUN npm install
 # If you are building your code for production

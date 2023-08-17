@@ -36,4 +36,11 @@ export default ({ app, auth, logger, services }) => {
     res.json(user);
   });
 
+  app.post('/api/roles', auth, async (req, res) => {
+    const { username } = req.user;
+    const { role } = req.body;
+    await usersService.setRole(username, role);
+    res.json({ status: 'OK' });
+  });
+
 };

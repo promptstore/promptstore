@@ -1,8 +1,6 @@
 import axios from 'axios';
 import createAuthRefreshInterceptor from 'axios-auth-refresh';
 
-import auth from './config/firebase';
-
 function ApiService() {
 
   const instance = axios.create({
@@ -80,7 +78,11 @@ function ApiService() {
     const accessToken = getAccessToken();
     // console.log('accessToken:', accessToken);
 
-    config.headers['Authorization'] = 'Bearer ' + accessToken;
+    if (process.env.REACT_APP_FIREBASE_API_KEY) {
+      config.headers['Authorization'] = 'Bearer ' + accessToken;
+    } else {
+      config.headers['apikey'] = accessToken;
+    }
 
     return config;
 
@@ -112,30 +114,37 @@ function ApiService() {
       });
   };
 
-  // this seems to be working, so no need for window replace
-  const refreshFirebaseAuthLogic = async (failedRequest) => {
-    const user = auth.currentUser;
-    const token = user && (await user.getIdToken());
-    setToken(token);
-    failedRequest.response.config.headers['Authorization'] = 'Bearer ' + token;
-    return Promise.resolve();
-  };
+  if (process.env.REACT_APP_FIREBASE_API_KEY) {
+    import('./config/firebase.js').then(({ default: auth }) => {
+      const refreshFirebaseAuthLogic = async (failedRequest) => {
+        const user = auth.currentUser;
+        console.log('user:', user);
+        if (!user) {
+          window.location.replace('/login');
+        }
+        const token = await user.getIdToken();
+        setToken(token);
+        failedRequest.response.config.headers['Authorization'] = 'Bearer ' + token;
+        return Promise.resolve();
+      };
 
-  // try this if above doesn't work
-  // https://stackoverflow.com/questions/49967779/axios-handling-errors
-  // instance.interceptors.response.use((res) => {
-  //   return res;
-  // }, (err) => {
-  //   if (err.response.status == 401) {
-  //     window.location.replace('/login');
-  //   } else {
-  //     return Promise.reject(err);
-  //   }
-  // });
+      // try this if above doesn't work
+      // https://stackoverflow.com/questions/49967779/axios-handling-errors
+      // instance.interceptors.response.use((res) => {
+      //   return res;
+      // }, (err) => {
+      //   if (err.response.status == 401) {
+      //     window.location.replace('/login');
+      //   } else {
+      //     return Promise.reject(err);
+      //   }
+      // });
 
-  createAuthRefreshInterceptor(instance, refreshFirebaseAuthLogic, {
-    pauseInstanceWhileRefreshing: false,  // otherwise only the last call is replayed
-  });
+      createAuthRefreshInterceptor(instance, refreshFirebaseAuthLogic, {
+        pauseInstanceWhileRefreshing: false,  // otherwise only the last call is replayed
+      });
+    });
+  }
 
   return {
     http: instance,

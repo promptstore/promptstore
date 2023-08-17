@@ -6,12 +6,13 @@ x-defaults:
     - promptstore_dev
 
 services:
-  db:
+  postgresql:
     <<: *defaults
-    image: postgres:11
+    image: postgres:14
     restart: always
-    environment:
+    environment:      
       POSTGRES_PASSWORD: changeme
+      POSTGRES_USER: psadmin
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
@@ -67,13 +68,13 @@ services:
     <<: *defaults
     container_name: temporal
     depends_on:
-      - db
+      - postgresql
       - elasticsearch
     environment:
-      - DB=db
+      - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=temporal
-      - POSTGRES_PWD=temporal
+      - POSTGRES_USER=psadmin
+      - POSTGRES_PWD=changeme
       - POSTGRES_SEEDS=postgresql
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
       - ENABLE_ES=true
@@ -115,18 +116,47 @@ services:
     <<: *defaults
     build: .
     ports:
-      - 5556:5556
+      - 5001:5000
     env_file:
       - ./backend/.env
     environment:
-      ENVIRON: prod
-      PGHOST: db
-      PORT: 5556
+      ENV: prod
+      PGHOST: postgresql
+      PORT: 5000
     depends_on:
-      - db
+      - postgresql
       - redis
       - minio
       - temporal
+
+  worker:
+    <<: *defaults
+    build: .
+    command: ["./wait-for-it.sh", "localhost:7233", "--timeout=60", "--", "node", "--loader", "ts-node/esm", "workflow/worker.js"]
+    env_file:
+      - ./backend/.env
+    environment:
+      ENV: prod
+      PGHOST: postgresql
+      PORT: 5000
+      NODE_OPTIONS: "--experimental-modules --es-module-specifier-resolution=node"
+    depends_on:
+      - postgresql
+      - redis
+      - minio
+      - temporal
+
+  vecsearch:
+    <<: *defaults
+    container_name: vecsearch
+    depends_on:
+      - redis
+      - minio
+    env_file:
+      - .vecsearch.env
+    image: markmo/vecsearch:${VECSEARCH_VERSION}
+    ports:
+      - 5002:5000
 
 networks:
   promptstore_dev:

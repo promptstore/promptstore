@@ -84,6 +84,11 @@ export const upsertUserAsync = ({ user }) => async (dispatch) => {
   dispatch(setUsers({ users: [res.data] }));
 };
 
+export const setAdmin = () => async (dispatch) => {
+  const url = 'api/roles';
+  const res = await http.post(url, { role: 'admin' });
+};
+
 export const selectAuthStatusChecked = (state) => state.users.authStatusChecked;
 
 export const selectCurrentUser = (state) => state.users.currentUser;

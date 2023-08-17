@@ -428,10 +428,10 @@ article.collapsible .panel.closed {
 }
 
 #menu {
-  flex: 0 0 210px !important;
-  max-width: 210px !important;
-  min-width: 210px !important;
-  width: 210px !important;
+  flex: 0 0 215px !important;
+  max-width: 215px !important;
+  min-width: 215px !important;
+  width: 215px !important;
 }
 
 #menu.ant-layout-sider-collapsed {

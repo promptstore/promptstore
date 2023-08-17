@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import connectRedis from 'connect-redis';
 import cors from 'cors';
 import express from 'express';
+import fs from 'fs';
 import http from 'http';
 import httpProxy from 'http-proxy';
 import morgan from 'morgan';
@@ -17,7 +18,6 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 
-import firebaseAuth from './config/firebase-config.js';
 import pg from './db';
 import logger from './logger';
 // import { VerifyToken } from './middleware/VerifyToken.js';
@@ -137,7 +137,7 @@ const rc = redis.createClient({
   password: process.env.REDIS_PASSWORD,
   legacyMode: true,
 });
-rc.connect().catch(logger.error);
+rc.connect().catch((err) => { logger.error(err, err.stack); });
 
 const agentsService = AgentsService({ pg, logger });
 
@@ -256,26 +256,37 @@ const VerifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   // logger.debug('token:', token);
 
-  try {
-    const decodeValue = await firebaseAuth.verifyIdToken(token);
-    if (decodeValue) {
-      req.user = { ...decodeValue, username: decodeValue.email };
-      return next();
+  if (fs.existsSync('./config/serviceAccountKey.json')) {
+    const { default: firebaseAuth } = await import('./config/firebase-config.js');
+    try {
+      const decodeValue = await firebaseAuth.verifyIdToken(token);
+      if (decodeValue) {
+        req.user = { ...decodeValue, username: decodeValue.email };
+        return next();
+      }
+    } catch (e) {
+      // return res.json({ message: 'Not authorized' });
     }
-  } catch (e) {
-    // return res.json({ message: 'Not authorized' });
   }
-
   // otherwise look for api key
   const apiKey = req.headers.apikey;
   // logger.debug('apiKey:', apiKey);
-  const resp = await workspacesService.getUsernameByApiKey(apiKey);
-  logger.debug('resp:', resp);
-  if (resp) {
-    const user = await usersService.getUser(resp.username);
-    logger.debug('user:', user);
-    req.user = user;
-    return next();
+  if (apiKey) {
+    const resp = await workspacesService.getUsernameByApiKey(apiKey);
+    // logger.debug('resp:', resp);
+    let user;
+    if (resp) {
+      user = await usersService.getUser(resp.username);
+      // logger.debug('user:', user);
+      req.user = user;
+      return next();
+    }
+
+    if (apiKey === process.env.PROMPTSTORE_API_KEY) {
+      user = await usersService.getUser('test.account@promptstore.dev');
+      req.user = user;
+      return next();
+    }
   }
 
   // finally send 'Not authorized' if both validation approaches fail

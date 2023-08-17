@@ -72,3 +72,20 @@ Create namespace
 
 
 docker run --rm -it --entrypoint tctl --network host --env TEMPORAL_CLI_ADDRESS=localhost:7233 temporalio/admin-tools:1.14.0 --namespace promptstore namespace register
+
+
+Required files not committed:
+
+.env
+backend/.env
+docker-entrypoint-initdb.d/002_create_db.sh
+frontend/.env
+
+chmod a+x docker-entrypoint-initdb.d/002_create_db.sh
+
+cd frontend
+npm i --legacy-peer-deps
+
+cd ../backend
+npm i
+cd ..
