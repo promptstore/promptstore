@@ -12,14 +12,12 @@ spec:
         name: http
         protocol: HTTP
       hosts:
-        # - "***REMOVED***"
         - "{{ .Values.appname }}.{{ .Values.ingress.domain }}"
     - port:
         number: 443
         name: https
         protocol: HTTPS
       hosts:
-        # - "***REMOVED***"
         - "{{ .Values.appname }}.{{ .Values.ingress.domain }}"
       tls:
         credentialName: ingress-cert

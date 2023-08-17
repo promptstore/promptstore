@@ -9,7 +9,7 @@ import {
   selectUsers,
 } from '../../features/users/usersSlice';
 
-import background from '../../images/promptstore-background4.png';
+import background from '../../images/promptstore-background-blank.png';
 
 export default function Register() {
 

@@ -510,7 +510,7 @@ export function PromptSetForm() {
                   use: <Code>{'{{list <var>}}'}</Code>
                 </div>
                 <div>
-                  <Link to="https://handlebarsjs.com/guide/" target="_blank" rel="noopener noreferrer">See this guide</Link> for
+                  <Link to={process.env.REACT_APP_HANDLEBARS_GUIDE_URL} target="_blank" rel="noopener noreferrer">See this guide</Link> for
                   a more indepth discussion.
                 </div>
               </div>

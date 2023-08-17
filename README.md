@@ -3,7 +3,7 @@
 Install the packages:
 
 1. `cd backend & npm i`
-2. `cd ../frontend & npm i`
+2. `cd ../frontend & npm i --legacy-peer-deps`
 3. `cd ..`
 
 In Dev mode:
@@ -35,57 +35,8 @@ To rebuild, you may need to delete the data directory and start again
 
 
 
-curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/emojify" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"emotion"}'
+curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/emojify" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"emotion"}'
 
-curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/summarize" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"gpt-3.5-turbo"}'
+curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/summarize" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"gpt-3.5-turbo"}'
 
-curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/sentiment" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"Sentiment"}'
-
-curl -vL -H 'Content-Type: application/json' "http://localhost:5555/api/executions/ner" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court’s decisions funneled tens of thousands of dollars to Thomas’s wife, with instructions not to mention her name."}, "modelKey":"ner"}'
-
-curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"features":["driver_hourly_stats:conv_rate"],"entities":{"driver_id":[1001]}}'
-
-curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"feature_service":"driver_activity","entities":{"driver_id":[1001]}}'
-
-curl -vL -H 'Content-Type: application/json' https://feast.devsheds.io/get-online-features -d '{"feature_service":"health_scores","entities":{"customer_id":['1234]}}'
-
-curl -vL -H 'Content-Type: application/json' "http://localhost:5556/api/executions/get_driver_stats" --data '{"args":{"entityId":1001},"modelKey":"gpt-3.5-turbo"}'
-
-curl -vL -H 'Content-Type: application/json' "https://promptstore.devsheds.io/api/executions/generate_health_report" --data '{"args":{"entityId":'1234'},"modelKey":"gpt-4"}'
-
-ALTER TABLE models ADD COLUMN workspace_id INTEGER;
-
-ALTER TABLE data_sources ADD COLUMN workspace_id INTEGER;
-
-ALTER TABLE file_uploads ADD COLUMN created TIMESTAMP(0) NOT NULL DEFAULT NOW();
-
-ALTER TABLE file_uploads ADD COLUMN created_by character varying(255) COLLATE pg_catalog."default";
-
-ALTER TABLE file_uploads ADD COLUMN modified TIMESTAMP(0) NOT NULL DEFAULT NOW();
-
-ALTER TABLE file_uploads ADD COLUMN modified_by character varying(255) COLLATE pg_catalog."default";
-
-ALTER TABLE chat_sessions ADD COLUMN type character varying(255) COLLATE pg_catalog."default";
-
-Temporal
-Create namespace
-
-
-docker run --rm -it --entrypoint tctl --network host --env TEMPORAL_CLI_ADDRESS=localhost:7233 temporalio/admin-tools:1.14.0 --namespace promptstore namespace register
-
-
-Required files not committed:
-
-.env
-backend/.env
-docker-entrypoint-initdb.d/002_create_db.sh
-frontend/.env
-
-chmod a+x docker-entrypoint-initdb.d/002_create_db.sh
-
-cd frontend
-npm i --legacy-peer-deps
-
-cd ../backend
-npm i
-cd ..
+curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/sentiment" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"Sentiment"}'

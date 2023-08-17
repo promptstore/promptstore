@@ -2,13 +2,12 @@ apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: "{{ .Values.appname }}-virtualservice"
-  namespace: "jhub"
+  namespace: "{{ .Values.ingress.virtualservice_namespace }}"
 spec:
   hosts:
     - "{{ .Values.appname }}.{{ .Values.ingress.domain }}"
   gateways:
-    - europa-standalone-gateway
-    # - "{{ .Values.appname }}-gateway"
+    - "{{ .Values.ingress.gateway }}"
   http:
     - match:
         - uri:

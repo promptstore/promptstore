@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-// import env from 'react-dotenv';
 import useOAuth2 from './useOAuth2';
 
 const env = {
-  CANTO_USER_FLOW_APP_ID: '***REMOVED***',
+  CANTO_USER_FLOW_APP_ID: process.env.REACT_APP_CANTO_USER_FLOW_APP_ID,
   CANTO_AUTHORIZE_URL: 'https://oauth.canto.global/oauth/api/oauth2/authorize',
 };
 

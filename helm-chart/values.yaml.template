@@ -1,0 +1,146 @@
+appname: "promptstore"
+namespace: "promptstore"
+
+imagePullSecret:
+containerRegistry:
+
+version: "0.5.7"
+
+port: "5000"
+promptstore_email:
+
+ingress:
+  domain:
+  gateway: "promptstore-gateway"
+  virtualservice_namespace: "promptstore"
+
+# postgresql metastore
+db:
+  host: "postgres-postgresql.pgdatabase.svc.cluster.local"
+  name: "promptstore"
+  user: "psadmin"
+  pass: "changeme"
+
+# redis
+redis:
+  host: "redis-master.redis.svc.cluster.local"
+  pass:
+
+# minio filestore
+s3:
+  endpoint:
+  access_key:
+  secret_key:
+
+# search / default semantic index
+vecsearch:
+  api_url: "http://vecsearch.vecsearch.svc.cluster.local:6010/api"
+
+# Background job processing
+temporal:
+  api_url: "temporal-frontend.temporal.svc.cluster.local:7233"
+  namespace: "default"
+
+# Log aggregator
+loki:
+  api_url: "http://loki-gateway.loki.svc.cluster.local"
+
+########
+
+## PLUGIN SETTINGS ########
+
+## feature store plugins ########
+
+# anaml
+anaml:
+  api_url:
+  api_key:
+  api_secret:
+
+########
+
+## Guardrail plugins ########
+
+# PII Guardrail
+custom_models:
+  europa_pii_api_url:
+
+########
+
+## Loader plugins ########
+
+# onesource
+onesource:
+  api_url: "http://onesource-service.promptstore.svc.cluster.local:5000"
+
+# unstructured
+unstructured:
+  api_key:
+
+########
+
+## Model provider plugins ########
+
+# Huggingface
+huggingface:
+  base_url: "https://api-inference.huggingface.co/models"
+  hub_url: "https://huggingface.co/api"
+  pii_api_url: "https://api-inference.huggingface.co/models/beki/en_spacy_pii_distilbert"
+  token:
+
+########
+
+## LLM plugins ########
+
+# OpenAI - ./plugins/llms/openai
+openai:
+  api_key:
+
+# Vertex AI - ./plugins/llms/vertexai
+google_vertex:
+  palm2_default_model: "models/text-bison-001"
+  api_key:
+
+# LocalAI - ./plugins/llms/localai
+localai:
+  base_path:
+
+# gpt4all - ./plugins/llms/gpt4all
+gpt4all:
+  api_url:
+
+########
+
+## Passport auth plugins ########
+
+# keycloak - ./plugins/passport/keycloak
+keycloak:
+  host:
+  callback:
+  realm: "AgencyAI"
+  client_id:
+  client_secret:
+
+# localapikey - ./plugins/passport/localapikey
+system_api_key:
+token_store_key: "onetoks"
+
+########
+
+## Tool plugins ########
+
+# SERP API - ./plugins/tools/serpapi
+serpapi:
+  api_url: "https://google.serper.dev/search"
+  api_key:
+
+# OpenWeather - ./plugins/tools/openweather
+openweather:
+  api_key:
+
+# Mailtrap - ./plugins/tools/email
+mailtrap:
+  template_uuid:
+  token:
+  sender_email:
+########

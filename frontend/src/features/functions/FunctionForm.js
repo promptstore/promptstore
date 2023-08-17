@@ -644,7 +644,7 @@ export function FunctionForm() {
                       </Button>
                       : null
                     }
-                    <Link to="https://promptstoredocs.devsheds.io/en/page-2" target="_blank" rel="noopener noreferrer">Need help?</Link>
+                    <Link to={process.env.REACT_APP_DATA_MAPPER_HELP_URL} target="_blank" rel="noopener noreferrer">Need help?</Link>
                   </Space>
                 </div>
               </div>
@@ -830,7 +830,7 @@ export function FunctionForm() {
                       </Button>
                       : null
                     }
-                    <Link to="https://promptstoredocs.devsheds.io/en/page-2" target="_blank" rel="noopener noreferrer">Need help?</Link>
+                    <Link to={process.env.REACT_APP_DATA_MAPPER_HELP_URL} target="_blank" rel="noopener noreferrer">Need help?</Link>
                   </Space>
                 </div>
               </div>

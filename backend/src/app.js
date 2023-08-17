@@ -1,4 +1,3 @@
-// const FormData = require('form-data');
 import Minio from 'minio';
 import bodyParser from 'body-parser';
 import connectRedis from 'connect-redis';
@@ -20,7 +19,6 @@ import { fileURLToPath } from 'url';
 
 import pg from './db';
 import logger from './logger';
-// import { VerifyToken } from './middleware/VerifyToken.js';
 import { AgentsService } from './services/AgentsService';
 import { AppsService } from './services/AppsService';
 import { ChatSessionsService } from './services/ChatSessionsService';
@@ -50,7 +48,7 @@ import { TrainingService } from './services/TrainingService';
 import { UploadsService } from './services/UploadsService';
 import { UsersService } from './services/UsersService';
 import { WorkspacesService } from './services/WorkspacesService';
-import { getPlugins, installModules, toAbsoluteUrl } from './utils';
+import { getPlugins, installModules } from './utils';
 import * as workflowClient from './workflow/clients';
 
 let ENV = process.env.ENV;
@@ -103,23 +101,17 @@ const swaggerOptions = {
     openapi: '3.0.0',
     info: {
       title: 'Prompt Store API',
-      version: '0.1.0',
+      version: '0.5.7',
       description:
         'The Prompt Store manages prompts and semantic functions.',
       license: {
-        name: 'Commercial',
+        name: '',
       },
       contact: {
-        name: 'Mark Mo',
-        url: 'https://promptstore.devsheds.io',
-        email: 'promptstore.dev@gmail.com',
+        name: 'Prompt Store',
+        url: 'https://promptstore.dev',
       },
-    },
-    servers: [
-      {
-        url: 'https://promptstore.devsheds.io',
-      },
-    ],
+    }
   },
   apis,
 };
@@ -387,36 +379,6 @@ const parseQueryString = (str) => {
   return '';
 };
 
-// const selectProxyHost = (req) => {
-//   const searchParams = new URLSearchParams(parseQueryString(req.originalUrl));
-//   const tenant = searchParams.get('tenant');
-//   searchParams.delete('tenant');
-//   const url = 'https://' + tenant + '/' + searchParams.toString();
-//   logger.debug('selectProxyHost url: ', url);
-//   return url;
-// };
-
-// app.use('/api/v1', createProxyMiddleware({
-//   logger: console,
-//   router: selectProxyHost,
-//   changeOrigin: true,
-//   followRedirects: true,
-//   // selfHandleResponse: true,
-//   // on: {
-//   //   proxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
-//   //     // log original request and proxied request info
-//   //     const exchange = `[DEBUG] ${req.method} ${req.path} -> ${proxyRes.req.protocol}//${proxyRes.req.host}${proxyRes.req.path} [${proxyRes.statusCode}]`;
-//   //     console.log(exchange); // [DEBUG] GET / -> http://www.example.com [200]
-
-//   //     // log complete response
-//   //     const response = responseBuffer.toString('utf8');
-//   //     console.log(response); // log response body
-
-//   //     return responseBuffer;
-//   //   }),
-//   // },
-// }));
-
 app.get('/api/v1/*', async (req, res, next) => {
   logger.debug('originalUrl: ', req.originalUrl);
   const path = req.originalUrl.split('?')[0];
@@ -495,11 +457,6 @@ if (ENV === 'dev') {
     },
   })
 }
-
-// app.get('/', (req, res) => {
-//   logger.debug('redirect to /home');
-//   res.redirect('/home');
-// });
 
 app.get('*', (req, res) => {
   logger.debug('GET ' + req.originalUrl);
