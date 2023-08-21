@@ -25,7 +25,7 @@ A Semantic Function is the controller that ties the various components of model,
 allowing a complete trace of interactions with models to facilitate
 measurement, improvement, and governance.
 
-<img src="frontend/public/assets/semantic_controller.png" title="Prompt Template List" alt="Prompt Template List" style="margin-left: 16px; width: 55%;" />
+<img src="frontend/public/assets/semantic_controller.png" title="Prompt Template List" alt="Prompt Template List" style="margin-left: 16px; width: 100%;" />
 
 ## Further Reading
 
