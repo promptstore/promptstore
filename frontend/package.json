@@ -88,7 +88,9 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:5556",
+  "proxy": "http://localhost:5001",
+  "author": "Europa Labs Pty. Ltd.",
+  "license": "Apache License Version 2.0",
   "devDependencies": {
     "@types/lodash": "^4.14.191",
     "@types/react-copy-to-clipboard": "^5.0.4"

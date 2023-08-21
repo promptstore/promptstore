@@ -1,0 +1,148 @@
+apiVersion: v1
+data:
+  ENV: "prod"
+  FILE_BUCKET: "{{ .Values.appname }}"
+  DOCUMENTS_PREFIX: "documents"
+  IMAGES_PREFIX: "images"
+  PORT: "{{ .Values.port }}"
+
+  # postgresql metastore
+  PGHOST: "{{ .Values.db.host }}"
+  PGPORT: "5432"
+  PGDATABASE: "{{ .Values.db.name }}"
+
+  # redis
+  REDIS_HOST: "{{ .Values.redis.host }}"
+
+  # minio filestore
+  S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
+  S3_PORT: "9000"
+
+  # search / default semantic index
+  SEARCH_API: "{{ .Values.vecsearch.api_url }}"
+
+  # Background job processing
+  TEMPORAL_URL: "{{ .Values.temporal.api_url }}"
+  TEMPORAL_NAMESPACE: "{{ .Values.temporal.namespace }}"
+
+  # Log aggregator
+  LOKI_API_URL: "{{ .Values.loki.api_url }}"
+
+  ########
+
+  ## PLUGINS ########
+
+  # extractor plugins
+  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured"
+
+  # feature store plugins
+  FEATURE_STORE_PLUGINS: "feast|Feast|./plugins/featurestores/feast,anaml|Anaml|./plugins/featurestores/anaml"
+
+  # Guardrail plugins
+  GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
+
+  # LLM plugins
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2"
+
+  # Loader plugins
+  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,structureddocument|Structured Document Loader|./plugins/loaders/structureddocument,csv|CSV Loader|./plugins/loaders/csv"
+
+  # Model Provider plugins
+  MODEL_PROVIDER_PLUGINS: "huggingface|Huggingface|./plugins/modelproviders/huggingface"
+
+  # Output Parser plugins
+  OUTPUT_PARSER_PLUGINS: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime"
+
+  # Passport auth plugins
+  PASSPORT_PLUGINS: "localapikey|Local API Key|./plugins/passport/localapikey,keycloakbearer|Keycloak Bearer|./plugins/passport/keycloak"
+
+  # SQL source plugins
+  SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql"
+
+  # Tool plugins
+  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email"
+
+  ########
+
+  ## PLUGIN SETTINGS ########
+
+  ## feature store plugins ########
+
+  # anaml
+  ANAML_API_URL: "{{ .Values.anaml.api_url }}"
+
+  ########
+
+  ## Guardrail plugins ########
+
+  # PII Guardrail
+  EUROPA_PII_API_URL: "{{ .Values.custom_models.europa_pii_api_url }}"
+  HUGGINGFACE_PII_API_URL: "{{ .Values.huggingface.pii_api_url }}"
+
+  ########
+
+  ## Loader plugins ########
+
+  # onesource
+  ONESOURCE_API_URL: "{{ .Values.onesource.api_url }}"
+
+  # unstructured
+  UNSTRUCTURED_API_URL: "{{ .Values.unstructured.api_url }}"
+
+  ########
+
+  ## Model provider plugins ########
+
+  # Huggingface
+  HUGGINGFACE_BASE_URL: "{{ .Values.huggingface.base_url }}"
+  HUGGINGFACE_HUB_API: "{{ .Values.huggingface.hub_url }}"
+
+  ########
+
+  ## LLM plugins ########
+
+  # gpt4all - ./plugins/llms/gpt4all
+  GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"
+
+  # Llama 2 - ./plugins/llms/llama2
+  LLAMA2_BASE_PATH: "{{ .Values.llama2.api_url }}"
+
+  # LocalAI - ./plugins/llms/localai
+  LOCALAI_BASE_PATH: "{{ .Values.localai.base_path }}"
+
+  # OpenAI - ./plugins/llms/openai
+
+  # Vertex AI - ./plugins/llms/vertexai
+  PALM2_MODEL_NAME: "{{ .Values.google_vertex.palm2_default_model }}"
+
+  ########
+
+  ## Passport auth plugins ########
+
+  # keycloak - ./plugins/passport/keycloak
+  KEYCLOAK_HOST: "{{ .Values.keycloak.host }}"
+  KEYCLOAK_CALLBACK: "{{ .Values.keycloak.callback }}"
+  KEYCLOAK_REALM: "{{ .Values.keycloak.realm }}"
+  KEYCLOAK_CLIENT_ID: "{{ .Values.keycloak.client_id }}"
+
+  # localapikey - ./plugins/passport/localapikey
+  TOKEN_STORE_KEY: "onetoks"
+
+  ########
+
+  ## Tool plugins ########
+
+  # SERP API - ./plugins/tools/serpapi
+  SERPAPI_URL: "{{ .Values.serpapi.api_url }}"
+
+  # OpenWeather - ./plugins/tools/openweather
+
+  # Mailtrap - ./plugins/tools/email
+  MAILTRAP_TEMPLATE_UUID: "{{ .Values.mailtrap.template_uuid }}"
+
+  ########
+
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.appname }}"
+  namespace: "{{ .Values.namespace }}"
