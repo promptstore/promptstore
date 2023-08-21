@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
-import { CheckCircleTwoTone } from '@ant-design/icons';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
@@ -178,7 +178,7 @@ export function FunctionsList() {
       dataIndex: 'isPublic',
       render: (_, { isPublic }) => (
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+          <span>{isPublic ? <CheckCircleOutlined /> : ''}</span>
         </div>
       )
     },

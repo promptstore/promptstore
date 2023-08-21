@@ -11,7 +11,7 @@ import { Chat } from '../../components/Chat';
 import { createPromptSetAsync } from '../promptSets/promptSetsSlice';
 
 import { CreatePromptSetModalForm } from '../designer/CreatePromptSetModalForm';
-import { CopyParamsForm } from '../designer/CopyParamsForm';
+import { ModelParamsForm } from '../designer/ModelParamsForm';
 import {
   createChatSessionAsync,
   deleteChatSessionsAsync,
@@ -365,7 +365,7 @@ export function RagTester() {
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
             width={250}
           >
-            <CopyParamsForm
+            <ModelParamsForm
               includes={{ maxTokens: true, temperature: true, topP: true }}
               onChange={setCopyParams}
             />

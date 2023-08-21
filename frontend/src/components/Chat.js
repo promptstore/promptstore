@@ -45,6 +45,7 @@ export function Chat({
   const dispatch = useDispatch();
 
   const handleChange = (key) => {
+    console.log('!!!!!!!!!!!!!!', key)
     if (selectMultiple) {
       const selectedUpdate = {
         ...selected,
@@ -95,7 +96,7 @@ export function Chat({
       content: inputRef.current.resizableTextArea.textArea.value,
     };
     inputRef.current.resizableTextArea.textArea.value = '';
-    onSubmit({ app, messages: [...messages, msg], model: 'gpt-3.5-turbo' });
+    onSubmit({ app, messages: [...messages, msg] });
   };
 
   const handleSuggestPrompts = () => {
@@ -155,7 +156,16 @@ export function Chat({
         <div className="chatline assistant">
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
-          <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+          <div className="content">
+            <Space size="large">
+              {message.content.map((c, i) => (
+                <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                  <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
+                </div>
+              ))}
+            </Space>
+          </div>
         </div>
       );
     }
@@ -164,7 +174,16 @@ export function Chat({
         <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
           <div className="chatline assistant">
             <div className="avatar"><Avatar>A</Avatar></div>
-            <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+            <div className="content">
+              <Space size="large">
+                {message.content.map((c, i) => (
+                  <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                    <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
+                  </div>
+                ))}
+              </Space>
+            </div>
           </div>
         </Checkbox>
       );
@@ -173,7 +192,16 @@ export function Chat({
       <Radio value={message.key}>
         <div className="chatline assistant">
           <div className="avatar"><Avatar>A</Avatar></div>
-          <div className="content" style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+          <div className="content">
+            <Space size="large">
+              {message.content.map((c, i) => (
+                <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                  <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
+                </div>
+              ))}
+            </Space>
+          </div>
         </div>
       </Radio>
     );
@@ -338,7 +366,7 @@ export function Chat({
             onPressEnter={(ev) => {
               if (!ev.shiftKey) {
                 ev.preventDefault();
-                if (!disabled) {
+                if (!disabled && ev.target.value) {
                   handleSubmit(ev);
                 }
               }

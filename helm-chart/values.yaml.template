@@ -92,6 +92,18 @@ huggingface:
 
 ## LLM plugins ########
 
+# gpt4all - ./plugins/llms/gpt4all
+gpt4all:
+  api_url:
+
+# Llama 2 - ./plugins/llms/llama2
+llama2:
+  base_path:
+
+# LocalAI - ./plugins/llms/localai
+localai:
+  base_path:
+
 # OpenAI - ./plugins/llms/openai
 openai:
   api_key:
@@ -100,14 +112,6 @@ openai:
 google_vertex:
   palm2_default_model: "models/text-bison-001"
   api_key:
-
-# LocalAI - ./plugins/llms/localai
-localai:
-  base_path:
-
-# gpt4all - ./plugins/llms/gpt4all
-gpt4all:
-  api_url:
 
 ########
 

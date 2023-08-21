@@ -467,8 +467,9 @@ function App() {
   useEffect(() => {
     if (process.env.REACT_APP_FIREBASE_API_KEY) {
       console.log('use firebase');
-      return import('./config/firebase.js').then(({ default: auth }) => {
-        console.log('auth:', auth);
+      async function setUserAndToken() {
+        const { default: auth } = await import('./config/firebase.js');
+        // console.log('auth:', auth);
         // Adds an observer for changes to the signed-in user's ID token, 
         // which includes sign-in, sign-out, and token refresh events. This 
         // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged` 
@@ -479,10 +480,10 @@ function App() {
         // 4.0.0, the observer is only triggered on sign-in or sign-out.
         // current version - ^10.1.0
         const unsubscribe = auth.onIdTokenChanged(async (user) => {
-          console.log('user:', user);
+          // console.log('user:', user);
           if (user) {
             const accessToken = await user.getIdToken();
-            console.log('accessToken:', accessToken);
+            // console.log('accessToken:', accessToken);
             if (accessToken) {
               setToken({ accessToken });
               setCurrentUser((current) => current ? { ...current, ...user } : user);
@@ -491,7 +492,9 @@ function App() {
         });
 
         return unsubscribe;
-      });
+      }
+      setUserAndToken();
+
     } else if (process.env.REACT_APP_PROMPTSTORE_API_KEY) {
       console.log('use service account ');
       setToken({ accessToken: process.env.REACT_APP_PROMPTSTORE_API_KEY });
@@ -512,9 +515,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    console.log('currentUser:', currentUser, ready);
+    // console.log('currentUser:', currentUser, ready);
     if (ready === 0 && currentUser) {
-      console.log('currentUsr:', currentUsr);
+      // console.log('currentUsr:', currentUsr);
       if (!currentUsr) {
         dispatch(getCurrentUserAsync());
       } else {
@@ -599,16 +602,16 @@ function App() {
     <div style={{ margin: '20px 40px' }}>Loading...</div>
   );
 
-  if (ready < 2 && !authStatusChecked) {
-    return (
-      <div style={{ margin: '20px 40px' }}>Authenticating...</div>
-    );
-  }
-  if (ready < 2) {
-    return (
-      <Loading />
-    );
-  }
+  // if (ready < 2 && !authStatusChecked) {
+  //   return (
+  //     <div style={{ margin: '20px 40px' }}>Authenticating...</div>
+  //   );
+  // }
+  // if (ready < 2) {
+  //   return (
+  //     <Loading />
+  //   );
+  // }
   return (
     <Suspense fallback={<Loading />}>
       <ConfigProvider

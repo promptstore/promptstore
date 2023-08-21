@@ -54,22 +54,42 @@ const formatMessage = ({ message }) => ({
 export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/chat';
-  // console.log('req:', req);
-  const res = await http.post(url, { ...req, messages: req.messages.map(cleanMessage) });
-  const { choices, model, usage } = res.data;
-  const messages = choices.map(formatMessage).map((m) => ({
-    ...m,
-    model,
-    usage,
-  }));
+  const res = await http.post(url, {
+    ...req,
+    messages: req.messages.map(cleanMessage),  // remove keys
+  });
+  const messages = [];
+  let cost = 0;
+  let totalTokens = 0;
+  for (const { choices, model, usage } of res.data) {
+    let i = 0;
+    for (const { message } of choices) {
+      if (!messages[i]) {
+        messages[i] = {
+          role: message.role,
+          content: [],
+          key: uuidv4(),
+        };
+      }
+      messages[i].content.push({
+        model,
+        content: message.content,
+        key: uuidv4(),
+      });
+      i += 1;
+    }
+    if (usage) {
+      cost += usage.total_tokens / 1000 * 0.002;
+      totalTokens += usage.total_tokens;
+    }
+  }
   dispatch(setMessages({ messages: [...req.messages, ...messages] }));
-  const cost = usage.total_tokens / 1000 * 0.002;
   const app = req.app;
   if (app) {
     dispatch(updateAppAsync({
       id: app.id,
       values: {
-        tokenCount: (app.tokenCount || 0) + usage.total_tokens,
+        tokenCount: (app.tokenCount || 0) + totalTokens,
         cost: (app.cost || 0) + cost,
       }
     }));

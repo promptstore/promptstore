@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, message } from 'antd';
-import { CheckCircleTwoTone } from '@ant-design/icons';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../contexts/NavbarContext';
@@ -104,7 +104,7 @@ export function WorkspacesList() {
         width: '100%',
         render: (_, { isPublic }) => (
           <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-            <span>{isPublic ? <CheckCircleTwoTone twoToneColor="#52c41a" /> : ''}</span>
+            <span>{isPublic ? <CheckCircleOutlined /> : ''}</span>
           </div>
         )
       },

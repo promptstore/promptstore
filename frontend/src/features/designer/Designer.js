@@ -1,17 +1,16 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button, Layout, Table } from 'antd';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { Chat } from '../../components/Chat';
 import { createPromptSetAsync } from '../promptSets/promptSetsSlice';
 
+import { ModelParamsForm } from './ModelParamsForm';
 import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
-import { CopyParamsForm } from './CopyParamsForm';
 import {
   createChatSessionAsync,
   deleteChatSessionsAsync,
@@ -38,13 +37,13 @@ export function Designer() {
   const [selectedMessages, setSelectedMessages] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [copyParams, setCopyParams] = useState({});
+  const [modelParams, setModelParams] = useState({});
 
   const chatLoading = useSelector(selectChatLoading);
-  const messages = useSelector(selectMessages);
   const chatSessions = useSelector(selectChatSessions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
+  const messages = useSelector(selectMessages);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -108,8 +107,8 @@ export function Designer() {
 
   const handleChatSubmit = (values) => {
     dispatch(getChatResponseAsync({
-      ...values,
-      ...copyParams,
+      messages: values.messages,
+      modelParams,
       workspaceId: selectedWorkspace.id,
     }));
   };
@@ -226,6 +225,7 @@ export function Designer() {
               messages={messages}
               onSelected={setSelectedMessages}
               onSubmit={handleChatSubmit}
+              selectable={true}
               selectMultiple={true}
               onUseSelected={onUseSelected}
               onReset={onReset}
@@ -237,9 +237,9 @@ export function Designer() {
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
             width={250}
           >
-            <CopyParamsForm
+            <ModelParamsForm
               includes={{ maxTokens: true, temperature: true, topP: true }}
-              onChange={setCopyParams}
+              onChange={setModelParams}
             />
           </Sider>
         </Layout>

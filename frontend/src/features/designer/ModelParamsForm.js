@@ -24,6 +24,11 @@ import {
 
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
+  getModelsAsync,
+  selectLoading as selectModelsLoading,
+  selectModels,
+} from '../models/modelsSlice';
+import {
   getPromptSetsAsync,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
@@ -40,7 +45,7 @@ const initialValues = {
   topP: 1,
 };
 
-export function CopyParamsForm({
+export function ModelParamsForm({
   includes,
   onChange,
   tourRefs,
@@ -61,6 +66,8 @@ export function CopyParamsForm({
   const [selectedVariationKey, setSelectedVariationKey] = useState(null);
   const [selectedVariationValues, setSelectedVariationValues] = useState([]);
 
+  const models = useSelector(selectModels);
+  const modelsLoading = useSelector(selectModelsLoading);
   const promptSets = useSelector(selectPromptSets);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -72,14 +79,29 @@ export function CopyParamsForm({
   const variationsFormResetCallbackRef = useRef();
 
   useEffect(() => {
+    const workspaceId = selectedWorkspace.id;
     if (includes['promptSet']) {
-      dispatch(getPromptSetsAsync({ key: 'copy', workspaceId: selectedWorkspace.id }));
+      dispatch(getPromptSetsAsync({ key: 'copy', workspaceId }));
     }
+    dispatch(getModelsAsync({ workspaceId }));
   }, [selectedWorkspace]);
 
   useEffect(() => {
     handleChange();
   }, [selectedVariationKey]);
+
+  const modelOptions = useMemo(() => {
+    if (models) {
+      return Object.values(models)
+        .filter((m) => m.type === 'gpt')
+        .map((m) => ({
+          key: m.id,
+          label: m.name,
+          value: m.id,
+        }));
+    }
+    return [];
+  }, [models]);
 
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
@@ -109,6 +131,12 @@ export function CopyParamsForm({
         key: selectedVariationKey,
         values: selectedVariationValues,
       };
+    }
+    if (params.models) {
+      params.models = params.models.map((id) => {
+        const { key, provider } = models[id];
+        return { model: key, provider };
+      });
     }
     if (typeof onChange === 'function') {
       onChange(params);
@@ -173,6 +201,18 @@ export function CopyParamsForm({
       >
         <div id="params-form">
           <div>
+            <Form.Item
+              extra="Only the first 3 will be used"
+              label="Compare Models"
+              name="models"
+            >
+              <Select allowClear
+                loading={modelsLoading}
+                mode="multiple"
+                options={modelOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
             {includes['variation'] ?
               <div className="fields-container">
                 <label>Variation</label>
@@ -226,7 +266,10 @@ export function CopyParamsForm({
                 label="Prompt Set"
                 name="promptSet"
               >
-                <Select allowClear options={promptSetOptions} optionFilterProp="label" />
+                <Select allowClear
+                  options={promptSetOptions}
+                  optionFilterProp="label"
+                />
               </Form.Item>
               : null
             }
