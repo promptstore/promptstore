@@ -2,19 +2,20 @@ import { Configuration, OpenAIApi } from 'openai';
 
 import { delay } from './utils';
 
-function LocalAILLM({ __name, constants, logger }) {
+function Llama2LLM({ __name, constants, logger }) {
 
   const configuration = new Configuration({
     apiKey: constants.OPENAI_API_KEY,
-    basePath: constants.LOCALAI_BASE_PATH,
+    basePath: constants.LLAMA2_BASE_PATH,
   });
 
-  // The LocalAI API is OpenAI compatible
+  // The Llama2 API is OpenAI compatible
   const openai = new OpenAIApi(configuration);
 
   async function createChatCompletion(request, retryCount = 0) {
     let res;
     try {
+      logger.debug('basePath:', constants.LLAMA2_BASE_PATH);
       res = await openai.createChatCompletion(request);
       return res.data;
     } catch (err) {
@@ -52,4 +53,4 @@ function LocalAILLM({ __name, constants, logger }) {
 
 }
 
-export default LocalAILLM;
+export default Llama2LLM;

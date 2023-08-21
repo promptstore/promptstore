@@ -14,14 +14,6 @@ import { SemanticFunctionImplementation } from './SemanticFunctionImplementation
 
 dayjs.extend(relativeTime);
 
-/**
- * @example
- * Use with validation
- * 
- *   const ValidatingSemanticFunction = withValidation(SemanticFunction);
- *   const semfn = new ValidatingSemanticFunction(...args);
- * 
- */
 export class SemanticFunction {
 
   name: string;
@@ -67,7 +59,7 @@ export class SemanticFunction {
         this.validate(instance, this.argsSchema);
       }
       const impl = this.getImplementation(modelKey);
-      const response = await impl.call({
+      const { response, responseMetadata } = await impl.call({
         args,
         history,
         modelKey,
@@ -76,7 +68,7 @@ export class SemanticFunction {
         callbacks,
       });
       this.onEnd({ response });
-      return response;
+      return { response, responseMetadata };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -86,7 +78,7 @@ export class SemanticFunction {
 
   getImplementation(modelKey: string) {
     const finder = modelKey ?
-      (impl: SemanticFunctionImplementation) => impl.model.modelKey === modelKey :
+      (impl: SemanticFunctionImplementation) => impl.model.model === modelKey :
       (impl: SemanticFunctionImplementation) => impl.isDefault;
     let impl = this.implementations.find(finder) as SemanticFunctionImplementation;
     if (!impl && this.implementations) {
@@ -159,7 +151,9 @@ interface SemanticFunctionOptions {
   callbacks: Callback[];
 }
 
-export const semanticFunction = (name: string, options: SemanticFunctionOptions) => (implementations: SemanticFunctionImplementation | SemanticFunctionImplementation[]) => {
+export const semanticFunction = (name: string, options: SemanticFunctionOptions) => (
+  implementations: SemanticFunctionImplementation | SemanticFunctionImplementation[]
+) => {
   return new SemanticFunction({
     ...options,
     name,

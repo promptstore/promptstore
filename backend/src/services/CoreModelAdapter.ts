@@ -1,3 +1,4 @@
+import { Model } from '../core/common_types';
 import { Callback } from '../core/Callback';
 import {
   composition,
@@ -9,8 +10,15 @@ import {
   outputNode,
 } from '../core/Composition';
 import { InputGuardrails } from '../core/InputGuardrails';
-import { ChatCompletionService, CompletionService, Model } from '../core/Model_types';
-import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/Model';
+import { CompletionService } from '../core/models/llm_types';
+import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
+import { OutputProcessingStep } from '../core/OutputProcessingPipeline_types';
+import {
+  OutputProcessingPipeline,
+  outputProcessingPipeline,
+  outputGuardrail,
+  outputParser,
+} from '../core/OutputProcessingPipeline';
 import { PromptEnrichmentStep } from '../core/PromptEnrichmentPipeline_types';
 import {
   PromptEnrichmentPipeline,
@@ -23,13 +31,6 @@ import {
 import { message, promptTemplate } from '../core/PromptTemplate';
 import { semanticFunction } from '../core/SemanticFunction';
 import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/SemanticFunctionImplementation';
-import {
-  OutputProcessingPipeline,
-  outputProcessingPipeline,
-  outputGuardrail,
-  outputParser,
-} from '../core/OutputProcessingPipeline';
-import { OutputProcessingStep } from '../core/OutputProcessingPipeline_types';
 
 export default ({ logger, services }) => {
 
@@ -62,17 +63,19 @@ export default ({ logger, services }) => {
     })(messages);
   }
 
-  function createChatModel(modelInfo: any, chatCompletionService: ChatCompletionService, callbacks: Callback[]) {
+  function createChatModel(modelInfo: any, completionService: CompletionService, callbacks: Callback[]) {
     return llmModel({
-      modelKey: modelInfo.key,
-      chatCompletionService,
+      model: modelInfo.key,
+      provider: modelInfo.provider,
+      completionService,
       callbacks,
     });
   }
 
   function createCompletionModel(modelInfo: any, completionService: CompletionService, callbacks: Callback[]) {
     return completionModel({
-      modelKey: modelInfo.key,
+      model: modelInfo.key,
+      provider: modelInfo.provider,
       completionService,
       callbacks,
     });
@@ -80,7 +83,7 @@ export default ({ logger, services }) => {
 
   function createCustomModel(modelInfo: any, callbacks: Callback[]) {
     return customModel({
-      modelKey: modelInfo.key,
+      model: modelInfo.key,
       url: modelInfo.url,
       batchEndpoint: modelInfo.batchEndpoint,
       callbacks,
@@ -89,7 +92,7 @@ export default ({ logger, services }) => {
 
   function createHuggingfaceModel(modelInfo: any, callbacks: Callback[]) {
     return huggingfaceModel({
-      modelKey: modelInfo.modelName,
+      model: modelInfo.modelName,
       modelProviderService,
       callbacks,
     });
@@ -204,12 +207,12 @@ export default ({ logger, services }) => {
       // batching doesn't work with the chat interface. a different technique is required.
       // See https://community.openai.com/t/batching-with-chatcompletion-endpoint/137723
       if (modelInfo.type === 'gpt') {
-        model = createChatModel(modelInfo, llmService.fetchChatCompletion, callbacks);
+        model = createChatModel(modelInfo, llmService.createChatCompletion, callbacks);
         if (implInfo.promptSetId) {
           promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
         }
       } else if (modelInfo.type === 'completion') {
-        model = createCompletionModel(modelInfo, llmService.fetchCompletion, callbacks);
+        model = createCompletionModel(modelInfo, llmService.createCompletion, callbacks);
         if (implInfo.promptSetId) {
           promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
         }
@@ -230,9 +233,16 @@ export default ({ logger, services }) => {
       if (implInfo.outputGuardrails || implInfo.outputParser) {
         outputProcessingPipeline = createOutputProcessingPipeline(implInfo, callbacks);
       }
+      let argsMappingTemplate: string, returnMappingTemplate: string;
+      if (typeof implInfo.mappingData === 'string') {
+        argsMappingTemplate = implInfo.mappingData.trim();
+      }
+      if (typeof implInfo.returnMappingData === 'string') {
+        returnMappingTemplate = implInfo.returnMappingData.trim();
+      }
       const impl = semanticFunctionImplementation({
-        argsMappingTemplate: implInfo.mappingData,
-        returnMappingTemplate: implInfo.returnMappingData,
+        argsMappingTemplate,
+        returnMappingTemplate,
         isDefault: implInfo.isDefault,
         callbacks,
       })(model, promptEnrichmentPipeline, inputGuardrails, outputProcessingPipeline);

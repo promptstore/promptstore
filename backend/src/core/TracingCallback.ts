@@ -3,21 +3,9 @@ import { ValidatorResult } from 'jsonschema';
 
 import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
-  CompositionOnStartResponse,
-  CompositionOnEndResponse,
-} from './Composition_types';
-import {
   InputGuardrailsOnEndResponse,
   InputGuardrailsOnStartResponse,
 } from './InputGuardrails_types';
-import {
-  SemanticFunctionOnStartResponse,
-  SemanticFunctionOnEndResponse,
-} from './SemanticFunction_types';
-import {
-  SemanticFunctionImplementationOnStartResponse,
-  SemanticFunctionImplementationOnEndResponse,
-} from './SemanticFunctionImplementation_types';
 import {
   PromptEnrichmentOnStartResponse,
   PromptEnrichmentOnEndResponse,
@@ -37,16 +25,32 @@ import {
 import {
   ModelOnStartResponse,
   ModelOnEndResponse,
+} from './models/llm_types';
+import {
   CustomModelOnStartResponse,
   CustomModelOnEndResponse,
+} from './models/custom_model_types';
+import {
   HuggingfaceModelOnStartResponse,
   HuggingfaceModelOnEndResponse,
-} from './Model_types';
+} from './models/huggingface_types';
 import {
   OutputProcessingResponse,
   OutputGuardrailStartResponse,
   OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
+import {
+  SemanticFunctionImplementationOnStartResponse,
+  SemanticFunctionImplementationOnEndResponse,
+} from './SemanticFunctionImplementation_types';
+import {
+  SemanticFunctionOnStartResponse,
+  SemanticFunctionOnEndResponse,
+} from './SemanticFunction_types';
+import {
+  CompositionOnStartResponse,
+  CompositionOnEndResponse,
+} from './Composition_types';
 import { Tracer } from './Tracer';
 
 interface TraceCallbackParams {
@@ -562,15 +566,13 @@ export class TracingCallback {
     });
   }
 
-  onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+  onModelStart({ request }: ModelOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
+        ...request,
         type: 'call-model',
-        model: modelKey,
-        modelParams,
-        messages,
         startTime: startTime.getTime(),
       })
       .down();
@@ -605,21 +607,19 @@ export class TracingCallback {
     });
   }
 
-  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+  onCompletionModelStart({ request }: ModelOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
+        ...request,
         type: 'call-model',
-        model: modelKey,
-        modelParams,
-        messages,
         startTime: startTime.getTime(),
       })
       .down();
   }
 
-  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
+  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -648,13 +648,13 @@ export class TracingCallback {
     });
   }
 
-  onCustomModelStart({ args, isBatch, modelKey, url }: CustomModelOnStartResponse) {
+  onCustomModelStart({ args, isBatch, model, url }: CustomModelOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
         type: 'call-custom-model',
-        model: modelKey,
+        model,
         url,
         args,
         isBatch,
@@ -692,13 +692,13 @@ export class TracingCallback {
     });
   }
 
-  onHuggingfaceModelStart({ args, modelKey }: HuggingfaceModelOnStartResponse) {
+  onHuggingfaceModelStart({ args, model }: HuggingfaceModelOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
         type: 'call-huggingface-model',
-        model: modelKey,
+        model,
         args,
         startTime: startTime.getTime(),
       })

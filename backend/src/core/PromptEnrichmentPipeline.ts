@@ -1,12 +1,11 @@
-import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import clone from 'lodash.clonedeep';
 import get from 'lodash.get';
 import set from 'lodash.set';  // mutable
-import clone from 'lodash.clonedeep';
+import { default as dayjs } from 'dayjs';
 
 import { SemanticFunctionError } from './errors';
 import { Callback } from './Callback';
-import { ModelParams } from './Model_types';
 import {
   PromptEnrichmentPipelineParams,
   PromptEnrichmentStep,
@@ -24,6 +23,7 @@ import {
   OnSqlEnrichmentEndParams,
 } from './PromptEnrichmentPipeline_types';
 import { PromptTemplate } from './PromptTemplate';
+import { ModelParams } from './RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
 
 dayjs.extend(relativeTime);
@@ -294,7 +294,7 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
     try {
       const context = get(args, this.contextPropertyPath);
       const fnargs = set({}, this.contentPropertyPath, context);
-      const response = await this.semanticFunction.call({
+      const { response } = await this.semanticFunction.call({
         args: fnargs,
         modelKey: this.modelKey,
         modelParams: this.modelParams,

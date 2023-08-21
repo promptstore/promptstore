@@ -1,23 +1,60 @@
+import {
+  fromOpenAIChatResponse,
+  fromOpenAICompletionResponse,
+  fromVertexAIChatResponse,
+  fromVertexAICompletionResponse,
+  toOpenAIChatRequest,
+  toOpenAICompletionRequest,
+  toVertexAIChatRequest,
+  toVertexAICompletionRequest,
+} from '../core/RosettaStone';
+
 export function LLMService({ logger, registry }) {
 
-  async function createChatCompletion({ provider, messages, model, modelParams }) {
+  async function createChatCompletion({ provider, request }) {
     const instance = registry[provider || 'openai'];
-    return await instance.createChatCompletion(messages, model, modelParams);
+    let providerRequest;
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      providerRequest = toOpenAIChatRequest(request);
+    } else if (provider === 'vertexai') {
+      providerRequest = toVertexAIChatRequest(request);
+    } else {
+      throw new Error(`model provider ${provider} not supported.`);
+    }
+    const response = await instance.createChatCompletion(providerRequest);
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      return fromOpenAIChatResponse(response);
+    }
+    if (provider === 'vertexai') {
+      return {
+        ...fromVertexAIChatResponse(response),
+        model: request.model,
+      };
+    }
+    throw new Error('should not be able to get here');
   }
 
-  async function createCompletion({ provider, prompt, model, modelParams }) {
+  async function createCompletion({ provider, request }) {
     const instance = registry[provider || 'openai'];
-    return await instance.createCompletion(prompt, model, modelParams);
-  }
-
-  async function fetchChatCompletion({ provider, messages, model, modelParams }) {
-    const instance = registry[provider || 'openai'];
-    return await instance.fetchChatCompletion(messages, model, modelParams);
-  }
-
-  async function fetchCompletion({ provider, input, model, modelParams }) {
-    const instance = registry[provider || 'openai'];
-    return await instance.fetchCompletion(input, model, modelParams);
+    let providerRequest;
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      providerRequest = toOpenAICompletionRequest(request);
+    } else if (provider === 'vertexai') {
+      providerRequest = toVertexAICompletionRequest(request);
+    } else {
+      throw new Error(`model provider ${provider} not supported.`);
+    }
+    const response = await instance.createCompletion(providerRequest);
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      return fromOpenAICompletionResponse(response);
+    }
+    if (provider === 'vertexai') {
+      return {
+        ...fromVertexAICompletionResponse(response),
+        model: request.model,
+      };
+    }
+    throw new Error('should not be able to get here');
   }
 
   async function createImage(provider, prompt, n) {
@@ -47,8 +84,6 @@ export function LLMService({ logger, registry }) {
   return {
     createChatCompletion,
     createCompletion,
-    fetchChatCompletion,
-    fetchCompletion,
     getChatProviders,
     getCompletionProviders,
     createImage,

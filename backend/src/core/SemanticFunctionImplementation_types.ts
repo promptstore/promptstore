@@ -1,14 +1,13 @@
-import { ChatCompletionResponse, DataMapper } from './common_types';
+import { DataMapper, Model } from './common_types';
 import { Callback } from './Callback';
 import { InputGuardrails } from './InputGuardrails';
-import { Model, ModelParams } from './Model_types';
 import { OutputProcessingPipeline } from './OutputProcessingPipeline';
-import { IMessage } from './PromptTemplate_types';
 import { PromptEnrichmentPipeline } from './PromptEnrichmentPipeline';
+import { ChatResponse, Message, ModelParams } from './RosettaStone';
 
 export interface SemanticFunctionImplementationCallParams {
   args: any;
-  history?: IMessage[];
+  history?: Message[];
   modelKey: string;
   modelParams: ModelParams;
   isBatch?: boolean;
@@ -20,13 +19,13 @@ export interface SemanticFunctionImplementationOnStartResponse extends SemanticF
 }
 
 export interface SemanticFunctionImplementationOnEndParams {
-  response?: ChatCompletionResponse;
+  response?: ChatResponse;
   errors?: any;
 }
 
 export interface SemanticFunctionImplementationOnEndResponse extends SemanticFunctionImplementationOnEndParams {
   modelKey: string;
-  response?: ChatCompletionResponse;
+  response?: ChatResponse;
   errors?: any;
 }
 
@@ -38,8 +37,8 @@ export type SemanticFunctionImplementationOnErrorCallbackFunction = (errors: any
 
 export interface SemanticFunctionImplementationParams {
   model: Model;
-  argsMappingTemplate?: any;
-  returnMappingTemplate?: any;
+  argsMappingTemplate?: string;
+  returnMappingTemplate?: string;
   isDefault: boolean;
   promptEnrichmentPipeline?: PromptEnrichmentPipeline;
   inputGuardrails?: InputGuardrails;

@@ -1,5 +1,7 @@
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import set from 'lodash.set';  // mutable
+import clone from 'lodash.clonedeep';
 
 import { GuardrailError, ParserError } from './errors';
 import { Callback } from './Callback';
@@ -85,11 +87,12 @@ export class OutputGuardrail implements OutputProcessingStep {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ guardrail: this.guardrail, response });
     try {
-      const res = await this.guardrailsService.scan(this.guardrail, response);
+      const content = this.getContent(response);
+      const res = await this.guardrailsService.scan(this.guardrail, content);
       if (res.error) {
         this.throwGuardrailError(res.error);
       }
-      response = res.text;
+      response = this.updateContent(response, res.text);
       this.onEnd({ response })
       return response;
     } catch (err) {
@@ -97,6 +100,14 @@ export class OutputGuardrail implements OutputProcessingStep {
       this.onEnd({ errors });
       throw err;
     }
+  }
+
+  getContent(response: any) {
+    return response.choices[0].message.content;
+  }
+
+  updateContent(response: any, content: string) {
+    return set(clone(response), 'choices[0].message.content', content);
   }
 
   onStart({ guardrail, response }: OutputGuardrailStartResponse) {

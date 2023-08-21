@@ -1,12 +1,11 @@
-import { ChatCompletionResponse, Validator } from './common_types';
+import { Validator } from './common_types';
 import { Callback } from './Callback';
-import { ModelParams } from './Model_types';
-import { IMessage } from './PromptTemplate_types';
+import { ChatResponse, Message, ModelParams } from './RosettaStone';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
 
 export interface SemanticFunctionCallParams {
   args: any;
-  history?: IMessage[],
+  history?: Message[],
   modelKey: string;
   modelParams: ModelParams;
   isBatch?: boolean;
@@ -18,13 +17,13 @@ export interface SemanticFunctionOnStartResponse extends SemanticFunctionCallPar
 }
 
 export interface SemanticFunctionOnEndParams {
-  response?: ChatCompletionResponse;
+  response?: ChatResponse;
   errors?: any;
 }
 
 export interface SemanticFunctionOnEndResponse extends SemanticFunctionOnEndParams {
   name: string;
-  response?: ChatCompletionResponse;
+  response?: ChatResponse;
   errors?: any;
 }
 

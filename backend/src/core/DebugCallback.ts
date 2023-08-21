@@ -4,21 +4,9 @@ import logger from '../logger';
 
 import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
-  CompositionOnStartResponse,
-  CompositionOnEndResponse,
-} from './Composition_types';
-import {
   InputGuardrailsOnEndResponse,
   InputGuardrailsOnStartResponse,
 } from './InputGuardrails_types';
-import {
-  SemanticFunctionOnStartResponse,
-  SemanticFunctionOnEndResponse,
-} from './SemanticFunction_types';
-import {
-  SemanticFunctionImplementationOnStartResponse,
-  SemanticFunctionImplementationOnEndResponse,
-} from './SemanticFunctionImplementation_types';
 import {
   PromptEnrichmentOnStartResponse,
   PromptEnrichmentOnEndResponse,
@@ -38,16 +26,32 @@ import {
 import {
   ModelOnStartResponse,
   ModelOnEndResponse,
+} from './models/llm_types';
+import {
   CustomModelOnStartResponse,
   CustomModelOnEndResponse,
+} from './models/custom_model_types';
+import {
   HuggingfaceModelOnStartResponse,
   HuggingfaceModelOnEndResponse,
-} from './Model_types';
+} from './models/huggingface_types';
 import {
   OutputProcessingResponse,
   OutputGuardrailStartResponse,
   OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
+import {
+  SemanticFunctionImplementationOnStartResponse,
+  SemanticFunctionImplementationOnEndResponse,
+} from './SemanticFunctionImplementation_types';
+import {
+  SemanticFunctionOnStartResponse,
+  SemanticFunctionOnEndResponse,
+} from './SemanticFunction_types';
+import {
+  CompositionOnStartResponse,
+  CompositionOnEndResponse,
+} from './Composition_types';
 
 export class DebugCallback {
 
@@ -219,13 +223,20 @@ export class DebugCallback {
     logger.error(errors);
   }
 
-  onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
-    logger.debug('start model:', modelKey, modelParams);
-    logger.debug('input:', messages);
+  onModelStart({ request }: ModelOnStartResponse) {
+    const { model, model_params, prompt } = request;
+    logger.debug('start model:', model, model_params);
+    if (prompt.context) {
+      logger.debug('context:', prompt.context.system_prompt);
+    }
+    if (prompt.history) {
+      logger.debug('history:', prompt.history);
+    }
+    logger.debug('messages:', prompt.messages);
   }
 
-  onModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
-    logger.debug('end model:', modelKey);
+  onModelEnd({ model, response, errors }: ModelOnEndResponse) {
+    logger.debug('end model:', model);
     logger.debug('output:', response);
   }
 
@@ -233,36 +244,45 @@ export class DebugCallback {
     logger.error(errors);
   }
 
-  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
-    logger.debug('start completion model:', modelKey);
+  onCompletionModelStart({ request }: ModelOnStartResponse) {
+    const { model, prompt } = request;
+    logger.debug('start completion model:', model);
+    if (prompt.context) {
+      logger.debug('context:', prompt.context.system_prompt);
+    }
+    if (prompt.history) {
+      logger.debug('history:', prompt.history);
+    }
+    logger.debug('messages:', prompt.messages);
   }
 
-  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
-    logger.debug('end completion model:', modelKey);
+  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
+    logger.debug('end completion model:', model);
+    logger.debug('output:', response);
   }
 
   onCompletionModelError(errors: any) {
     logger.error(errors);
   }
 
-  onCustomModelStart({ args, isBatch, modelKey, url }: CustomModelOnStartResponse) {
-    logger.debug('start custom model:', modelKey);
+  onCustomModelStart({ args, isBatch, model, url }: CustomModelOnStartResponse) {
+    logger.debug('start custom model:', model);
   }
 
-  onCustomModelEnd({ modelKey, response, errors }: CustomModelOnEndResponse) {
-    logger.debug('end custom model:', modelKey);
+  onCustomModelEnd({ model, response, errors }: CustomModelOnEndResponse) {
+    logger.debug('end custom model:', model);
   }
 
   onCustomModelError(errors: any) {
     logger.error(errors);
   }
 
-  onHuggingfaceModelStart({ args, modelKey }: HuggingfaceModelOnStartResponse) {
-    logger.debug('start huggingface model:', modelKey);
+  onHuggingfaceModelStart({ args, model }: HuggingfaceModelOnStartResponse) {
+    logger.debug('start huggingface model:', model);
   }
 
-  onHuggingfaceModelEnd({ modelKey, response, errors }: HuggingfaceModelOnEndResponse) {
-    logger.debug('end huggingface model:', modelKey);
+  onHuggingfaceModelEnd({ model, response, errors }: HuggingfaceModelOnEndResponse) {
+    logger.debug('end huggingface model:', model);
   }
 
   onHuggingfaceModelError(errors: any) {

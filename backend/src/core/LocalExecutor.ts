@@ -1,13 +1,12 @@
 import logger from '../logger';
 
-import { ModelParams } from './Model_types';
-import { IMessage } from './PromptTemplate_types';
+import { Message, ModelParams } from './RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
 
 interface RunFunctionParams {
   semanticFunction: SemanticFunction;
   args: any;
-  history?: IMessage[];
+  history?: Message[];
   modelKey: string;
   modelParams: ModelParams;
   isBatch: boolean;
@@ -51,7 +50,7 @@ export class LocalExecutor {
     return composition.call({ args, modelKey, modelParams, isBatch });
   }
 
-  fixMessages(messages: IMessage[]) {
+  fixMessages(messages: Message[]) {
     return messages.map(m => ({
       role: m.role,
       content: m.content,

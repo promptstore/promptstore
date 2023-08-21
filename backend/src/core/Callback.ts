@@ -2,21 +2,9 @@ import { ValidatorResult } from 'jsonschema';
 
 import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
-  CompositionOnStartResponse,
-  CompositionOnEndResponse,
-} from './Composition_types';
-import {
   InputGuardrailsOnEndResponse,
   InputGuardrailsOnStartResponse,
 } from './InputGuardrails_types';
-import {
-  SemanticFunctionOnStartResponse,
-  SemanticFunctionOnEndResponse,
-} from './SemanticFunction_types';
-import {
-  SemanticFunctionImplementationOnStartResponse,
-  SemanticFunctionImplementationOnEndResponse,
-} from './SemanticFunctionImplementation_types';
 import {
   PromptEnrichmentOnStartResponse,
   PromptEnrichmentOnEndResponse,
@@ -36,16 +24,32 @@ import {
 import {
   ModelOnStartResponse,
   ModelOnEndResponse,
+} from './models/llm_types';
+import {
   CustomModelOnStartResponse,
   CustomModelOnEndResponse,
+} from './models/custom_model_types';
+import {
   HuggingfaceModelOnStartResponse,
   HuggingfaceModelOnEndResponse,
-} from './Model_types';
+} from './models/huggingface_types';
 import {
   OutputProcessingResponse,
   OutputGuardrailStartResponse,
   OutputParserStartResponse,
 } from './OutputProcessingPipeline_types';
+import {
+  SemanticFunctionImplementationOnStartResponse,
+  SemanticFunctionImplementationOnEndResponse,
+} from './SemanticFunctionImplementation_types';
+import {
+  SemanticFunctionOnStartResponse,
+  SemanticFunctionOnEndResponse,
+} from './SemanticFunction_types';
+import {
+  CompositionOnStartResponse,
+  CompositionOnEndResponse,
+} from './Composition_types';
 
 export class Callback {
 
@@ -181,11 +185,11 @@ export class Callback {
 
   }
 
-  onModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+  onModelStart({ request }: ModelOnStartResponse) {
 
   }
 
-  onModelEnd({ response, errors }: ModelOnEndResponse) {
+  onModelEnd({ model, response, errors }: ModelOnEndResponse) {
 
   }
 
@@ -193,11 +197,11 @@ export class Callback {
 
   }
 
-  onCompletionModelStart({ messages, modelKey, modelParams }: ModelOnStartResponse) {
+  onCompletionModelStart({ request }: ModelOnStartResponse) {
 
   }
 
-  onCompletionModelEnd({ modelKey, response, errors }: ModelOnEndResponse) {
+  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
 
   }
 
@@ -205,7 +209,7 @@ export class Callback {
 
   }
 
-  onCustomModelStart({ args, isBatch, modelKey, url }: CustomModelOnStartResponse) {
+  onCustomModelStart({ args, isBatch, model, url }: CustomModelOnStartResponse) {
 
   }
 
@@ -217,7 +221,7 @@ export class Callback {
 
   }
 
-  onHuggingfaceModelStart({ args, modelKey }: HuggingfaceModelOnStartResponse) {
+  onHuggingfaceModelStart({ args, model }: HuggingfaceModelOnStartResponse) {
 
   }
 

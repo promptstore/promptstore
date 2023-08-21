@@ -245,43 +245,49 @@ app.use(cors());
 
 const VerifyToken = async (req, res, next) => {
   // look for firebase token
-  const token = req.headers.authorization?.split(' ')[1];
-  // logger.debug('token:', token);
-
-  if (fs.existsSync('./config/serviceAccountKey.json')) {
-    const { default: firebaseAuth } = await import('./config/firebase-config.js');
-    try {
-      const decodeValue = await firebaseAuth.verifyIdToken(token);
-      if (decodeValue) {
-        req.user = { ...decodeValue, username: decodeValue.email };
-        return next();
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2) {
+      const token = parts[1];
+      const keyPath = path.join(basePath, 'config/serviceAccountKey.json');
+      if (fs.existsSync(keyPath)) {
+        const { default: auth } = await import('./config/firebase-config.js');
+        try {
+          const decodeValue = await auth.verifyIdToken(token);
+          if (decodeValue) {
+            req.user = { ...decodeValue, username: decodeValue.email };
+            return next();
+          }
+        } catch (err) {
+          logger.error(err, err.stack);
+        }
       }
-    } catch (e) {
-      // return res.json({ message: 'Not authorized' });
     }
   }
   // otherwise look for api key
   const apiKey = req.headers.apikey;
-  // logger.debug('apiKey:', apiKey);
   if (apiKey) {
     const resp = await workspacesService.getUsernameByApiKey(apiKey);
-    // logger.debug('resp:', resp);
     let user;
     if (resp) {
       user = await usersService.getUser(resp.username);
-      // logger.debug('user:', user);
-      req.user = user;
-      return next();
-    }
-
-    if (apiKey === process.env.PROMPTSTORE_API_KEY) {
-      user = await usersService.getUser('test.account@promptstore.dev');
-      req.user = user;
-      return next();
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    } else {
+      if (apiKey === process.env.PROMPTSTORE_API_KEY) {
+        user = await usersService.getUser('test.account@promptstore.dev');
+        if (user) {
+          req.user = user;
+          return next();
+        }
+      }
     }
   }
 
-  // finally send 'Not authorized' if both validation approaches fail
+  // finally send 'Not authorized' if all validation approaches fail
   return res.status(401).send('Not authorized');
 
 };

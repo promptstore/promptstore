@@ -84,7 +84,7 @@ export function ExecutionsService({ logger, services }) {
         semanticFunction,
         args,
         history,
-        modelKey: params.modelKey || params.model || 'gpt-3.5-turbo',
+        modelKey: params.modelKey || params.model,
         modelParams: {
           functions,
           max_tokens: params.maxTokens,

@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 
-import { appendSentence, downloadImage, getMessages } from '../utils';
+import { PARA_DELIM } from '../core/RosettaStone';
+import { downloadImage, getMessages } from '../utils';
 
 const COPY_GENERATION_SKILL = 'copy_generation';
+const QA_SKILL = 'qa';
 
 const DEFAULT_CHAT_MODEL = 'chat-3.5-turbo';
 
@@ -23,12 +25,16 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   } = services;
 
   app.post('/api/completion', auth, async (req, res, next) => {
-    const { app, service } = req.body;
-    logger.debug('app:', app);
+    const { app, service: provider } = req.body;
+    // logger.debug('app:', app);
     const features = app.features;
     const model = app.model || DEFAULT_CHAT_MODEL;
     const maxTokens = getMaxTokens(app);
     const n = app.n || 1;
+    const modelParams = {
+      maxTokens,
+      n,
+    };
 
     let promptSet, prompts, resp = [], r;
     const { workspaceId, promptSetId, prompt, variations } = app;
@@ -38,7 +44,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         for (const id of values) {
           promptSet = getPromptSet(workspaceId, id);
           prompts = promptSet.prompts;
-          r = await createChatCompletion(service, app, prompts, features, model, maxTokens, 1);
+          r = await createChatCompletion({ features, model, modelParams, prompts, provider });
           resp = [...resp, r];
         }
       } else {
@@ -50,7 +56,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         }
         for (const v of values) {
           let fs = { ...features, [key]: v };
-          r = await createChatCompletion(service, app, prompts, fs, model, maxTokens, 1);
+          r = await createChatCompletion({ features: fs, model, modelParams, prompts, provider });
           resp = [...resp, r];
         }
       }
@@ -61,7 +67,15 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         promptSet = getPromptSet(workspaceId, promptSetId);
         prompts = promptSet.prompts;
       }
-      resp = await createChatCompletion(service, app, prompts, features, model, maxTokens, n);
+      if (app.models) {
+        const proms = [];
+        for (const model of models) {
+          proms.push(createChatCompletion({ features, model, modelParams, prompts, provider }));
+        }
+        resp = Promise.all(proms);
+      } else {
+        resp = await createChatCompletion({ features, model, modelParams, prompts, provider });
+      }
     }
 
     res.json(resp);
@@ -83,32 +97,72 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/chat', auth, async (req, res) => {
-    logger.debug('body:', req.body);
-    let { indexName, maxTokens, messages, model, workspaceId } = req.body;
-    let hits;
+    let { indexName, messages, modelParams, workspaceId } = req.body;
+    let models = modelParams.models;
+    if (!models) {
+      // TODO move values to settings
+      models = [{ model: 'gpt-3.5-turbo', provider: 'openai' }];
+    }
+
+    // TODO place in loop
     if (indexName) {
       const message = messages[messages.length - 1];
-      const content = message.content;
-      logger.debug('q:', content);
-      hits = await searchService.search(indexName, content);
-      logger.log('debug', 'hits: %s', hits);
-      if (hits?.length) {
-        const context = hits.map(h => h.content_text).join('\n\n');
-        const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, 'qa');
+      let content;
+      if (Array.isArray(message.content)) {
+        content = message.content[0].content;  // use content from the first model
+      } else {
+        content = message.content;
+      }
+      const hits = await searchService.search(indexName, content);
+      if (hits && hits.length) {
+        const context = hits.map(h => h.content_text).join(PARA_DELIM);
+        const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, QA_SKILL);
         if (promptSets.length) {
-          const prompts = promptSets[0].prompts;
+          const prompts = promptSets[0].prompts;  // use first promptSet
           const features = { content, context };
-          messages.splice(i, 1, ...getMessages(prompts, features));
+          const ctxMsgs = getMessages(prompts, features);
+
+          // TODO what is i
+          const i = 0;  // temp
+          messages.splice(i, 1, ...ctxMsgs);
         }
       }
     }
-    const modelParams = {
-      max_tokens: maxTokens,
+
+    const model_params = {
+      max_tokens: modelParams.maxTokens,
       n: 1,
     };
-    const completion = await llmService.createChatCompletion({ provider: 'openai', messages, model, modelParams });
-    res.json(completion);
+    const proms = [];
+    for (const { model, provider } of models) {
+      let request = {
+        model,
+        prompt: { messages: cleanMessages(model, messages) },
+        model_params,
+      };
+      proms.push(llmService.createChatCompletion({ provider, request }));
+    }
+    const completions = await Promise.all(proms);
+
+    res.json(completions);
   });
+
+  const cleanMessages = (model, messages) => {
+    return messages.map(m => {
+      let content;
+      if (Array.isArray(m.content)) {
+        const modelContent = m.content.find(c => c.model === model);
+        if (modelContent) {
+          content = modelContent.content;
+        } else {
+          content = m.content[0].content;  // use content from the first model
+        }
+      } else {
+        content = m.content;
+      }
+      return { ...m, content };
+    });
+  };
 
   app.get('/api/providers/chat', auth, (req, res, next) => {
     const providers = llmService.getChatProviders();
@@ -182,22 +236,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.json(response);
   });
 
-  const createChatCompletion = (provider, app, prompts, features, model, maxTokens, n) => {
+  const createChatCompletion = ({ features, model, modelParams, prompts, provider }) => {
     const messages = getMessages(prompts, features);
-
-    // TODO find a better approach
-    // if (app.allowEmojis) {
-    //   const last = messages[messages.length - 1];
-    //   last.content = appendSentence(last.content, 'Use emojis judiciously.');
-    // }
-
-    // logger.debug('messages:', messages);
-
-    const modelParams = {
-      max_tokens: maxTokens,
-      n,
-    }
-    return llmService.createChatCompletion({ provider, messages, model, modelParams });
+    const request = {
+      model,
+      prompt: { messages },
+      model_params: modelParams,
+    };
+    return llmService.createChatCompletion({ provider, request });
   };
 
   const getMaxTokens = (app) => {

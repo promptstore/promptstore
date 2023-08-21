@@ -183,10 +183,11 @@ export const getExtension = (filepath) => {
   return filepath.slice(index + 1);
 }
 
-export const getMessages = (prompts, features, engine) => prompts.map((p, i) => ({
-  role: p.role || (i < prompts.length - 1 ? 'system' : 'user'),
-  content: fillTemplate(isObject(p) ? p.prompt : p, features, engine),
-}));
+export const getMessages = (prompts, features, engine) =>
+  prompts.map((p, i) => ({
+    role: p.role || (i < prompts.length - 1 ? 'system' : 'user'),
+    content: fillTemplate(isObject(p) ? p.prompt : p, features, engine),
+  }));
 
 let numberOfFramesToRemove = 0;
 

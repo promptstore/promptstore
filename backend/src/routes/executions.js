@@ -53,7 +53,6 @@ export default ({ app, auth, logger, services }) => {
     const semanticFunctionName = req.params.name;
     const { username } = req.user;
     const { batch, stream } = req.query;
-    // logger.debug('body:', req.body);
 
     // TODO
     const { args, history, params = {}, workspaceId = 1 } = req.body;

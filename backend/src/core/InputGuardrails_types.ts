@@ -1,5 +1,5 @@
 import { Callback } from './Callback';
-import { IMessage } from './PromptTemplate_types';
+import { OpenAIMessage } from './PromptTemplate_types';
 
 export interface InputGuardrailsParams {
   guardrails: string[];
@@ -8,7 +8,7 @@ export interface InputGuardrailsParams {
 }
 
 export interface InputGuardrailsCallParams {
-  messages: IMessage[];
+  messages: OpenAIMessage[];
   callbacks?: Callback[];
 }
 
@@ -19,7 +19,7 @@ export interface InputGuardrailsOnEndParams {
 
 export interface InputGuardrailsOnStartResponse {
   guardrails: string[];
-  messages: IMessage[];
+  messages: OpenAIMessage[];
 }
 
 export interface InputGuardrailsOnEndResponse {

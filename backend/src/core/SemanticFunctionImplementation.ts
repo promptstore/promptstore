@@ -1,30 +1,36 @@
-import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { default as dayjs } from 'dayjs';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
-import { DataMapper } from './common_types';
+import { DataMapper, Model } from './common_types';
 import { SemanticFunctionError } from './errors';
+import { UserMessage } from './openai';
+import { getInputString } from './utils';
 import { Callback } from './Callback';
 import { InputGuardrails } from './InputGuardrails';
-import { Model } from './Model_types';
 import { OutputProcessingPipeline } from './OutputProcessingPipeline';
-import { IMessage } from './PromptTemplate_types';
 import {
   SemanticFunctionImplementationParams,
   SemanticFunctionImplementationCallParams,
   SemanticFunctionImplementationOnEndParams,
 } from './SemanticFunctionImplementation_types';
 import { PromptEnrichmentPipeline } from './PromptEnrichmentPipeline';
-import { UserMessage } from './PromptTemplate_types';
-import { getInputString } from './utils';
+import {
+  PARA_DELIM,
+  Message,
+  ChatRequestContext,
+  ResponseMetadata,
+} from './RosettaStone';
 
 dayjs.extend(relativeTime);
+
+const nonSystem = (m: Message) => m.role !== 'system';
 
 export class SemanticFunctionImplementation {
 
   model: Model;
-  argsMappingTemplate?: any;
-  returnMappingTemplate?: any;
+  argsMappingTemplate?: string;
+  returnMappingTemplate?: string;
   isDefault: boolean;
   promptEnrichmentPipeline?: PromptEnrichmentPipeline;
   inputGuardrails?: InputGuardrails;
@@ -57,31 +63,49 @@ export class SemanticFunctionImplementation {
 
   async call({ args, history, modelKey, modelParams, isBatch, callbacks = [] }: SemanticFunctionImplementationCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
+    modelKey = modelKey || this.model.model;
     this.onStart({ args, history, modelKey, modelParams, isBatch });
     try {
       if (this.argsMappingTemplate) {
         args = await this.mapArgs(args, this.argsMappingTemplate, isBatch);
       }
       let response: any;
+      let responseMetadata: ResponseMetadata;
       if (this.model.modelType === 'gpt') {
-        let messages: IMessage[];
+        let messages: Message[];
+        let context: ChatRequestContext;
+        let hist: Message[];
+        let msgs: Message[];
         if (this.promptEnrichmentPipeline) {
           messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
-          if (history) {
-            messages = this.includeHistory(messages, history);
+          if (!messages.length) {
+            this.throwSemanticFunctionError('no prompt');
           }
+          context = this.getContext(messages);
+          if (history) {
+            hist = this.getNonSystemMessageHistory(history);
+          }
+          msgs = this.getNonSystemMessages(messages);
         } else {
-          messages = this.getNoPromptMessages(args);
+          const userMessage = this.getInputAsMessage(args);
+          msgs = [userMessage];
         }
         if (this.inputGuardrails) {
           await this.inputGuardrails.call({ messages });
         }
-        response = await this.model.call({
-          messages,
-          modelKey,
-          modelParams,
-          callbacks
-        });
+        const request = {
+          ...modelParams,
+          model: modelKey,
+          prompt: {
+            context,
+            history: hist,
+            messages: msgs,
+          }
+        };
+        response = await this.model.call({ request, callbacks });
+        responseMetadata = {
+          prompts: messages,
+        };
       } else if (this.model.modelType === 'api') {
         response = await this.model.call({
           args,
@@ -98,7 +122,10 @@ export class SemanticFunctionImplementation {
         response = await this.mapReturnType(response, this.returnMappingTemplate, isBatch);
       }
       this.onEnd({ response });
-      return response;
+      return {
+        response,
+        responseMetadata,
+      };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -106,26 +133,32 @@ export class SemanticFunctionImplementation {
     }
   }
 
-  getNoPromptMessages(args: any) {
+  getContext(messages: Message[]) {
+    const system_prompt = messages
+      .filter(m => m.role === 'system')
+      .map(m => m.content)
+      .join(PARA_DELIM)
+      ;
+    return { system_prompt };
+  }
+
+  getNonSystemMessageHistory(history: Message[]) {
+    return history.filter(nonSystem);
+  }
+
+  getNonSystemMessages(messages: Message[]) {
+    return messages.filter(nonSystem);
+  }
+
+  getInputAsMessage(args: any) {
     const content = getInputString(args);
     if (!content) {
       this.throwSemanticFunctionError('Cannot parse args');
     }
-    const message = new UserMessage(content);
-    return [message];
+    return new UserMessage(content);
   }
 
-  includeHistory(messages: IMessage[], history: IMessage[]) {
-    const systemMessages = messages.filter(m => m.role === 'system');
-    const notSystem = (m: IMessage) => m.role !== 'system';
-    return [
-      ...systemMessages,
-      ...history.filter(notSystem),
-      ...messages.filter(notSystem)
-    ];
-  }
-
-  async mapArgs(args: any, mappingTemplate: any, isBatch: boolean) {
+  async mapArgs(args: any, mappingTemplate: string, isBatch: boolean) {
     const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
     for (let callback of this.currentCallbacks) {
       callback.onMapArguments({
@@ -138,7 +171,7 @@ export class SemanticFunctionImplementation {
     return mapped;
   }
 
-  _mapArgs(args: any, mappingTemplate: any, isBatch: boolean): Promise<any> {
+  _mapArgs(args: any, mappingTemplate: string, isBatch: boolean): Promise<any> {
     const template = eval(`(${mappingTemplate})`);
     const mapData = (instance: object) => this.dataMapper(instance, template);
     if (isBatch) {
@@ -160,7 +193,7 @@ export class SemanticFunctionImplementation {
     }
   }
 
-  async mapReturnType(response: any, mappingTemplate: any, isBatch: boolean) {
+  async mapReturnType(response: any, mappingTemplate: string, isBatch: boolean) {
     const mapped = await this._mapArgs(response, mappingTemplate, isBatch);
     for (let callback of this.currentCallbacks) {
       callback.onMapReturnType({
@@ -176,7 +209,7 @@ export class SemanticFunctionImplementation {
   onEnd({ response, errors }: SemanticFunctionImplementationOnEndParams) {
     for (let callback of this.currentCallbacks) {
       callback.onSemanticFunctionImplementationEnd({
-        modelKey: this.model.modelKey,
+        modelKey: this.model.model,
         response,
         errors,
       });
@@ -194,13 +227,18 @@ export class SemanticFunctionImplementation {
 }
 
 interface SemanticFunctionImplementationOptions {
-  argsMappingTemplate?: any;
-  returnMappingTemplate?: any;
+  argsMappingTemplate?: string;
+  returnMappingTemplate?: string;
   isDefault: boolean;
   callbacks?: Callback[];
 }
 
-export const semanticFunctionImplementation = (options: SemanticFunctionImplementationOptions) => (model: Model, promptEnrichmentPipeline: PromptEnrichmentPipeline, inputGuardrails: InputGuardrails, outputProcessingPipeline: OutputProcessingPipeline) => {
+export const semanticFunctionImplementation = (options: SemanticFunctionImplementationOptions) => (
+  model: Model,
+  promptEnrichmentPipeline: PromptEnrichmentPipeline,
+  inputGuardrails: InputGuardrails,
+  outputProcessingPipeline: OutputProcessingPipeline
+) => {
   return new SemanticFunctionImplementation({
     ...options,
     model,

@@ -1,29 +1,26 @@
 import axios from 'axios';
-import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { default as dayjs } from 'dayjs';
 
+import { Model } from '../common_types';
+import { SemanticFunctionError } from '../errors';
+import { Callback } from '../Callback';
 import {
-  ChatCompletionChoice,
-  ChatCompletionResponse,
-  CompletionResponse,
-} from './common_types';
-import { SemanticFunctionError } from './errors';
-import { Callback } from './Callback';
-import {
-  Model,
-  LLMChatModelParams,
-  LLMCompletionModelParams,
-  ModelCallParams,
   CustomModelParams,
   CustomModelCallParams,
+  CustomModelOnEndParams,
+} from './custom_model_types';
+import {
   HuggingfaceModelParams,
   HuggingfaceModelCallParams,
-  ChatCompletionService,
-  CompletionService,
-  ModelOnEndParams,
-  CustomModelOnEndParams,
   HuggingfaceModelOnEndParams,
-} from './Model_types';
+} from './huggingface_types';
+import {
+  CompletionService,
+  LLMChatModelParams,
+  ModelCallParams,
+  ModelOnEndParams,
+} from './llm_types';
 
 dayjs.extend(relativeTime);
 
@@ -36,68 +33,59 @@ const defaultLLMChatModelParams = {
 export class LLMChatModel implements Model {
 
   modelType: string;
-  modelKey: string;
-  chatCompletionService: ChatCompletionService;
+  model: string;
+  provider: string;
+  completionService: CompletionService;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
   constructor({
     modelType,
-    modelKey,
-    chatCompletionService,
+    model,
+    provider,
+    completionService,
     callbacks,
   }: LLMChatModelParams) {
     this.modelType = modelType;
-    this.modelKey = modelKey;
-    this.chatCompletionService = chatCompletionService;
+    this.model = model;
+    this.provider = provider;
+    this.completionService = completionService;
     this.callbacks = callbacks || [];
   }
 
-  async call({ messages, modelKey, modelParams, callbacks = [] }: ModelCallParams) {
+  async call({ request, callbacks = [] }: ModelCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    const myModelKey = modelKey || this.modelKey;
+    const model = request.model || this.model;
     const modelParamsWithDefaults = {
       ...defaultLLMChatModelParams,
-      ...modelParams
+      ...request.model_params,
     };
-    this.onStart({ messages, modelKey: myModelKey, modelParams: modelParamsWithDefaults });
+    request = {
+      ...request,
+      model,
+      model_params: modelParamsWithDefaults,
+    };
+    this.onStart({ request });
     try {
-      const response = await this.chatCompletionService({
-        provider: 'openai',
-        messages,
-        model: myModelKey,
-        modelParams: modelParamsWithDefaults,
-      });
-      this.onEnd({ response });
-      // return {
-      //   ...response,
-      //   content: response.choices[0].message.content
-      // };
+      const response = await this.completionService({ provider: this.provider, request });
+      this.onEnd({ model, response });
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ model, errors });
       throw err;
     }
   }
 
-  onStart({ messages, modelKey, modelParams }: ModelCallParams) {
+  onStart({ request }: ModelCallParams) {
     for (let callback of this.currentCallbacks) {
-      callback.onModelStart({
-        messages,
-        modelKey,
-        modelParams,
-      });
+      callback.onModelStart({ request });
     }
   }
 
-  onEnd({ response, errors }: ModelOnEndParams) {
+  onEnd(params: ModelOnEndParams) {
     for (let callback of this.currentCallbacks) {
-      callback.onModelEnd({
-        modelKey: this.modelKey,
-        response,
-        errors,
-      });
+      callback.onModelEnd(params);
     }
   }
 
@@ -106,84 +94,59 @@ export class LLMChatModel implements Model {
 export class LLMCompletionModel implements Model {
 
   modelType: string;
-  modelKey: string;
+  model: string;
+  provider: string;
   completionService: CompletionService;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
   constructor({
     modelType,
-    modelKey,
+    model,
+    provider,
     completionService,
     callbacks,
-  }: LLMCompletionModelParams) {
+  }: LLMChatModelParams) {
     this.modelType = modelType;
-    this.modelKey = modelKey;
+    this.model = model;
+    this.provider = provider;
     this.completionService = completionService;
     this.callbacks = callbacks || [];
   }
 
-  async call({ messages, modelKey, modelParams, callbacks = [] }: ModelCallParams) {
+  async call({ request, callbacks = [] }: ModelCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    const myModelKey = modelKey || this.modelKey;
+    const model = request.model || this.model;
     const modelParamsWithDefaults = {
       ...defaultLLMChatModelParams,
-      ...modelParams
+      ...request.model_params,
     };
-    this.onStart({ messages, modelKey: myModelKey, modelParams: modelParamsWithDefaults });
+    request = {
+      ...request,
+      model,
+      model_params: modelParamsWithDefaults,
+    };
+    this.onStart({ request });
     try {
-      const prompt = messages.map(m => m.content);
-      const completion = await this.completionService({
-        provider: 'openai',
-        prompt,
-        model: myModelKey,
-        modelParams: modelParamsWithDefaults,
-      });
-      const response = this.formatCompletionAsChat(completion);
-      this.onEnd({ response });
-      return {
-        ...response,
-        content: response.choices[0].message.content
-      };
+      const response = await this.completionService({ provider: this.provider, request });
+      this.onEnd({ model, response });
+      return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ model, errors });
       throw err;
     }
   }
 
-  formatCompletionAsChat(completion: CompletionResponse): ChatCompletionResponse {
-    const choices = completion.choices.map(c => ({
-      index: c.index,
-      finish_reason: c.finish_reason,
-      message: {
-        role: 'assistant',
-        content: c.text,
-      },
-    })) as ChatCompletionChoice[];
-    return {
-      ...completion,
-      choices,
-    };
-  }
-
-  onStart({ messages, modelKey, modelParams }: ModelCallParams) {
+  onStart({ request }: ModelCallParams) {
     for (let callback of this.currentCallbacks) {
-      callback.onCompletionModelStart({
-        messages,
-        modelKey,
-        modelParams,
-      });
+      callback.onCompletionModelStart({ request });
     }
   }
 
-  onEnd({ response, errors }: ModelOnEndParams) {
+  onEnd(params: ModelOnEndParams) {
     for (let callback of this.currentCallbacks) {
-      callback.onCompletionModelEnd({
-        modelKey: this.modelKey,
-        response,
-        errors,
-      });
+      callback.onCompletionModelEnd(params);
     }
   }
 
@@ -192,7 +155,7 @@ export class LLMCompletionModel implements Model {
 export class CustomModel implements Model {
 
   modelType: string;
-  modelKey: string;
+  model: string;
   url: string;
   batchEndpoint: string;
   callbacks: Callback[];
@@ -200,13 +163,13 @@ export class CustomModel implements Model {
 
   constructor({
     modelType,
-    modelKey,
+    model,
     url,
     batchEndpoint,
     callbacks,
   }: CustomModelParams) {
     this.modelType = modelType;
-    this.modelKey = modelKey;
+    this.model = model;
     this.url = url;
     this.batchEndpoint = batchEndpoint;
     this.callbacks = callbacks || [];
@@ -239,7 +202,7 @@ export class CustomModel implements Model {
   onStart({ args, isBatch }: CustomModelCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onCustomModelStart({
-        modelKey: this.modelKey,
+        model: this.model,
         url: isBatch ? this.batchEndpoint : this.url,
         args,
         isBatch,
@@ -250,7 +213,7 @@ export class CustomModel implements Model {
   onEnd({ response, errors }: CustomModelOnEndParams) {
     for (let callback of this.currentCallbacks) {
       callback.onCustomModelEnd({
-        modelKey: this.modelKey,
+        model: this.model,
         response,
         errors,
       });
@@ -270,19 +233,19 @@ export class CustomModel implements Model {
 export class HuggingfaceModel implements Model {
 
   modelType: string;
-  modelKey: string;
+  model: string;
   modelProviderService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
   constructor({
     modelType,
-    modelKey,
+    model,
     modelProviderService,
     callbacks,
   }: HuggingfaceModelParams) {
     this.modelType = modelType;
-    this.modelKey = modelKey;
+    this.model = model;
     this.modelProviderService = modelProviderService;
     this.callbacks = callbacks || [];
   }
@@ -291,7 +254,7 @@ export class HuggingfaceModel implements Model {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ args });
     try {
-      const response = await this.modelProviderService.query('huggingface', this.modelKey, args);
+      const response = await this.modelProviderService.query('huggingface', this.model, args);
       this.onEnd({ response });
       return response;
     } catch (err) {
@@ -304,7 +267,7 @@ export class HuggingfaceModel implements Model {
   onStart({ args }: HuggingfaceModelCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onHuggingfaceModelStart({
-        modelKey: this.modelKey,
+        model: this.model,
         args,
       });
     }
@@ -313,7 +276,7 @@ export class HuggingfaceModel implements Model {
   onEnd({ response, errors }: HuggingfaceModelOnEndParams) {
     for (let callback of this.currentCallbacks) {
       callback.onHuggingfaceModelEnd({
-        modelKey: this.modelKey,
+        model: this.model,
         response,
         errors,
       });
@@ -331,8 +294,9 @@ export class HuggingfaceModel implements Model {
 }
 
 interface LLMModelOptions {
-  modelKey: string;
-  chatCompletionService: ChatCompletionService;
+  model: string;
+  provider: string;
+  completionService: CompletionService;
   callbacks: Callback[];
 }
 
@@ -344,7 +308,8 @@ export const llmModel = (options: LLMModelOptions) => {
 }
 
 interface LLMCompletionModelOptions {
-  modelKey: string;
+  model: string;
+  provider: string;
   completionService: CompletionService;
   callbacks: Callback[];
 }
@@ -357,7 +322,7 @@ export const completionModel = (options: LLMCompletionModelOptions) => {
 }
 
 interface CustomModelOptions {
-  modelKey: string;
+  model: string;
   url?: string;
   batchEndpoint?: string;
   callbacks: Callback[];
@@ -371,7 +336,7 @@ export const customModel = (options: CustomModelOptions) => {
 }
 
 interface HuggingfaceModelOptions {
-  modelKey: string;
+  model: string;
   modelProviderService: any;
   callbacks: Callback[];
 }

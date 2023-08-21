@@ -1,7 +1,6 @@
 import { Callback } from './Callback';
-import { ModelParams } from './Model_types';
-import { Message } from './PromptTemplate_types';
 import { PromptTemplate } from './PromptTemplate';
+import { Message, ModelParams } from './RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
 
 export interface PromptEnrichmentCallParams {
