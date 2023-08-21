@@ -77,8 +77,8 @@
     "temporal": "temporal server start-dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Mark Mo",
-  "license": "Commercial",
+  "author": "Europa Labs Pty. Ltd.",
+  "license": "Apache License Version 2.0",
   "devDependencies": {
     "@types/node": "^20.4.5"
   }

@@ -185,18 +185,18 @@ export default ({ app, auth, logger, services }) => {
   /*
   req.user: {
   name: 'Mark Mo',
-  picture: 'https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg',
+  picture: 'https://avatars.dicebear.com/api/gridy/0.XXX4164767352256.svg',
   iss: 'https://securetoken.google.com/XXX',
   aud: 'XXX',
   auth_time: 1691469874,
-  user_id: 'bIDaybdzZIOpsyHXfgkF88o41tn2',
-  sub: 'bIDaybdzZIOpsyHXfgkF88o41tn2',
+  user_id: 'XXX',
+  sub: 'XXX',
   iat: 1691469874,
   exp: 1691473474,
   email: 'markmo@acme.com',
   email_verified: false,
   firebase: { identities: { email: [Array] }, sign_in_provider: 'password' },
-  uid: 'bIDaybdzZIOpsyHXfgkF88o41tn2'
+  uid: 'XXX'
 }
 
   */
