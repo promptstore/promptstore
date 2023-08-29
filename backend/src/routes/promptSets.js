@@ -75,15 +75,17 @@ export default ({ app, auth, logger, services }) => {
       .join('\n\n')
       ;
     const args = { content };
-    const resp = await executionsService.executeFunction({
+    const { response, errors } = await executionsService.executeFunction({
       workspaceId,
       username,
       semanticFunctionName: 'create_summary_label',
       args,
       params: { maxTokens: 3 },
     });
-    logger.log('debug', 'resp:', resp);
-    return resp.data.content;
+    if (errors) {
+      return null;
+    }
+    return response.choices[0].message.content;
   };
 
 };

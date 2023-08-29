@@ -1,10 +1,21 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
 } from 'firebase/auth';
+
+const DEFAULT_USER = {
+  email: 'test.account@promptstore.dev',
+  roles: ['admin'],
+  fullName: 'Test Account',
+  firstName: 'Test',
+  lastName: 'Account',
+  photoURL: 'https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg',
+  username: 'test.account@promptstore.dev',
+  displayName: 'Test Account',
+};
 
 const AuthContext = createContext();
 
@@ -34,32 +45,28 @@ export function AuthProvider({ children }) {
   }
 
   async function updateUserProfile(user, profile) {
-    const { default: auth } = await import('../config/firebase.js');
+    await import('../config/firebase.js');
     await updateProfile(user, profile);
   }
 
   useEffect(() => {
     if (process.env.REACT_APP_FIREBASE_API_KEY) {
-      return import('../config/firebase.js').then(({ default: auth }) => {
-        const unsubscribe = auth.onIdTokenChanged((user) => {
-          setCurrentUser(user);
-          setLoading(false);
+      let unsubscribe;
+      import('../config/firebase.js')
+        .then(({ default: auth }) => {
+          unsubscribe = auth.onIdTokenChanged((user) => {
+            setCurrentUser(user);
+            setLoading(false);
+          });
         });
 
-        return unsubscribe;
-      });
+      return () => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
     }
-    const defaultUser = {
-      email: 'test.account@promptstore.dev',
-      roles: ['admin'],
-      fullName: 'Test Account',
-      firstName: 'Test',
-      lastName: 'Account',
-      photoURL: 'https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg',
-      username: 'test.account@promptstore.dev',
-      displayName: 'Test Account',
-    };
-    setCurrentUser(defaultUser);
+    setCurrentUser(DEFAULT_USER);
     setLoading(false);
   }, []);
 

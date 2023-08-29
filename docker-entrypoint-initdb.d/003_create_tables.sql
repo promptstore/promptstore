@@ -677,3 +677,97 @@ ALTER SEQUENCE public."traces_id_seq"
 
 ALTER SEQUENCE public."traces_id_seq"
     OWNED BY public."traces"."id";
+
+
+-- Table: public."transformations"
+
+DROP TABLE IF EXISTS public."transformations";
+
+-- Sequence: public."transformations_id_seq"
+
+DROP SEQUENCE IF EXISTS public."transformations_id_seq";
+
+CREATE SEQUENCE public."transformations_id_seq" AS bigint;
+
+CREATE TABLE public."transformations"
+(
+    id integer NOT NULL DEFAULT nextval('"transformations_id_seq"'::regclass),
+    workspace_id integer,
+    data_source_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "transformations_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."transformations"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."transformations_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."transformations_id_seq"
+    OWNED BY public."transformations"."id";
+
+
+-- Table: public."destinations"
+
+DROP TABLE IF EXISTS public."destinations";
+
+-- Sequence: public."destinations_id_seq"
+
+DROP SEQUENCE IF EXISTS public."destinations_id_seq";
+
+CREATE SEQUENCE public."destinations_id_seq" AS bigint;
+
+CREATE TABLE public."destinations"
+(
+    id integer NOT NULL DEFAULT nextval('"destinations_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    type character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "destinations_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."destinations"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."destinations_id_seq"
+    OWNER to promptstoreadmin;
+
+ALTER SEQUENCE public."destinations_id_seq"
+    OWNED BY public."destinations"."id";
+
+-- Index: destinations_name_key
+
+DROP INDEX IF EXISTS public.destinations_name_key;
+
+CREATE INDEX destinations_name_key
+    ON public."destinations" USING btree
+    (name)
+    TABLESPACE pg_default;
+
+-- Index: destinations_type_key
+
+DROP INDEX IF EXISTS public.destinations_type_key;
+
+CREATE INDEX destinations_type_key
+    ON public."destinations" USING btree
+    (type)
+    TABLESPACE pg_default;

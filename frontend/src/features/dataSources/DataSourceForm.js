@@ -3,10 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Divider, Form, Input, Radio, Select, Space, Switch } from 'antd';
 
+import { SchemaModalInput } from '../../components/SchemaModalInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { SchemaModalInput } from '../../components/SchemaModalInput';
-import { getExtension } from '../../utils';
 import {
   getFunctionsByTagAsync,
   selectFunctions,
@@ -21,9 +20,11 @@ import {
 import {
   createDataSourceAsync,
   getDataSourceAsync,
-  updateDataSourceAsync,
-  selectLoaded,
+  getDialectsAsync,
   selectDataSources,
+  selectDialects,
+  selectLoaded,
+  updateDataSourceAsync,
 } from './dataSourcesSlice';
 
 const { TextArea } = Input;
@@ -32,17 +33,6 @@ const layout = {
   labelCol: { span: 4 },
   wrapperCol: { span: 20 },
 };
-
-const databaseOptions = [
-  {
-    label: 'ClickHouse',
-    value: 'clickhouse',
-  },
-  {
-    label: 'PostgreSQL',
-    value: 'postgresql',
-  },
-];
 
 const documentTypeOptions = [
   {
@@ -197,6 +187,7 @@ const typeOptions = [
 export function DataSourceForm() {
 
   const dataSources = useSelector(selectDataSources);
+  const dialects = useSelector(selectDialects);
   const functions = useSelector(selectFunctions);
   const functionsLoading = useSelector(selectFunctionsLoading);
   const loaded = useSelector(selectLoaded);
@@ -223,12 +214,20 @@ export function DataSourceForm() {
   const dataSource = dataSources[id];
   const isNew = id === 'new';
 
+  const dialectOptions = useMemo(() => {
+    const list = dialects.map((d) => ({
+      label: d.name,
+      value: d.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dialects]);
+
   const documentOptions = useMemo(() => {
     if (selectedWorkspace) {
       const workspaceUploads = uploads[selectedWorkspace.id];
       if (workspaceUploads) {
         return Object.values(workspaceUploads)
-          // .filter((doc) => getExtension(doc.name) === documentTypeValue)
           .map((doc) => ({
             label: doc.name,
             value: doc.id,
@@ -248,6 +247,7 @@ export function DataSourceForm() {
       createLink: null,
       title: 'Data Source',
     }));
+    dispatch(getDialectsAsync());
     if (!isNew) {
       dispatch(getDataSourceAsync(id));
     }
@@ -257,7 +257,7 @@ export function DataSourceForm() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getFunctionsByTagAsync({ tag: 'chunker', workspaceId }));
-      dispatch(getUploadsAsync({ sourceId: workspaceId }));
+      dispatch(getUploadsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -266,7 +266,6 @@ export function DataSourceForm() {
   };
 
   const onFinish = (values) => {
-    // console.log('values:', values);
     if (isNew) {
       dispatch(createDataSourceAsync({
         values: { ...values, workspaceId: selectedWorkspace.id },
@@ -307,12 +306,14 @@ export function DataSourceForm() {
               message: 'Please enter a data source name',
             },
           ]}
+          wrapperCol={{ span: 14 }}
         >
           <Input />
         </Form.Item>
         <Form.Item
           label="Description"
           name="description"
+          wrapperCol={{ span: 14 }}
         >
           <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
         </Form.Item>
@@ -351,8 +352,7 @@ export function DataSourceForm() {
               />
             </Form.Item>
             <Form.Item
-              colon={false}
-              label="Extract Metadata?"
+              label="Extract Metadata"
             >
               <Form.Item
                 name="extractMetadata"
@@ -609,10 +609,13 @@ export function DataSourceForm() {
               name="dialect"
               wrapperCol={{ span: 10 }}
             >
-              <Select allowClear options={databaseOptions} optionFilterProp="label" />
+              <Select allowClear
+                options={dialectOptions}
+                optionFilterProp="label"
+              />
             </Form.Item>
             <Form.Item
-              label="SQL Type"
+              label="Metadata Source"
               name="sqlType"
             >
               <Radio.Group
@@ -719,6 +722,43 @@ export function DataSourceForm() {
                     <Input type="password" />
                   </Form.Item>
                 </Form.Item>
+              </>
+              : null
+            }
+            {dialectValue === 'bigquery' ?
+              <>
+                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+                  <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                    Connection Info
+                  </div>
+                </Form.Item>
+                <Form.Item
+                  label="Dataset"
+                  name="dataset"
+                  wrapperCol={{ span: 10 }}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  extra="Enter a comma separated list"
+                  label="Tables"
+                  name="tables"
+                  wrapperCol={{ span: 10 }}
+                >
+                  <Input />
+                </Form.Item>
+                {sqlTypeValue === 'sample' ?
+                  <>
+                    <Form.Item
+                      label="Sample Rows"
+                      name="sampleRows"
+                      wrapperCol={{ span: 2 }}
+                    >
+                      <Input type="number" />
+                    </Form.Item>
+                  </>
+                  : null
+                }
               </>
               : null
             }

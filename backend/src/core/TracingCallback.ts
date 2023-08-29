@@ -1,5 +1,8 @@
 import { default as dayjs } from 'dayjs';
 import { ValidatorResult } from 'jsonschema';
+import uuid from 'uuid';
+
+import logger from '../logger';
 
 import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
 import {
@@ -44,6 +47,7 @@ import {
   SemanticFunctionImplementationOnEndResponse,
 } from './SemanticFunctionImplementation_types';
 import {
+  ExperimentResponse,
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
 } from './SemanticFunction_types';
@@ -75,12 +79,17 @@ export class TracingCallback {
     this.startTime = [];
   }
 
-  onCompositionStart({ args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
+  onCompositionStart({ name, args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
+    const traceName = [name, startTime.toISOString()].join(' - ');
+    this.tracer = new Tracer(traceName, 'composition');
+    this.isComposition = true;
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-composition',
+        function: name,
         model: {
           model: modelKey,
           modelParams,
@@ -132,6 +141,7 @@ export class TracingCallback {
     }
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-function',
         function: name,
         implementation: {
@@ -174,6 +184,7 @@ export class TracingCallback {
 
   onSemanticFunctionError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -181,6 +192,7 @@ export class TracingCallback {
 
   onValidateArguments(validatorResult: ValidatorResult) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'validate-args',
       instance: validatorResult.instance,
       schema: validatorResult.schema,
@@ -189,29 +201,36 @@ export class TracingCallback {
     });
   }
 
-  onMapArguments({ args, mapped, mappingTemplate, isBatch }: MapArgumentsResponse) {
+  onMapArguments({ args, mapped, mappingTemplate, isBatch, source, errors }: MapArgumentsResponse) {
     if (isBatch) {
       this.tracer.push({
+        id: uuid.v4(),
         type: 'map-args',
         input: args?.length ? args[0] : args,
         output: mapped?.length ? mapped[0] : mapped,
         isBatch,
         mappingTemplate,
+        source,
+        errors,
       });
     } else {
       this.tracer.push({
+        id: uuid.v4(),
         type: 'map-args',
         input: args,
         output: mapped,
         isBatch,
         mappingTemplate,
+        source,
+        errors,
       });
     }
   }
 
-  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch, errors }: MapReturnTypeResponse) {
     if (isBatch) {
       this.tracer.push({
+        id: uuid.v4(),
         type: 'map-response',
         input: response?.length ? response[0] : response,
         output: mapped?.length ? mapped[0] : mapped,
@@ -220,13 +239,24 @@ export class TracingCallback {
       });
     } else {
       this.tracer.push({
+        id: uuid.v4(),
         type: 'map-response',
         input: response,
         output: mapped,
         isBatch,
         mappingTemplate,
+        errors,
       });
     }
+  }
+
+  onExperiment({ experiments, implementation }: ExperimentResponse) {
+    this.tracer.push({
+      id: uuid.v4(),
+      type: 'select-experiment',
+      experiments,
+      implementation,
+    });
   }
 
   onSemanticFunctionImplementationStart({ args, history, modelType, modelKey, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
@@ -234,6 +264,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-implementation',
         implementation: {
           modelType,
@@ -272,6 +303,7 @@ export class TracingCallback {
 
   onSemanticFunctionImplementationError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -282,6 +314,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'enrichment-pipeline',
         args,
         startTime: startTime.getTime(),
@@ -313,6 +346,7 @@ export class TracingCallback {
 
   onPromptEnrichmentError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -323,6 +357,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'feature-store-enrichment',
         featureStore,
         args,
@@ -355,6 +390,7 @@ export class TracingCallback {
 
   onFeatureStoreEnrichmentError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -365,6 +401,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'semantic-search-enrichment',
         index,
         args,
@@ -397,6 +434,7 @@ export class TracingCallback {
 
   onSemanticSearchEnrichmentError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -407,6 +445,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'function-enrichment',
         functionName,
         modelKey,
@@ -443,6 +482,7 @@ export class TracingCallback {
 
   onFunctionEnrichmentError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -453,6 +493,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'sql-enrichment',
         args,
         startTime: startTime.getTime(),
@@ -484,6 +525,7 @@ export class TracingCallback {
 
   onSqlEnrichmentError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -494,6 +536,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-prompt-template',
         messageTemplates,
         args,
@@ -526,6 +569,7 @@ export class TracingCallback {
 
   onPromptTemplateError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors: errors,
     });
@@ -536,6 +580,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'check-input-guardrails',
         guardrails,
         messages,
@@ -561,6 +606,7 @@ export class TracingCallback {
 
   onInputGuardrailError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors: errors,
     });
@@ -571,6 +617,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         ...request,
         type: 'call-model',
         startTime: startTime.getTime(),
@@ -602,6 +649,7 @@ export class TracingCallback {
 
   onModelError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -612,6 +660,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         ...request,
         type: 'call-model',
         startTime: startTime.getTime(),
@@ -643,6 +692,7 @@ export class TracingCallback {
 
   onCompletionModelError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -653,6 +703,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-custom-model',
         model,
         url,
@@ -687,6 +738,7 @@ export class TracingCallback {
 
   onCustomModelError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -697,6 +749,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'call-huggingface-model',
         model,
         args,
@@ -729,6 +782,7 @@ export class TracingCallback {
 
   onHuggingfaceModelError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -739,6 +793,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'output-processing-pipeline',
         input: response,
         startTime: startTime.getTime(),
@@ -770,6 +825,7 @@ export class TracingCallback {
 
   onOutputProcessingError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -780,6 +836,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'output-guardrail',
         guardrail,
         input: response,
@@ -812,6 +869,7 @@ export class TracingCallback {
 
   onOutputGuardrailError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });
@@ -822,6 +880,7 @@ export class TracingCallback {
     this.startTime.push(startTime);
     this.tracer
       .push({
+        id: uuid.v4(),
         type: 'output-parser',
         outputParser,
         input: response,
@@ -854,6 +913,7 @@ export class TracingCallback {
 
   onOutputParserError(errors: any) {
     this.tracer.push({
+      id: uuid.v4(),
       type: 'error',
       errors,
     });

@@ -9,7 +9,6 @@ const generateDiceBearGridy = (seed) =>
 
 export const generateAvatar = () => {
   const data = [];
-
   for (let i = 0; i < 2; i++) {
     const res = generateDiceBearAvataaars(Math.random());
     data.push(res);

@@ -77,6 +77,13 @@ export const revokeKeyAssignmentAsync = ({ workspaceId }) => async (dispatch) =>
   const res = http.delete(url);
 };
 
+export const inviteMembersAsync = ({ workspaceId, invites }) => async (dispatch) => {
+  const url = `/api/invites`;
+  const res = await http.post(url, { workspaceId, invites });
+  console.log('updated workspace:', res.data);
+  dispatch(setWorkspaces({ workspaces: [res.data] }));
+};
+
 export const selectLoaded = (state) => state.workspaces.loaded;
 
 export const selectLoading = (state) => state.workspaces.loading;

@@ -1,6 +1,9 @@
 import isObject from 'lodash.isobject';
 
-const colors = ['#f56a00', '#7265e6', '#ffbf00', '#00a2ae'];
+const colors = {
+  light: ['#87d068', '#2db7f5', '#ca3dd4', '#f56a00', '#7265e6', '#ffbf00', '#00a2ae'],
+  dark: ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.4)'],
+};
 
 /**
  * Creates a shallow clone of `obj`.
@@ -73,8 +76,12 @@ export const hashStr = (str) => {
   return String(Math.abs(hash));
 };
 
-export const getColor = (key) => {
-  return colors[hashIndex(key, colors.length)];
+export const getColor = (key, isDarkMode) => {
+  if (!key) return 'rgba(0, 0, 0, 0.25)';
+  if (isDarkMode) {
+    return colors.dark[hashIndex(key, colors.dark.length)];
+  }
+  return colors.light[hashIndex(key, colors.light.length)];
 };
 
 export const notEmpty = (val) => {

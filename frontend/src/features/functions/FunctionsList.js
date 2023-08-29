@@ -2,18 +2,14 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
+import { CheckOutlined } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import {
-  deleteFunctionsAsync,
-  getFunctionsAsync,
-  selectLoading,
-  selectFunctions,
-} from './functionsSlice';
+import { getColor } from '../../utils';
+
 import {
   getModelsAsync,
   selectLoaded as selectModelsLoaded,
@@ -25,6 +21,13 @@ import {
   selectLoading as selectSettingsLoading,
   selectSettings,
 } from '../promptSets/settingsSlice';
+
+import {
+  deleteFunctionsAsync,
+  getFunctionsAsync,
+  selectLoading,
+  selectFunctions,
+} from './functionsSlice';
 
 const { Search } = Input;
 
@@ -139,13 +142,6 @@ export function FunctionsList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  const getColor = (modelType) => {
-    if (isDarkMode) {
-      return modelType === 'api' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)';
-    }
-    return modelType === 'api' ? '#87d068' : '#2db7f5';
-  };
-
   const columns = [
     {
       title: 'Name',
@@ -164,7 +160,7 @@ export function FunctionsList() {
           {implementations.map((impl) => (
             impl.modelId && modelsLoaded ?
               <Tag key={impl.modelId}
-                color={getColor(models[impl.modelId].type)}
+                color={getColor(models[impl.modelId].type, isDarkMode)}
               >
                 {models[impl.modelId].key}
               </Tag>
@@ -178,7 +174,7 @@ export function FunctionsList() {
       dataIndex: 'isPublic',
       render: (_, { isPublic }) => (
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isPublic ? <CheckCircleOutlined /> : ''}</span>
+          <span>{isPublic ? <CheckOutlined /> : ''}</span>
         </div>
       )
     },
@@ -234,7 +230,7 @@ export function FunctionsList() {
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 16, width: 200 }}
+            style={{ marginLeft: 16, width: 220 }}
           />
           <Select allowClear mode="multiple"
             options={modelOptions}
@@ -242,7 +238,7 @@ export function FunctionsList() {
             loading={modelsLoading}
             placeholder="select implementations"
             onChange={setSelectedImpls}
-            style={{ marginLeft: 8, width: 200 }}
+            style={{ marginLeft: 8, width: 220 }}
             value={selectedImpls}
           />
           <Select allowClear mode="multiple"
@@ -251,7 +247,7 @@ export function FunctionsList() {
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 8, width: 200 }}
+            style={{ marginLeft: 8, width: 220 }}
             value={selectedTags}
           />
           <Switch

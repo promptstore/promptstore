@@ -135,7 +135,7 @@ export default ({ logger, services }) => {
     const semanticFunctionInfo = await functionsService.getFunctionByName(workspaceId, 'summarize');
     const semanticFunction = await createSemanticFunction(workspaceId, semanticFunctionInfo, callbacks);
     const modelParams = {
-      max_tokens: 255,
+      max_tokens: 64,
       n: 1,
     };
     return functionEnrichment({
@@ -248,7 +248,11 @@ export default ({ logger, services }) => {
       })(model, promptEnrichmentPipeline, inputGuardrails, outputProcessingPipeline);
       implementations.push(impl);
     }
-    const options = { argsSchema: semanticFunctionInfo.arguments, callbacks };
+    const options = {
+      argsSchema: semanticFunctionInfo.arguments,
+      callbacks,
+      experiments: semanticFunctionInfo.experiments,
+    };
     return semanticFunction(semanticFunctionInfo.name, options)(implementations);
   }
 

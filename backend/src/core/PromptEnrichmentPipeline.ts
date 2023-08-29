@@ -370,7 +370,7 @@ export class SqlEnrichment implements PromptEnrichmentStep {
     try {
       let context: string;
       if (this.sqlSourceInfo.sqlType === 'schema') {
-        context = await this.sqlSourceService.getSchema(this.sqlSourceInfo);
+        context = await this.sqlSourceService.getDDL(this.sqlSourceInfo);
       } else if (this.sqlSourceInfo.sqlType === 'sample') {
         context = await this.sqlSourceService.getSample(this.sqlSourceInfo);
       }

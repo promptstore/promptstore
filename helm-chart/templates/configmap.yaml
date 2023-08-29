@@ -105,7 +105,7 @@ data:
   GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"
 
   # Llama 2 - ./plugins/llms/llama2
-  LLAMA2_BASE_PATH: "{{ .Values.llama2.api_url }}"
+  LLAMA2_BASE_PATH: "{{ .Values.llama2.base_path }}"
 
   # LocalAI - ./plugins/llms/localai
   LOCALAI_BASE_PATH: "{{ .Values.localai.base_path }}"

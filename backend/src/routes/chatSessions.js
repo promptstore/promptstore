@@ -1,3 +1,5 @@
+import { PARA_DELIM } from '../core/RosettaStone';
+
 export default ({ app, auth, logger, services }) => {
 
   const { chatSessionsService, executionsService } = services;
@@ -273,25 +275,32 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const content = values.messages
-      .map((m) => m.content)
-      .join('\n\n')
+      .map((m) => {
+        if (Array.isArray(m.content)) {
+          return m.content.map(c => c.content).join(PARA_DELIM);
+        }
+        return m.content;
+      })
+      .join(PARA_DELIM)
       ;
     const args = { content };
     let sessionInput;
     try {
-      const resp = await executionsService.executeFunction({
+      const { response, errors } = await executionsService.executeFunction({
         workspaceId: values.workspaceId,
         username,
         semanticFunctionName: 'create_summary_label',
         args,
         params: {},
       });
-      logger.debug('resp:', resp);
-      const name = resp.data.choices[0].message.content;
+      if (errors) {
+        res.status(500).send({ errors });
+      }
+      const name = response.choices[0].message.content;
       logger.debug('name:', name);
       sessionInput = { ...values, name };
     } catch (err) {
-      logger.warn(err);
+      logger.warn(err, err.stack);
       // skip name
       sessionInput = values;
     }
@@ -333,21 +342,28 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const content = values.messages
-      .map((m) => m.content)
-      .join('\n\n')
+      .map((m) => {
+        if (Array.isArray(m.content)) {
+          return m.content.map(c => c.content).join(PARA_DELIM);
+        }
+        return m.content;
+      })
+      .join(PARA_DELIM)
       ;
     const args = { content };
     let sessionInput;
     try {
-      const resp = await executionsService.executeFunction({
+      const { response, errors } = await executionsService.executeFunction({
         workspaceId: values.workspaceId,
         username,
         semanticFunctionName: 'create_summary_label',
         args,
         params: {},
       });
-      logger.debug('resp:', resp);
-      const name = resp.data.choices[0].message.content;
+      if (errors) {
+        res.status(500).send({ errors });
+      }
+      const name = response.choices[0].message.content;
       logger.debug('name:', name);
       sessionInput = { ...values, id, name };
     } catch (err) {

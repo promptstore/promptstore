@@ -67,7 +67,7 @@ export function FileUploader() {
       return;
     }
     if (info.file.status === 'done') {
-      dispatch(fileUploadAsync(info.file, selectedWorkspace));
+      dispatch(fileUploadAsync(selectedWorkspace.id, info.file));
     }
   };
 
@@ -81,7 +81,7 @@ export function FileUploader() {
   );
   return (
     <>
-      <UploadsList sourceId={selectedWorkspace.id} />
+      <UploadsList workspaceId={selectedWorkspace.id} />
       <div style={{ marginTop: 20, textAlign: 'center' }}>
         <Upload
           name="upload"

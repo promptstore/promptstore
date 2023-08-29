@@ -7,6 +7,7 @@ import chatSessionsReducer from '../features/designer/chatSessionsSlice';
 import compositionsReducer from '../features/composer/compositionsSlice';
 import contentReducer from '../features/apps/Playground/contentSlice';
 import dataSourcesReducer from '../features/dataSources/dataSourcesSlice';
+import destinationsReducer from '../features/destinations/destinationsSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
 import guardrailsReducer from '../features/functions/guardrailsSlice';
@@ -20,6 +21,7 @@ import settingsReducer from '../features/promptSets/settingsSlice';
 import templatesReducer from '../features/promptSets/templatesSlice';
 import tracesReducer from '../features/traces/tracesSlice';
 import trainingReducer from '../features/training/trainingSlice';
+import transformationsReducer from '../features/transformations/transformationsSlice';
 import usersReducer from '../features/users/usersSlice';
 import workspacesReducer from '../features/workspaces/workspacesSlice';
 
@@ -33,6 +35,7 @@ export const store = configureStore({
     compositions: compositionsReducer,
     content: contentReducer,
     dataSources: dataSourcesReducer,
+    destinations: destinationsReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
     guardrails: guardrailsReducer,
@@ -46,6 +49,7 @@ export const store = configureStore({
     templates: templatesReducer,
     traces: tracesReducer,
     training: trainingReducer,
+    transformations: transformationsReducer,
     users: usersReducer,
     workspaces: workspacesReducer,
   },

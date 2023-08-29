@@ -8,6 +8,7 @@ export const dataSourcesSlice = createSlice({
     loaded: false,
     loading: false,
     dataSources: {},
+    dialects: [],
   },
   reducers: {
     removeDataSources: (state, action) => {
@@ -15,12 +16,18 @@ export const dataSourcesSlice = createSlice({
         delete state.dataSources[id];
       }
     },
+    resetDataSources: (state) => {
+      state.dataSources = {};
+    },
     setDataSources: (state, action) => {
       for (const ds of action.payload.dataSources) {
         state.dataSources[ds.id] = ds;
       }
       state.loaded = true;
       state.loading = false;
+    },
+    setDialects: (state, action) => {
+      state.dialects = action.payload.dialects;
     },
     startLoad: (state) => {
       state.loaded = false;
@@ -31,7 +38,9 @@ export const dataSourcesSlice = createSlice({
 
 export const {
   removeDataSources,
+  resetDataSources,
   setDataSources,
+  setDialects,
   startLoad,
 } = dataSourcesSlice.actions;
 
@@ -39,6 +48,7 @@ export const getDataSourcesAsync = (params) => async (dispatch) => {
   dispatch(startLoad());
   let url = `/api/workspaces/${params.workspaceId}/data-sources`;
   if (params?.type) {
+    dispatch(resetDataSources());
     url += '?type=' + params.type;
   }
   const res = await http.get(url);
@@ -77,6 +87,12 @@ export const getDataSourceContentAsync = (id, maxBytes) => async (dispatch, getS
   dispatch(setDataSources({ dataSources: newDataSources }));
 };
 
+export const getDialectsAsync = () => async (dispatch) => {
+  const url = '/api/dialects';
+  const res = await http.get(url);
+  dispatch(setDialects({ dialects: res.data }));
+};
+
 export const createDataSourceAsync = ({ correlationId, values }) => async (dispatch) => {
   const url = '/api/data-sources';
   const res = await http.post(url, values);
@@ -104,5 +120,7 @@ export const selectLoaded = (state) => state.dataSources.loaded;
 export const selectLoading = (state) => state.dataSources.loading;
 
 export const selectDataSources = (state) => state.dataSources.dataSources;
+
+export const selectDialects = (state) => state.dataSources.dialects;
 
 export default dataSourcesSlice.reducer;

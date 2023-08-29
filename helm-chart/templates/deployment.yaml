@@ -183,6 +183,11 @@ spec:
                 configMapKeyRef:
                   key: PALM2_MODEL_NAME
                   name: "{{ .Values.appname }}"
+            - name: LLAMA2_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: LLAMA2_BASE_PATH
+                  name: "{{ .Values.appname }}"
             - name: LOCALAI_BASE_PATH
               valueFrom:
                 configMapKeyRef:
@@ -313,6 +318,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: PROMPTSTORE_EMAIL
+                  name: "{{ .Values.appname }}"
+            - name: MAILTRAP_INVITE_TEMPLATE_UUID
+              valueFrom:
+                secretKeyRef:
+                  key: MAILTRAP_INVITE_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
 
         - name: worker
@@ -487,6 +497,11 @@ spec:
                 configMapKeyRef:
                   key: PALM2_MODEL_NAME
                   name: "{{ .Values.appname }}"
+            - name: LLAMA2_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: LLAMA2_BASE_PATH
+                  name: "{{ .Values.appname }}"
             - name: LOCALAI_BASE_PATH
               valueFrom:
                 configMapKeyRef:
@@ -617,4 +632,9 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: PROMPTSTORE_EMAIL
+                  name: "{{ .Values.appname }}"
+            - name: MAILTRAP_INVITE_TEMPLATE_UUID
+              valueFrom:
+                secretKeyRef:
+                  key: MAILTRAP_INVITE_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"

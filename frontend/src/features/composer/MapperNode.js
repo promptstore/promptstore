@@ -1,8 +1,20 @@
-import { memo } from 'react';
+import { memo, useContext, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Handle, Position, useReactFlow, useStoreApi } from 'reactflow';
 
-import { ReturnTypeMappingModalInput } from '../../components/ReturnTypeMappingModalInput';
+import { MappingModalInput } from '../../components/MappingModalInput';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  getFunctionsAsync,
+  selectFunctions,
+  selectLoaded as selectFunctionsLoaded,
+} from '../functions/functionsSlice';
+import {
+  getModelsAsync,
+  selectModels,
+  selectLoaded as selectModelsLoaded,
+} from '../models/modelsSlice';
 
 const returnTypeOptions = [
   {
@@ -21,6 +33,28 @@ const returnTypeOptions = [
 
 export default memo(({ id, data, isConnectable }) => {
 
+  const functions = useSelector(selectFunctions);
+  const functionsLoaded = useSelector(selectFunctionsLoaded);
+  const models = useSelector(selectModels);
+  const modelsLoaded = useSelector(selectModelsLoaded);
+
+  const functionValues = useMemo(() => Object.values(functions), [functions]);
+
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
+      if (!functionsLoaded) {
+        dispatch(getFunctionsAsync({ workspaceId }));
+      }
+      if (!modelsLoaded) {
+        dispatch(getModelsAsync({ workspaceId }));
+      }
+    }
+  }, [selectedWorkspace]);
+
   return (
     <>
       <div className="custom-node__header">
@@ -29,7 +63,16 @@ export default memo(({ id, data, isConnectable }) => {
       <div className="custom-node__body">
         <Select options={returnTypeOptions} optionFilterProp="label" name="Output Type" nodeId={id} value={data.returnType} />
         <SetSchema data={data} name="Output Schema" nodeId={id} />
-        <SetMapper data={data} name="Mapper" nodeId={id} isConnectable={isConnectable} />
+        <SetMapper
+          data={data}
+          functionsLoaded={functionsLoaded}
+          functions={functionValues}
+          modelsLoaded={modelsLoaded}
+          models={models}
+          name="Mapper"
+          nodeId={id}
+          isConnectable={isConnectable}
+        />
       </div>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
       <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
@@ -103,7 +146,7 @@ function SetSchema({ data, name, nodeId }) {
   );
 }
 
-function SetMapper({ data, nodeId, name, isConnectable }) {
+function SetMapper({ data, functions, functionsLoaded, models, modelsLoaded, nodeId, name, isConnectable }) {
   const { setNodes } = useReactFlow();
   const store = useStoreApi();
   const { edges, nodeInternals } = store.getState();
@@ -118,32 +161,49 @@ function SetMapper({ data, nodeId, name, isConnectable }) {
     return null;
   }
 
-  // const node = Array.from(nodeInternals.values()).find((n) => n.id === nodeId);
-  // console.log('node:', node);
-
-  // if (!node) {
-  //   return null;
-  // }
-
   const nodeSource = Array.from(nodeInternals.values()).find((n) => n.id === edge.source);
   // console.log('nodeSource:', nodeSource);
 
-  if (!nodeSource || nodeSource.type !== 'functionNode') {
+  if (!nodeSource) {
     return null;
   }
 
-  const { functionId, functions } = nodeSource.data;
+  const getFunctionReturnTypeSchema = () => {
+    if (nodeSource.type !== 'functionNode' || !functionsLoaded || !modelsLoaded) {
+      return null;
+    }
 
-  // use `==`
-  const func = functions.find((f) => f.id == functionId);
-  // console.log('func:', func);
+    const { functionId } = nodeSource.data;
+    const func = functions.find(f => f.id == functionId);  // use `==`
+    // console.log('func:', func);
+    if (!func || !func.implementations || !func.implementations.length) {
+      return null;
+    }
 
-  if (!func) {
+    const impl = func.implementations.find(m => m.isDefault);
+    // console.log('impl:', impl);
+    if (!impl) {
+      return null;
+    }
+
+    const model = models[impl.modelId];
+    // console.log('model:', model);
+    if (!model) {
+      return null;
+    }
+
+    return model.returnTypeSchema;
+  };
+
+  let sourceSchema;
+  if (nodeSource.type === 'functionNode') {
+    sourceSchema = getFunctionReturnTypeSchema();
+  } else if (nodeSource.type === 'requestNode') {
+    sourceSchema = nodeSource.data.arguments;
+  }
+  if (!sourceSchema) {
     return null;
   }
-
-  const index = func.implementations.findIndex((impl) => impl.isDefault);
-  // console.log('index:', index);
 
   const onChange = (value) => {
     console.log('value:', value);
@@ -156,7 +216,6 @@ function SetMapper({ data, nodeId, name, isConnectable }) {
             mappingData: value,
           };
         }
-
         return node;
       })
     );
@@ -165,18 +224,16 @@ function SetMapper({ data, nodeId, name, isConnectable }) {
   return (
     <div className="custom-node__select">
       <div>{name}</div>
-      <ReturnTypeMappingModalInput
-        implementationsValue={func.implementations}
-        index={index}
-        modelsLoaded={true}
-        models={data.models}
-        returnTypeSchema={data.returnTypeSchema}
+      <MappingModalInput
+        sourceSchema={sourceSchema}
+        targetSchema={data.returnTypeSchema}
+        disabledMessage="Have both model and function return types been defined?"
+        sourceTitle="Model Return"
+        targetTitle="Function Return"
         buttonProps={{ size: 'small', block: true }}
         onChange={onChange}
         value={data.mappingData}
       />
-      {/* <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-      <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} /> */}
     </div>
   );
 }

@@ -5,7 +5,22 @@ import { fileURLToPath } from 'url';
 
 import logger from '../logger';
 import pg from '../db';
+import { DataSourcesService } from '../services/DataSourcesService';
+import { DestinationsService } from '../services/DestinationsService';
+import { ExecutionsService } from '../services/ExecutionsService';
 import { ExtractorService } from '../services/ExtractorService';
+import { FeatureStoreService } from '../services/FeatureStoreService';
+import { GuardrailsService } from '../services/GuardrailsService';
+import { FunctionsService } from '../services/FunctionsService';
+import { IndexesService } from '../services/IndexesService';
+import { LLMService } from '../services/LLMService';
+import { ModelProviderService } from '../services/ModelProviderService';
+import { ModelsService } from '../services/ModelsService';
+import { ParserService } from '../services/ParserService';
+import { PromptSetsService } from '../services/PromptSetsService';
+import { SearchService } from '../services/SearchService';
+import { SqlSourceService } from '../services/SqlSourceService';
+import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
 import { getPlugins } from '../utils';
 
@@ -18,6 +33,7 @@ const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
+const SEARCH_API = process.env.SEARCH_API;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 
@@ -35,8 +51,62 @@ const basePath = path.join(__dirname, '..');
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 
+const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
+const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
+
+const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
+const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {});
+
+const LLM_PLUGINS = process.env.LLM_PLUGINS || '';
+const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
+
+const MODEL_PROVIDER_PLUGINS = process.env.MODEL_PROVIDER_PLUGINS || '';
+const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
+
+const OUTPUT_PARSER_PLUGINS = process.env.OUTPUT_PARSER_PLUGINS || '';
+const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
+
+const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
+const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
+
+const dataSourcesService = DataSourcesService({ pg, logger });
+const destinationsService = DestinationsService({ pg, logger });
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
+const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
+const functionsService = FunctionsService({ pg, logger });
+const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
+const indexesService = IndexesService({ pg, logger });
+const llmService = LLMService({ logger, registry: llmPlugins });
+const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
+const modelsService = ModelsService({ pg, logger });
+const parserService = ParserService({ logger, registry: outputParserPlugins });
+const promptSetsService = PromptSetsService({ pg, logger });
+const searchService = SearchService({
+  constants: { SEARCH_API },
+  logger,
+});
+const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
+const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
+
+const executionsService = ExecutionsService({
+  logger,
+  services: {
+    dataSourcesService,
+    featureStoreService,
+    functionsService,
+    guardrailsService,
+    indexesService,
+    llmService,
+    modelProviderService,
+    modelsService,
+    parserService,
+    promptSetsService,
+    searchService,
+    sqlSourceService,
+    tracesService,
+  },
+});
 
 async function runUploadsWorker() {
   const connectionOptions = {
@@ -48,7 +118,17 @@ async function runUploadsWorker() {
   const worker = await Worker.create({
     connection,
     workflowsPath: path.join(__dirname, 'workflows.js'),
-    activities: createActivities(mc, extractorService, uploadsService, logger),
+    activities: createActivities({
+      mc,
+      dataSourcesService,
+      destinationsService,
+      executionsService,
+      extractorService,
+      functionsService,
+      sqlSourceService,
+      uploadsService,
+      logger
+    }),
     taskQueue: 'uploads',
     namespace: TEMPORAL_NAMESPACE || 'promptstore',
   });
@@ -67,7 +147,6 @@ runUploadsWorker().catch((err) => {
   process.exit(1);
 });
 
-
 async function runReloadsWorker() {
   const connectionOptions = {
     address: TEMPORAL_URL,
@@ -78,7 +157,17 @@ async function runReloadsWorker() {
   const worker = await Worker.create({
     connection,
     workflowsPath: path.join(__dirname, 'workflows.js'),
-    activities: createActivities(mc, extractorService, uploadsService, logger),
+    activities: createActivities({
+      mc,
+      dataSourcesService,
+      destinationsService,
+      executionsService,
+      extractorService,
+      functionsService,
+      sqlSourceService,
+      uploadsService,
+      logger
+    }),
     taskQueue: 'reloads',
     namespace: TEMPORAL_NAMESPACE || 'promptstore',
   });
@@ -93,6 +182,45 @@ async function runReloadsWorker() {
 }
 
 runReloadsWorker().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
+async function runTransformsWorker() {
+  const connectionOptions = {
+    address: TEMPORAL_URL,
+  };
+  const connection = await NativeConnection.connect(connectionOptions);
+  // Step 1: Register Workflows and Activities with the Worker and connect to
+  // the Temporal server.
+  const worker = await Worker.create({
+    connection,
+    workflowsPath: path.join(__dirname, 'workflows.js'),
+    activities: createActivities({
+      mc,
+      dataSourcesService,
+      destinationsService,
+      executionsService,
+      extractorService,
+      functionsService,
+      sqlSourceService,
+      uploadsService,
+      logger
+    }),
+    taskQueue: 'transforms',
+    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+  });
+  // Worker connects to localhost by default and uses console.error for logging.
+  // Customize the Worker by passing more options to create():
+  // https://typescript.temporal.io/api/classes/worker.Worker
+  // If you need to configure server connection parameters, see docs:
+  // https://docs.temporal.io/typescript/security#encryption-in-transit-with-mtls
+
+  // Step 2: Start accepting tasks on the `hello-world` queue
+  await worker.run();
+}
+
+runTransformsWorker().catch((err) => {
   console.error(err);
   process.exit(1);
 });

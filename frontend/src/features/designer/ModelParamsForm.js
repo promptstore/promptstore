@@ -39,7 +39,7 @@ import {
 } from './options';
 
 const initialValues = {
-  maxTokens: 255,
+  maxTokens: 64,
   n: 1,
   temperature: 1,
   topP: 1,
@@ -275,8 +275,7 @@ export function ModelParamsForm({
             }
             {includes['allowEmojis'] ?
               <Form.Item
-                colon={false}
-                label="Allow Emojis?"
+                label="Allow Emojis"
                 name="allowEmojis"
                 valuePropName="checked"
               >

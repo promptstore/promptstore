@@ -65,3 +65,16 @@ export interface PaLMCompletionResponse {
   filters: ContentFilter[];
   safety_feedback: SafetyFeedback[];
 }
+
+export interface PaLMEmbeddingRequest {
+  model: string;
+  text: string;
+}
+
+interface PaLMEmbedding {
+  value: number[];
+}
+
+export interface PaLMEmbeddingResponse {
+  embedding: PaLMEmbedding;  // Output only. The embedding generated from the input text.
+}

@@ -79,6 +79,7 @@ export function RagTester() {
   // console.log('indexes:', indexes);
   // console.log('featureStoreSource:', featureStoreSource);
   // console.log('sqlSource:', sqlSource);
+  // console.log('messages:', messages);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -160,7 +161,7 @@ export function RagTester() {
 
   const openSession = (id) => {
     const session = chatSessions[id];
-    console.log('session:', session);
+    // console.log('session:', session);
     setSelectedFunction(session.functionId);
     setSelectedImplementation(session.modelId);
     dispatch(setMessages(session));
@@ -168,11 +169,11 @@ export function RagTester() {
   };
 
   const handleChatSubmit = (values) => {
-    console.log('values:', values);
+    // console.log('values:', values);
     const { messages } = values;
     const content = messages[messages.length - 1].content;
     const model = models[impl.modelId];
-    console.log('model:', model);
+    // console.log('model:', model);
     dispatch(getChatResponseAsync({
       functionName: func.name,
       args: { content },

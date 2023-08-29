@@ -1,6 +1,6 @@
 import { DataMapper } from './common_types';
 import { Callback } from './Callback';
-import { ModelParams } from './Model_types';
+import { ModelParams } from './RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
 
 interface INode {

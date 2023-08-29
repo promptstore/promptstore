@@ -9,8 +9,8 @@ const types = [
 ];
 
 const files = [
-  '/home/mark/src/europalabs/promptstore/backend/src/plugins/sqlsources/clickhouse/json/fct_lineitems.json',
-  '/home/mark/src/europalabs/promptstore/backend/src/plugins/sqlsources/clickhouse/json/fct_sales_by_location_day.json',
+  'backend/src/plugins/sqlsources/clickhouse/json/fct_lineitems.json',
+  'backend/src/plugins/sqlsources/clickhouse/json/fct_sales_by_location_day.json',
 ];
 
 function ClickHouseSource({ __name, constants, logger }) {
@@ -51,7 +51,7 @@ function ClickHouseSource({ __name, constants, logger }) {
     return connections[url];
   }
 
-  async function getSchema(source) {
+  async function getDDL(source) {
     const meta = {};
     for (const filepath of files) {
       const schema = loadJson(filepath);
@@ -63,7 +63,7 @@ function ClickHouseSource({ __name, constants, logger }) {
     return Promise.resolve(context);
   }
 
-  async function getSchemaX(source) {
+  async function getDDLX(source) {
     const { username, password } = source.credentials || {};
     const database = source.databaseName;
     const client = await getConnection(source.databaseHost, database, username, password);
@@ -131,7 +131,7 @@ function ClickHouseSource({ __name, constants, logger }) {
   return {
     __name,
     getSample,
-    getSchema,
+    getDDL,
   };
 
 }

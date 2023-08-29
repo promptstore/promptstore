@@ -3,11 +3,12 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import merge from 'lodash.merge';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
-import { DataMapper } from './common_types';
+import { DataMapper, Source } from './common_types';
 import { CompositionError } from './errors';
 import { Callback } from './Callback';
 import {
   CompositionCallParams,
+  CompositionOnEndParams,
   CompositionParams,
   IEdge,
   IRequestNode,
@@ -16,7 +17,6 @@ import {
   IJoinerNode,
   IOutputNode,
   Node,
-  CompositionOnEndParams,
 } from './Composition_types';
 import { SemanticFunction } from './SemanticFunction';
 
@@ -64,17 +64,22 @@ export class Composition {
         if (node.type === 'functionNode') {
           let functionNode = node as IFunctionNode;
           let func = functionNode.func;
-          let response = await func.call({
+          let { response } = await func.call({
             args: myargs,
             modelKey,
             modelParams,
-            callbacks,
           });
           res = merge(res, response);
         } else if (node.type === 'mapperNode') {
           let mapperNode = node as IMapperNode;
           let mappingTemplate = mapperNode.mappingTemplate;
-          let response = await this.mapArgs(myargs, mappingTemplate, isBatch);
+          let source: Source = {
+            type: sourceNode.type.slice(0, -4),
+          };
+          if (sourceNode.type === 'functionNode') {
+            source.name = (sourceNode as IFunctionNode).func.name;
+          }
+          let response = await this.mapArgs(source, myargs, mappingTemplate, isBatch);
           res = merge(res, response);
         } else {
           res = merge(res, myargs);
@@ -91,7 +96,7 @@ export class Composition {
 
       const response = await inner(output);
       this.onEnd({ response });
-      return response;
+      return { response };
 
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
@@ -100,17 +105,30 @@ export class Composition {
     }
   }
 
-  async mapArgs(args: any, mappingTemplate: any, isBatch: boolean) {
-    const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
-    for (let callback of this.currentCallbacks) {
-      callback.onMapArguments({
-        args,
-        mapped,
-        mappingTemplate,
-        isBatch,
-      });
+  async mapArgs(source: Source, args: any, mappingTemplate: any, isBatch: boolean) {
+    try {
+      const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
+      for (let callback of this.currentCallbacks) {
+        callback.onMapArguments({
+          source,
+          args,
+          mapped,
+          mappingTemplate,
+          isBatch,
+        });
+      }
+      return mapped;
+    } catch (err) {
+      for (let callback of this.currentCallbacks) {
+        callback.onMapArguments({
+          source,
+          args,
+          mappingTemplate,
+          isBatch,
+          errors: [{ message: String(err) }],
+        });
+      }
     }
-    return mapped;
   }
 
   _mapArgs(args: any, mappingTemplate: any, isBatch: boolean): Promise<any> {

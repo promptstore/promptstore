@@ -65,7 +65,6 @@ export function AppsList() {
   }, [location]);
 
   const onDelete = () => {
-    console.log('selectedRowKeys:', selectedRowKeys);
     dispatch(deleteAppsAsync({ ids: selectedRowKeys }));
     setSelectedRowKeys([]);
   };

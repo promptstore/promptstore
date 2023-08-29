@@ -26,7 +26,9 @@ import { CompositionsService } from './services/CompositionsService';
 import { ContentService } from './services/ContentService';
 import { CrawlerService } from './services/CrawlerService';
 import { DataSourcesService } from './services/DataSourcesService';
+import { DestinationsService } from './services/DestinationsService';
 import { DocumentsService } from './services/DocumentsService';
+import { EmailService } from './services/EmailService';
 import { ExecutionsService } from './services/ExecutionsService';
 import { ExtractorService } from './services/ExtractorService';
 import { FeatureStoreService } from './services/FeatureStoreService';
@@ -45,6 +47,7 @@ import { SqlSourceService } from './services/SqlSourceService';
 import { Tool } from './services/Tool';
 import { TracesService } from './services/TracesService';
 import { TrainingService } from './services/TrainingService';
+import { TransformationsService } from './services/TransformationsService';
 import { UploadsService } from './services/UploadsService';
 import { UsersService } from './services/UsersService';
 import { WorkspacesService } from './services/WorkspacesService';
@@ -58,6 +61,7 @@ const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
+const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
 const ONESOURCE_API_URL = process.env.ONESOURCE_API_URL;
 const PORT = process.env.PORT || '5000';
 const SEARCH_API = process.env.SEARCH_API;
@@ -108,7 +112,7 @@ const swaggerOptions = {
         name: '',
       },
       contact: {
-        name: 'Prompt Store',
+        name: 'Europa Labs Pty. Ltd.',
         url: 'https://promptstore.dev',
       },
     }
@@ -145,10 +149,20 @@ const crawlerService = CrawlerService({ logger });
 
 const dataSourcesService = DataSourcesService({ pg, logger });
 
+const destinationsService = DestinationsService({ pg, logger });
+
 const documentsService = DocumentsService({
   constants: { FILE_BUCKET, ONESOURCE_API_URL },
   logger,
   mc,
+});
+
+const emailService = EmailService({
+  constants: {
+    MAILTRAP_TOKEN: process.env.MAILTRAP_TOKEN,
+    SENDER_EMAIL: process.env.SENDER_EMAIL,
+  },
+  logger,
 });
 
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
@@ -185,6 +199,8 @@ const tool = Tool({ logger, registry: toolPlugins });
 const tracesService = TracesService({ pg, logger });
 
 const trainingService = TrainingService({ pg, logger });
+
+const transformationsService = TransformationsService({ pg, logger });
 
 const uploadsService = UploadsService({ pg, logger });
 
@@ -301,6 +317,7 @@ const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins
 const executionsService = ExecutionsService({
   logger,
   services: {
+    compositionsService,
     dataSourcesService,
     featureStoreService,
     functionsService,
@@ -325,6 +342,7 @@ const options = {
     ENV,
     FILE_BUCKET,
     IMAGES_PREFIX,
+    MAILTRAP_INVITE_TEMPLATE_UUID,
     TEMPORAL_URL,
   },
   logger,
@@ -339,7 +357,9 @@ const options = {
     contentService,
     crawlerService,
     dataSourcesService,
+    destinationsService,
     documentsService,
+    emailService,
     executionsService,
     extractorService,
     featureStoreService,
@@ -358,6 +378,7 @@ const options = {
     tool,
     tracesService,
     trainingService,
+    transformationsService,
     uploadsService,
     usersService,
     workspacesService,

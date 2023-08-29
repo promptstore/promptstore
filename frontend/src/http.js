@@ -118,7 +118,7 @@ function ApiService() {
     import('./config/firebase.js').then(({ default: auth }) => {
       const refreshFirebaseAuthLogic = async (failedRequest) => {
         const user = auth.currentUser;
-        console.log('user:', user);
+        // console.log('user:', user);
         if (!user) {
           window.location.replace('/login');
         }

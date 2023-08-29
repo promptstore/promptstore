@@ -14,15 +14,16 @@ import hr from '@tsmx/human-readable';
 import useLocalStorageState from 'use-local-storage-state';
 import { v4 as uuidv4 } from 'uuid';
 
-import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { getExtension, getHumanFriendlyDelta } from '../../utils';
-
 import { ContentView } from '../../components/ContentView';
-import { IndexModal } from './IndexModal';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   createDataSourceAsync,
   selectDataSources,
+  selectLoading as selectDataSourcesLoading,
 } from '../dataSources/dataSourcesSlice';
+import { IndexModal } from './IndexModal';
+import { getExtension, getHumanFriendlyDelta } from '../../utils';
+
 import {
   deleteUploadsAsync,
   getUploadContentAsync,
@@ -82,9 +83,9 @@ const getDocIcon = (ext) => {
   }
 };
 
-export function UploadsList({ sourceId }) {
+export function UploadsList({ workspaceId }) {
 
-  const [correlationId, setCorrelationId] = useState(null);
+  const [correlationId, setCorrelationId] = useState({});
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [page, setPage] = useLocalStorageState('documents-list-page', 1);
@@ -93,10 +94,11 @@ export function UploadsList({ sourceId }) {
   const [selectedRow, setSelectedRow] = useState(null);
 
   const dataSources = useSelector(selectDataSources);
+  const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const loading = useSelector(selectLoading);
   const uploads = useSelector(selectUploads);
 
-  const sourceUploads = uploads[sourceId] || [];
+  const sourceUploads = uploads[workspaceId] || [];
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
@@ -122,26 +124,20 @@ export function UploadsList({ sourceId }) {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(getUploadsAsync({ sourceId }));
+    dispatch(getUploadsAsync({ workspaceId }));
   }, []);
-
-  // not needed anymore because I'm polling for the uploaded document
-  // useEffect(() => {
-  //   if (uploaded) {
-  //     dispatch(getUploadsAsync({ sourceId }));
-  //   }
-  // }, [uploaded]);
 
   useEffect(() => {
     if (selectedId && !upload.content) {
-      dispatch(getUploadContentAsync(sourceId, selectedId, 1000 * 1024));
+      dispatch(getUploadContentAsync(workspaceId, selectedId, 1000 * 1024));
     }
   }, [selectedId]);
 
   useEffect(() => {
-    const source = Object.values(dataSources).find(s => s.correlationId === correlationId);
+    const source = Object.values(dataSources)
+      .find(s => s.correlationId === correlationId[s.id]);
     if (source) {
-      setCorrelationId(null);
+      setCorrelationId((curr) => ({ ...curr, [source.id]: null }));
     }
   }, [correlationId, dataSources]);
 
@@ -158,7 +154,7 @@ export function UploadsList({ sourceId }) {
         deleteList.push(found);
       }
     }
-    dispatch(deleteUploadsAsync({ sourceId, uploads: deleteList }));
+    dispatch(deleteUploadsAsync({ workspaceId, uploads: deleteList }));
     setSelectedRowKeys([]);
   };
 
@@ -180,11 +176,6 @@ export function UploadsList({ sourceId }) {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  const openIndex = (record) => {
-    setSelectedRow(record);
-    setIsIndexModalOpen(true);
-  };
-
   const createSource = (record) => {
     const { filename, id } = record;
     const re = /(?:\.([^.]+))?$/;
@@ -199,12 +190,15 @@ export function UploadsList({ sourceId }) {
     };
     const correlationId = uuidv4();
     dispatch(createDataSourceAsync({ correlationId, values }));
-    setCorrelationId(correlationId);
+    setCorrelationId((curr) => ({
+      ...curr,
+      [id]: correlationId,
+    }));
   };
 
   const reloadContent = (record) => {
     dispatch(reloadContentAsync({
-      sourceId,
+      workspaceId,
       uploadId: record.id,
       filepath: record.name,
     }));
@@ -224,7 +218,7 @@ export function UploadsList({ sourceId }) {
         <a href='#'
           onClick={() => showContent(id)}
         >
-          {name.match(`${sourceId}/(.*)`)[1]}
+          {name.match(`${workspaceId}/(.*)`)[1]}
         </a>
       ),
     },
@@ -274,7 +268,7 @@ export function UploadsList({ sourceId }) {
             </Button>
           </Space>
           <Button type="link"
-            loading={!!correlationId}
+            loading={!!correlationId[record.key]}
             style={{ paddingLeft: 0 }}
             onClick={() => createSource(record)}
           >
@@ -305,7 +299,7 @@ export function UploadsList({ sourceId }) {
         onCancel={onCancel}
         onOk={onCancel}
       >
-        <ContentView upload={upload} />
+        <ContentView upload={upload} loading={dataSourcesLoading} />
       </Modal>
       <IndexModal
         ext={selectedRow?.ext}

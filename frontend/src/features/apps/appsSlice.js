@@ -6,7 +6,6 @@ export const appsSlice = createSlice({
   name: 'apps',
   initialState: {
     apps: {},
-    brief: null,
     loaded: false,
     loading: false,
     loadingBrief: false,
@@ -28,10 +27,6 @@ export const appsSlice = createSlice({
       state.loading = false;
       state.loadingBrief = false;
     },
-    setBrief: (state, action) => {
-      state.brief = action.payload.brief;
-      state.loadingBrief = false;
-    },
     startLoad: (state) => {
       state.loaded = false;
       state.loading = true;
@@ -46,7 +41,6 @@ export const {
   removeApps,
   resetApps,
   setApps,
-  setBrief,
   startLoad,
   startLoadBrief,
 } = appsSlice.actions;
@@ -84,16 +78,6 @@ export const deleteAppsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeApps({ ids }));
 };
 
-export const generateBriefAsync = (req) => async (dispatch) => {
-  dispatch(startLoadBrief());
-  const url = `/api/brief`;
-  const res = await http.post(url, req);
-  const brief = res.data.choices[0].message.content;
-  // console.log('brief:', brief);
-  dispatch(setBrief({ brief }));
-  // dispatch(setApps({ apps: [{ ...req.app, brief }] }));
-}
-
 export const selectLoaded = (state) => state.apps.loaded;
 
 export const selectLoading = (state) => state.apps.loading;
@@ -101,7 +85,5 @@ export const selectLoading = (state) => state.apps.loading;
 export const selectLoadingBrief = (state) => state.apps.loadingBrief;
 
 export const selectApps = (state) => state.apps.apps;
-
-export const selectBrief = (state) => state.apps.brief;
 
 export default appsSlice.reducer;

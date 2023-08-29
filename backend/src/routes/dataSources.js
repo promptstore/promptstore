@@ -2,7 +2,7 @@ import path from 'path';
 
 export default ({ app, auth, constants, logger, pg, services }) => {
 
-  const { dataSourcesService, documentsService } = services;
+  const { dataSourcesService, documentsService, sqlSourceService } = services;
 
   /**
    * @openapi
@@ -498,68 +498,71 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   });
 
   app.get('/api/data-sources/:id/content', auth, (req, res) => {
-    const { id } = req.params;
-    const { maxBytes } = req.query;
-    let mb;
-    try {
-      mb = parseInt(maxBytes, 10);
-    } catch (err) {
-      mb = 0;
-    }
+    let mb = +req.query.maxBytes;
+    if (isNaN(mb)) mb = 1000 * 1024;
     pg.query(
-      'SELECT val FROM data_sources WHERE id = $1',
-      [id],
+      'SELECT type, val FROM data_sources WHERE id = $1',
+      [req.params.id],
       async (e, resp) => {
         if (e) {
           logger.error(e);
           return res.sendStatus(500);
         }
-        const row = resp.rows[0];
-        const {
-          documentId,
-          documentType,
-          delimiter = ',',
-          quoteChar = '"',
-        } = row.val;
-        pg.query(
-          'SELECT workspace_id, filename FROM file_uploads WHERE id = $1',
-          [documentId],
-          async (e, resp) => {
-            if (e) {
-              logger.error(e);
-              return res.sendStatus(500);
+        const { type, val } = resp.rows[0];
+        const source = { ...val, type };
+        logger.debug('source:', source);
+        if (source.type === 'document') {
+          const {
+            documentId,
+            documentType,
+            delimiter = ',',
+            quoteChar = '"',
+          } = source;
+          pg.query(
+            'SELECT workspace_id, filename FROM file_uploads WHERE id = $1',
+            [documentId],
+            async (e, resp) => {
+              if (e) {
+                logger.error(e);
+                return res.sendStatus(500);
+              }
+              const upload = resp.rows[0];
+              const objectName = path.join(String(upload.workspace_id), constants.DOCUMENTS_PREFIX, upload.filename);
+
+              if (documentType === 'csv') {
+                const options = {
+                  bom: true,
+                  columns: true,
+                  delimiter,
+                  quote: quoteChar,
+                  skip_records_with_error: true,
+                  trim: true,
+                };
+                const output = await documentsService.read(
+                  objectName,
+                  mb,
+                  documentsService.transformations.csv,
+                  options
+                );
+                res.json(output);
+
+              } else {
+                const text = await documentsService.read(objectName, mb);
+                res.json(text);
+              }
             }
-            const row = resp.rows[0];
-            const objectName = path.join(String(row.workspace_id), constants.DOCUMENTS_PREFIX, row.filename);
-            if (documentType === 'csv') {
-
-              const options = {
-                bom: true,
-                columns: true,
-                delimiter,
-                quote: quoteChar,
-                skip_records_with_error: true,
-                trim: true,
-              };
-
-              const output = await documentsService.read(
-                objectName,
-                mb,
-                documentsService.transformations.csv,
-                options
-              );
-              res.json(output);
-
-            } else {
-
-              const text = await documentsService.read(objectName, mb);
-              res.json(text);
-
-            }
-          }
-        );
+          );
+        } else if (source.type === 'sql') {
+          const sample = await sqlSourceService.getData(source, 10);
+          res.json(sample);
+        }
       }
     );
+  });
+
+  app.get('/api/dialects', auth, (req, res, next) => {
+    const dialects = sqlSourceService.getDialects();
+    res.json(dialects);
   });
 
   app.post('/api/data-sources', auth, async (req, res, next) => {

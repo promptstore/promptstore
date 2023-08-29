@@ -17,10 +17,11 @@ import Icon, {
   BookOutlined,
   CodeOutlined,
   CodepenOutlined,
-  DatabaseOutlined,
   DeploymentUnitOutlined,
   FileOutlined,
   FileSearchOutlined,
+  FolderOpenOutlined,
+  FolderOutlined,
   FunctionOutlined,
   HomeOutlined,
   InfoCircleOutlined,
@@ -28,6 +29,7 @@ import Icon, {
   NodeIndexOutlined,
   NotificationOutlined,
   RobotOutlined,
+  SketchOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
@@ -48,6 +50,8 @@ import { CompositionsList } from './features/composer/CompositionsList';
 import { DataSourceForm } from './features/dataSources/DataSourceForm';
 import { DataSourcesList } from './features/dataSources/DataSourcesList';
 import { Designer } from './features/designer/Designer';
+import { DestinationForm } from './features/destinations/DestinationForm';
+import { DestinationsList } from './features/destinations/DestinationsList';
 import { FileUploader } from './features/uploader/FileUploader';
 import { FunctionForm } from './features/functions/FunctionForm';
 import { FunctionsList } from './features/functions/FunctionsList';
@@ -65,6 +69,8 @@ import { RagTester } from './features/ragtester/RagTester';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
 import { TrainingList } from './features/training/TrainingList';
+import { TransformationForm } from './features/transformations/TransformationForm';
+import { TransformationsList } from './features/transformations/TransformationsList';
 import { UsersList } from './features/users/UsersList';
 import OAuth2Popup from './features/Login/OAuth2Popup';
 import {
@@ -295,9 +301,23 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           },
           {
             key: 'data-sources',
-            icon: <DatabaseOutlined />,
+            icon: <FolderOutlined />,
             label: (
               <NavLink to="/data-sources">Data Sources</NavLink>
+            ),
+          },
+          {
+            key: 'destinations',
+            icon: <FolderOpenOutlined />,
+            label: (
+              <NavLink to="/destinations">Destinations</NavLink>
+            ),
+          },
+          {
+            key: 'transformations',
+            icon: <SketchOutlined />,
+            label: (
+              <NavLink to="/transformations">Transformations</NavLink>
             ),
           },
           {
@@ -466,37 +486,46 @@ function App() {
 
   useEffect(() => {
     if (process.env.REACT_APP_FIREBASE_API_KEY) {
-      console.log('use firebase');
-      async function setUserAndToken() {
-        const { default: auth } = await import('./config/firebase.js');
-        // console.log('auth:', auth);
-        // Adds an observer for changes to the signed-in user's ID token, 
-        // which includes sign-in, sign-out, and token refresh events. This 
-        // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged` 
-        // had prior to 4.0.0.
-        // `onAuthStateChanged` - Prior to 4.0.0, this triggered the observer 
-        // when users were signed in, signed out, or when the user's ID token 
-        // changed in situations such as token expiry or password change. After 
-        // 4.0.0, the observer is only triggered on sign-in or sign-out.
-        // current version - ^10.1.0
-        const unsubscribe = auth.onIdTokenChanged(async (user) => {
-          // console.log('user:', user);
-          if (user) {
-            const accessToken = await user.getIdToken();
-            // console.log('accessToken:', accessToken);
-            if (accessToken) {
-              setToken({ accessToken });
-              setCurrentUser((current) => current ? { ...current, ...user } : user);
+      console.log('using firebase');
+      let unsubscribe;
+      import('./config/firebase.js')
+        .then(({ default: auth }) => {
+          // console.log('auth:', auth);
+          // Adds an observer for changes to the signed-in user's ID token, 
+          // which includes sign-in, sign-out, and token refresh events. This 
+          // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged` 
+          // had prior to 4.0.0.
+          // `onAuthStateChanged` - Prior to 4.0.0, this triggered the observer 
+          // when users were signed in, signed out, or when the user's ID token 
+          // changed in situations such as token expiry or password change. After 
+          // 4.0.0, the observer is only triggered on sign-in or sign-out.
+          // current version - ^10.1.0
+          unsubscribe = auth.onIdTokenChanged(async (user) => {
+            // console.log('user:', user);
+            if (user) {
+              const accessToken = await user.getIdToken();
+              // console.log('accessToken:', accessToken);
+              if (accessToken) {
+                setToken({ accessToken });
+                setCurrentUser((cur) => {
+                  if (cur) {
+                    return { ...cur, ...user };
+                  }
+                  return user;
+                });
+              }
             }
-          }
+          });
         });
 
-        return unsubscribe;
-      }
-      setUserAndToken();
+      return () => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
 
     } else if (process.env.REACT_APP_PROMPTSTORE_API_KEY) {
-      console.log('use service account ');
+      console.log('using service account ');
       setToken({ accessToken: process.env.REACT_APP_PROMPTSTORE_API_KEY });
       const defaultUser = {
         email: 'test.account@promptstore.dev',
@@ -568,6 +597,8 @@ function App() {
                     <Route path="/data-sources/:id" element={<DataSourceForm />} />
                     <Route path="/data-sources" element={<DataSourcesList />} />
                     <Route path="/design" element={<Designer />} />
+                    <Route path="/destinations/:id" element={<DestinationForm />} />
+                    <Route path="/destinations" element={<DestinationsList />} />
                     <Route path="/functions/:id" element={<FunctionForm />} />
                     <Route path="/functions" element={<FunctionsList />} />
                     <Route path="/home" element={<Home />} />
@@ -582,6 +613,8 @@ function App() {
                     <Route path="/traces/:id" element={<TraceView />} />
                     <Route path="/traces" element={<TracesList />} />
                     <Route path="/training" element={<TrainingList />} />
+                    <Route path="/transformations/:id" element={<TransformationForm />} />
+                    <Route path="/transformations" element={<TransformationsList />} />
                     <Route path="/uploads" element={<FileUploader />} />
                     <Route path="/users" element={<UsersList />} />
                     <Route path="/workspaces/:id" element={<WorkspaceForm />} />

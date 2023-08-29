@@ -18,7 +18,6 @@ import validator from '@rjsf/validator-ajv8';
 import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 
-import { SchemaModalInput } from '../../components/SchemaModalInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
@@ -33,21 +32,6 @@ import {
   setTestResult,
   updateCompositionAsync,
 } from '../composer/compositionsSlice';
-import {
-  getFunctionsAsync,
-  selectFunctions,
-  selectLoaded as selectFunctionsLoaded,
-} from '../functions/functionsSlice';
-import {
-  getModelsAsync,
-  selectModels,
-  selectLoaded as selectModelsLoaded,
-} from '../models/modelsSlice';
-import {
-  getPromptSetsAsync,
-  selectPromptSets,
-  selectLoaded as selectPromptSetsLoaded,
-} from '../promptSets/promptSetsSlice';
 
 import FunctionNode from './FunctionNode';
 import JoinerNode from './JoinerNode';
@@ -57,7 +41,11 @@ import RequestNode from './RequestNode';
 
 import 'reactflow/dist/style.css';
 
-const MIN_DISTANCE = 150;
+const MIN_DISTANCE = 100;
+
+const NODE_HEIGHT = 175;
+const NODE_WIDTH = 225;
+const OVERLAP_OFFSET = 20;
 
 const layout = {
   labelCol: { span: 4 },
@@ -85,14 +73,10 @@ export function Composer() {
 
   const store = useStoreApi();
 
+  const overlapOffsetRef = useRef(0);
+
   const compositions = useSelector(selectCompositions);
-  const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
-  const models = useSelector(selectModels);
-  const promptSets = useSelector(selectPromptSets);
-  const functionsLoaded = useSelector(selectFunctionsLoaded);
-  const modelsLoaded = useSelector(selectModelsLoaded);
-  const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
   const testResult = useSelector(selectTestResult);
   const testResultLoaded = useSelector(selectTestResultLoaded);
   const testResultLoading = useSelector(selectTestResultLoading);
@@ -102,10 +86,6 @@ export function Composer() {
 
   const [form] = Form.useForm();
 
-  const functionValues = Object.values(functions);
-  const modelValues = Object.values(models);
-  const promptSetValues = Object.values(promptSets);
-
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
@@ -113,8 +93,6 @@ export function Composer() {
   const id = location.pathname.match(/\/compositions\/(.*)/)[1];
   const composition = compositions[id];
   const isNew = id === 'new';
-
-  const ready = functionsLoaded && modelsLoaded && promptSetsLoaded;
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -145,15 +123,6 @@ export function Composer() {
       dispatch(getCompositionAsync(id));
     }
   }, []);
-
-  useEffect(() => {
-    if (selectedWorkspace) {
-      const workspaceId = selectedWorkspace.id;
-      dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getPromptSetsAsync({ workspaceId }));
-      dispatch(getFunctionsAsync({ workspaceId }));
-    }
-  }, [selectedWorkspace]);
 
   useEffect(() => {
     if (composition && composition.flow) {
@@ -228,15 +197,33 @@ export function Composer() {
   //   [project]
   // );
 
+  const getNewPosition = () => {
+    const {
+      height,
+      width,
+      transform: [transformX, transformY, zoomLevel],
+    } = store.getState();
+    const zoomMultiplier = 1 / zoomLevel;
+    const centerX = -transformX * zoomMultiplier + (width * zoomMultiplier) / 2;
+    const centerY = -transformY * zoomMultiplier + (height * zoomMultiplier) / 2;
+    const nodeWidthOffset = NODE_WIDTH / 2;
+    const nodeHeightOffset = NODE_HEIGHT / 2;
+    const position = {
+      x: centerX - nodeWidthOffset + overlapOffsetRef.current,
+      y: centerY - nodeHeightOffset + overlapOffsetRef.current,
+    };
+    overlapOffsetRef.current += OVERLAP_OFFSET;
+    return position;
+  }
+
   const addFunctionNode = () => {
     const id = getId();
     const newNode = {
       id,
       type: 'functionNode',
-      data: {
-        functions: functionValues,
-      },
-      position: { x: 0, y: 0 },
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
     };
     setNodes((nds) => nds.concat(newNode));
   };
@@ -246,9 +233,9 @@ export function Composer() {
     const newNode = {
       id,
       type: 'joinerNode',
-      data: {
-      },
-      position: { x: 0, y: 0 },
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
     };
     setNodes((nds) => nds.concat(newNode));
   };
@@ -258,11 +245,9 @@ export function Composer() {
     const newNode = {
       id,
       type: 'mapperNode',
-      data: {
-        models: models,
-        promptSets: promptSets,
-      },
-      position: { x: 0, y: 0 },
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
     };
     setNodes((nds) => nds.concat(newNode));
   };
@@ -272,9 +257,9 @@ export function Composer() {
     const newNode = {
       id,
       type: 'outputNode',
-      data: {
-      },
-      position: { x: 0, y: 0 },
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
     };
     setNodes((nds) => nds.concat(newNode));
   };
@@ -389,7 +374,7 @@ export function Composer() {
   // console.log('composition:', composition);
   const args = composition?.flow?.nodes.find((n) => n.type === 'requestNode')?.data?.arguments;
 
-  if (!((isNew || loaded) && ready)) {
+  if (!(isNew || loaded)) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
     );
@@ -462,12 +447,6 @@ export function Composer() {
           >
             <Input />
           </Form.Item>
-          {/* <Form.Item
-            label="Arguments"
-            name="arguments"
-          >
-            <SchemaModalInput />
-          </Form.Item> */}
           <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
             <Space>
               <Button type="default" onClick={onCancel}>Cancel</Button>
@@ -539,5 +518,4 @@ export const initialNodes = [
   },
 ];
 
-export const initialEdges = [
-];
+export const initialEdges = [];

@@ -45,6 +45,7 @@ import {
   SemanticFunctionImplementationOnEndResponse,
 } from './SemanticFunctionImplementation_types';
 import {
+  ExperimentResponse,
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
 } from './SemanticFunction_types';
@@ -94,8 +95,11 @@ export class DebugCallback {
     logger.debug('result:', validatorResult.valid ? 'valid' : 'invalid');
   }
 
-  onMapArguments({ args, mapped, mappingTemplate, isBatch }: MapArgumentsResponse) {
+  onMapArguments({ args, mapped, mappingTemplate, isBatch, source, errors }: MapArgumentsResponse) {
     logger.debug('mapping args');
+    if (source) {
+      logger.debug('source:', source.type, source.name);
+    }
     logger.debug('batch:', isBatch ? 'true' : 'false');
     let input: any, output: any;
     if (isBatch) {
@@ -108,9 +112,10 @@ export class DebugCallback {
     logger.debug('input:', input);
     logger.debug('output:', output);
     logger.debug('mapping template:', mappingTemplate);
+    logger.debug('errors:', errors);
   }
 
-  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch, errors }: MapReturnTypeResponse) {
     logger.debug('mapping response');
     logger.debug('batch:', isBatch ? 'true' : 'false');
     let input: any, output: any;
@@ -124,6 +129,11 @@ export class DebugCallback {
     logger.debug('input:', input);
     logger.debug('output:', output);
     logger.debug('mapping template:', mappingTemplate);
+    logger.debug('errors:', errors);
+  }
+
+  onExperiment({ experiments, implementation }: ExperimentResponse) {
+    logger.debug('selected experiment:', implementation);
   }
 
   onSemanticFunctionImplementationStart({ args, history, modelType, modelKey, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {

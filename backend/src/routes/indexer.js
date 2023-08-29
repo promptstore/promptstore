@@ -8,6 +8,7 @@ const nodeType = 'content';
 const typeMappings = {
   'string': 'String',
   'integer': 'Integer',
+  'boolean': 'Boolean',
 };
 
 export default ({ app, auth, logger, services }) => {
@@ -36,12 +37,11 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/loader/structureddocument', auth, async (req, res) => {
-    const { uploadId, params, documents, workspaceId } = req.body;
+    const { params, documents, workspaceId } = req.body;
     const { newIndexName, engine } = params;
     let indexId = params.indexId;
     if (indexId === 'new') {
       indexId = await createStructuredDocumentIndex(workspaceId, newIndexName, engine);
-      // await indexStructuredDocument(uploadId, { ...params, indexId });
       await indexStructuredDocuments(documents, { ...params, indexId });
     } else {
       await indexStructuredDocuments(documents, params);
@@ -96,7 +96,7 @@ export default ({ app, auth, logger, services }) => {
     const descriptor = table.schema.descriptor;
     logger.debug('descriptor:', descriptor);
     logger.debug('vectorField:', params.vectorField);
-    const indexSchema = convertSqlSchemaToIndexSchema(descriptor, params.vectorField);
+    const indexSchema = convertTableSchemaToIndexSchema(descriptor, params.vectorField);
     const index = await indexesService.upsertIndex({
       name: newIndexName,
       engine,
@@ -238,7 +238,7 @@ export default ({ app, auth, logger, services }) => {
     return { content };
   };
 
-  const convertSqlSchemaToIndexSchema = (descriptor, vectorField) => {
+  const convertTableSchemaToIndexSchema = (descriptor, vectorField) => {
     const props = descriptor.fields.reduce((a, f) => {
       let dataType;
       if (f.name === vectorField) {
@@ -327,13 +327,13 @@ export default ({ app, auth, logger, services }) => {
       if (!func) {
         throw new Error('Chunker function not found');
       }
-      const res = await executionsService.executeFunction({
+      const { response, errors } = await executionsService.executeFunction({
         workspaceId,
         username,
         semanticFunctionName: 'chunk',
         args: { text },
       });
-      chunks = res.chunks;
+      chunks = response.chunks;
 
     } else {
       throw new Error('Splitter not supported');

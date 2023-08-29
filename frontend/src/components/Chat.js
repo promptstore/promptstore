@@ -45,7 +45,6 @@ export function Chat({
   const dispatch = useDispatch();
 
   const handleChange = (key) => {
-    console.log('!!!!!!!!!!!!!!', key)
     if (selectMultiple) {
       const selectedUpdate = {
         ...selected,

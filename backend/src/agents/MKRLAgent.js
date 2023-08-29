@@ -82,11 +82,21 @@ export default ({ logger, services }) => {
         n,
         stop: STOP,
       };
-      let res;
+      let request, res;
       if (this.isChat) {
-        res = await llmService.createChatCompletion({ provider: 'openai', messages: this._getMessages(), model: this.model, modelParams });
+        request = {
+          model: this.model,
+          model_params: modelParams,
+          prompt: { messages: this._getMessages() },
+        };
+        res = await llmService.createChatCompletion({ provider: 'openai', request });
       } else {
-        res = await llmService.createCompletion({ provider: 'openai', messages: this._getPrompt(), model: this.model, modelParams });
+        request = {
+          model: this.model,
+          model_params: modelParams,
+          prompt: { messages: this._getPrompt() },
+        };
+        res = await llmService.createCompletion({ provider: 'openai', request });
       }
       logger.log('debug', 'res:', res);
       const message = await this._processResult(this.isChat ? res.choices[0].message : res.choices[0]);

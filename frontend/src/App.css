@@ -704,3 +704,7 @@ article.collapsible .panel.closed {
   border-left: 1px solid rgba(5, 5, 5, 0.06);
   padding-left: 24px;
 }
+
+#promptSets .ant-col-4 {
+  min-width: 120px;
+}

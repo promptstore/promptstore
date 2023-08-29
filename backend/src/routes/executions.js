@@ -57,7 +57,7 @@ export default ({ app, auth, logger, services }) => {
     // TODO
     const { args, history, params = {}, workspaceId = 1 } = req.body;
 
-    const { data, errors } = await executionsService.executeFunction({
+    const { response, responseMetadata, errors } = await executionsService.executeFunction({
       workspaceId,
       username,
       semanticFunctionName,
@@ -76,7 +76,7 @@ export default ({ app, auth, logger, services }) => {
         'Cache-Control': 'no-cache',
       };
       res.writeHead(200, headers);
-      data.on('data', (data) => {
+      response.on('data', (data) => {
         const lines = data.toString().split('\n').filter(line => line.trim() !== '');
         for (const line of lines) {
           const message = line.replace(/^data: /, '');
@@ -86,7 +86,6 @@ export default ({ app, auth, logger, services }) => {
           }
           try {
             const parsed = JSON.parse(message);
-            console.log(parsed.choices[0].text);
             res.write('data: ' + parsed.choices[0].text + '\n\n');
           } catch (error) {
             console.error('Could not JSON parse stream message', message, error);
@@ -94,18 +93,18 @@ export default ({ app, auth, logger, services }) => {
         }
       });
     } else {
-      res.json(data);
+      res.json({ response, responseMetadata });
     }
   });
 
-  app.post('/api/composition-executions/:name', async (req, res, next) => {
+  app.post('/api/composition-executions/:name', auth, async (req, res, next) => {
     const compositionName = req.params.name;
     const { username } = req.user;
     const batch = req.query.batch;
     // logger.debug('body:', req.body);
     const { args, params = {}, workspaceId = 1 } = req.body;
 
-    const { data, errors } = await executionsService.executeComposition({
+    const { response, errors } = await executionsService.executeComposition({
       workspaceId,
       username,
       compositionName,
@@ -116,7 +115,7 @@ export default ({ app, auth, logger, services }) => {
     if (errors) {
       return res.status(500).send({ errors });
     }
-    res.json(data);
+    res.json(response);
   });
 
 };

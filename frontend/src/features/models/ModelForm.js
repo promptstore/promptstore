@@ -56,6 +56,10 @@ const typeOptions = [
     disabled: true,
   },
   {
+    label: 'LLM - Embedding',
+    value: 'embedding',
+  },
+  {
     label: 'Hugging Face',
     value: 'huggingface',
     disabled: true,
@@ -117,7 +121,7 @@ export function ModelForm() {
   }, []);
 
   useEffect(() => {
-    if (!providers.chat && typeValue === 'gpt') {
+    if (!providers.chat && (typeValue === 'gpt' || typeValue === 'embedding')) {
       dispatch(getChatProvidersAsync());
     } else if (!providers.completion && typeValue === 'completion') {
       dispatch(getCompletionProvidersAsync());
@@ -194,8 +198,7 @@ export function ModelForm() {
           <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
         </Form.Item>
         <Form.Item
-          colon={false}
-          label="Disabled?"
+          label="Disabled"
         >
           <Form.Item
             name="disabled"
@@ -206,8 +209,7 @@ export function ModelForm() {
           </Form.Item>
           {currentUser?.roles?.includes('admin') ?
             <Form.Item
-              colon={false}
-              label="Public?"
+              label="Public"
               name="isPublic"
               valuePropName="checked"
               style={{ display: 'inline-block', margin: '0 16px' }}
@@ -224,7 +226,7 @@ export function ModelForm() {
         >
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
-        {typeValue === 'gpt' ?
+        {typeValue === 'gpt' || typeValue === 'embedding' ?
           <Form.Item
             label="Provider"
             name="provider"
@@ -286,7 +288,7 @@ export function ModelForm() {
           <>
             <Form.Item
               colon={false}
-              label="Define Types?"
+              label="Typesafe"
               name="isTypesDefined"
               valuePropName="checked"
             >

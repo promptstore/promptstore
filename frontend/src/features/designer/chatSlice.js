@@ -96,15 +96,29 @@ export const getResponseAsync = (req) => async (dispatch) => {
   }
 };
 
+const cleanHistory = (history) => {
+  if (!history) return [];
+  return history.map((m) => ({
+    role: m.role,
+    content: Array.isArray(m.content) ? m.content[0].content : m.content,
+  }));
+};
+
 export const getFunctionResponseAsync = ({ functionName, args, history, params, workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/executions/${functionName}`;
-  const res = await http.post(url, { args, history, params, workspaceId });
-  const { choices, model, usage } = res.data;
-  const messages = choices.map(formatMessage).map((m) => ({
-    ...m,
-    model,
-    usage,
+  const res = await http.post(url, { args, history: cleanHistory(history), params, workspaceId });
+  const { choices, model, usage } = res.data.response;
+  const messages = choices.map(({ message }) => ({
+    key: uuidv4(),
+    role: message.role,
+    content: [
+      {
+        key: uuidv4(),
+        content: message.content,
+        model,
+      },
+    ],
   }));
   const message = { role: 'user', content: args.content };
   dispatch(setMessages({

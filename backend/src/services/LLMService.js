@@ -3,10 +3,12 @@ import {
   fromOpenAICompletionResponse,
   fromVertexAIChatResponse,
   fromVertexAICompletionResponse,
+  fromVertexAIEmbeddingResponse,
   toOpenAIChatRequest,
   toOpenAICompletionRequest,
   toVertexAIChatRequest,
   toVertexAICompletionRequest,
+  toVertexAIEmbeddingRequest,
 } from '../core/RosettaStone';
 
 export function LLMService({ logger, registry }) {
@@ -57,6 +59,26 @@ export function LLMService({ logger, registry }) {
     throw new Error('should not be able to get here');
   }
 
+  async function createEmbedding(provider, request) {
+    const instance = registry[provider || 'openai'];
+    let providerRequest;
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      providerRequest = request;
+    } else if (provider === 'vertexai') {
+      providerRequest = toVertexAIEmbeddingRequest(request);
+    } else {
+      throw new Error(`model provider ${provider} not supported.`);
+    }
+    const response = await await instance.createEmbedding(providerRequest);
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      return response;
+    }
+    if (provider === 'vertexai') {
+      return fromVertexAIEmbeddingResponse(response);
+    }
+    throw new Error('should not be able to get here');
+  }
+
   async function createImage(provider, prompt, n) {
     const instance = registry[provider || 'openai'];
     return await instance.createImage(prompt, n);
@@ -84,6 +106,7 @@ export function LLMService({ logger, registry }) {
   return {
     createChatCompletion,
     createCompletion,
+    createEmbedding,
     getChatProviders,
     getCompletionProviders,
     createImage,

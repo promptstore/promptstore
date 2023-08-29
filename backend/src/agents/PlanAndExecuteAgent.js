@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import uuid from 'uuid';
 
 import { Tracer } from '../core/Tracer';
 import * as utils from '../utils';
@@ -47,6 +48,7 @@ export default ({ logger, services }) => {
       this.startTime = new Date();
       this.tracer
         .push({
+          id: uuid.v4(),
           type: 'plan-and-execute agent',
           goal,
           allowedTools: toolKeys,
@@ -57,7 +59,7 @@ export default ({ logger, services }) => {
         .down();
       this.emitter.emit('event', 'Goal:\n' + goal);
       // query
-      const request = {
+      const args = {
         content: goal,
       };
 
@@ -70,12 +72,13 @@ export default ({ logger, services }) => {
       logger.info('start filling template');
       startTime = new Date();
       this.tracer.push({
+        id: uuid.v4(),
         type: 'call-prompt-template',
         messages: promptSets[0].prompts,
-        args: request,
+        args,
         startTime: startTime.getTime(),
       });
-      const rawMessages = utils.getMessages(promptSets[0].prompts, request, 'es6');
+      const rawMessages = utils.getMessages(promptSets[0].prompts, args, 'es6');
       const messages = this._mapMessagesToTypes(rawMessages);
       this.history.push(...messages);
       endTime = new Date();
@@ -95,6 +98,7 @@ export default ({ logger, services }) => {
       logger.info('start model:', this.model);
       startTime = new Date()
       this.tracer.push({
+        id: uuid.v4(),
         type: 'call-model: plan',
         model: this.model,
         modelParams,
@@ -102,7 +106,15 @@ export default ({ logger, services }) => {
         startTime,
       });
       let res;
-      res = await llmService.createChatCompletion({ provider: 'openai', messages, model: this.model, modelParams });
+      let request = {
+        model: this.model,
+        model_params: modelParams,
+        prompt: { messages },
+      };
+      res = await llmService.createChatCompletion({
+        provider: 'openai',
+        request,
+      });
       logger.debug('res:', res);
 
       this.history.push(new AssistantMessage(res.choices[0].message.content));
@@ -124,6 +136,7 @@ export default ({ logger, services }) => {
 
       if (toolKeys.includes('searchIndex')) {
         functions.push({
+          id: uuid.v4(),
           name: 'searchIndex',
           description: 'a search engine. useful for when you need to answer questions about current events. input should be a search query.',
           parameters: {
@@ -149,6 +162,7 @@ export default ({ logger, services }) => {
       startTime = new Date()
       this.tracer
         .push({
+          id: uuid.v4(),
           type: 'execute-plan',
           plan: plan,
           startTime,
@@ -161,19 +175,25 @@ export default ({ logger, services }) => {
         this.emitter.emit('event', `Step ${i}. ${step}`);
         this.history.push(new UserMessage(step));
         startTime = new Date()
+        request = {
+          model: this.model,
+          model_params: modelParams,
+          functions,
+          prompt: { messages: this._getMessages() },
+        }
         this.tracer.push({
+          id: uuid.v4(),
           type: 'evaluate-step',
           step,
           messages: this._getMessages(),
           model: this.model,
-          modelParams: { ...modelParams, functions },
+          modelParams,
+          functions,
           startTime,
         });
         res = await llmService.createChatCompletion({
           provider: 'openai',
-          messages: this._getMessages(),
-          model: this.model,
-          modelParams: { ...modelParams, functions },
+          request,
         });
         this.history.push(new Message(res.choices[0].message));
         const call = res.choices[0].message.function_call;
@@ -252,6 +272,7 @@ export default ({ logger, services }) => {
       let startTime = new Date();
       let endTime;
       this.tracer.push({
+        id: uuid.v4(),
         type: 'call-tool',
         call,
         model: this.model,
@@ -271,13 +292,22 @@ export default ({ logger, services }) => {
 
       startTime = new Date();
       this.tracer.push({
+        id: uuid.v4(),
         type: 'call-model: observe',
         messages: this._getMessages(),
         model: this.model,
         modelParams,
         startTime,
       });
-      res = await llmService.createChatCompletion({ provider: 'openai', messages: this._getMessages(), model: this.model, modelParams });
+      const request = {
+        model: this.model,
+        model_params: modelParams,
+        prompt: { messages: this._getMessages() },
+      };
+      res = await llmService.createChatCompletion({
+        provider: 'openai',
+        request,
+      });
       this.emitter.emit('event', 'Observation:\n' + res.choices[0].message.content);
       endTime = new Date();
       this.tracer
@@ -292,21 +322,26 @@ export default ({ logger, services }) => {
 
     async _callFunction(call, callParams) {
       const { agentName, email, indexName } = callParams;
-      let args = JSON.parse(call.arguments);
-      if (call.name === 'searchIndex') {
-        const res = await searchService.search(indexName, args.input);
-        return res.hits.join('\n\n');
+      try {
+        let args = JSON.parse(call.arguments);
+        if (call.name === 'searchIndex') {
+          const res = await searchService.search(indexName, args.input);
+          return res.hits.join('\n\n');
+        }
+        if (call.name === 'email') {
+          args = {
+            ...args,
+            agentName,
+            email,
+          };
+        }
+        const res = await tool.call(call.name, args);
+        // logger.debug('tool result:', res);
+        return res;
+      } catch (err) {
+        console.log('Error calling tool:', call.name);
+        return 'Invalid tool call';
       }
-      if (call.name === 'email') {
-        args = {
-          ...args,
-          agentName,
-          email,
-        };
-      }
-      const res = await tool.call(call.name, args);
-      // logger.debug('tool result:', res);
-      return res;
     }
 
     _getMessages() {
@@ -343,6 +378,7 @@ Answer:`
       };
       const startTime = new Date()
       this.tracer.push({
+        id: uuid.v4(),
         type: 'evaluate-response',
         messages,
         response,
@@ -350,7 +386,15 @@ Answer:`
         modelParams,
         startTime,
       });
-      const res = await llmService.createChatCompletion({ provider: 'openai', messages, model: 'gpt-4', modelParams });
+      const request = {
+        model: 'gpt-4',
+        model_params: modelParams,
+        prompt: messages,
+      };
+      const res = await llmService.createChatCompletion({
+        provider: 'openai',
+        request,
+      });
       const ans = res.choices[0].message.content;
       const valid = ans !== "I don't know";
       const endTime = new Date();

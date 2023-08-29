@@ -1,5 +1,5 @@
-import path from 'path';
 import omit from 'lodash.omit';
+import path from 'path';
 
 const supportedMimetypes = [
   'application/pdf',
@@ -20,7 +20,17 @@ const supportedMimetypes = [
   'text/xml',
 ];
 
-export const createActivities = (mc, extractorService, uploadsService, logger) => ({
+export const createActivities = ({
+  mc,
+  dataSourcesService,
+  destinationsService,
+  executionsService,
+  extractorService,
+  functionsService,
+  sqlSourceService,
+  uploadsService,
+  logger,
+}) => ({
 
   async reload(file, workspaceId, username, uploadId) {
     let data;
@@ -107,5 +117,63 @@ export const createActivities = (mc, extractorService, uploadsService, logger) =
       });
     });
   },
+
+  async transform(transformation, workspaceId, username) {
+    logger.info('transformation:', transformation);
+    logger.info('workspaceId:', workspaceId);
+    logger.info('username:', username);
+    const source = await dataSourcesService.getDataSource(transformation.dataSourceId);
+    const rows = await sqlSourceService.getData(source, 3);
+    // logger.debug('data:', data);
+    const res = [];
+    const features = transformation.features || [];
+    for (const row of rows) {
+      const result = {};
+      for (const feature of features) {
+        if (feature.functionId === '__pass') {
+          if (feature.column === '__all') {
+            for (const [k, v] of Object.entries(row)) {
+              result[k] = v;
+            }
+            continue;
+          }
+          result[feature.name] = row[feature.column];
+          continue;
+        }
+        const func = await functionsService.getFunction(feature.functionId);
+        if (func) {
+          let text;
+          if (feature.column === '__all') {
+            // TODO - review
+            text = JSON.stringify(row);
+          } else {
+            text = row[feature.column];
+          }
+          if (text) {
+            const args = { text };
+            const { response, errors } = await executionsService.executeFunction({
+              workspaceId,
+              username,
+              func,
+              args,
+              params: {},
+            });
+            if (!errors) {
+              result[feature.name] = response.value;
+            }
+          }
+        }
+      }
+      res.push(result);
+    }
+    // logger.info('res:', res);
+    for (const dstId of transformation.destinationIds) {
+      const dst = await destinationsService.getDestination(dstId);
+      if (dst) {
+        await sqlSourceService.createTable(dst, res);
+      }
+    }
+    return { status: 'OK' };
+  }
 
 });

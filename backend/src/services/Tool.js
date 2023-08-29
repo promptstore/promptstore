@@ -9,6 +9,9 @@ export function Tool({ logger, registry }) {
   function call(key, args) {
     logger.log('debug', 'Calling "%s" with args:', key, args);
     const tool = registry[key];
+    if (!tool) {
+      return 'Invalid tool call';
+    }
     return tool.call(args);
   }
 

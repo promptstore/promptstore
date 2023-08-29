@@ -17,6 +17,7 @@ import {
 import {
   PaLMChatResponse,
   PaLMCompletionResponse,
+  PaLMEmbeddingResponse,
   PaLMExample,
   PaLMMessage,
 } from './vertexai_types';
@@ -185,6 +186,18 @@ export interface ResponseMetadata {
   prompts?: Message[];
 }
 
+export interface EmbeddingRequest {
+  model: string;  // ID of the model to use. 
+  input: string | string[];  // Input text to embed, encoded as a string or array of tokens. To embed multiple inputs in a single request, pass an array of strings or array of token arrays. Each input must not exceed the max input tokens for the model (8191 tokens for text-embedding-ada-002).
+  user?: string;  // A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
+}
+
+export interface EmbeddingResponse {
+  index: number;  // The index of the embedding in the list of embeddings.
+  object: string;  // The object type, which is always "embedding".
+  embedding: number[];  // The embedding vector, which is a list of floats. The length of vector depends on the model.
+}
+
 /*** ************/
 
 /*** translate to vertexai ************/
@@ -312,6 +325,25 @@ export function fromVertexAICompletionResponse(response: PaLMCompletionResponse)
     n: candidates.length,
     safetyFeedback: safety_feedback,
     filters,
+  };
+}
+
+export function toVertexAIEmbeddingRequest(request: EmbeddingRequest) {
+  const { model, input } = request;
+  let text: string;
+  if (Array.isArray(input)) {
+    text = input.join(PARA_DELIM);
+  } else {
+    text = input;
+  }
+  return { model, text };
+}
+
+export function fromVertexAIEmbeddingResponse(response: PaLMEmbeddingResponse) {
+  return {
+    index: 0,
+    object: 'embedding',
+    embedding: response.embedding.value,
   };
 }
 

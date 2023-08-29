@@ -43,6 +43,7 @@ import {
   SemanticFunctionImplementationOnEndResponse,
 } from './SemanticFunctionImplementation_types';
 import {
+  ExperimentResponse,
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
 } from './SemanticFunction_types';
@@ -81,11 +82,15 @@ export class Callback {
 
   }
 
-  onMapArguments({ args, mapped, mappingTemplate, isBatch }: MapArgumentsResponse) {
+  onMapArguments({ args, mapped, mappingTemplate, isBatch, source, errors }: MapArgumentsResponse) {
 
   }
 
-  onMapReturnType({ response, mapped, mappingTemplate, isBatch }: MapReturnTypeResponse) {
+  onMapReturnType({ response, mapped, mappingTemplate, isBatch, errors }: MapReturnTypeResponse) {
+
+  }
+
+  onExperiment({ experiments, implementation }: ExperimentResponse) {
 
   }
 

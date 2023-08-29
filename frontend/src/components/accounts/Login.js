@@ -34,7 +34,7 @@ export default function Login() {
       setError('');
       setLoading(true);
       const userCredential = await login(email, password);
-      console.log('userCredential:', userCredential);
+      // console.log('userCredential:', userCredential);
       const u = userCredential.user;
       const [firstName, lastName] = (u.displayName || '').split(' ');
       const user = {

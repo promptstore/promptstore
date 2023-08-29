@@ -123,7 +123,8 @@ export function Designer() {
 
   const onReset = () => {
     dispatch(setMessages({ messages: [] }));
-    dispatch(resetChatSessions());
+    setSelectedSession(null);
+    // dispatch(resetChatSessions());
   };
 
   const onSave = () => {

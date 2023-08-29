@@ -28,17 +28,17 @@ function PostgresqlSource({ __name, constants, logger }) {
     return connections[connectionString];
   }
 
-  async function getSchema(source) {
+  async function getDDL(source) {
     logger.debug('get schema for', source);
     try {
       const client = await getConnection(source.connectionString);
-      logger.debug('got client');
+      // logger.debug('got client');
       const { rows } = await query(client, 'tables');
       const meta = {};
       for (const { name } of rows) {
         const proms = [];
         for (const type of types) {
-          proms.push(query(client, type, { name, database }));
+          proms.push(query(client, type, { name }));
         }
         const resolved = await Promise.all(proms);
         meta[name] = resolved.reduce((a, v, i) => {
@@ -106,7 +106,7 @@ function PostgresqlSource({ __name, constants, logger }) {
   return {
     __name,
     getSample,
-    getSchema,
+    getDDL,
   };
 
 }

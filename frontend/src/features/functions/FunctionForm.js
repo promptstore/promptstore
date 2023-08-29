@@ -1,6 +1,6 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
@@ -13,17 +13,15 @@ import {
   Space,
   Switch,
 } from 'antd';
-import { CheckOutlined, CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
-import ButterflyDataMapping from 'react-data-mapping';
-import MonacoEditor from 'react-monaco-editor';
+import { CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
-import isFunction from 'lodash.isfunction';
-import isObject from 'lodash.isobject';
 import * as dayjs from 'dayjs';
 
+import { ExperimentsModalInput } from '../../components/ExperimentsModalInput';
+import { MappingModalInput } from '../../components/MappingModalInput';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -102,37 +100,6 @@ const returnTypeOptions = [
   },
 ];
 
-const columns = [
-  {
-    key: 'id',
-    title: 'ID',
-    width: 30,
-  },
-  {
-    key: 'property',
-    title: 'Property',
-    render: (val, row, index) => {
-      return <div>{val}</div>
-    },
-    primaryKey: true,
-    width: 150,
-  },
-  {
-    key: 'type',
-    title: 'Type',
-    width: 75,
-  }
-];
-
-const getFields = (title, properties) => ({
-  title,
-  fields: Object.entries(properties).map(([k, v], i) => ({
-    id: i + 1,
-    property: k,
-    type: v.type,
-  }))
-});
-
 export function FunctionForm() {
 
   const [existingTags, setExistingTags] = useState([]);
@@ -159,7 +126,7 @@ export function FunctionForm() {
   const testResultLoaded = useSelector(selectTestResultLoaded);
   const testResultLoading = useSelector(selectTestResultLoading);
 
-  const { isDarkMode, setNavbarState } = useContext(NavbarContext);
+  const { setNavbarState } = useContext(NavbarContext);
   const { currentUser } = useContext(UserContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
@@ -169,14 +136,24 @@ export function FunctionForm() {
 
   const [form] = Form.useForm();
 
-  const argumentsValue = Form.useWatch('arguments', form);
+  const functionArgsSchema = Form.useWatch('arguments', form);
   const implementationsValue = Form.useWatch('implementations', form);
   const returnTypeValue = Form.useWatch('returnType', form);
-  const returnTypeSchema = Form.useWatch('returnTypeSchema', form);
+  const functionReturnTypeSchema = Form.useWatch('returnTypeSchema', form);
 
   const id = location.pathname.match(/\/functions\/(.*)/)[1];
   const func = functions[id];
   const isNew = id === 'new';
+
+  const uiSchema = {
+    "ui:submitButtonOptions": {
+      "props": {
+        "loading": testResultLoading,
+        "type": "primary",
+      },
+      "submitText": "Run",
+    },
+  };
 
   const featureStoreOptions = useMemo(() => {
     const list = Object.values(dataSources)
@@ -189,16 +166,6 @@ export function FunctionForm() {
     return list;
   }, [dataSources]);
 
-  const indexOptions = useMemo(() => {
-    const list = Object.values(indexes)
-      .map((idx) => ({
-        label: idx.name,
-        value: idx.id,
-      }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [indexes]);
-
   const inputGuardrailOptions = useMemo(() => {
     const list = guardrails
       .filter((g) => g.type === 'input')
@@ -209,6 +176,16 @@ export function FunctionForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [guardrails]);
+
+  const indexOptions = useMemo(() => {
+    const list = Object.values(indexes)
+      .map((idx) => ({
+        label: idx.name,
+        value: idx.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [indexes]);
 
   const outputGuardrailOptions = useMemo(() => {
     const list = guardrails
@@ -301,7 +278,6 @@ export function FunctionForm() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getIndexesAsync({ workspaceId }));
-      // dispatch(getDataSourcesAsync({ type: 'featurestore', workspaceId }));
       dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
@@ -374,119 +350,43 @@ export function FunctionForm() {
     }
   };
 
-  const monacoOptions = {
-    selectOnLineNumbers: true,
-  };
-
   const getModel = (index) => {
-    if (implementationsValue && modelsLoaded) {
-      const impl = implementationsValue[index];
-      if (impl) {
-        const id = impl.modelId;
-        if (id) {
-          return models[id];
-        }
-      }
-    }
-    return undefined;
+    if (!(implementationsValue && modelsLoaded)) return null;
+    const impl = implementationsValue[index];
+    if (!impl) return null;
+    const id = impl.modelId;
+    if (!id) return null;
+    return models[id];
   };
 
-  const getPromptSet = (index) => {
-    if (implementationsValue && promptSetsLoaded) {
-      const impl = implementationsValue[index];
-      if (impl) {
-        const id = impl.promptSetId;
-        if (id) {
-          return promptSets[id];
-        }
-      }
-    }
-    return undefined;
-  };
-
-  const getModelArguments = (index) => {
+  const getModelArgsSchema = (index) => {
     const model = getModel(index);
-    if (model) {
-      if (model.type === 'gpt') {
-        const promptSet = getPromptSet(index);
-        if (promptSet) {
-          return promptSet.arguments;
-        }
-      } else {
-        return model.arguments;
-      }
+    if (!model) return null;
+    if (model.type === 'gpt') {
+      const promptSet = getPromptSet(index);
+      if (!promptSet) return null;
+      return promptSet.arguments;
     }
-    return undefined;
-  };
-
-  const getModelArgumentProperties = (index) => {
-    return getModelArguments(index)?.properties;
+    return model.arguments;
   };
 
   const getModelReturnTypeSchema = (index) => {
     const model = getModel(index);
-    if (model) {
-      return model.returnTypeSchema;
-    }
-    return undefined;
-  };
-
-  const getModelReturnTypeProperties = (index) => {
-    const schema = getModelReturnTypeSchema(index);
-    if (schema) {
-      if (schema.type === 'array') {
-        return schema.items.properties;
-      } else {
-        return schema.properties;
-      }
-    }
-    return undefined;
-  };
-
-  const isSimpleArgumentMappingEnabled = (index) => {
-    return !isEmpty(argumentsValue?.properties) && !isEmpty(getModelArgumentProperties(index));
-  };
-
-  const isAdvancedArgumentMappingEnabled = (index) => {
-    return argumentsValue && getModelArguments(index);
+    if (!model) return null;
+    return model.returnTypeSchema;
   };
 
   const isModelApiType = (index) => {
     return getModel(index)?.type === 'api';
   };
 
-  const isModelGptType = (index) => {
-    return getModel(index)?.type === 'gpt';
-  };
-
-  const getFunctionArgumentProperties = () => {
-    if (argumentsValue) {
-      if (argumentsValue.type === 'array') {
-        return argumentsValue.items.properties;
-      } else {
-        return argumentsValue.properties;
-      }
-    }
-    return undefined;
-  };
-
-  const getFunctionReturnTypeProperties = () => {
-    if (returnTypeSchema) {
-      if (returnTypeSchema.type === 'array') {
-        return returnTypeSchema.items.properties;
-      } else {
-        return returnTypeSchema.properties;
-      }
-    }
-    return undefined;
-  };
-
-  const isSimpleReturnTypeMappingEnabled = (index) => {
-    return isModelApiType(index) && !isEmpty(getFunctionReturnTypeProperties()) && !isEmpty(getModelReturnTypeProperties(index));
-  };
-
-  const isAdvancedReturnTypeMappingEnabled = (index) => {
-    return returnTypeSchema && getModelReturnTypeSchema(index);
+  const getPromptSet = (index) => {
+    if (!(implementationsValue && promptSetsLoaded)) return null;
+    const impl = implementationsValue[index];
+    if (!impl) return null;
+    const id = impl.promptSetId;
+    if (!id) return null;
+    return promptSets[id];
   };
 
   const runTest = async ({ formData }) => {
@@ -500,401 +400,6 @@ export function FunctionForm() {
       }));
     }
   };
-
-  const uiSchema = {
-    "ui:submitButtonOptions": {
-      "props": {
-        "loading": testResultLoading,
-        "type": "primary",
-      },
-      "submitText": "Run",
-    },
-  };
-
-  function ArgumentMappingModalInput({ index, onChange, value }) {
-
-    const [isAdvanced, setIsAdvanced] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [ready, setReady] = useState(false);
-    const [state, setState] = useState('');
-
-    // console.log('state:', state, typeof state);
-
-    useEffect(() => {
-      if (value && typeof value === 'string') {
-        setState(value);
-      }
-    }, [value]);
-
-    const handleClose = () => {
-      setIsModalOpen(false);
-      if (value && typeof value === 'string') {
-        setState(value);
-      }
-      setReady(false);
-    };
-
-    const handleMappingDataChange = (args) => {
-      if (args && args.mappingData) {
-        const data = args.mappingData.reduce((a, x) => {
-          a[x.target] = x.source;
-          return a;
-        }, {});
-        const stateUpdate = JSON.stringify(data, null, 2);
-        setState(stateUpdate);
-      }
-    };
-
-    const handleOk = () => {
-      if (typeof onChange === 'function') {
-        onChange(state);
-      }
-      setIsModalOpen(false);
-      setState('');
-      setReady(false);
-    }
-
-    const getMappingData = useCallback((val) => {
-      return Object.entries(val).map(([k, v]) => ({
-        source: v,
-        target: k,
-      }));
-    }, []);
-
-    const isObjectNested = useCallback((obj) => {
-      if (isObject(obj)) {
-        return Object.values(obj).some(v => Array.isArray(v) || isObject(v) || isFunction(v));
-      }
-      return false;
-    }, []);
-
-    const isSimpleEnabled = isSimpleArgumentMappingEnabled(index);
-    const isAdvancedEnabled = isAdvancedArgumentMappingEnabled(index);
-    let isSimple = isSimpleEnabled;
-    let mappingData = [];
-    if (isSimpleEnabled && state) {
-      try {
-        const obj = JSON.parse(state);
-        mappingData = getMappingData(obj);
-      } catch (err) {
-        try {
-          const val = eval(`(${state})`);
-          if (isObject(val) && !isFunction(val) && !isObjectNested(val)) {
-            mappingData = getMappingData(val);
-          } else {
-            isSimple = false;
-          }
-        } catch (e) {
-          isSimple = false;
-        }
-      }
-    }
-
-    const noState = useCallback((val) => {
-      if (isEmpty(val)) return true;
-      if (typeof val === 'string') {
-        try {
-          const v = eval(`(${val})`);
-          if (isObject(v) && Object.values(v).length) return false;
-          if (isFunction(v)) return false;
-          return true;
-        } catch (err) {
-          return true;
-        }
-      }
-      if (isObject(val) && Object.values(val).length) return false;
-      return true;
-    }, []);
-
-    return (
-      <>
-        <Modal
-          afterOpenChange={(open) => {
-            if (open) {
-              setTimeout(() => {
-                setReady(true);
-              }, 400);
-            }
-          }}
-          onCancel={handleClose}
-          onOk={handleOk}
-          open={isModalOpen}
-          title="Set Mapping"
-          width={788}
-          wrapClassName="mapping-modal"
-        >
-          {!ready ?
-            <div style={{ height: 448 }}>Loading...</div>
-            : null
-          }
-          {ready ?
-            <>
-              <div style={{ display: 'flex' }}>
-                <div style={{ marginLeft: 'auto' }}>
-                  <Space>
-                    <Button onClick={() => setState('')}>
-                      Clear
-                    </Button>
-                    {isSimple ?
-                      <Button
-                        disabled={isAdvanced && !isSimple}
-                        onClick={() => setIsAdvanced((current) => !current)}
-                      >
-                        {isAdvanced ? 'Simple' : 'Advanced'}
-                      </Button>
-                      : null
-                    }
-                    <Link to={process.env.REACT_APP_DATA_MAPPER_HELP_URL} target="_blank" rel="noopener noreferrer">Need help?</Link>
-                  </Space>
-                </div>
-              </div>
-              <div style={{ marginTop: 16 }}>
-                {!isAdvanced && isSimple ?
-                  <ButterflyDataMapping
-                    className="butterfly-data-mapping container single-with-header"
-                    type="single"
-                    columns={columns}
-                    sourceData={getFields('Request Arguments', getFunctionArgumentProperties())}
-                    targetData={getFields(isModelApiType(index) ? 'Model Arguments' : 'Prompt Arguments', getModelArgumentProperties(index))}
-                    config={{}}
-                    onEdgeClick={(data) => {
-                      console.log(data);
-                    }}
-                    width="auto"
-                    onChange={handleMappingDataChange}
-                    mappingData={mappingData}
-                  />
-                  : null
-                }
-                {isAdvanced || !isSimple ?
-                  <MonacoEditor
-                    height={250}
-                    language="javascript"
-                    theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-                    options={monacoOptions}
-                    onChange={setState}
-                    value={state}
-                  />
-                  : null
-                }
-              </div>
-            </>
-            : null
-          }
-        </Modal>
-        <Button
-          disabled={!isSimpleEnabled && !isAdvancedEnabled}
-          icon={noState(value) ? null : <CheckOutlined />}
-          onClick={() => setIsModalOpen(true)}
-        >
-          Set Mapping
-        </Button>
-        {!isSimpleEnabled && !isAdvancedEnabled ?
-          <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
-            Have both function and model/prompt arguments been defined?
-          </div>
-          : null
-        }
-      </>
-    );
-  }
-
-  function ReturnTypeMappingModalInput({ index, onChange, value }) {
-
-    const [isAdvanced, setIsAdvanced] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [ready, setReady] = useState(false);
-    const [state, setState] = useState('');
-
-    useEffect(() => {
-      if (value && typeof value === 'string') {
-        setState(value);
-      }
-    }, [value]);
-
-    const handleClose = () => {
-      setIsModalOpen(false);
-      if (value && typeof value === 'string') {
-        setState(value);
-      }
-      setReady(false);
-    };
-
-    const handleMappingDataChange = (args) => {
-      if (args && args.mappingData) {
-        const data = args.mappingData.reduce((a, x) => {
-          a[x.source] = x.target;
-          return a;
-        }, {});
-        const stateUpdate = JSON.stringify(data, null, 2);
-        setState(stateUpdate);
-      }
-    };
-
-    const handleOk = () => {
-      if (typeof onChange === 'function') {
-        onChange(state);
-      }
-      setIsModalOpen(false);
-      setState('');
-      setReady(false);
-    }
-
-    const getMappingData = useCallback((val) => {
-      return Object.entries(val).map(([k, v]) => ({
-        source: k,
-        target: v,
-      }));
-    }, []);
-
-    const isObjectNested = useCallback((obj) => {
-      if (isObject(obj)) {
-        return Object.values(obj).some(v => Array.isArray(v) || isObject(v) || isFunction(v));
-      }
-      return false;
-    }, []);
-
-    const isSimpleEnabled = isSimpleReturnTypeMappingEnabled(index);
-    const isAdvancedEnabled = isAdvancedReturnTypeMappingEnabled(index);
-    let isSimple = isSimpleEnabled;
-    let mappingData = [];
-    if (isSimpleEnabled && state) {
-      try {
-        const obj = JSON.parse(state);
-        mappingData = getMappingData(obj);
-      } catch (err) {
-        try {
-          const val = eval(`(${state})`);
-          if (isObject(val) && !isFunction(val) && !isObjectNested(val)) {
-            mappingData = getMappingData(val);
-          } else {
-            isSimple = false;
-          }
-        } catch (e) {
-          isSimple = false;
-        }
-      }
-    }
-
-    const noState = useCallback((val) => {
-      if (isEmpty(val)) return true;
-      if (typeof val === 'string') {
-        try {
-          const v = eval(`(${val})`);
-          if (isObject(v) && Object.values(v).length) return false;
-          if (isFunction(v)) return false;
-          return true;
-        } catch (err) {
-          return true;
-        }
-      }
-      if (isObject(val) && Object.values(val).length) return false;
-      return true;
-    }, []);
-
-    return (
-      <>
-        <Modal
-          afterOpenChange={(open) => {
-            if (open) {
-              setTimeout(() => {
-                setReady(true);
-              }, 400);
-            }
-          }}
-          onCancel={handleClose}
-          onOk={handleOk}
-          open={isModalOpen}
-          title="Set Mapping"
-          width={788}
-          wrapClassName="mapping-modal"
-        >
-          {!ready ?
-            <div style={{ height: 448 }}>Loading...</div>
-            : null
-          }
-          {ready ?
-            <>
-              <div style={{ display: 'flex' }}>
-                <div style={{ marginLeft: 'auto' }}>
-                  <Space>
-                    <Button onClick={() => setState('')}>
-                      Clear
-                    </Button>
-                    {isSimple ?
-                      <Button
-                        disabled={isAdvanced && !isSimple}
-                        onClick={() => setIsAdvanced((current) => !current)}
-                      >
-                        {isAdvanced ? 'Simple' : 'Advanced'}
-                      </Button>
-                      : null
-                    }
-                    <Link to={process.env.REACT_APP_DATA_MAPPER_HELP_URL} target="_blank" rel="noopener noreferrer">Need help?</Link>
-                  </Space>
-                </div>
-              </div>
-              <div style={{ marginTop: 16 }}>
-                {!isAdvanced && isSimple ?
-                  <ButterflyDataMapping
-                    className="butterfly-data-mapping container single-with-header"
-                    type="single"
-                    columns={columns}
-                    sourceData={getFields('Model Return', getModelReturnTypeProperties(index))}
-                    targetData={getFields('Function Return', getFunctionReturnTypeProperties())}
-                    config={{}}
-                    onEdgeClick={(data) => {
-                      console.log(data);
-                    }}
-                    width="auto"
-                    onChange={handleMappingDataChange}
-                    mappingData={mappingData}
-                  />
-                  : null
-                }
-                {isAdvanced || !isSimple ?
-                  <MonacoEditor
-                    height={250}
-                    language="javascript"
-                    theme={isDarkMode ? 'vs-dark' : 'vs-light'}
-                    options={monacoOptions}
-                    onChange={setState}
-                    value={state}
-                  />
-                  : null
-                }
-              </div>
-            </>
-            : null
-          }
-        </Modal>
-        <Button
-          disabled={!isSimpleEnabled && !isAdvancedEnabled}
-          icon={noState(value) ? null : <CheckOutlined />}
-          onClick={() => setIsModalOpen(true)}
-        >
-          Set Mapping
-        </Button>
-        {!isSimpleEnabled && !isAdvancedEnabled ?
-          <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
-            Have both function and model return types been defined?
-          </div>
-          : null
-        }
-      </>
-    );
-  }
-
-  function LabelledSwitch({ checked, label, onChange }) {
-    return (
-      <>
-        <div style={{ display: 'inline-flex', alignItems: 'center', height: 32, marginRight: 16 }}>
-          {label}
-        </div>
-        <Switch checked={checked} onChange={onChange} />
-      </>
-    );
-  }
 
   if (!isNew && !formIsReady) {
     return (
@@ -979,7 +484,7 @@ export function FunctionForm() {
           </Form.Item>
           {currentUser?.roles?.includes('admin') ?
             <Form.Item
-              label="Public?"
+              label="Public"
             >
               <Form.Item
                 name="isPublic"
@@ -1033,6 +538,15 @@ export function FunctionForm() {
                 : null
               }
             </Form.Item>
+          </Form.Item>
+          <Form.Item
+            label="Experiments"
+            name="experiments"
+          >
+            <ExperimentsModalInput
+              implementationsValue={implementationsValue}
+              models={models}
+            />
           </Form.Item>
           <Form.List name="implementations">
             {(fields, { add, remove }, { errors }) => (
@@ -1149,7 +663,13 @@ export function FunctionForm() {
                         wrapperCol={{ span: 24 }}
                         initialValue={''}
                       >
-                        <ArgumentMappingModalInput index={index} />
+                        <MappingModalInput
+                          sourceSchema={functionArgsSchema}
+                          targetSchema={getModelArgsSchema(index)}
+                          disabledMessage="Have both function and model or prompt arguments been defined?"
+                          sourceTitle="Request Arguments"
+                          targetTitle={isModelApiType(index) ? 'Model Arguments' : 'Prompt Arguments'}
+                        />
                       </Form.Item>
                       <div>
                         <label style={{
@@ -1168,7 +688,13 @@ export function FunctionForm() {
                         wrapperCol={{ span: 24 }}
                         initialValue={''}
                       >
-                        <ReturnTypeMappingModalInput index={index} />
+                        <MappingModalInput
+                          sourceSchema={getModelReturnTypeSchema(index)}
+                          targetSchema={functionReturnTypeSchema}
+                          disabledMessage="Have both model and function return types been defined?"
+                          sourceTitle="Model Return"
+                          targetTitle="Function Return"
+                        />
                       </Form.Item>
                     </Col>
                     <Col span={6} style={{
@@ -1278,14 +804,15 @@ export function FunctionForm() {
                                       />
                                       : null
                                     }
-                                    {fields.length ? (
+                                    {fields.length ?
                                       <Button type="text"
                                         icon={<CloseOutlined />}
                                         className="dynamic-delete-button"
                                         onClick={() => remove(field.name)}
                                         style={{ width: 32 }}
                                       />
-                                    ) : null}
+                                      : null
+                                    }
                                   </div>
                                   {implementationsValue?.[index]?.indexes?.[idx]?.indexId ?
                                     <>

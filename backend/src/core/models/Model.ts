@@ -2,6 +2,8 @@ import axios from 'axios';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { default as dayjs } from 'dayjs';
 
+import logger from '../../logger';
+
 import { Model } from '../common_types';
 import { SemanticFunctionError } from '../errors';
 import { Callback } from '../Callback';
@@ -187,7 +189,6 @@ export class CustomModel implements Model {
         res = await axios.post(this.batchEndpoint, args);
       } else {
         res = await axios.post(this.url, args);
-
       }
       const response = res.data;
       this.onEnd({ response });

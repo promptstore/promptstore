@@ -38,10 +38,12 @@ function PIIService({ __name, __metadata, constants, logger, app, auth }) {
     };
   }
 
-  app.post('/api/pii', auth, async (req, res, next) => {
-    const resp = await scan2(req.body);
-    res.json(resp);
-  });
+  if (app) {
+    app.post('/api/pii', auth, async (req, res, next) => {
+      const resp = await scan2(req.body);
+      res.json(resp);
+    });
+  }
 
   return {
     __name,

@@ -12,7 +12,6 @@ function Authenticator({ __name, constants, logger, app, passport, rc }) {
   });
 
   return new Strategy(async (apikey, done) => {
-    // service account key for AGENCEE
     if (apikey === constants.PROMPTSTORE_API_KEY) {
       return done(null, { email: constants.PROMPTSTORE_EMAIL });
     }

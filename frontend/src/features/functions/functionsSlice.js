@@ -97,7 +97,7 @@ export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => 
   dispatch(startTest());
   const url = `/api/executions/${name}`;
   const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
-  dispatch(setTestResult({ result: res.data }));
+  dispatch(setTestResult({ result: res.data.response }));
 };
 
 export const selectLoaded = (state) => state.functions.loaded;

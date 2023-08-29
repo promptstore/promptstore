@@ -19,7 +19,6 @@ RUN npm install
 COPY ./backend/src/agents ./agents
 COPY ./backend/src/config ./config
 COPY ./backend/src/core ./core
-COPY ./backend/src/middleware ./middleware
 COPY ./backend/src/plugins ./plugins
 COPY ./backend/src/routes ./routes
 COPY ./backend/src/services ./services

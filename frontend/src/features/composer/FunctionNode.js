@@ -1,13 +1,39 @@
-import { memo } from 'react';
+import { memo, useContext, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Handle, Position, useReactFlow, useStoreApi } from 'reactflow';
+
+import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  getFunctionsAsync,
+  selectFunctions,
+  selectLoaded as selectFunctionsLoaded,
+} from '../functions/functionsSlice';
 
 export default memo(({ id, data, isConnectable }) => {
 
-  const functionOptions = data.functions.map((f) => ({
-    label: f.name,
-    value: f.id,
-  }));
-  functionOptions.unshift({ label: 'Select', value: null });
+  const functions = useSelector(selectFunctions);
+  const functionsLoaded = useSelector(selectFunctionsLoaded);
+
+  const functionOptions = useMemo(() => {
+    if (functions) {
+      const options = Object.values(functions).map((f) => ({
+        label: f.name,
+        value: f.id,
+      }));
+      options.unshift({ label: 'Select', value: null });
+      return options;
+    }
+  }, [functions]);
+
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (selectedWorkspace && !functionsLoaded) {
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getFunctionsAsync({ workspaceId }));
+    }
+  }, [selectedWorkspace, functionsLoaded]);
 
   return (
     <>
@@ -15,7 +41,12 @@ export default memo(({ id, data, isConnectable }) => {
         Semantic Function
       </div>
       <div className="custom-node__body">
-        <Select options={functionOptions} nodeId={id} isConnectable={isConnectable} value={data.functionId} />
+        <Select
+          options={functionOptions}
+          nodeId={id}
+          isConnectable={isConnectable}
+          value={data.functionId}
+        />
       </div>
     </>
   );
@@ -30,12 +61,15 @@ function Select({ options, value, nodeId, isConnectable }) {
     setNodes(
       Array.from(nodeInternals.values()).map((node) => {
         if (node.id === nodeId) {
+          const functionId = evt.target.value;
+          const opt = options.find(opt => opt.value == functionId);
+          let functionName = opt.label;
           node.data = {
             ...node.data,
-            functionId: evt.target.value,
+            functionId,
+            functionName,
           };
         }
-
         return node;
       })
     );

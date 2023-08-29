@@ -11,7 +11,7 @@ export function TracesService({ pg, logger }) {
       FROM traces
       WHERE workspace_id = $1
       ORDER BY created DESC
-      LIMIT 100
+      LIMIT 20
       `;
     const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
@@ -68,7 +68,7 @@ export function TracesService({ pg, logger }) {
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
         `,
-        [trace.name, val, trace.id, new Date(), func.id]
+        [trace.name, val, trace.id, new Date(), trace.id]
       );
       return { ...savedTrace, ...trace };
     } else {

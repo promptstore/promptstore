@@ -4,17 +4,16 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Modal, Space, Table, Tag, message } from 'antd';
 import useLocalStorageState from 'use-local-storage-state';
 
-// import { ContentView } from '../../components/ContentView';
 import { DataSourceContentView } from '../../components/DataSourceContentView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { getColor } from '../../utils';
+
 import { IndexModal } from '../uploader/IndexModal';
 import {
-  // getUploadContentAsync,
   getUploadsAsync,
   indexApiAsync,
   indexStructuredDocumentAsync,
-  indexDocumentAsync,
   selectLoaded as selectUploadsLoaded,
   selectUploads,
 } from '../uploader/fileUploaderSlice';
@@ -89,7 +88,7 @@ export function DataSourcesList() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getDataSourcesAsync({ workspaceId }));
-      dispatch(getUploadsAsync({ sourceId: workspaceId }));
+      dispatch(getUploadsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -141,7 +140,6 @@ export function DataSourcesList() {
       }));
 
     } else if (dataSource.type === 'document') {
-
       dispatch(indexStructuredDocumentAsync({
         documents: dataSource.documents,
         params: {
@@ -151,59 +149,7 @@ export function DataSourcesList() {
         },
         workspaceId: selectedWorkspace.id,
       }));
-
-      // sources can now have more than one document
-      /*
-      const workspaceUploads = uploads[selectedWorkspace.id];
-      const upload = workspaceUploads.find((doc) => doc.id === dataSource.documentId);
-      // console.log('upload:', upload);
-
-      if (upload) {
-
-        if (dataSource.documentType === 'csv') {
-          dispatch(indexDocumentAsync({
-            filepath: upload.name,
-            params: {
-              ...values,
-              documentId: dataSource.documentId,
-              delimiter: dataSource.delimiter,
-              quoteChar: dataSource.quoteChar,
-              titleField: values.titleField,
-              vectorField: values.vectorField,
-            },
-          }));
-
-        } else if (dataSource.documentType === 'txt') {
-          // console.log('dataSource:', dataSource);
-          dispatch(indexDocumentAsync({
-            filepath: upload.name,
-            params: {
-              ...values,
-              documentId: dataSource.documentId,
-              textProperty: dataSource.textProperty,
-              splitter: dataSource.splitter,
-              characters: dataSource.characters,
-              functionId: dataSource.functionId,
-            },
-          }));
-
-        } else if (
-          dataSource.documentType === 'pdf' ||
-          dataSource.documentType === 'docx'
-        ) {
-          dispatch(indexStructuredDocumentAsync({
-            uploadId: upload.id,
-            params: {
-              indexId: values.indexId,
-              newIndexName: values.newIndexName,
-              engine: values.engine,
-            },
-          }));
-        }
-      }
-      */
     }
-
     setIsIndexModalOpen(false);
     setSelectedId(null);
   };
@@ -235,22 +181,6 @@ export function DataSourcesList() {
     setSelectedId(record.key);
     dispatch(getDataSourceContentAsync(record.key, 1000 * 1024)); // preview 1Mb
     setIsPreviewModalOpen(true);
-  };
-
-  const getColor = (instance) => {
-    switch (instance) {
-      case 'feast':
-        return '#87d068';
-
-      case 'anaml':
-        return '#2db7f5';
-
-      case 'postgresql':
-        return '#ca3dd4';
-
-      default:
-        return 'rgba(0, 0, 0, 0.25)';
-    }
   };
 
   const columns = [
@@ -332,16 +262,6 @@ export function DataSourcesList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
-  // const upload = useMemo(() => {
-  //   if (selectedId && selectedWorkspace) {
-  //     const workspaceUploads = uploads[selectedWorkspace.id];
-  //     if (workspaceUploads) {
-  //       return workspaceUploads.find((u) => u.id === selectedId);
-  //     }
-  //     return null;
-  //   }
-  // }, [selectedId, selectedWorkspace, uploads]);
-
   return (
     <>
       {contextHolder}
@@ -353,7 +273,6 @@ export function DataSourcesList() {
         onCancel={onPreviewCancel}
         onOk={onPreviewCancel}
       >
-        {/* <ContentView upload={upload} /> */}
         <DataSourceContentView dataSource={dataSource} />
       </Modal>
       <IndexModal

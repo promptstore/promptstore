@@ -36,7 +36,6 @@ function OpenAILLM({ __name, constants, logger }) {
    * @returns 
    */
   async function createChatCompletion(request, retryCount = 0) {
-    logger.debug('request:', request)
     let res;
     try {
       if (request.stream) {
@@ -44,7 +43,6 @@ function OpenAILLM({ __name, constants, logger }) {
       } else {
         res = await openai.createChatCompletion(request);
       }
-      logger.debug('response:', res.data)
       return res.data;
     } catch (err) {
       logger.error(err, err.stack);
@@ -81,8 +79,25 @@ function OpenAILLM({ __name, constants, logger }) {
    * @param {*} request 
    * @returns 
    */
-  async function createCompletion(request) {
-    const res = await openai.createCompletion(request);
+  async function createCompletion(request, retryCount = 0) {
+    let res;
+    try {
+      res = await openai.createCompletion(request);
+      return res.data;
+    } catch (err) {
+      logger.error(err, err.stack);
+      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+        if (retryCount > 2) {
+          throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+        }
+        await delay(2000);
+        return await createCompletion(request, retryCount + 1);
+      }
+    }
+  }
+
+  async function createEmbedding(request) {
+    const res = await openai.createEmbedding(request);
     return res.data;
   }
 
@@ -128,6 +143,7 @@ function OpenAILLM({ __name, constants, logger }) {
     __name,
     createChatCompletion,
     createCompletion,
+    createEmbedding,
     createImage,
     generateImageVariant,
   };

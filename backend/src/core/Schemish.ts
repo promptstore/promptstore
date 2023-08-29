@@ -1,6 +1,6 @@
 // https://github.com/polymath-ai/polymath-ai/blob/main/seeds/playground/schemish.MD
-import { Validator } from "jsonschema";
-import type { Schema } from "jsonschema";
+import { Validator } from 'jsonschema';
+import type { Schema } from 'jsonschema';
 
 export type JSONValue =
   | string
@@ -21,10 +21,10 @@ export class SchemishConverter {
 
   convert() {
     const walker = (schema: Schema): JSONValue => {
-      if (schema.type === "string") {
-        return schema.description || "";
+      if (schema.type === 'string') {
+        return schema.description || '';
       }
-      if (schema.type === "object") {
+      if (schema.type === 'object') {
         const result: JSONValue = {};
         const properties = schema.properties as Record<string, Schema>;
         for (const [name, property] of Object.entries(properties)) {
@@ -32,11 +32,10 @@ export class SchemishConverter {
         }
         return result;
       }
-      if (schema.type === "array") {
+      if (schema.type === 'array') {
         const items = (schema.items as Schema) || {};
         return [walker(items)];
       }
-      console.log(schema);
       throw new Error(
         "I am just a simple Schemish converter. I don't understand your fancy types and formats. Yet."
       );

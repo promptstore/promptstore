@@ -15,16 +15,24 @@ export type GConstructor<T = {}> = new (...args: any[]) => T;
 
 export type Validator = (args: any, schema: object, options: object) => ValidatorResult;
 
+export interface Source {
+  type: string;
+  name?: string;
+}
+
 export interface MapArgumentsResponse {
   args: any;
-  mapped: any;
+  mapped?: any;
   isBatch: boolean;
   mappingTemplate: any;
+  source?: Source,
+  errors?: any;
 }
 
 export interface MapReturnTypeResponse {
   response: any;
-  mapped: any;
+  mapped?: any;
   isBatch: boolean;
   mappingTemplate: any;
+  errors?: any;
 }

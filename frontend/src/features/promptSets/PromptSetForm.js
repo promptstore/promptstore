@@ -109,7 +109,12 @@ function PromptField({ attributes, listeners, onChange, value }) {
         </svg>
       </button>
       <div style={{ width: 5 }}></div>
-      <TextArea autoSize={{ minRows: 3, maxRows: 14 }} onChange={onChange} value={value} />
+      <TextArea
+        autoSize={{ minRows: 3, maxRows: 14 }}
+        onChange={onChange}
+        placeholder="Prompt"
+        value={value}
+      />
     </div>
   );
 }
@@ -121,43 +126,40 @@ function SortableItem({ field, index, remove }) {
   });
 
   const style = {
+    display: 'flex',
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
   return (
-    <Row ref={setNodeRef} style={style}>
-      <Col span={14}>
+    <div ref={setNodeRef} style={style}>
+      <div style={{ flex: 1 }}>
         <Form.Item
           {...field}
           name={[field.name, 'prompt']}
-          label={index === 0 ? 'Prompts' : ''}
-          labelCol={{ span: 8 }}
-          wrapperCol={{ span: 16, offset: index === 0 ? 0 : 8 }}
         >
           <PromptField attributes={attributes} listeners={listeners} />
         </Form.Item>
-      </Col>
-      <Col span={4}>
+      </div>
+      <div style={{ width: 100, marginLeft: 16 }}>
         <Form.Item
           name={[field.name, 'role']}
-          label={index === 0 ? 'Role' : ''}
-          labelCol={{ span: 10 }}
-          wrapperCol={{ span: 14, offset: index === 0 ? 0 : 10 }}
         >
-          <Select options={roleOptions} optionFilterProp="label" allowClear />
-        </Form.Item>
-      </Col>
-      <Col span={1}>
-        <div style={{ marginLeft: 16 }}>
-          <Button type="text"
-            icon={<CloseOutlined />}
-            className="dynamic-delete-button"
-            onClick={() => remove(field.name)}
+          <Select allowClear
+            optionFilterProp="label"
+            options={roleOptions}
+            placeholder="Role"
           />
-        </div>
-      </Col>
-    </Row>
+        </Form.Item>
+      </div>
+      <div style={{ width: 32, marginLeft: 8 }}>
+        <Button type="text"
+          icon={<CloseOutlined />}
+          className="dynamic-delete-button"
+          onClick={() => remove(field.name)}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -473,7 +475,7 @@ export function PromptSetForm() {
             ) : null}
           </DragOverlay>
         </DndContext>
-        <Form.Item wrapperCol={{ offset: 4, span: 14 }}>
+        <Form.Item>
           <div style={{ marginLeft: 35 }}>
             <Space direction="horizontal" wrap={true}>
               <span style={{ whiteSpace: 'nowrap' }}>Available variables:</span>
@@ -518,7 +520,7 @@ export function PromptSetForm() {
             }
           </div>
         </Form.Item>
-        <Form.Item wrapperCol={{ offset: 4, span: 14 }}>
+        <Form.Item>
           <div style={{ marginLeft: 35 }}>
             <Button
               icon={<PlusOutlined />}
@@ -654,9 +656,9 @@ export function PromptSetForm() {
                     message: 'Please enter a name',
                   },
                 ]}
-                wrapperCol={{ span: 14 }}
+                wrapperCol={{ span: 16 }}
               >
-                <Input style={{ minWidth: 647 }} />
+                <Input />
               </Form.Item>
               <Form.Item
                 label="Skill"
@@ -695,8 +697,7 @@ export function PromptSetForm() {
                   />
                 </Form.Item>
                 <Form.Item
-                  colon={false}
-                  label="Template?"
+                  label="Template"
                   name="isTemplate"
                   valuePropName="checked"
                   style={{ display: 'inline-block', margin: '0 0 0 16px' }}
@@ -713,8 +714,7 @@ export function PromptSetForm() {
               </Form.Item>
               {currentUser?.roles?.includes('admin') ?
                 <Form.Item
-                  colon={false}
-                  label="Public?"
+                  label="Public"
                   name="isPublic"
                   valuePropName="checked"
                 >
@@ -725,16 +725,14 @@ export function PromptSetForm() {
               <Form.Item
                 label="Description"
                 name="description"
-                wrapperCol={{ span: 14 }}
+                wrapperCol={{ span: 16 }}
               >
                 <TextArea
                   autoSize={{ minRows: 1, maxRows: 14 }}
-                  style={{ minWidth: 647 }}
                 />
               </Form.Item>
               <Form.Item
-                colon={false}
-                label="Define Types?"
+                label="Typesafe"
               >
                 <Form.Item
                   name="isTypesDefined"
@@ -745,7 +743,7 @@ export function PromptSetForm() {
                 </Form.Item>
                 {typesDefinedValue ?
                   <Form.Item
-                    label="Arguments"
+                    label="Variables"
                     name="arguments"
                     style={{ display: 'inline-block', margin: '0 0 0 16px' }}
                   >
@@ -764,17 +762,22 @@ export function PromptSetForm() {
                   options={templateEngineOptions}
                 />
               </Form.Item>
-              <Form.List name="prompts">
-                {(fields, { add, move, remove }, { errors }) => (
-                  <PromptList
-                    fields={fields}
-                    add={add}
-                    move={move}
-                    remove={remove}
-                    errors={errors}
-                  />
-                )}
-              </Form.List>
+              <Form.Item
+                label="Prompts"
+                wrapperCol={{ span: 16 }}
+              >
+                <Form.List name="prompts">
+                  {(fields, { add, move, remove }, { errors }) => (
+                    <PromptList
+                      fields={fields}
+                      add={add}
+                      move={move}
+                      remove={remove}
+                      errors={errors}
+                    />
+                  )}
+                </Form.List>
+              </Form.Item>
               <Form.Item wrapperCol={{ offset: 4 }}>
                 <Space>
                   <Button type="default" onClick={onCancel}>Cancel</Button>

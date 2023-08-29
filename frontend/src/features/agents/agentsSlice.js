@@ -41,6 +41,7 @@ export const agentsSlice = createSlice({
     },
     startRun: (state) => {
       state.running = true;
+      state.output = [];
     },
     stopRun: (state) => {
       state.running = false;
@@ -103,10 +104,12 @@ export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   }
   http.post('/api/agent-executions/', { agent: { ...agent, tools: agent.tools || [] }, workspaceId })
     .then(() => {
+      events.close();
       dispatch(stopRun());
     })
     .catch((err) => {
       console.log(err);
+      events.close();
       throw err;
     });
 };

@@ -38,6 +38,22 @@ export function UsersService({ pg }) {
     };
   }
 
+  async function getUserByEmail(email) {
+    let q =
+      `SELECT id, username, val from users ` +
+      `WHERE val->>'email' = $1`;
+    const { rows } = await pg.query(q, [email]);
+    if (rows.length === 0) {
+      return null;
+    }
+    const row = rows[0];
+    return {
+      id: row.id,
+      username: row.username,
+      ...row.val,
+    };
+  }
+
   async function getUserById(id) {
     let q =
       `SELECT id, username, val from users ` +
@@ -97,6 +113,7 @@ export function UsersService({ pg }) {
   return {
     getUsers,
     getUser,
+    getUserByEmail,
     getUserById,
     getUserByKeycloakId,
     setRole,

@@ -1,8 +1,20 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Divider, Input, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Input,
+  Radio,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import { AppstoreOutlined, CheckOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
@@ -32,6 +44,7 @@ export function PromptSetsList() {
 
   const [filterPublic, setFilterPublic] = useLocalStorageState('public-prompt-sets', false);
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', false);
+  const [layout, setLayout] = useLocalStorageState('prompt-sets-layout', 'list');
   const [page, setPage] = useLocalStorageState('prompt-sets-list-page', 1);
   const [searchValue, setSearchValue] = useState('');
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', []);
@@ -52,6 +65,7 @@ export function PromptSetsList() {
         .map((ps) => ({
           key: ps.id,
           name: ps.name,
+          prompt: ps.prompts?.[0].prompt,
           summary: ps.summary,
           skill: ps.skill,
           tags: ps.tags,
@@ -153,7 +167,7 @@ export function PromptSetsList() {
       dataIndex: 'public',
       render: (_, { isPublic }) => (
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isPublic ? <CheckCircleOutlined /> : ''}</span>
+          <span>{isPublic ? <CheckOutlined /> : ''}</span>
         </div>
       )
     },
@@ -162,7 +176,7 @@ export function PromptSetsList() {
       dataIndex: 'template',
       render: (_, { isTemplate }) => (
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isTemplate ? <CheckCircleOutlined /> : ''}</span>
+          <span>{isTemplate ? <CheckOutlined /> : ''}</span>
         </div>
       )
     },
@@ -208,17 +222,17 @@ export function PromptSetsList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
           <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
             Delete
           </Button>
-          <span style={{ marginLeft: 8 }}>
+          <div style={{ marginLeft: 8 }}>
             {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-          </span>
+          </div>
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 16, width: 250 }}
+            style={{ marginLeft: 8, width: 220 }}
           />
           <Select allowClear mode="multiple"
             options={tagOptions}
@@ -226,7 +240,7 @@ export function PromptSetsList() {
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 8, width: 250 }}
+            style={{ marginLeft: 8, width: 220 }}
             value={selectedTags}
           />
           <Switch
@@ -234,26 +248,67 @@ export function PromptSetsList() {
             onChange={setFilterTemplates}
             style={{ marginLeft: 8 }}
           />
-          <span style={{ marginLeft: 8 }}>Templates</span>
-          <Divider type="vertical" style={{ marginLeft: 16 }} />
+          <div style={{ marginLeft: 8 }}>Templates</div>
           <Switch
             checked={filterPublic}
             onChange={setFilterPublic}
             style={{ marginLeft: 8 }}
           />
-          <span style={{ marginLeft: 8 }}>Public</span>
+          <div style={{ marginLeft: 8 }}>Public</div>
+          <div style={{ flex: 1 }}></div>
+          <Radio.Group
+            buttonStyle="solid"
+            onChange={(ev) => setLayout(ev.target.value)}
+            optionType="button"
+            options={[
+              {
+                label: <UnorderedListOutlined />,
+                value: 'list'
+              },
+              {
+                label: <AppstoreOutlined />,
+                value: 'grid'
+              },
+            ]}
+            value={layout}
+          />
         </div>
-        <Table
-          rowSelection={rowSelection}
-          columns={columns}
-          dataSource={data}
-          loading={loading}
-          pagination={{
-            current: page,
-            onChange: (page, pageSize) => setPage(page),
-          }}
-          rowClassName="promptset-list-row"
-        />
+        {layout === 'grid' ?
+          <Space wrap size="large">
+            {data.map(p =>
+              <Card key={p.key} title={p.name} style={{ width: 350, height: 200 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
+                  <div style={{ height: 30 }}>
+                    Skill: <span style={{ color: '#177ddc' }}>{p.skill}</span>
+                  </div>
+                  <div style={{ height: 30 }}>
+                    <Typography.Text ellipsis>
+                      {p.description || p.prompt || p.summary}
+                    </Typography.Text>
+                  </div>
+                  <Space wrap size="small">
+                    {(p.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
+                  </Space>
+                  <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto' }}>
+                    <Link to={`/prompt-sets/${p.key}`}>Edit</Link>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </Space>
+          :
+          <Table
+            rowSelection={rowSelection}
+            columns={columns}
+            dataSource={data}
+            loading={loading}
+            pagination={{
+              current: page,
+              onChange: (page, pageSize) => setPage(page),
+            }}
+            rowClassName="promptset-list-row"
+          />
+        }
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Table, Typography } from 'antd';
 import ReactMarkdown from 'react-markdown';
 
@@ -6,27 +6,29 @@ import { getExtension } from '../utils';
 
 const { Text } = Typography;
 
-export const ContentView = ({ upload }) => {
+export const ContentView = ({ loading, upload }) => {
 
-  const [previewColumns, setPreviewColumns] = useState();
-
-  const ext = useMemo(() => getExtension(upload?.filename), [upload]);
-
-  useEffect(() => {
-    if (upload?.content) {
-      if (ext === 'csv') {
-        const content = upload.content[0];
-        const columns = Object.keys(content)
-          .map((col) => ({
-            title: col,
-            dataIndex: col,
-            ellipsis: content[col].length > 50,
-          }))
-          ;
-        setPreviewColumns(columns);
+  const { columns, dataSource, ext } = useMemo(() => {
+    let ext;
+    if (upload) {
+      ext = getExtension(upload.filename);
+      if (ext && upload.content) {
+        if (ext === 'csv') {
+          const content = upload.content[0];
+          const columns = Object.keys(content)
+            .map((col) => ({
+              title: col,
+              dataIndex: col,
+              ellipsis: content[col].length > 50,
+            }));
+          const dataSource = upload.content.map((row, i) => ({ ...row, key: i }));
+          return { columns, dataSource, ext };
+        }
+        return { ext };
       }
     }
-  }, [upload, ext]);
+    return {};
+  }, [upload]);
 
   if (!upload?.content) {
     return (
@@ -51,17 +53,15 @@ export const ContentView = ({ upload }) => {
     );
   }
 
-  if (ext === 'csv' && previewColumns) {
-    // console.log('previewColumns:', previewColumns);
-    // console.log('dataSource:', upload?.content);
+  if (ext === 'csv') {
     return (
-      <Table columns={previewColumns} dataSource={upload.content} />
+      <Table columns={columns} dataSource={dataSource} loading={loading} />
     );
   }
 
   if (ext === 'pdf' || ext === 'docx') {
     return (
-      <ReactMarkdown className="markdown">{toMarkdown(upload.content?.data)}</ReactMarkdown>
+      <ReactMarkdown className="markdown">{toMarkdown(upload.content.data)}</ReactMarkdown>
     );
   }
 

@@ -109,6 +109,11 @@ function PalmLLM({ __name, constants, logger }) {
    * ]
    */
 
+  async function createEmbedding(request) {
+    const res = await client.embedText(request);
+    return res.data;
+  }
+
   function createImage(prompt, n) {
     throw new Error('Not implemented');
   }
@@ -121,6 +126,7 @@ function PalmLLM({ __name, constants, logger }) {
     __name,
     createChatCompletion,
     createCompletion,
+    createEmbedding,
     createImage,
     generateImageVariant,
   };

@@ -1,6 +1,6 @@
-export default ({ app, auth, logger, services }) => {
+export default ({ app, auth, constants, logger, services }) => {
 
-  const { usersService, workspacesService } = services;
+  const { emailService, usersService, workspacesService } = services;
 
   /**
    * @openapi
@@ -394,6 +394,48 @@ export default ({ app, auth, logger, services }) => {
     const ids = req.query.ids.split(',');
     await workspacesService.deleteWorkspaces(ids);
     res.json(ids);
+  });
+
+  app.post('/api/invites', auth, async (req, res) => {
+    logger.debug('req.user:', req.user);
+    const { workspaceId, invites } = req.body;
+    const members = [];
+    for (const email of invites) {
+      const user = await usersService.getUserByEmail(email);
+      logger.debug('found existing user:', user || 'No');
+      if (user) {
+        const { id, fullName, email, username } = user;
+        members.push({ id, fullName, email, username });
+      } else {
+        const newUser = await usersService.upsertUser({ username: email, email, fullName: email });
+        logger.debug('newUser:', newUser);
+        members.push({
+          id: newUser.id,
+          email,
+          username: email,
+          fullName: email,
+        });
+        await emailService.send(
+          email,
+          constants.MAILTRAP_INVITE_TEMPLATE_UUID,
+          { fullName: req.user.fullName },
+        );
+      }
+    }
+    logger.debug('members:', members);
+    if (members.length) {
+      const savedWorkspace = await workspacesService.getWorkspace(workspaceId);
+      const savedMemberEmails = savedWorkspace.members.map(m => m.email);
+      const newMembers = members.filter(m => savedMemberEmails.indexOf(m.email) === -1);
+      const workspace = {
+        ...savedWorkspace,
+        members: [...savedWorkspace.members, ...newMembers],
+      };
+      const updatedWorkspace = await workspacesService.upsertWorkspace(workspace, req.user);
+      res.json(updatedWorkspace);
+    } else {
+      res.sendStatus(404);
+    }
   });
 
 };

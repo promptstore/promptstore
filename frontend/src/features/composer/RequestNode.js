@@ -30,7 +30,6 @@ function Arguments({ value, nodeId, isConnectable }) {
             arguments: value,
           };
         }
-
         return node;
       })
     );
@@ -38,7 +37,11 @@ function Arguments({ value, nodeId, isConnectable }) {
 
   return (
     <div className="custom-node__select">
-      <SchemaModalInput onChange={onChange} value={value} buttonProps={{ size: 'small', block: true }} />
+      <SchemaModalInput
+        onChange={onChange}
+        value={value}
+        buttonProps={{ size: 'small', block: true }}
+      />
       <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
     </div>
   );

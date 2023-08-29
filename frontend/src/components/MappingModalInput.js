@@ -1,67 +1,71 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom'
+import { Button, Modal, Space } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
+import ButterflyDataMapping from 'react-data-mapping';
+import MonacoEditor from 'react-monaco-editor';
 import isEmpty from 'lodash.isempty';
 import isFunction from 'lodash.isfunction';
 import isObject from 'lodash.isobject';
 
-export function ReturnTypeMappingModalInput({
-  implementationsValue,
-  index,
-  modelsLoaded,
+import NavbarContext from '../contexts/NavbarContext';
+
+const monacoOptions = { selectOnLineNumbers: true };
+
+const columns = [
+  {
+    key: 'id',
+    title: 'ID',
+    width: 30,
+  },
+  {
+    key: 'property',
+    title: 'Property',
+    render: (val, row, index) => {
+      return <div>{val}</div>
+    },
+    primaryKey: true,
+    width: 150,
+  },
+  {
+    key: 'type',
+    title: 'Type',
+    width: 75,
+  }
+];
+
+const getFields = (title, properties) => ({
+  title,
+  fields: Object.entries(properties).map(([k, v], i) => ({
+    id: i + 1,
+    property: k,
+    type: v.type,
+  }))
+});
+
+export function MappingModalInput({
+  sourceSchema,
+  targetSchema,
+  disabledMessage,
+  sourceTitle,
+  targetTitle,
   onChange,
-  returnTypeSchema,
   value,
+  buttonProps,
 }) {
 
-  // ------ shared
+  if (!disabledMessage) {
+    disabledMessage = 'Have both source and target schemas been defined?';
+  }
 
-  const getModel = (index) => {
-    if (implementationsValue && modelsLoaded) {
-      const impl = implementationsValue[index];
-      if (impl) {
-        const id = impl.modelId;
-        if (id) {
-          return models[id];
-        }
-      }
-    }
-    return undefined;
-  };
-
-  const isModelApiType = (index) => {
-    return getModel(index)?.type === 'api';
-  };
-
-  // ------
-
-  const getFunctionReturnTypeProperties = () => {
-    return returnTypeSchema?.properties;
-  };
-
-  const getModelReturnTypeSchema = (index) => {
-    const model = getModel(index);
-    if (model) {
-      return model.returnTypeSchema;
-    }
-    return undefined;
-  };
-
-  const getModelReturnTypeProperties = (index) => {
-    return getModelReturnTypeSchema(index)?.properties;
-  };
-
-  const isAdvancedReturnTypeMappingEnabled = (index) => {
-    return returnTypeSchema && getModelReturnTypeSchema(index);
-  };
-
-  const isSimpleReturnTypeMappingEnabled = (index) => {
-    return isModelApiType(index) && !isEmpty(getFunctionReturnTypeProperties()) && !isEmpty(getModelReturnTypeProperties(index));
-  };
-
-
-  const [isAdvanced, setIsAdvanced] = useState(false);
+  const [isAdvanced, setIsAdvanced] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ready, setReady] = useState(false);
-  const [state, setState] = useState(null);
+  const [state, setState] = useState('');
+
+  // console.log('state:', state, typeof state);
+
+  const { isDarkMode } = useContext(NavbarContext);
 
   useEffect(() => {
     if (value && typeof value === 'string') {
@@ -71,14 +75,16 @@ export function ReturnTypeMappingModalInput({
 
   const handleClose = () => {
     setIsModalOpen(false);
-    setState(value);
+    if (value && typeof value === 'string') {
+      setState(value);
+    }
     setReady(false);
   };
 
   const handleMappingDataChange = (args) => {
     if (args && args.mappingData) {
       const data = args.mappingData.reduce((a, x) => {
-        a[x.source] = x.target;
+        a[x.target] = x.source;
         return a;
       }, {});
       const stateUpdate = JSON.stringify(data, null, 2);
@@ -91,26 +97,33 @@ export function ReturnTypeMappingModalInput({
       onChange(state);
     }
     setIsModalOpen(false);
-    setState(null);
+    setState('');
     setReady(false);
   }
 
   const getMappingData = useCallback((val) => {
     return Object.entries(val).map(([k, v]) => ({
-      source: k,
-      target: v,
+      source: v,
+      target: k,
     }));
   }, []);
 
   const isObjectNested = useCallback((obj) => {
-    if (isObject(obj)) {
-      return Object.values(obj).some(v => Array.isArray(v) || isObject(v) || isFunction(v));
-    }
-    return false;
+    if (!isObject(obj)) return false;
+    return Object.values(obj)
+      .some(v => Array.isArray(v) || isObject(v) || isFunction(v));
   }, []);
 
-  const isSimpleEnabled = isSimpleReturnTypeMappingEnabled(index);
-  const isAdvancedEnabled = isAdvancedReturnTypeMappingEnabled(index);
+  const getProperties = useCallback((schema) => {
+    if (!schema) return null;
+    if (schema.type === 'array') {
+      return schema.items.properties;
+    }
+    return schema.properties;
+  }, []);
+
+  const isSimpleEnabled = !(isEmpty(getProperties(sourceSchema)) || isEmpty(getProperties(targetSchema)));
+  const isAdvancedEnabled = sourceSchema && targetSchema;
 
   let isSimple = isSimpleEnabled;
   let mappingData = [];
@@ -174,7 +187,7 @@ export function ReturnTypeMappingModalInput({
             <div style={{ display: 'flex' }}>
               <div style={{ marginLeft: 'auto' }}>
                 <Space>
-                  <Button onClick={() => setState(null)}>
+                  <Button onClick={() => setState('')}>
                     Clear
                   </Button>
                   {isSimple ?
@@ -186,6 +199,7 @@ export function ReturnTypeMappingModalInput({
                     </Button>
                     : null
                   }
+                  <Link to={process.env.REACT_APP_DATA_MAPPER_HELP_URL} target="_blank" rel="noopener noreferrer">Need help?</Link>
                 </Space>
               </div>
             </div>
@@ -195,14 +209,13 @@ export function ReturnTypeMappingModalInput({
                   className="butterfly-data-mapping container single-with-header"
                   type="single"
                   columns={columns}
-                  sourceData={getFields('Model Return', getModelReturnTypeProperties(index))}
-                  targetData={getFields('Function Return', getFunctionReturnTypeProperties())}
+                  sourceData={getFields(sourceTitle, getProperties(sourceSchema))}
+                  targetData={getFields(targetTitle, getProperties(targetSchema))}
                   config={{}}
                   onEdgeClick={(data) => {
-                    console.log(data);
+                    // console.log(data);
                   }}
                   width="auto"
-                  height={400}
                   onChange={handleMappingDataChange}
                   mappingData={mappingData}
                 />
@@ -228,12 +241,13 @@ export function ReturnTypeMappingModalInput({
         disabled={!isSimpleEnabled && !isAdvancedEnabled}
         icon={noState(value) ? null : <CheckOutlined />}
         onClick={() => setIsModalOpen(true)}
+        {...buttonProps}
       >
         Set Mapping
       </Button>
       {!isSimpleEnabled && !isAdvancedEnabled ?
         <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
-          Have both function and model return types been defined?
+          {disabledMessage}
         </div>
         : null
       }

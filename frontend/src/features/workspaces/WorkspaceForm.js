@@ -1,22 +1,20 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Descriptions, Form, Input, Modal, Select, Space, Switch, Table, Typography } from 'antd';
+import { Button, Descriptions, Form, Input, Modal, Space, Switch, Table, Typography } from 'antd';
 import { v4 as uuidv4 } from 'uuid';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import UserContext from '../../contexts/UserContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  getUsersAsync,
-  selectLoaded as selectUsersLoaded,
-  selectUsers,
   setAdmin,
 } from '../users/usersSlice';
 import {
   createWorkspaceAsync,
   getWorkspaceAsync,
   handleKeyAssignmentAsync,
+  inviteMembersAsync,
   revokeKeyAssignmentAsync,
   selectLoaded,
   selectWorkspaces,
@@ -39,8 +37,6 @@ export function WorkspaceForm() {
 
   const loaded = useSelector(selectLoaded);
   const workspaces = useSelector(selectWorkspaces);
-  const users = useSelector(selectUsers);
-  const usersLoaded = useSelector(selectUsersLoaded);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,13 +82,6 @@ export function WorkspaceForm() {
     return [];
   }, [workspace]);
 
-  const userOptions = useMemo(() => {
-    return Object.values(users).map((u) => ({
-      label: u.email,
-      value: u.id,
-    }));
-  }, [users]);
-
   const hasSelected = selectedRowKeys.length > 0;
 
   const closeKeyModal = () => {
@@ -106,16 +95,12 @@ export function WorkspaceForm() {
 
   const handleInvite = async () => {
     const values = await inviteMembersForm.validateFields();
-    const members =
-      values.members
-        .map((id) => users[id])
-        .map(({ id, fullName, email, username }) => ({
-          id,
-          fullName,
-          email,
-          username,
-        }));
-    dispatch(updateWorkspaceAsync({ id, values: { ...workspace, members } }));
+    if (values.invites) {
+      dispatch(inviteMembersAsync({
+        workspaceId: id,
+        invites: values.invites.trim().split(/\s*,\s*/),
+      }));
+    }
     setIsInviteModalOpen(false);
   };
 
@@ -174,9 +159,6 @@ export function WorkspaceForm() {
   };
 
   const openInviteModal = () => {
-    if (!usersLoaded) {
-      dispatch(getUsersAsync());
-    }
     setIsInviteModalOpen(true);
   };
 
@@ -232,19 +214,15 @@ export function WorkspaceForm() {
         width={800}
       >
         <div style={{ height: 300 }}>
-          {loaded && usersLoaded ?
+          {loaded ?
             <Form
               form={inviteMembersForm}
-              initialValues={{ members: workspace?.members?.map(({ id }) => id) }}
             >
               <Form.Item
-                name="members"
+                name="invites"
+                extra="Enter member emails as a comma-separated list"
               >
-                <Select allowClear
-                  mode="multiple"
-                  options={userOptions}
-                  optionFilterProp="label"
-                />
+                <Input />
               </Form.Item>
             </Form>
             :
@@ -316,8 +294,7 @@ export function WorkspaceForm() {
             </Form.Item>
             {currentUser?.roles?.includes('admin') ?
               <Form.Item
-                colon={false}
-                label="Public?"
+                label="Public"
                 name="isPublic"
                 valuePropName="checked"
               >

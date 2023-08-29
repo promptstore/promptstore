@@ -11,6 +11,7 @@ import ReactJson from 'react-json-view';
 import * as dayjs from 'dayjs';
 
 import NavbarContext from '../../contexts/NavbarContext';
+import { createOpenAIMessages } from '../../utils/formats';
 import { getInputString, hashStr } from '../../utils';
 
 import {
@@ -25,7 +26,7 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 export function TraceView() {
 
-  const [selectedKeys, setSelectedKeys] = useState(['call-function']);
+  const [selectedKeys, setSelectedKeys] = useState([]);
 
   const traces = useSelector(selectTraces);
   const loaded = useSelector(selectLoaded);
@@ -41,7 +42,7 @@ export function TraceView() {
   const step = useMemo(() => {
     const inner = (trace) => {
       for (const step of trace) {
-        if (step.type === selectedKeys[0]) {
+        if (step.id === selectedKeys[0]) {
           const node = { ...step };
           delete node.children;
           return node;
@@ -64,8 +65,14 @@ export function TraceView() {
   }, [selectedKeys, trace]);
 
   const getTitle = (step) => {
-    if (step.type === 'call-function') {
+    if (step.type === 'call-function' || step.type === 'call-composition') {
       return step.type + ' - ' + step.function;
+    } else if (step.type === 'map-args' && step.source) {
+      let source = step.source.type;
+      if (step.source.name) {
+        source += ':' + step.source.name;
+      }
+      return step.type + ' - ' + source;
     }
     return step.type;
   };
@@ -78,17 +85,19 @@ export function TraceView() {
           if (step.children) {
             let num = lvl ? lvl + '.' + j : j;
             return {
-              title: getTitle(step),
-              key: step.type + '-' + num,
+              key: step.id,
+              num,
               type: step.type,
+              title: getTitle(step),
               children: inner(step.children, num),
             };
           }
           let num = lvl ? lvl + '.' + j : j;
           return {
-            title: getTitle(step),
-            key: step.type + '-' + num,
+            key: step.id,
+            num,
             type: step.type,
+            title: getTitle(step),
           };
         });
       }
@@ -96,8 +105,6 @@ export function TraceView() {
       return inner(trace.trace);
     }
   }, [trace]);
-
-  console.log('treeData:', treeData);
 
   useEffect(() => {
     dispatch(getTraceAsync(id));
@@ -113,12 +120,16 @@ export function TraceView() {
         createLink: null,
         title,
       }));
+      setSelectedKeys([trace.trace[0].id]);
     }
   }, [trace]);
 
   const onSelect = (selectedKeys, info) => {
-    console.log('selected', selectedKeys, info);
-    setSelectedKeys([info.node.type]);
+    console.log('info:', info);
+    const key = info.selectedNodes?.[0]?.key;
+    if (key) {
+      setSelectedKeys([key]);
+    }
   };
 
   function Step({ step }) {
@@ -127,8 +138,15 @@ export function TraceView() {
         <div></div>
       );
     }
-    if (step.type === 'call-function' || step.type === 'call-implementation') {
-      const title = step.type === 'call-function' ? 'Call Function' : 'Call Implementation';
+    if (step.type === 'call-function' || step.type === 'call-implementation' || step.type === 'call-composition') {
+      let title;
+      if (step.type === 'call-function') {
+        title = 'Call Function';
+      } else if (step.type === 'call-implementation') {
+        title = 'Call Implementation';
+      } else if (step.type === 'call-composition') {
+        title = 'Call Composition';
+      }
       const input = getInputString(step.args);
       return (
         <Descriptions className="trace-step" title={title} column={{ md: 1, lg: 3 }} layout="vertical">
@@ -144,21 +162,6 @@ export function TraceView() {
             </Space>
           </Descriptions.Item>
           <Descriptions.Item span={3} label="output">
-            {step.response?.choices ?
-              <div>
-                {step.response.choices.map((choice, i) => (
-                  <div key={hashStr(choice.message.content)}>
-                    <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
-                      {choice.message.content}
-                    </Typography.Paragraph>
-                    <Typography.Text type="secondary">
-                      finish reason: {choice.finish_reason}
-                    </Typography.Text>
-                  </div>
-                ))}
-              </div>
-              : null
-            }
             {step.errors ?
               <div>
                 {step.errors.map((err, i) => (
@@ -175,15 +178,36 @@ export function TraceView() {
                   </div>
                 ))}
               </div>
-              : null
+              : (
+                step.response?.choices ?
+                  <div>
+                    {step.response.choices.map((choice, i) => (
+                      <div key={hashStr(choice.message.content)}>
+                        <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+                          {choice.message.content}
+                        </Typography.Paragraph>
+                        <Typography.Text type="secondary">
+                          finish reason: {choice.finish_reason}
+                        </Typography.Text>
+                      </div>
+                    ))}
+                  </div>
+                  :
+                  <ReactJson src={step.response} />
+              )
             }
           </Descriptions.Item>
-          <Descriptions.Item label="model" span={1}>
-            {step.implementation.model}
-          </Descriptions.Item>
-          <Descriptions.Item label="params" span={2}>
-            <ReactJson collapsed src={step.implementation.modelParams} />
-          </Descriptions.Item>
+          {step.type === 'call-implementation' ?
+            <>
+              <Descriptions.Item label="model" span={1}>
+                {step.implementation.model}
+              </Descriptions.Item>
+              <Descriptions.Item label="params" span={2}>
+                <ReactJson collapsed src={step.implementation.modelParams} />
+              </Descriptions.Item>
+            </>
+            : null
+          }
           <Descriptions.Item label="batch" span={1}>
             {step.isBatch ? 'Yes' : 'No'}
           </Descriptions.Item>
@@ -203,15 +227,22 @@ export function TraceView() {
           </Descriptions.Item>
         </Descriptions>
       );
-    } else if (step.type === 'map-args') {
+    } else if (step.type === 'map-args' || step.type === 'map-response') {
+      const title = step.type === 'map-args' ? 'Map Arguments' : 'Map Response';
       return (
-        <Descriptions className="trace-step" title="Map Args" column={{ md: 1, lg: 3 }} layout="vertical">
+        <Descriptions className="trace-step" title={title} column={{ md: 1, lg: 3 }} layout="vertical">
           <Descriptions.Item span={3} label="input">
-            <ReactJson collapsed src={step.input.values} />
+            <ReactJson collapsed src={step.input} />
           </Descriptions.Item>
           <Descriptions.Item span={3} label="output">
-            <ReactJson collapsed src={step.output.values} />
+            <ReactJson collapsed src={step.output} />
           </Descriptions.Item>
+          {step.source ?
+            <Descriptions.Item span={3} label="source">
+              <span>{step.source.type + (step.source.name ? ':' + step.source.name : '')}</span>
+            </Descriptions.Item>
+            : null
+          }
           {step.mappingTemplate ?
             <Descriptions.Item span={3} label="mapping template">
               <div>
@@ -257,11 +288,12 @@ export function TraceView() {
         </Descriptions>
       );
     } else if (step.type === 'call-model') {
+      const messages = createOpenAIMessages(step.prompt);
       return (
         <Descriptions className="trace-step" title="Call GPT Model" column={{ md: 1, lg: 3 }} layout="vertical">
           <Descriptions.Item span={3} label="input">
             <div>
-              {step.messages.map((message, i) => (
+              {messages.map((message, i) => (
                 <div key={hashStr(message.content)}>
                   <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
                     {message.content}
@@ -291,7 +323,7 @@ export function TraceView() {
             {step.model}
           </Descriptions.Item>
           <Descriptions.Item label="params" span={2}>
-            <ReactJson collapsed src={step.modelParams} />
+            <ReactJson collapsed src={step.model_params} />
           </Descriptions.Item>
         </Descriptions>
       );
@@ -429,8 +461,8 @@ export function TraceView() {
           </Descriptions.Item>
           <Descriptions.Item span={3} label="input">
             <div>
-              {step.messages.map((message, i) => (
-                <div key={hashStr(message.content)}>
+              {step.messages.map((message, i) =>
+                <div key={'input-' + i}>
                   <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
                     {message.content}
                   </Typography.Paragraph>
@@ -438,31 +470,28 @@ export function TraceView() {
                     role: {message.role}
                   </Typography.Text>
                 </div>
-              ))}
+              )}
             </div>
           </Descriptions.Item>
           <Descriptions.Item span={3} label="output">
             {step.response.choices ?
               <div>
-                {step.response.choices.map((choice, i) => (
-                  <>
-                    {choice.message.function_call ?
-                      <div>
-                        <div>name: {choice.message.function_call.name}</div>
-                        <div>arguments: <ReactJson collapsed src={JSON.parse(choice.message.function_call.arguments)} /></div>
-                      </div>
-                      :
-                      <div key={hashStr(choice.message.content)}>
-                        <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
-                          {choice.message.content}
-                        </Typography.Paragraph>
-                        <Typography.Text type="secondary">
-                          finish reason: {choice.finish_reason}
-                        </Typography.Text>
-                      </div>
-                    }
-                  </>
-                ))}
+                {step.response.choices.map((choice, i) =>
+                  choice.message.function_call ?
+                    <div key={'output-' + i}>
+                      <div>name: {choice.message.function_call.name}</div>
+                      <div>arguments: <ReactJson collapsed src={JSON.parse(choice.message.function_call.arguments)} /></div>
+                    </div>
+                    :
+                    <div key={'output-' + i}>
+                      <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+                        {choice.message.content}
+                      </Typography.Paragraph>
+                      <Typography.Text type="secondary">
+                        finish reason: {choice.finish_reason}
+                      </Typography.Text>
+                    </div>
+                )}
               </div>
               :
               <ReactJson collapsed src={step.response} />
@@ -584,6 +613,24 @@ export function TraceView() {
           </Descriptions.Item>
         </Descriptions>
       );
+    } else if (step.type === 'select-experiment') {
+      return (
+        <Descriptions className="trace-step" title="Select Experiment" column={{ md: 1, lg: 3 }} layout="vertical">
+          <Descriptions.Item span={3} label="experiments">
+            <Space direction="vertical" size="large">
+              {step.experiments.map((xp, i) =>
+                <div key={'xp-' + i} style={{ display: 'flex' }}>
+                  <div>{xp.implementation}</div>
+                  <div style={{ marginLeft: 24 }}>{xp.percentage} %</div>
+                </div>
+              )}
+            </Space>
+          </Descriptions.Item>
+          <Descriptions.Item span={3} label="chosen">
+            <div>{step.implementation}</div>
+          </Descriptions.Item>
+        </Descriptions>
+      );
     }
     return (
       <ReactJson src={step} />
@@ -628,8 +675,8 @@ export function TraceView() {
         </Descriptions.Item>
         {step.errors?.length ?
           <Descriptions.Item label="errors">
-            {step.errors.map((err) => (
-              <Typography.Paragraph>
+            {step.errors.map((err, i) => (
+              <Typography.Paragraph key={'err-' + i}>
                 {err.message}
               </Typography.Paragraph>
             ))}
@@ -716,12 +763,12 @@ export function TraceView() {
             </Descriptions.Item>
           </Descriptions>
         </Col>
-        <Col span={10}>
+        <Col span={14}>
           <Step step={step} />
         </Col>
-        <Col span={4}>
+        {/* <Col span={4}>
           <Governance step={step} />
-        </Col>
+        </Col> */}
         <Col span={4}>
           <Status step={step} username={trace.createdBy} />
         </Col>

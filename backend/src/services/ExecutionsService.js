@@ -8,6 +8,7 @@ import CoreModelAdapter from './CoreModelAdapter.ts'
 export function ExecutionsService({ logger, services }) {
 
   const {
+    compositionsService,
     dataSourcesService,
     featureStoreService,
     functionsService,
@@ -94,7 +95,7 @@ export function ExecutionsService({ logger, services }) {
         workspaceId,
         username,
       });
-      return { data: response };
+      return response;
     } catch (err) {
       logger.error(err, err.stack);
       const errors = [
@@ -146,7 +147,7 @@ export function ExecutionsService({ logger, services }) {
       const response = await executor.runComposition({
         composition,
         args,
-        modelKey: params.modelKey || params.model || 'gpt-3.5-turbo',
+        modelKey: params.modelKey || params.model,
         modelParams: {
           max_tokens: params.maxTokens,
           n: params.n,
@@ -155,7 +156,7 @@ export function ExecutionsService({ logger, services }) {
         workspaceId,
         username,
       });
-      return { data: response };
+      return response;
     } catch (err) {
       const errors = [
         {

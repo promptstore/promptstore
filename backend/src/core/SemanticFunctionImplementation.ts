@@ -2,6 +2,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { default as dayjs } from 'dayjs';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
+import logger from '../logger';
+
 import { DataMapper, Model } from './common_types';
 import { SemanticFunctionError } from './errors';
 import { UserMessage } from './openai';
@@ -94,8 +96,8 @@ export class SemanticFunctionImplementation {
           await this.inputGuardrails.call({ messages });
         }
         const request = {
-          ...modelParams,
           model: modelKey,
+          model_params: modelParams,
           prompt: {
             context,
             history: hist,
@@ -159,16 +161,27 @@ export class SemanticFunctionImplementation {
   }
 
   async mapArgs(args: any, mappingTemplate: string, isBatch: boolean) {
-    const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
-    for (let callback of this.currentCallbacks) {
-      callback.onMapArguments({
-        args,
-        mapped,
-        mappingTemplate,
-        isBatch,
-      });
+    try {
+      const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
+      for (let callback of this.currentCallbacks) {
+        callback.onMapArguments({
+          args,
+          mapped,
+          mappingTemplate,
+          isBatch,
+        });
+      }
+      return mapped;
+    } catch (err) {
+      for (let callback of this.currentCallbacks) {
+        callback.onMapArguments({
+          args,
+          mappingTemplate,
+          isBatch,
+          errors: [{ message: String(err) }],
+        });
+      }
     }
-    return mapped;
   }
 
   _mapArgs(args: any, mappingTemplate: string, isBatch: boolean): Promise<any> {
@@ -194,16 +207,27 @@ export class SemanticFunctionImplementation {
   }
 
   async mapReturnType(response: any, mappingTemplate: string, isBatch: boolean) {
-    const mapped = await this._mapArgs(response, mappingTemplate, isBatch);
-    for (let callback of this.currentCallbacks) {
-      callback.onMapReturnType({
-        response,
-        mapped,
-        mappingTemplate,
-        isBatch,
-      });
+    try {
+      const mapped = await this._mapArgs(response, mappingTemplate, isBatch);
+      for (let callback of this.currentCallbacks) {
+        callback.onMapReturnType({
+          response,
+          mapped,
+          mappingTemplate,
+          isBatch,
+        });
+      }
+      return mapped;
+    } catch (err) {
+      for (let callback of this.currentCallbacks) {
+        callback.onMapReturnType({
+          response,
+          mappingTemplate,
+          isBatch,
+          errors: [{ message: String(err) }],
+        });
+      }
     }
-    return mapped;
   }
 
   onEnd({ response, errors }: SemanticFunctionImplementationOnEndParams) {

@@ -9,7 +9,6 @@ export default memo(({ id, data, isConnectable }) => {
         Joiner
       </div>
       <div className="custom-node__body">
-        {/* <ReturnTypeMappingModalInput index={index} /> */}
       </div>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
       <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
