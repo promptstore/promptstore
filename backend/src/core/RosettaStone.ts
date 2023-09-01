@@ -145,7 +145,7 @@ interface ChatCompletionChoice {
   finish_reason?: string;
   index: number;
   message: Message;
-  safety_ratings: SafetyRating[];  // Ratings for the safety of a response. There is at most one rating per category.
+  safety_ratings?: SafetyRating[];  // Ratings for the safety of a response. There is at most one rating per category.
   logprobs?: object;
 }
 
@@ -179,7 +179,7 @@ export interface ChatResponse {
   usage?: ChatCompletionUsage;
   n: number;
   filters?: ContentFilter[];
-  safetyFeedback: SafetyFeedback[];
+  safetyFeedback?: SafetyFeedback[];
 }
 
 export interface ResponseMetadata {
@@ -264,7 +264,7 @@ export function fromVertexAIChatResponse(response: PaLMChatResponse) {
     choices: candidates.map((c, i) => ({
       index: i,
       message: {
-        role: 'assistant',
+        role: MessageRole.assistant,
         content: c.content,
         name: c.author,
         citation_metadata: c.citation_metadata,

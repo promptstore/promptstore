@@ -5,11 +5,12 @@ import { getInputString } from '../core/utils.js';
 
 import CoreModelAdapter from './CoreModelAdapter.ts'
 
-export function ExecutionsService({ logger, services }) {
+export function ExecutionsService({ logger, rc, services }) {
 
   const {
     compositionsService,
     dataSourcesService,
+    embeddingService,
     featureStoreService,
     functionsService,
     guardrailsService,
@@ -25,8 +26,9 @@ export function ExecutionsService({ logger, services }) {
   } = services;
 
   const adapter = CoreModelAdapter({
-    logger, services: {
+    logger, rc, services: {
       dataSourcesService,
+      embeddingService,
       featureStoreService,
       functionsService,
       guardrailsService,

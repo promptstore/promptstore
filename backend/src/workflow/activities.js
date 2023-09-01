@@ -35,7 +35,11 @@ export const createActivities = ({
   async reload(file, workspaceId, username, uploadId) {
     let data;
     if (supportedMimetypes.includes(file.mimetype)) {
-      data = await extractorService.extract('unstructured', file);
+      if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        data = await extractorService.extract('onesource', file);
+      } else {
+        data = await extractorService.extract('unstructured', file);
+      }
     }
 
     if (data) {
@@ -83,7 +87,11 @@ export const createActivities = ({
 
         let data;
         if (supportedMimetypes.includes(file.mimetype)) {
-          data = await extractorService.extract('unstructured', file);
+          if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            data = await extractorService.extract('onesource', file);
+          } else {
+            data = await extractorService.extract('unstructured', file);
+          }
         }
 
         try {

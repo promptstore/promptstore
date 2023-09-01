@@ -945,6 +945,15 @@ export function FunctionForm() {
                           {/* <LabelledSwitch label="Default?" /> */}
                           <Switch />
                         </Form.Item>
+                        <Form.Item
+                          extra="Semantic Cache"
+                          name={[field.name, 'cache']}
+                          wrapperCol={{ span: 24 }}
+                          valuePropName="checked"
+                          style={{ marginLeft: 16 }}
+                        >
+                          <Switch />
+                        </Form.Item>
                         {!isNew ?
                           <>
                             <div style={{ flex: 1 }}></div>

@@ -356,6 +356,41 @@ export function TraceView() {
           }
         </Descriptions>
       );
+    } else if (step.type === 'lookup-cache') {
+      return (
+        <Descriptions className="trace-step" title="Lookup Cache" column={{ md: 1, lg: 3 }} layout="vertical">
+          <Descriptions.Item span={3} label="input">
+            <div>
+              <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
+                {step.prompt}
+              </Typography.Paragraph>
+              <Typography.Text type="secondary">
+                Prompt
+              </Typography.Text>
+            </div>
+          </Descriptions.Item>
+          <Descriptions.Item span={3} label="output">
+            <div>
+              {step.response.choices.map((choice, i) => (
+                <div key={hashStr(choice.message.content)}>
+                  <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+                    {choice.message.content}
+                  </Typography.Paragraph>
+                  <Typography.Text type="secondary">
+                    finish reason: {choice.finish_reason}
+                  </Typography.Text>
+                </div>
+              ))}
+            </div>
+          </Descriptions.Item>
+          <Descriptions.Item label="model" span={2}>
+            {step.model}
+          </Descriptions.Item>
+          <Descriptions.Item label="hit" span={1}>
+            {step.hit ? 'Yes' : 'No'}
+          </Descriptions.Item>
+        </Descriptions>
+      );
     } else if (step.type === 'plan-and-execute agent') {
       return (
         <Descriptions className="trace-step" title="Plan and Execute" column={{ md: 1, lg: 3 }} layout="vertical">

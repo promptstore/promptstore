@@ -1,6 +1,7 @@
 import FormData from 'form-data';
 import axios from 'axios';
 import fs from 'fs';
+import uuid from 'uuid';
 
 function UnstructuredService({ __name, constants, logger }) {
 
@@ -57,6 +58,8 @@ function UnstructuredService({ __name, constants, logger }) {
         filename: file.originalname,
         contentType: file.mimetype,
       });
+      form.append('strategy', "hi_res");
+      form.append('pdf_infer_table_structure', "true");
       const res = await axios.post(constants.UNSTRUCTURED_API_URL, form, {
         headers: {
           ...form.getHeaders(),
@@ -76,7 +79,9 @@ function UnstructuredService({ __name, constants, logger }) {
 
   function convertFormat(json) {
     let metadata;
-    const text = [];
+    const stack = [];
+    const documents = [];
+    // const text = [];
     const structured_content = [];
     let i = 0;
     for (const item of json) {
@@ -92,21 +97,63 @@ function UnstructuredService({ __name, constants, logger }) {
           word_count: -1,
         };
       }
-      text.push(item.text);
-      structured_content.push({
-        type: getType(item.type),
+      // text.push(item.text);
+      const type = getType(item.type);
+      const content = {
+        ...item,
+        uid: uuid.v4(),
+        type,
         subtype: item.type,
         text: item.text,
         element_id: item.element_id,
+      };
+      const n = stack.length;
+      if (n && type === 'heading' && stack[n - 1].type === 'text') {
+        const uid = uuid.v4();
+        stack.forEach(it => {
+          if (!it.parent_uids) {
+            it.parent_uids = [];
+          }
+          it.parent_uids.push(uid);
+        });
+        documents.push({
+          uid,
+          items: stack.map(it => it.uid),
+        });
+        // const i = findLastIndex(stack, c => c.type === 'heading');
+        // stack.splice(i);
+        stack.length = 0;
+      }
+      stack.push(content);
+      structured_content.push(content);
+    }
+    if (stack.length) {
+      const uid = uuid.v4();
+      stack.forEach(it => {
+        if (!it.parent_uids) {
+          it.parent_uids = [];
+        }
+        it.parent_uids.push(uid);
+      });
+      documents.push({
+        uid,
+        items: stack.map(it => it.uid),
       });
     }
     return {
       metadata,
+      documents,
       data: {
-        text,
+        // text,
         structured_content,
       }
     };
+  }
+
+  function findLastIndex(arr, fn) {
+    const a = [...arr].reverse();
+    const i = a.findIndex(fn);
+    return arr.length - i;
   }
 
   function getDocType(filetype) {

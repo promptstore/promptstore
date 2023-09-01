@@ -4,6 +4,7 @@ import {
   ChatResponse,
   ProviderRequest,
 } from '../RosettaStone';
+import SemanticCache from '../SemanticCache';
 
 export type CompletionService = ({ provider, request }: ProviderRequest) => Promise<ChatResponse>;
 
@@ -12,6 +13,8 @@ export interface LLMChatModelParams {
   model: string;
   provider: string;
   completionService: CompletionService;
+  semanticCache?: SemanticCache;
+  semanticCacheEnabled?: boolean;
   callbacks?: Callback[];
 }
 
@@ -41,3 +44,10 @@ export type ModelOnStartCallbackFunction = (params: ModelOnStartResponse) => voi
 export type ModelOnEndCallbackFunction = (params: ModelOnEndResponse) => void;
 
 export type ModelOnErrorCallbackFunction = (errors: any) => void;
+
+export interface CacheResponse {
+  model: string;
+  prompt: string;
+  hit: boolean;
+  response?: ChatResponse;
+}

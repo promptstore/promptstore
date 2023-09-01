@@ -4,8 +4,8 @@ function StructuredDocumentLoader({ __name, constants, logger }) {
     nodeType,
     upload,
   }) {
-    const chunks = upload.data.data.structured_content;
-    const docs = chunks.map((chunk) => {
+    const content = upload.data.data.structured_content;
+    const chunks = content.map((chunk) => {
       if (chunk.type === 'list') {
         return {
           type: chunk.type,
@@ -20,7 +20,11 @@ function StructuredDocumentLoader({ __name, constants, logger }) {
         };
       }
     });
-    return docs;
+    return {
+      metadata: upload.data.metadata,
+      documents: upload.data.documents,
+      chunks,
+    };
   }
 
   return {

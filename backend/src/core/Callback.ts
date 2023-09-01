@@ -1,6 +1,9 @@
 import { ValidatorResult } from 'jsonschema';
 
-import { MapArgumentsResponse, MapReturnTypeResponse } from './common_types';
+import {
+  MapArgumentsResponse,
+  MapReturnTypeResponse,
+} from './common_types';
 import {
   InputGuardrailsOnEndResponse,
   InputGuardrailsOnStartResponse,
@@ -22,6 +25,7 @@ import {
   PromptTemplateOnEndResponse,
 } from './PromptTemplate_types';
 import {
+  CacheResponse,
   ModelOnStartResponse,
   ModelOnEndResponse,
 } from './models/llm_types';
@@ -191,6 +195,10 @@ export class Callback {
   }
 
   onModelStart({ request }: ModelOnStartResponse) {
+
+  }
+
+  onLookupCache({ model, prompt, hit, response }: CacheResponse) {
 
   }
 

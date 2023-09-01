@@ -29,13 +29,15 @@ import {
   sqlEnrichment,
 } from '../core/PromptEnrichmentPipeline';
 import { message, promptTemplate } from '../core/PromptTemplate';
+import SemanticCache from '../core/SemanticCache';
 import { semanticFunction } from '../core/SemanticFunction';
 import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/SemanticFunctionImplementation';
 
-export default ({ logger, services }) => {
+export default ({ logger, rc, services }) => {
 
   const {
     dataSourcesService,
+    embeddingService,
     featureStoreService,
     functionsService,
     guardrailsService,
@@ -63,20 +65,48 @@ export default ({ logger, services }) => {
     })(messages);
   }
 
-  function createChatModel(modelInfo: any, completionService: CompletionService, callbacks: Callback[]) {
+  function createChatModel(
+    modelInfo: any,
+    semanticCacheEnabled: boolean,
+    completionService: CompletionService,
+    callbacks: Callback[]
+  ) {
+    const semanticCache = createSemanticCache('sentenceencoder');
     return llmModel({
       model: modelInfo.key,
       provider: modelInfo.provider,
       completionService,
+      semanticCache,
+      semanticCacheEnabled,
       callbacks,
     });
   }
 
-  function createCompletionModel(modelInfo: any, completionService: CompletionService, callbacks: Callback[]) {
+  let cacheSingleton: SemanticCache;
+
+  function createSemanticCache(provider: string) {
+    if (!cacheSingleton) {
+      const embeddingSvc = {
+        createEmbedding: (content: string) => embeddingService.createEmbedding(provider, content),
+      };
+      cacheSingleton = new SemanticCache(embeddingSvc, rc, logger);
+    }
+    return cacheSingleton;
+  }
+
+  function createCompletionModel(
+    modelInfo: any,
+    semanticCacheEnabled: boolean,
+    completionService: CompletionService,
+    callbacks: Callback[]
+  ) {
+    const semanticCache = createSemanticCache('sentenceencoder');
     return completionModel({
       model: modelInfo.key,
       provider: modelInfo.provider,
       completionService,
+      semanticCache,
+      semanticCacheEnabled,
       callbacks,
     });
   }
@@ -207,12 +237,12 @@ export default ({ logger, services }) => {
       // batching doesn't work with the chat interface. a different technique is required.
       // See https://community.openai.com/t/batching-with-chatcompletion-endpoint/137723
       if (modelInfo.type === 'gpt') {
-        model = createChatModel(modelInfo, llmService.createChatCompletion, callbacks);
+        model = createChatModel(modelInfo, implInfo.cache, llmService.createChatCompletion, callbacks);
         if (implInfo.promptSetId) {
           promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
         }
       } else if (modelInfo.type === 'completion') {
-        model = createCompletionModel(modelInfo, llmService.createCompletion, callbacks);
+        model = createCompletionModel(modelInfo, implInfo.cache, llmService.createCompletion, callbacks);
         if (implInfo.promptSetId) {
           promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
         }

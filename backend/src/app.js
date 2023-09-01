@@ -29,6 +29,7 @@ import { DataSourcesService } from './services/DataSourcesService';
 import { DestinationsService } from './services/DestinationsService';
 import { DocumentsService } from './services/DocumentsService';
 import { EmailService } from './services/EmailService';
+import { EmbeddingService } from './services/EmbeddingService';
 import { ExecutionsService } from './services/ExecutionsService';
 import { ExtractorService } from './services/ExtractorService';
 import { FeatureStoreService } from './services/FeatureStoreService';
@@ -67,6 +68,7 @@ const PORT = process.env.PORT || '5000';
 const SEARCH_API = process.env.SEARCH_API;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
+const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
 const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
@@ -79,6 +81,7 @@ const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
 const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 
 const basePath = path.dirname(fileURLToPath(import.meta.url));
+const embeddingPlugins = await getPlugins(basePath, EMBEDDING_PLUGINS, logger);
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
 const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
@@ -164,6 +167,8 @@ const emailService = EmailService({
   },
   logger,
 });
+
+const embeddingService = EmbeddingService({ logger, registry: embeddingPlugins });
 
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 
@@ -316,9 +321,11 @@ const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins
 
 const executionsService = ExecutionsService({
   logger,
+  rc,
   services: {
     compositionsService,
     dataSourcesService,
+    embeddingService,
     featureStoreService,
     functionsService,
     guardrailsService,
@@ -360,6 +367,7 @@ const options = {
     destinationsService,
     documentsService,
     emailService,
+    embeddingService,
     executionsService,
     extractorService,
     featureStoreService,

@@ -93,6 +93,11 @@ spec:
                 configMapKeyRef:
                   key: LOKI_API_URL
                   name: "{{ .Values.appname }}"
+            - name: EMBEDDING_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: EMBEDDING_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: EXTRACTOR_PLUGINS
               valueFrom:
                 configMapKeyRef:
@@ -406,6 +411,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: LOKI_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: EMBEDDING_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: EMBEDDING_PLUGINS
                   name: "{{ .Values.appname }}"
             - name: EXTRACTOR_PLUGINS
               valueFrom:

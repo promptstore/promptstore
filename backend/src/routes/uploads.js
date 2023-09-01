@@ -138,7 +138,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   app.post('/api/reload', auth, async (req, res) => {
     let { workspaceId, uploadId, filepath } = req.body;
     const { username } = req.user;
-    workspaceId = parseInt(sourceId, 10);
+    workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
       return res.status(400).send({
         error: { message: 'Invalid workspace' },

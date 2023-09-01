@@ -1,5 +1,6 @@
 import axios from 'axios';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import uuid from 'uuid';
 import { default as dayjs } from 'dayjs';
 
 import logger from '../../logger';
@@ -7,6 +8,8 @@ import logger from '../../logger';
 import { Model } from '../common_types';
 import { SemanticFunctionError } from '../errors';
 import { Callback } from '../Callback';
+import { ChatRequest, ChatResponse, MessageRole } from '../RosettaStone';
+import SemanticCache from '../SemanticCache';
 import {
   CustomModelParams,
   CustomModelCallParams,
@@ -38,6 +41,8 @@ export class LLMChatModel implements Model {
   model: string;
   provider: string;
   completionService: CompletionService;
+  semanticCache?: SemanticCache;
+  semanticCacheEnabled: boolean;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
@@ -46,18 +51,32 @@ export class LLMChatModel implements Model {
     model,
     provider,
     completionService,
+    semanticCache,
+    semanticCacheEnabled,
     callbacks,
   }: LLMChatModelParams) {
     this.modelType = modelType;
     this.model = model;
     this.provider = provider;
     this.completionService = completionService;
+    this.semanticCache = semanticCache;
+    this.semanticCacheEnabled = semanticCacheEnabled;
     this.callbacks = callbacks || [];
   }
 
   async call({ request, callbacks = [] }: ModelCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     const model = request.model || this.model;
+    let prompt: string;
+    let embedding: number[];
+    if (this.semanticCache && this.semanticCacheEnabled) {
+      const cacheResult = await this.lookupCache(request);
+      prompt = cacheResult.prompt;
+      embedding = cacheResult.embedding;
+      if (cacheResult.response) {
+        return cacheResult.response;
+      }
+    }
     const modelParamsWithDefaults = {
       ...defaultLLMChatModelParams,
       ...request.model_params,
@@ -70,6 +89,12 @@ export class LLMChatModel implements Model {
     this.onStart({ request });
     try {
       const response = await this.completionService({ provider: this.provider, request });
+      if (this.semanticCache && this.semanticCacheEnabled) {
+        for (const choice of response.choices) {
+          let content = choice.message.content;
+          await this.semanticCache.set(prompt, content, embedding);
+        }
+      }
       this.onEnd({ model, response });
       return response;
     } catch (err) {
@@ -77,6 +102,36 @@ export class LLMChatModel implements Model {
       this.onEnd({ model, errors });
       throw err;
     }
+  }
+
+  async lookupCache(request: ChatRequest) {
+    const model = request.model || this.model;
+    const n = request.model_params?.n || 1;
+    const messages = request.prompt.messages;
+    const prompt = messages[messages.length - 1].content;
+    const { embedding, hits } = await this.semanticCache.get(prompt, n);
+    let response: ChatResponse;
+    if (hits.length) {
+      response = {
+        id: uuid.v4(),
+        created: new Date(),
+        model,
+        n,
+        choices: hits.map((hit: any, index: number) => ({
+          index,
+          finish_reason: 'cache-hit',
+          message: {
+            role: MessageRole.assistant,
+            content: hit.content,
+          }
+        })),
+      };
+    }
+    console.log('lookup cache', prompt, hits.length)
+    for (let callback of this.currentCallbacks) {
+      callback.onLookupCache({ model, prompt, hit: hits.length > 0, response });
+    }
+    return { prompt, embedding, response };
   }
 
   onStart({ request }: ModelCallParams) {
@@ -298,6 +353,8 @@ interface LLMModelOptions {
   model: string;
   provider: string;
   completionService: CompletionService;
+  semanticCache: SemanticCache;
+  semanticCacheEnabled: boolean;
   callbacks: Callback[];
 }
 
@@ -312,6 +369,8 @@ interface LLMCompletionModelOptions {
   model: string;
   provider: string;
   completionService: CompletionService;
+  semanticCache: SemanticCache;
+  semanticCacheEnabled: boolean;
   callbacks: Callback[];
 }
 

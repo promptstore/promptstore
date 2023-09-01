@@ -26,6 +26,7 @@ import {
   PromptTemplateOnEndResponse,
 } from './PromptTemplate_types';
 import {
+  CacheResponse,
   ModelOnStartResponse,
   ModelOnEndResponse,
 } from './models/llm_types';
@@ -623,6 +624,17 @@ export class TracingCallback {
         startTime: startTime.getTime(),
       })
       .down();
+  }
+
+  onLookupCache({ model, prompt, hit, response }: CacheResponse) {
+    this.tracer.push({
+      id: uuid.v4(),
+      type: 'lookup-cache',
+      model,
+      prompt,
+      hit,
+      response,
+    });
   }
 
   onModelEnd({ response, errors }: ModelOnEndResponse) {

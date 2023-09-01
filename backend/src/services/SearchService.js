@@ -3,8 +3,10 @@ import axios from 'axios';
 export function SearchService({ constants, logger }) {
 
   const documents = [];
+  const parentDocuments = [];
 
-  let intervalId = null;
+  let documentsIntervalId = null;
+  let parentDocumentsIntervalId = null;
 
   async function getIndexes() {
     try {
@@ -88,8 +90,26 @@ export function SearchService({ constants, logger }) {
       });
       documents.length = 0;
     } else {
-      clearInterval(intervalId);
-      intervalId = null;
+      clearInterval(documentsIntervalId);
+      documentsIntervalId = null;
+
+    }
+  }
+
+  function sendParentDocuments(indexName) {
+    if (parentDocuments.length) {
+      axios.post(constants.SEARCH_API + '/parent-documents', {
+        indexName,
+        parentDocuments,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      parentDocuments.length = 0;
+    } else {
+      clearInterval(parentDocumentsIntervalId);
+      parentDocumentsIntervalId = null;
 
     }
   }
@@ -105,8 +125,15 @@ export function SearchService({ constants, logger }) {
     value[prefix + '__label'] = doc.nodeType;
     // logger.debug('value:', value);
     documents.push(value);
-    if (!intervalId) {
-      intervalId = setInterval(sendDocuments, 1000, indexName);
+    if (!documentsIntervalId) {
+      documentsIntervalId = setInterval(sendDocuments, 1000, indexName);
+    }
+  }
+
+  function indexParentDocument(indexName, parent) {
+    parentDocuments.push(parent);
+    if (!parentDocumentsIntervalId) {
+      parentDocumentsIntervalId = setInterval(sendParentDocuments, 1000, indexName);
     }
   }
 
@@ -165,7 +192,7 @@ export function SearchService({ constants, logger }) {
     logger.log('debug', 'searching %s for "%s"', indexName, query);
     try {
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
-      let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
+      let url = constants.SEARCH_API + '/search?getParents=true&indexName=' + encodeURIComponent(indexName);
       if (query) {
         url += `&q=` + encodeURIComponent(query);
       }
@@ -173,7 +200,7 @@ export function SearchService({ constants, logger }) {
         url += '&' + ps;
       }
       const res = await axios.get(url);
-      // logger.log('debug', 'search results: %s', res.data);
+      logger.log('debug', 'search results: %s', res.data);
       return res.data;
     } catch (err) {
       logger.error(err);
@@ -232,6 +259,7 @@ export function SearchService({ constants, logger }) {
     getIndex,
     getSearchSchema,
     indexDocument,
+    indexParentDocument,
     search,
   };
 }

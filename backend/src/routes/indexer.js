@@ -143,6 +143,16 @@ export default ({ app, auth, logger, services }) => {
           dataType: 'String',
           mandatory: true,
         },
+        parent_uids: {
+          name: 'parent_uids',
+          dataType: 'String',
+          mandatory: true,
+        },
+        uid: {
+          name: 'uid',
+          dataType: 'String',
+          mandatory: true,
+        },
       }
     };
     const index = await indexesService.upsertIndex({
@@ -260,8 +270,8 @@ export default ({ app, auth, logger, services }) => {
   // ---- index documents ---- //
 
   async function indexApi(endpoint, schema, { indexId }) {
-    const docs = await loaderService.load('api', { endpoint, schema, nodeType });
-    await indexDocs(indexId, docs);
+    const { chunks } = await loaderService.load('api', { endpoint, schema, nodeType });
+    await indexDocs(indexId, chunks);
   }
 
   async function indexCsv(filepath, params) {
@@ -271,13 +281,13 @@ export default ({ app, auth, logger, services }) => {
       quote = '"',
     } = params;
     const text = await documentsService.read(filepath);
-    const docs = await loaderService.load('csv', {
+    const { chunks } = await loaderService.load('csv', {
       delimiter,
       nodeType,
       quote,
       text,
     });
-    await indexDocs(indexId, docs);
+    await indexDocs(indexId, chunks);
   }
 
   // async function indexStructuredDocument(uploadId, { indexId }) {
@@ -285,8 +295,8 @@ export default ({ app, auth, logger, services }) => {
   //   if (!upload) {
   //     throw new Error('Upload not found');
   //   }
-  //   const docs = await loaderService.load('structureddocument', { upload, nodeType });
-  //   await indexDocs(indexId, docs);
+  //   const { chunks } = await loaderService.load('structureddocument', { upload, nodeType });
+  //   await indexDocs(indexId, chunks);
   // }
 
   async function indexStructuredDocuments(documents, { indexId }) {
@@ -302,8 +312,11 @@ export default ({ app, auth, logger, services }) => {
         // keep processing the other documents
       }
       logger.debug('Loading', upload.filename);
-      const docs = await loaderService.load('structureddocument', { upload, nodeType });
-      await indexDocuments(index, docs);
+      const { chunks, documents } = await loaderService.load('structureddocument', { upload, nodeType });
+      if (documents && documents.length) {
+        await indexParentDocuments(index, documents);
+      }
+      await indexDocuments(index, chunks);
     }
   }
 
@@ -348,14 +361,20 @@ export default ({ app, auth, logger, services }) => {
     if (!index) {
       throw new Error('Index not found');
     }
-    const indexDoc = (doc) => searchService.indexDocument(index.name, doc);
-    const promises = chunks.map(indexDoc);
+    const indexChunk = (chunk) => searchService.indexDocument(index.name, chunk);
+    const promises = chunks.map(indexChunk);
     await Promise.all(promises);
   }
 
   async function indexDocuments(index, chunks) {
-    const indexDoc = (doc) => searchService.indexDocument(index.name, doc);
-    const promises = chunks.map(indexDoc);
+    const indexChunk = (chunk) => searchService.indexDocument(index.name, chunk);
+    const promises = chunks.map(indexChunk);
+    await Promise.all(promises);
+  }
+
+  async function indexParentDocuments(index, documents) {
+    const indexDoc = (doc) => searchService.indexParentDocument(index.name, doc);
+    const promises = documents.map(indexDoc);
     await Promise.all(promises);
   }
 

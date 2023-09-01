@@ -32,6 +32,9 @@ data:
 
   ## PLUGINS ########
 
+  # embedding plugins
+  EMBEDDING_PLUGINS: "sentenceencoder|Sentence Encoder|./plugins/embedding/sentenceencoder"
+
   # extractor plugins
   EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured"
 

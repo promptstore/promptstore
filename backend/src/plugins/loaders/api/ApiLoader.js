@@ -8,9 +8,9 @@ function ApiLoader({ __name, constants, logger }) {
     schema,
   }) {
     const res = await axios.get(endpoint);
-    let docs;
+    let chunks;
     if (schema.type === 'array') {
-      docs = res.data.map((val) => {
+      chunks = res.data.map((val) => {
         if (schema.items.type === 'object') {
           const doc = Object.keys(schema.items.properties).reduce((a, key) => {
             a[key] = val[key];
@@ -25,11 +25,11 @@ function ApiLoader({ __name, constants, logger }) {
         a[key] = res.data[key];
         return a;
       }, {});
-      docs = [{ ...doc, nodeType }];
+      chunks = [{ ...doc, nodeType }];
     } else {
-      docs = [{ text: res.data, nodeType }];
+      chunks = [{ text: res.data, nodeType }];
     }
-    return docs;
+    return { chunks };
   }
 
   return {

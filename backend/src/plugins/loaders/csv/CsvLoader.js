@@ -17,8 +17,8 @@ function CsvLoader({ __name, constants, logger }) {
       trim: true,
     };
     const records = parse(text, options);
-    const docs = records.map((rec) => ({ ...rec, nodeType }));
-    return docs;
+    const chunks = records.map((rec) => ({ ...rec, nodeType }));
+    return { chunks };
   }
 
   return {

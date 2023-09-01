@@ -24,6 +24,7 @@ import {
   PromptTemplateOnEndResponse,
 } from './PromptTemplate_types';
 import {
+  CacheResponse,
   ModelOnStartResponse,
   ModelOnEndResponse,
 } from './models/llm_types';
@@ -243,6 +244,10 @@ export class DebugCallback {
       logger.debug('history:', prompt.history);
     }
     logger.debug('messages:', prompt.messages);
+  }
+
+  onLookupCache({ model, prompt, hit, response }: CacheResponse) {
+    logger.debug('cache hit:', hit ? 'Yes' : 'No');
   }
 
   onModelEnd({ model, response, errors }: ModelOnEndResponse) {
