@@ -192,7 +192,7 @@ export function SearchService({ constants, logger }) {
     logger.log('debug', 'searching %s for "%s"', indexName, query);
     try {
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
-      let url = constants.SEARCH_API + '/search?getParents=true&indexName=' + encodeURIComponent(indexName);
+      let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
       if (query) {
         url += `&q=` + encodeURIComponent(query);
       }
