@@ -79,6 +79,7 @@
   },
   "scripts": {
     "start": "ENV=dev NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm -r dotenv/config src/app.js",
+    "start-prod": "ENV=prod NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm -r dotenv/config src/app.js",
     "worker": "ENV=dev NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm -r dotenv/config src/workflow/worker.js",
     "temporal": "temporal server start-dev --ui-port 8080",
     "test": "echo \"Error: no test specified\" && exit 1"

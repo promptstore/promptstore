@@ -18,3 +18,4 @@ k8s/loki-virtualservice.yaml
 k8s/openaiplatform-virtualservice.yaml
 openaiplatform/
 backend/src/plugins/sqlsources/bigquery/keys/
+scratchpad.md

@@ -1,73 +1,36 @@
-# Prompt Store
+# <img src="frontend/src/images/promptstore_logo_colour.png" title="Prompt Store" alt="Prompt Store" style="width: 32px; height: 32px;" /> Prompt Store
 
-Install the packages:
+Prompt Store is like a CMS (Content Management System) for prompts. We think
+it's important that prompts be managed separately from code so they are 
+visible, easily refined, and can be measured to improve the performance of
+AI applications.
 
-1. `cd backend & npm i`
-2. `cd ../frontend & npm i --legacy-peer-deps`
-3. `cd ..`
+Prompt Store can be used as a Prompt Catalog to enable sharing of prompts and
+to allow product owners, designers, business users, and governance peeps to
+manage and tune prompts.
 
-In Dev mode:
+<div style="display: flex;">
+    <img src="frontend/public/assets/home_page.png" title="Home Page" alt="Home Page" style="width: calc(50% - 8px);" />
+    <img src="frontend/public/assets/prompt_template_list.png" title="Prompt Template List" alt="Prompt Template List" style="margin-left: 16px; width: calc(50% - 8px);" />
+</div>
 
-1. Start server: `cd backend & npm start`
-2. Start client: In separate window, `cd frontend & npm start`
-3. Navigate to `http://localhost:3000`
+## Semantic Functions as a Service
 
-The proxy setting in frontend/package.json will direct any locations not recognized by react-router to the backend address.
+While it's possible to consume prompts-as-a-service, integrating 
+prompts with existing frameworks such as Langchain and Llama Index,
+Prompt Store can also be used as your observability layer between 
+applications and models to monitor cost, performance, and data usage.
 
-In Prod mode:
+A Semantic Function is the controller that ties the various components of model, prompt, semantic index, and guardrails together,
+allowing a complete trace of interactions with models to facilitate
+measurement, improvement, and governance.
 
-1. Build the frontend: `cd frontend & npm run build`
-2. Start server: `cd ../backend & npm start`
-3. Navigate to `http://localhost:5000`
+<img src="frontend/public/assets/semantic_controller.png" title="Prompt Template List" alt="Prompt Template List" style="margin-left: 16px; width: 100%;" />
 
-This time, the backend server will serve the built frontend apps via the default route `/`.
+## Further Instructions
 
-Docker Compose
+- [Installation](docs/installation.md)
 
-1. Build the frontend: `cd frontend & npm run build`
-2. `cd ..`
-3. `docker-compose up --build`
+## Further Reading
 
-To rebuild, you may need to delete the data directory and start again
-
-1. `sudo rm -rf data`
-2. `docker-compose up --build`
-
-
-docker-compose -f docker-compose-dev.yml up postgresql
-Ctrl-C
-docker-compose -f docker-compose-dev.yml up
-
-
-Install Temporal
-
-OS X
-
-    brew install temporal
-
-
-Connect to database
-
-    docker exec -it temporal-postgresql-1 bash
-    psql -h localhost -U postgres
-
-default password: changeme
-
-
-Setup temporal workspace
-
-    docker exec -it --env TEMPORAL_CLI_ADDRESS=temporal:7233 temporal-admin-tools tctl --namespace promptstore namespace register
-
-
-Using ngrok
-
-    ngrok http 5001 --host-header localhost --domain <custom-domain>
-
-(or use the automatically assigned domain)
-
-
-curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/emojify" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"emotion"}'
-
-curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/summarize" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"gpt-3.5-turbo"}'
-
-curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/sentiment" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"Sentiment"}'
+- [Documentation](https://promptstoredocs.devsheds.io)

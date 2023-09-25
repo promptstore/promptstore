@@ -76,7 +76,6 @@ const featureStoreService = FeatureStoreService({ logger, registry: featureStore
 const functionsService = FunctionsService({ pg, logger });
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
 const indexesService = IndexesService({ pg, logger });
-const llmService = LLMService({ logger, registry: llmPlugins });
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
 const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
@@ -88,6 +87,8 @@ const searchService = SearchService({
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
+
+const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
 const executionsService = ExecutionsService({
   logger,
