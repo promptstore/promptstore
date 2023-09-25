@@ -7,9 +7,9 @@ import logger from '../../logger';
 
 import { Model } from '../common_types';
 import { SemanticFunctionError } from '../errors';
-import { Callback } from '../Callback';
-import { ChatRequest, ChatResponse, MessageRole } from '../RosettaStone';
-import SemanticCache from '../SemanticCache';
+import { Callback } from '../callbacks/Callback';
+import { ChatRequest, ChatResponse, MessageRole } from '../conversions/RosettaStone';
+import SemanticCache from '../semanticcache/SemanticCache';
 import {
   CustomModelParams,
   CustomModelCallParams,

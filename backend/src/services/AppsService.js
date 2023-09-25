@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function AppsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      name: row.name,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getApps(workspaceId, limit = 999, start = 0) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -13,17 +26,7 @@ export function AppsService({ pg, logger }) {
       LIMIT $2 OFFSET $3
       `;
     const { rows } = await pg.query(q, [workspaceId, limit, start]);
-    const apps = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return apps;
+    return rows.map(mapRow);
   }
 
   async function getApp(id) {
@@ -39,17 +42,7 @@ export function AppsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertApp(app, username) {
@@ -60,14 +53,16 @@ export function AppsService({ pg, logger }) {
     const savedApp = await getApp(app.id);
     if (savedApp) {
       app = { ...savedApp, ...app };
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE apps
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [app.name, val, username, new Date(), app.id]
+        [app.name, val, username, modified, app.id]
       );
-      return { ...savedApp, ...app };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

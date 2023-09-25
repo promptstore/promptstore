@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function CompositionsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspace_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getCompositions(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -15,17 +28,7 @@ export function CompositionsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const compositions = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return compositions;
+    return rows.map(mapRow);
   }
 
   async function getCompositionByName(workspaceId, name) {
@@ -45,17 +48,7 @@ export function CompositionsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getComposition(id) {
@@ -71,17 +64,7 @@ export function CompositionsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertComposition(composition, username) {
@@ -91,14 +74,16 @@ export function CompositionsService({ pg, logger }) {
     const val = omit(composition, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedComposition = await getComposition(composition.id);
     if (savedComposition) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE compositions
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [composition.name, val, username, new Date(), composition.id]
+        [composition.name, val, username, modified, composition.id]
       );
-      return { ...savedComposition, ...composition };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

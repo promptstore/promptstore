@@ -28,6 +28,21 @@ export function ContentService({ pg, logger }) {
   //   return contents;
   // }
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      appId: row.app_id,
+      contentId: row.content_id,
+      text: row.text,
+      hash: row.hash,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getContentsForReview(userId, limit = 999, start = 0) {
     let q = `
       SELECT id, app_id, content_id, text, hash, created, created_by, modified, modified_by, val
@@ -35,22 +50,10 @@ export function ContentService({ pg, logger }) {
       LIMIT $1 OFFSET $2
       `;
     const { rows } = await pg.query(q, [limit, start]);
-    const contents = rows
+    return rows
       .filter((row) => row.val.reviewers && row.val.reviewers.indexOf(userId) !== -1)
-      .map((row) => ({
-        ...row.val,
-        id: row.id,
-        appId: row.app_id,
-        contentId: row.content_id,
-        text: row.text,
-        hash: row.hash,
-        created: row.created,
-        createdBy: row.created_by,
-        modified: row.modified,
-        modifiedBy: row.modified_by,
-      }))
+      .map(mapRow)
       ;
-    return contents;
   }
 
   async function getContentsByFilter(params, limit = 999, start = 0) {
@@ -83,19 +86,7 @@ export function ContentService({ pg, logger }) {
     values = [...values, ...Object.values(params), limit, start];
     // logger.debug('values: ', values);
     const { rows } = await pg.query(q, values);
-    const contents = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      appId: row.app_id,
-      contentId: row.content_id,
-      text: row.text,
-      hash: row.hash,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return contents;
+    return rows.map(mapRow);
   }
 
   async function getContents(appId, limit = 999, start = 0) {
@@ -106,19 +97,7 @@ export function ContentService({ pg, logger }) {
       LIMIT $2 OFFSET $3
       `;
     const { rows } = await pg.query(q, [appId, limit, start]);
-    const contents = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      appId: row.app_id,
-      contentId: row.content_id,
-      text: row.text,
-      hash: row.hash,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return contents;
+    return rows.map(mapRow);
   }
 
   async function getContent(id) {
@@ -134,19 +113,7 @@ export function ContentService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      appId: row.app_id,
-      contentId: row.content_id,
-      text: row.text,
-      hash: row.hash,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getContentByContentId(contentId) {
@@ -162,19 +129,7 @@ export function ContentService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      appId: row.app_id,
-      contentId: row.content_id,
-      text: row.text,
-      hash: row.hash,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertContent(content) {
@@ -193,14 +148,15 @@ export function ContentService({ pg, logger }) {
         ];
       }
       const modified = (new Date()).toISOString();
-      await pg.query(`
+      const { rows } = await pg.query(`
         UPDATE content
         SET text = $1, hash = $2, modified_by = $3, modified = $4, val = $5
         WHERE id = $6
+        RETURNING *
         `,
         [content.text, hash, content.modifiedBy, modified, val, content.id]
       );
-      return { ...content, hash, modified, ...val };
+      return mapRow(rows[0]);
     } else {
       const { rows } = await pg.query(`
         INSERT INTO content (app_id, content_id, text, hash, created_by, modified_by, val)

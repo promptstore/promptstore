@@ -34,6 +34,37 @@ To rebuild, you may need to delete the data directory and start again
 2. `docker-compose up --build`
 
 
+docker-compose -f docker-compose-dev.yml up postgresql
+Ctrl-C
+docker-compose -f docker-compose-dev.yml up
+
+
+Install Temporal
+
+OS X
+
+    brew install temporal
+
+
+Connect to database
+
+    docker exec -it temporal-postgresql-1 bash
+    psql -h localhost -U postgres
+
+default password: changeme
+
+
+Setup temporal workspace
+
+    docker exec -it --env TEMPORAL_CLI_ADDRESS=temporal:7233 temporal-admin-tools tctl --namespace promptstore namespace register
+
+
+Using ngrok
+
+    ngrok http 5001 --host-header localhost --domain <custom-domain>
+
+(or use the automatically assigned domain)
+
 
 curl -vL -H 'Content-Type: application/json' "http://localhost:5001/api/executions/emojify" --data '{"args":{"text": "The conservative supreme court justice Clarence Thomas is under renewed scrutiny after the Washington Post found that an activist with interests in the court's decisions funneled tens of thousands of dollars to Thomas's wife, with instructions not to mention her name."}, "modelKey":"emotion"}'
 

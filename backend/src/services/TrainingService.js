@@ -2,15 +2,8 @@ import omit from 'lodash.omit';
 
 export function TrainingService({ pg, logger }) {
 
-  async function getTrainingData(workspaceId, limit = 999, start = 0) {
-    let q = `
-      SELECT id, workspace_id, content_id, prompt, response, created, created_by, modified, modified_by, val
-      FROM training
-      WHERE workspace_id = $1
-      LIMIT $2 OFFSET $3
-      `;
-    const { rows } = await pg.query(q, [workspaceId, limit, start]);
-    const data = rows.map((row) => ({
+  function mapRow(row) {
+    return {
       ...row.val,
       id: row.id,
       workspaceId: row.workspace_id,
@@ -21,8 +14,18 @@ export function TrainingService({ pg, logger }) {
       createdBy: row.created_by,
       modified: row.modified,
       modifiedBy: row.modified_by,
-    }));
-    return data;
+    };
+  }
+
+  async function getTrainingData(workspaceId, limit = 999, start = 0) {
+    let q = `
+      SELECT id, workspace_id, content_id, prompt, response, created, created_by, modified, modified_by, val
+      FROM training
+      WHERE workspace_id = $1
+      LIMIT $2 OFFSET $3
+      `;
+    const { rows } = await pg.query(q, [workspaceId, limit, start]);
+    return rows.map(mapRow);
   }
 
   async function getTrainingRow(id) {
@@ -38,19 +41,7 @@ export function TrainingService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      contentId: row.content_id,
-      prompt: row.prompt,
-      response: row.response,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertTrainingRow(row) {

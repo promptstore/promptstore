@@ -1,10 +1,10 @@
-import { Callback } from '../Callback';
+import { Callback } from '../callbacks/Callback';
 import {
   ChatRequest,
   ChatResponse,
   ProviderRequest,
-} from '../RosettaStone';
-import SemanticCache from '../SemanticCache';
+} from '../conversions/RosettaStone';
+import SemanticCache from '../semanticcache/SemanticCache';
 
 export type CompletionService = ({ provider, request }: ProviderRequest) => Promise<ChatResponse>;
 

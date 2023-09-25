@@ -1,4 +1,4 @@
-import { columnsToFields } from '../core/schema';
+import { columnsToFields } from '../core/conversions/schema';
 
 export default ({ app, auth, logger, services, workflowClient }) => {
 

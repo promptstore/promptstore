@@ -6,4 +6,4 @@ ns=openaiplatform
 kubectl config use-context europa
 kubectl config set-context --current --namespace=${ns}
 
-helm3 upgrade --install ${app} ./helm-chart
+helm upgrade --install ${app} -f openaiplatform/values.yaml ./helm-chart

@@ -8,7 +8,7 @@ export function DocumentsService({ constants, mc, logger }) {
 
   function download(filepath) {
     return new Promise((resolve, reject) => {
-      const localFilePath = `/tmp/${constants.FILE_BUCKET}/${filepath}`;
+      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       mc.statObject(constants.FILE_BUCKET, filepath, (err, stat) => {
@@ -39,7 +39,7 @@ export function DocumentsService({ constants, mc, logger }) {
 
   function read(filepath, maxBytes = 0, transformation, options) {
     return new Promise((resolve, reject) => {
-      const localFilePath = `/tmp/${constants.FILE_BUCKET}/${filepath}`;
+      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       const fileStream = fs.createWriteStream(localFilePath);

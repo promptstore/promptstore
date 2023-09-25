@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function ChatSessionsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      workspaceId: row.workspace_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getChatSessions(workspaceId, type, username) {
     let q = `
       SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
@@ -12,18 +26,7 @@ export function ChatSessionsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const chatSessions = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return chatSessions;
+    return rows.map(mapRow);
   }
 
   async function getChatSession(id) {
@@ -39,18 +42,7 @@ export function ChatSessionsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertChatSession(session, username) {
@@ -60,14 +52,16 @@ export function ChatSessionsService({ pg, logger }) {
     const val = omit(session, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedChatSession = await getChatSession(session.id);
     if (savedChatSession) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE chat_sessions
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [session.name, val, username, new Date(), session.id]
+        [session.name, val, username, modified, session.id]
       );
-      return { ...savedChatSession, ...session };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

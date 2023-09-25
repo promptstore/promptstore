@@ -2,15 +2,18 @@ import omit from 'lodash.omit';
 
 export function UsersService({ pg }) {
 
-  async function getUsers() {
-    let q = `SELECT id, username, val from users `;
-    const { rows } = await pg.query(q);
-    const users = rows.map((row) => ({
+  function mapRow(row) {
+    return {
       id: row.id,
       username: row.username,
       ...row.val,
-    }));
-    return users;
+    };
+  }
+
+  async function getUsers() {
+    let q = `SELECT id, username, val from users `;
+    const { rows } = await pg.query(q);
+    return rows.map(mapRow);
   }
 
   async function setRole(username, role) {
@@ -30,12 +33,7 @@ export function UsersService({ pg }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      id: row.id,
-      username: row.username,
-      ...row.val,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getUserByEmail(email) {
@@ -46,12 +44,7 @@ export function UsersService({ pg }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      id: row.id,
-      username: row.username,
-      ...row.val,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getUserById(id) {
@@ -62,12 +55,7 @@ export function UsersService({ pg }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      id: row.id,
-      username: row.username,
-      ...row.val,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getUserByKeycloakId(keycloakId) {
@@ -78,12 +66,7 @@ export function UsersService({ pg }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      id: row.id,
-      username: row.username,
-      ...row.val,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertUser(user) {
@@ -93,13 +76,14 @@ export function UsersService({ pg }) {
         ...omit(savedUser, ['id', 'userId']),
         ...user
       };
-      await pg.query(
+      const { rows } = await pg.query(
         `UPDATE users ` +
         `SET val = $1 ` +
-        `WHERE username = $2`,
+        `WHERE username = $2` +
+        `RETURNING *`,
         [val, user.username]
       );
-      return { ...savedUser, ...user };
+      return mapRow(rows[0]);
     } else {
       const { rows } = await pg.query(
         `INSERT INTO users (username, val) ` +

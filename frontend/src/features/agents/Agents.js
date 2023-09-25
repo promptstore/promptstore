@@ -26,6 +26,11 @@ import {
   selectLoading as selectIndexesLoading,
   selectIndexes,
 } from '../indexes/indexesSlice';
+import {
+  getModelsAsync,
+  selectLoading as selectModelsLoading,
+  selectModels,
+} from '../models/modelsSlice';
 
 const { Content, Sider } = Layout;
 const { TextArea } = Input;
@@ -49,7 +54,8 @@ const layout = {
 export function Agents() {
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [selectedAgentId, setSelectedAgentId] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const agents = useSelector(selectAgents);
   const loaded = useSelector(selectLoaded);
@@ -59,6 +65,8 @@ export function Agents() {
   const tools = useSelector(selectTools);
   const indexes = useSelector(selectIndexes);
   const indexesLoading = useSelector(selectIndexesLoading);
+  const models = useSelector(selectModels);
+  const modelsLoading = useSelector(selectModelsLoading);
 
   const indexOptions = useMemo(() => {
     const list = Object.values(indexes).map((t) => ({
@@ -68,6 +76,18 @@ export function Agents() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [indexes]);
+
+  const modelOptions = useMemo(() => {
+    const list = Object.values(models)
+      .filter((m) => m.type === 'gpt' || m.type === 'completion')
+      .map((m) => ({
+        label: m.name,
+        value: m.id,
+      }))
+      ;
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [models]);
 
   const toolOptions = useMemo(() => {
     const list = tools.map((t) => ({
@@ -83,7 +103,7 @@ export function Agents() {
   }, [tools]);
 
   const [form] = Form.useForm();
-  const toolsValue = Form.useWatch('tools', form);
+  const toolsValue = Form.useWatch('allowedTools', form);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -105,6 +125,7 @@ export function Agents() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getIndexesAsync({ workspaceId }));
+      dispatch(getModelsAsync({ workspaceId }));
       dispatch(getAgentsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
@@ -130,46 +151,56 @@ export function Agents() {
   }, [agents]);
 
   const openAgent = (id) => {
-    const agent = agents[id];
     dispatch(resetAgentOutput());
-    setSelectedAgent(agent);
+    setSelectedAgentId(id);
+    const agent = agents[id];
     form.setFieldsValue(agent);
   };
 
   const onCancel = () => {
     dispatch(resetAgentOutput());
     form.resetFields();
-    setSelectedAgent(null);
+    setSelectedAgentId(null);
   };
 
   const onDelete = () => {
     dispatch(deleteAgentsAsync({ ids: selectedRowKeys }));
-    if (selectedAgent && selectedRowKeys.indexOf(selectedAgent.id) !== -1) {
+    if (selectedAgentId && selectedRowKeys.indexOf(selectedAgentId) !== -1) {
       dispatch(resetAgentOutput());
       form.resetFields();
-      setSelectedAgent(null);
+      setSelectedAgentId(null);
     }
     setSelectedRowKeys([]);
   };
 
   const onFinish = (values) => {
-    if (selectedAgent) {
+    if (selectedAgentId) {
       const newAgent = {
-        id: selectedAgent.id,
+        id: selectedAgentId,
         values,
       };
       dispatch(updateAgentAsync(newAgent));
-      setSelectedAgent(newAgent);
     } else {
       dispatch(createAgentAsync({
         values: { ...values, workspaceId: selectedWorkspace.id },
       }));
     }
+    setIsDirty(false);
   };
 
   const onRun = () => {
     dispatch(resetAgentOutput());
-    dispatch(runAgentAsync({ agent: selectedAgent, workspaceId: selectedWorkspace.id }));
+    const agent = agents[selectedAgentId];
+    const model = models[agent.modelId];
+    dispatch(runAgentAsync({
+      agent: {
+        ...agent,
+        isChat: model.type === 'gpt',
+        model: model.key,
+        provider: model.provider,
+      },
+      workspaceId: selectedWorkspace.id,
+    }));
   };
 
   const onSelectChange = (newSelectedRowKeys) => {
@@ -235,6 +266,7 @@ export function Agents() {
               name="model"
               autoComplete="off"
               onFinish={onFinish}
+              onValuesChange={() => { setIsDirty(true); }}
             >
               <Form.Item
                 label="Name"
@@ -279,7 +311,7 @@ export function Agents() {
               </Form.Item>
               <Form.Item
                 label="Tools"
-                name="tools"
+                name="allowedTools"
                 style={{ display: 'inline-block', width: 'calc(50% - 5px)', marginLeft: 8 }}
                 wrapperCol={{ span: 24 }}
               >
@@ -308,9 +340,32 @@ export function Agents() {
               }
               <div>
                 <Form.Item
-                  name="selfEvaluate"
+                  label="Model"
+                  name="modelId"
+                  style={{ display: 'inline-block', width: 'calc(25% - 5px)' }}
+                  wrapperCol={{ span: 24 }}
+                >
+                  <Select
+                    allowClear
+                    loading={modelsLoading}
+                    options={modelOptions}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+              </div>
+              <div>
+                <Form.Item
+                  name="useFunctions"
                   valuePropName="checked"
                   style={{ display: 'inline-block' }}
+                  wrapperCol={{ span: 24 }}
+                >
+                  <LabelledSwitch label="Use Functions" />
+                </Form.Item>
+                <Form.Item
+                  name="selfEvaluate"
+                  valuePropName="checked"
+                  style={{ display: 'inline-block', marginLeft: 16 }}
                   wrapperCol={{ span: 24 }}
                 >
                   <LabelledSwitch label="Self Evaluate" />
@@ -318,9 +373,21 @@ export function Agents() {
               </div>
               <Form.Item wrapperCol={{ ...layout.wrapperCol }}>
                 <Space>
-                  <Button type="default" onClick={onCancel}>Cancel</Button>
-                  <Button type="primary" htmlType="submit">{selectedAgent ? 'Update' : 'Create'}</Button>
-                  <Button disabled={!selectedAgent} loading={running} type="primary" onClick={onRun}>Run</Button>
+                  <Button type="default"
+                    onClick={onCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="primary" htmlType="submit">
+                    {selectedAgentId ? 'Update' : 'Create'}
+                  </Button>
+                  <Button type="primary"
+                    disabled={!selectedAgentId || isDirty}
+                    loading={running}
+                    onClick={onRun}
+                  >
+                    Run
+                  </Button>
                 </Space>
               </Form.Item>
             </Form>

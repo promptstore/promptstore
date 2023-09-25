@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function PromptSetsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      name: row.val.name || row.key,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      skill: row.skill,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getPromptSets(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -16,18 +30,7 @@ export function PromptSetsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const promptSets = rows.map((row) => ({
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      skill: row.skill,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return promptSets;
+    return rows.map(mapRow);
   }
 
   async function getPromptSetsBySkill(workspaceId, skill) {
@@ -47,18 +50,7 @@ export function PromptSetsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const promptSets = rows.map((row) => ({
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      skill: row.skill,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return promptSets;
+    return rows.map(mapRow);
   }
 
   async function getFirstPromptSetBySkillAsMessages(workspaceId, skill) {
@@ -86,18 +78,7 @@ export function PromptSetsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const promptSets = rows.map((row) => ({
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      skill: row.skill,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return promptSets;
+    return rows.map(mapRow);
   }
 
   async function getPromptSet(id) {
@@ -113,18 +94,7 @@ export function PromptSetsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      skill: row.skill,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertPromptSet(promptSet, username) {
@@ -134,14 +104,16 @@ export function PromptSetsService({ pg, logger }) {
     const val = omit(promptSet, ['id', 'workspaceId', 'skill', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedPromptSet = await getPromptSet(promptSet.id);
     if (savedPromptSet) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE prompt_sets
         SET skill = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [promptSet.skill, val, username, new Date(), promptSet.id]
+        [promptSet.skill, val, username, modified, promptSet.id]
       );
-      return { ...savedPromptSet, ...promptSet };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

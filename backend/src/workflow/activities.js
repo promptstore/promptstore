@@ -1,3 +1,4 @@
+import fs from 'fs';
 import omit from 'lodash.omit';
 import path from 'path';
 
@@ -77,19 +78,26 @@ export const createActivities = ({
       constants.DOCUMENTS_PREFIX,
       file.originalname
     );
+    logger.debug('objectName:', objectName);
+    if (!fs.existsSync(file.path)) {
+      return Promise.reject(new Error('File no longer on path: ' + file.path));
+    }
     return new Promise((resolve, reject) => {
       mc.fPutObject(constants.FILE_BUCKET, objectName, file.path, metadata, async (err) => {
         if (err) {
-          logger.error(String(err));
-          reject(err);
+          logger.error(err, err.stack);
+          return reject(err);
         }
         logger.info('File uploaded successfully.');
 
         let data;
+        logger.debug('mimetype:' ,file.mimetype);
         if (supportedMimetypes.includes(file.mimetype)) {
           if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            logger.debug('using onesource');
             data = await extractorService.extract('onesource', file);
           } else {
+            logger.debug('using unstructured');
             data = await extractorService.extract('unstructured', file);
           }
         }
@@ -105,8 +113,8 @@ export const createActivities = ({
 
           mc.statObject(constants.FILE_BUCKET, objectName, (err, stat) => {
             if (err) {
-              logger.error(String(err));
-              reject(err);
+              logger.error(err, err.stack);
+              return reject(err);
             }
             const record = omit(uploaded, ['data']);
             resolve({
@@ -119,7 +127,7 @@ export const createActivities = ({
           });
 
         } catch (err) {
-          logger.error(String(err));
+          logger.error(err, err.stack);
           reject(err);
         }
       });

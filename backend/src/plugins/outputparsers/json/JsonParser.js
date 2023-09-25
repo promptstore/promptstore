@@ -11,16 +11,23 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     } catch (err) {
       // keep trying
     }
-    if (isTruncated(text)) {
-      const { jsonStr, fixed } = fixTruncatedJson(text);
-      if (fixed) {
-        return JSON.parse(jsonStr);
-      }
+    // if (isTruncated(text)) {
+    const { jsonStr, fixed } = fixTruncatedJson(text);
+    // if (fixed) {
+    try {
+      return JSON.parse(jsonStr);
+    } catch (err) {
       return {
-        error: 'Invalid JSON',
+        error: String(err),
         jsonStr,
       };
     }
+    // }
+    // return {
+    //   error: 'Invalid JSON',
+    //   jsonStr,
+    // };
+    // }
     try {
       return JSON.parse(text);
     } catch (err) {
@@ -31,27 +38,41 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     }
   }
 
+  /**
+   * Exclude extraneous chars outside of json blob starting with '{' or '['
+   * 
+   * @param {*} jsonStr 
+   * @returns 
+   */
   const buildStack = (jsonStr) => {
     const stack = [];
     let fixedStr = '';
     let openQuotes = false;
+    let inJson = false;
 
     for (let i = 0; i < jsonStr.length; i++) {
       let char = jsonStr.charAt(i);
       if (!openQuotes) {
         if (char === '{' || char === '[') {
+          inJson = true;
           // opening a new nested
           stack.push(char);
         } else if (char === '}' || char === ']') {
           // closing a nested
           stack.pop();
+          if (inJson && !stack.length) {
+            fixedStr += char;
+            break;  // get first json blob only
+          }
         }
       }
       if (char === '"' && i > 0 && jsonStr.charAt(i - 1) == '\\') {
         // opening or closing a string, only if it's not escaped
         openQuotes = !openQuotes;
       }
-      fixedStr += char;
+      if (inJson) {
+        fixedStr += char;
+      }
     }
     return { stack, fixedStr, openQuotes };
   };
@@ -69,7 +90,7 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     let { stack, fixedStr, openQuotes } = buildStack(jsonStr);
     const isTruncated = stack.length > 0;
     if (!isTruncated) {
-      return { jsonStr, fixed: false };
+      return { jsonStr: fixedStr, fixed: false };
     }
     fixedStr = fixedStr.trim();
     if (openQuotes) {

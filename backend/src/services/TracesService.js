@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function TracesService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspace_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getTraces(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -17,17 +30,7 @@ export function TracesService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const traces = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return traces;
+    return rows.map(mapRow);
   }
 
   async function getTrace(id) {
@@ -43,17 +46,7 @@ export function TracesService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertTrace(trace, username) {
@@ -63,14 +56,16 @@ export function TracesService({ pg, logger }) {
     const val = omit(trace, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedTrace = await getTrace(trace.id);
     if (savedTrace) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE traces
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [trace.name, val, trace.id, new Date(), trace.id]
+        [trace.name, val, trace.id, modified, trace.id]
       );
-      return { ...savedTrace, ...trace };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

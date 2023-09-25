@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function AgentsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspace_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getAgents(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -15,17 +28,7 @@ export function AgentsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const agents = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return agents;
+    return rows.map(mapRow);
   }
 
   async function getAgent(id) {
@@ -41,17 +44,7 @@ export function AgentsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertAgent(agent, username) {
@@ -61,14 +54,16 @@ export function AgentsService({ pg, logger }) {
     const val = omit(agent, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedAgent = await getAgent(agent.id);
     if (savedAgent) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE agents
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [agent.name, val, username, new Date(), agent.id]
+        [agent.name, val, username, modified, agent.id]
       );
-      return { ...savedAgent, ...agent };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

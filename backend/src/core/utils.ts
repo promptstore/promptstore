@@ -1,6 +1,6 @@
 import isObject from 'lodash.isobject';
 
-export const getInputString = (args) => {
+export const getInputString = (args: any) => {
   if (typeof args === 'string') {
     return args;
   }

@@ -48,8 +48,13 @@ function UnstructuredService({ __name, constants, logger }) {
    * @returns 
    */
   async function extract(file) {
+    logger.debug('extracting file content using the unstructured api');
     try {
+      if (!fs.existsSync(file.path)) {
+        return Promise.reject(new Error('File no longer on path: ' + file.path));
+      }  
       const stats = fs.statSync(file.path);
+      logger.debug('stats:', stats);
       const fileSizeInBytes = stats.size;
       const data = await fs.promises.readFile(file.path);
       const form = new FormData();
@@ -73,7 +78,7 @@ function UnstructuredService({ __name, constants, logger }) {
       // logger.debug('res.data:', typeof res.data, res.data);
       return convertFormat(res.data);
     } catch (err) {
-      logger.log('error', String(err));
+      logger.log('error', String(err), err.stack);
     }
   }
 

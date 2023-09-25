@@ -160,5 +160,5 @@ services:
 
 networks:
   promptstore_dev:
-    driver: bridge
+    driver: host
     name: promptstore_dev

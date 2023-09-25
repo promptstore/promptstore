@@ -8,7 +8,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
   const { documentsService, uploadsService } = services;
 
-  const upload = multer({ dest: os.tmpdir() });
+  const upload = multer({ dest: '/var/data' });
 
   // cache of results to poll
   const jobs = {};

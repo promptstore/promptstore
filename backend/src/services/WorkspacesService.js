@@ -2,14 +2,8 @@ import omit from 'lodash.omit';
 
 export function WorkspacesService({ pg, logger }) {
 
-  async function getWorkspaces(limit = 999, start = 0) {
-    let q = `
-      SELECT id, name, created, created_by, modified, modified_by, val
-      FROM workspaces
-      LIMIT ${limit} OFFSET ${start}
-      `;
-    const { rows } = await pg.query(q);
-    const workspaces = rows.map((row) => ({
+  function mapRow(row) {
+    return {
       ...row.val,
       id: row.id,
       name: row.name,
@@ -17,8 +11,17 @@ export function WorkspacesService({ pg, logger }) {
       createdBy: row.created_by,
       modified: row.modified,
       modifiedBy: row.modified_by,
-    }));
-    return workspaces;
+    };
+  }
+
+  async function getWorkspaces(limit = 999, start = 0) {
+    let q = `
+      SELECT id, name, created, created_by, modified, modified_by, val
+      FROM workspaces
+      LIMIT ${limit} OFFSET ${start}
+      `;
+    const { rows } = await pg.query(q);
+    return rows.map(mapRow);
   }
 
   async function getWorkspacesByUser(userId, limit = 999, start = 0) {
@@ -30,16 +33,7 @@ export function WorkspacesService({ pg, logger }) {
       LIMIT $2 OFFSET $3
       `;
     const { rows } = await pg.query(q, [userId, limit, start]);
-    const workspaces = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return workspaces;
+    return rows.map(mapRow);
   }
 
   async function getUsernameByApiKey(apiKey) {
@@ -73,30 +67,23 @@ export function WorkspacesService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertWorkspace(workspace, user) {
     let val = omit(workspace, ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedWorkspace = await getWorkspace(workspace.id);
     if (savedWorkspace) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE workspaces
         SET name = $1, val = $2, modified = $3, modified_by = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [workspace.name, val, new Date(), user.username, workspace.id]
+        [workspace.name, val, modified, user.username, workspace.id]
       );
-      return { ...savedWorkspace, ...workspace };
+      return mapRow(rows[0]);
     } else {
       val = {
         ...val,

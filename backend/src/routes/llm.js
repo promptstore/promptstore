@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { PARA_DELIM } from '../core/RosettaStone';
+import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { downloadImage, getMessages } from '../utils';
 
 const COPY_GENERATION_SKILL = 'copy_generation';
@@ -180,7 +180,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   app.post('/api/image-request', auth, async (req, res, next) => {
     const { n = 1, prompt, sourceId } = req.body;
     const response = await llmService.createImage('openai', prompt, n);
-    const dirname = path.join('/tmp/images/', String(sourceId));
+    const dirname = path.join('/var/data/images/', String(sourceId));
     await fs.promises.mkdir(dirname, { recursive: true });
     const promises = [];
     for (const { url } of response) {

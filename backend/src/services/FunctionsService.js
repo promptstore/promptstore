@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function FunctionsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspace_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getFunctions(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -16,17 +29,7 @@ export function FunctionsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const functions = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return functions;
+    return rows.map(mapRow);
   }
 
   async function getFunctionsByTag(workspaceId, tag) {
@@ -46,17 +49,7 @@ export function FunctionsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const functions = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return functions;
+    return rows.map(mapRow);
   }
 
   async function getFunctionByName(workspaceId, name) {
@@ -76,17 +69,7 @@ export function FunctionsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getFunction(id) {
@@ -102,17 +85,7 @@ export function FunctionsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertFunction(func, username) {
@@ -122,14 +95,16 @@ export function FunctionsService({ pg, logger }) {
     const val = omit(func, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedFunction = await getFunction(func.id);
     if (savedFunction) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE functions
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [func.name, val, username, new Date(), func.id]
+        [func.name, val, username, modified, func.id]
       );
-      return { ...savedFunction, ...func };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

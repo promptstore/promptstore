@@ -96,22 +96,32 @@ export const deleteAgentsAsync = ({ ids }) => async (dispatch) => {
 
 export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   dispatch(startRun());
-  const events = new EventSource('/api/agent-events');
+  let events;
+  http.post('/api/agent-executions/', { agent, workspaceId })
+    .then(() => {
+      if (events) {
+        // allow a bit of time for server-side events to flush
+        setTimeout(() => {
+          events.close();
+        }, 3000);
+      }
+      dispatch(stopRun());
+    })
+    .catch((err) => {
+      console.log(err);
+      if (events) {
+        setTimeout(() => {
+          events.close();
+        }, 3000);
+      }
+      throw err;
+    });
+  events = new EventSource('/api/agent-events');
   events.onmessage = (event) => {
     const parsedData = JSON.parse(event.data);
     const output = trim(parsedData, '"');
     dispatch(addAgentOutput({ output: { key: Date.now(), output } }));
   }
-  http.post('/api/agent-executions/', { agent: { ...agent, tools: agent.tools || [] }, workspaceId })
-    .then(() => {
-      events.close();
-      dispatch(stopRun());
-    })
-    .catch((err) => {
-      console.log(err);
-      events.close();
-      throw err;
-    });
 };
 
 export const getToolsAsync = () => async (dispatch) => {

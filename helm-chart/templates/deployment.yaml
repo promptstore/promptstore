@@ -329,6 +329,9 @@ spec:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
+          volumeMounts:
+            - mountPath: /var/data
+              name: file-storage
 
         - name: worker
           image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
@@ -648,3 +651,10 @@ spec:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
+          volumeMounts:
+            - mountPath: /var/data
+              name: file-storage
+      volumes:
+        - name: file-storage
+          persistentVolumeClaim:
+            claimName: file-storage-pvc

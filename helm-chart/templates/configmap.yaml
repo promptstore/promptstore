@@ -16,7 +16,7 @@ data:
 
   # minio filestore
   S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
-  S3_PORT: "9000"
+  S3_PORT: "80"
 
   # search / default semantic index
   SEARCH_API: "{{ .Values.vecsearch.api_url }}"
@@ -54,7 +54,7 @@ data:
   MODEL_PROVIDER_PLUGINS: "huggingface|Huggingface|./plugins/modelproviders/huggingface"
 
   # Output Parser plugins
-  OUTPUT_PARSER_PLUGINS: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime"
+  OUTPUT_PARSER_PLUGINS: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime,action|Action|./plugins/outputparsers/action"
 
   # Passport auth plugins
   PASSPORT_PLUGINS: "localapikey|Local API Key|./plugins/passport/localapikey,keycloakbearer|Keycloak Bearer|./plugins/passport/keycloak"

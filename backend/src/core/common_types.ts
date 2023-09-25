@@ -1,4 +1,4 @@
-import { Callback } from './Callback';
+import { Callback } from './callbacks/Callback';
 import { ValidatorResult } from 'jsonschema';
 
 export interface Model {

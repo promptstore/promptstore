@@ -1,6 +1,6 @@
-import { DebugCallback } from '../core/DebugCallback.ts';
-import { TracingCallback } from '../core/TracingCallback.ts';
-import { LocalExecutor } from '../core/LocalExecutor.ts';
+import { DebugCallback } from '../core/callbacks/DebugCallback.ts';
+import { TracingCallback } from '../core/callbacks/TracingCallback.ts';
+import { LocalExecutor } from '../core/executors/LocalExecutor.js';
 import { getInputString } from '../core/utils.js';
 
 import CoreModelAdapter from './CoreModelAdapter.ts'

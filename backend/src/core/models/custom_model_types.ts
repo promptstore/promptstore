@@ -1,4 +1,4 @@
-import { Callback } from '../Callback';
+import { Callback } from '../callbacks/Callback';
 
 export interface CustomModelParams {
   modelType: string;

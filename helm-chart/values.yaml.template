@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.5.7"
+version: "0.6.3"
 
 port: "5000"
 promptstore_email:
@@ -34,7 +34,7 @@ s3:
 
 # search / default semantic index
 vecsearch:
-  api_url: "http://vecsearch.vecsearch.svc.cluster.local:6010/api"
+  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5000/api"
 
 # Background job processing
 temporal:
@@ -75,7 +75,7 @@ onesource:
 
 # unstructured
 unstructured:
-  api_key:
+  api_url:
 
 ########
 

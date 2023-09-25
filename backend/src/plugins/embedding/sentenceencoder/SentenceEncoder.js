@@ -3,10 +3,26 @@ import use from '@tensorflow-models/universal-sentence-encoder';
 
 function SentenceEncoder({ __name, constants, logger }) {
 
-  let model;
-  use.load().then(m => { model = m });
+  let _model;
+
+  function getModel() {
+    if (_model) {
+      return Promise.resolve(_model);
+    }
+    return new Promise((resolve, reject) => {
+      use.load()
+        .then(m => {
+          _model = m;
+          resolve(m);
+        })
+        .reject(err => {
+          reject(err);
+        });
+    });
+  }
 
   async function createEmbedding(content) {
+    const model = await getModel();
     const embedding = await model.embed(content);
     const values = embedding.dataSync();
     return Array.from(values);

@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function DestinationsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      name: row.name,
+      type: row.type,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getDestinations(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -15,18 +29,7 @@ export function DestinationsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const destinations = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      type: row.type,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return destinations;
+    return rows.map(mapRow);
   }
 
   async function getDestinationsByType(workspaceId, type) {
@@ -46,18 +49,7 @@ export function DestinationsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const destinations = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      type: row.type,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return destinations;
+    return rows.map(mapRow);
   }
 
   async function getDestination(id) {
@@ -73,18 +65,7 @@ export function DestinationsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      type: row.type,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertDestination(destination, username) {
@@ -94,14 +75,16 @@ export function DestinationsService({ pg, logger }) {
     const val = omit(destination, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedDestination = await getDestination(destination.id);
     if (savedDestination) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE destinations
         SET name = $1, type = $2, val = $3, modified_by = $4, modified = $5
         WHERE id = $6
+        RETURNING *
         `,
-        [destination.name, destination.type, val, username, new Date(), destination.id]
+        [destination.name, destination.type, val, username, modified, destination.id]
       );
-      return { ...savedDestination, ...destination };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

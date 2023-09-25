@@ -13,11 +13,11 @@ import { ConfigProvider, theme, Layout, Menu } from 'antd';
 import Icon, {
   ApartmentOutlined,
   ApiOutlined,
-  BankOutlined,
   BookOutlined,
   CodeOutlined,
   CodepenOutlined,
   DeploymentUnitOutlined,
+  EyeOutlined,
   FileOutlined,
   FileSearchOutlined,
   FolderOpenOutlined,
@@ -373,8 +373,8 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
   sideMenuItems = [...sideMenuItems, ...[
     {
       key: 'debugging',
-      icon: <BankOutlined />,
-      label: 'Governance',
+      icon: <EyeOutlined />,
+      label: 'Observability',
       children: governanceMenuItems,
     },
     {

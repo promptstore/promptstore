@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function TransformationsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      name: row.name,
+      workspaceId: row.workspace_id,
+      dataSourceId: row.data_source_id,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getTransformations(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -17,18 +31,7 @@ export function TransformationsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const transformations = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      dataSourceId: row.data_source_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return transformations;
+    return rows.map(mapRow);
   }
 
   async function getTransformation(id) {
@@ -44,18 +47,7 @@ export function TransformationsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      name: row.name,
-      workspaceId: row.workspace_id,
-      dataSourceId: row.data_source_id,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertTransformation(transformation, username) {
@@ -65,14 +57,16 @@ export function TransformationsService({ pg, logger }) {
     const val = omit(transformation, ['id', 'workspaceId', 'dataSourceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedTransformation = await getTransformation(transformation.id);
     if (savedTransformation) {
+      const modified = new Date();
       await pg.query(`
         UPDATE transformations
         SET name = $1, data_source_id = $2, val = $3, modified_by = $4, modified = $5
         WHERE id = $6
+        RETURNING *
         `,
-        [transformation.name, transformation.dataSourceId, val, transformation.id, new Date(), transformation.id]
+        [transformation.name, transformation.dataSourceId, val, transformation.id, modified, transformation.id]
       );
-      return { ...savedTransformation, ...transformation };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

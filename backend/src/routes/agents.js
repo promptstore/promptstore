@@ -1,6 +1,12 @@
+import EventEmitter from 'events';
+
+import { AgentDebugCallback } from '../agents/AgentDebugCallback';
+import { AgentEventEmitterCallback } from '../agents/AgentEventEmitterCallback';
+import { AgentTracingCallback } from '../agents/AgentTracingCallback';
+
 export default ({ agents, app, auth, logger, services }) => {
 
-  const { agentsService, tool } = services;
+  const { agentsService, tool, tracesService } = services;
 
   let clients = [];
   let events = [];
@@ -21,13 +27,16 @@ export default ({ agents, app, auth, logger, services }) => {
       'Cache-Control': 'no-cache',
     };
     res.writeHead(200, headers);
-    res.write('data: ' + JSON.stringify(events.join('\n\n')) + '\n\n');
+    for (const event of events) {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    }
     const clientId = Date.now();
     const newClient = { id: clientId, response: res };
     clients.push(newClient);
     req.on('close', () => {
       logger.log('debug', '%s connection closed', clientId);
       clients = clients.filter(client => client.id !== clientId);
+      events = [];
     });
   };
 
@@ -170,28 +179,77 @@ export default ({ agents, app, auth, logger, services }) => {
    *         description: Error
    */
   app.post('/api/agent-executions', auth, async (req, res) => {
-    const { agentType, goal, indexName, name, selfEvaluate, tools } = req.body.agent;
+    let {
+      agentType,
+      allowedTools,
+      goal,
+      indexName,
+      isChat,
+      model,
+      name,
+      provider,
+      selfEvaluate,
+      useFunctions,
+    } = req.body.agent;
     const workspaceId = req.body.workspaceId;
     const { email, username } = (req.user || {});
-    events = [];
+    model = model || 'gpt-3.5-turbo';
+    const modelParams = { max_tokens: 255 };
+    const emitter = new EventEmitter();
+    const callbacks = [
+      new AgentTracingCallback({ workspaceId, username, tracesService }),
+      new AgentDebugCallback({ workspaceId, username }),
+      new AgentEventEmitterCallback({ workspaceId, username, emitter }),
+    ];
+    const options = {
+      name,
+      isChat,
+      model,
+      modelParams,
+      provider,
+      workspaceId,
+      username,
+      callbacks,
+      useFunctions,
+    };
     let agent;
     if (agentType === 'plan') {
-      agent = new agents.PlanAndExecuteAgent({ workspaceId, username });
+      agent = new agents.PlanAndExecuteAgent(options);
     } else {
-      agent = new agents.MKRLAgent({ isChat: true, workspaceId, username });
+      agent = new agents.MKRLAgent(options);
     }
     if (!agent) {
       return res.sendStatus(400);
     }
-    agent.emitter.on('event', (data) => {
-      addEvent(data);
-    });
-    const callParams = {
-      agentName: name,
+    const extraFunctionCallParams = {
       email,
       indexName,
     };
-    await agent.run(goal, tools, callParams, selfEvaluate);
+    let done = false;
+    events = [];
+    emitter.on('event', (data) => {
+      addEvent(data);
+    });
+    emitter.on('done', (data) => {
+      addEvent(data);
+      done = true;
+    });
+    await agent.run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate });
+
+    // TODO the following may not be necessary if it is the client that
+    // is closing the connection early.
+    // UPDATE it was the client
+    /*
+    const waitUntilDone = (retryCount = 0) => new Promise((resolve) => {
+      if (done || retryCount > 10) {
+        return resolve();
+      }
+      setTimeout(waitUntilDone, 1000, retryCount + 1);
+    });
+
+    await waitUntilDone();
+    ** *******************/
+
     res.json({ status: 'OK' });
   });
 

@@ -178,8 +178,6 @@ const functionsService = FunctionsService({ pg, logger });
 
 const indexesService = IndexesService({ pg, logger });
 
-const llmService = LLMService({ logger, registry: llmPlugins });
-
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
 
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
@@ -319,6 +317,8 @@ const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
 
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
 
+const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
+
 const executionsService = ExecutionsService({
   logger,
   rc,
@@ -394,7 +394,9 @@ const options = {
   workflowClient,
 };
 
+logger.debug('Installing agents');
 const agents = await installModules('agents', options);
+logger.debug('agents:', Object.keys(agents));
 
 const specs = swaggerJsdoc(swaggerOptions);
 app.use(
@@ -481,7 +483,7 @@ const routePaths = app._router.stack
   .filter((p) => p !== null)
   ;
 
-logger.debug(JSON.stringify(routePaths, null, 2));
+logger.debug(routePaths);
 
 let clientProxy;
 if (ENV === 'dev') {

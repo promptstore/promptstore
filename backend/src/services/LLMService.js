@@ -9,9 +9,11 @@ import {
   toVertexAIChatRequest,
   toVertexAICompletionRequest,
   toVertexAIEmbeddingRequest,
-} from '../core/RosettaStone';
+} from '../core/conversions/RosettaStone';
 
-export function LLMService({ logger, registry }) {
+export function LLMService({ logger, registry, services }) {
+
+  const { parserService } = services;
 
   async function createChatCompletion({ provider, request }) {
     const instance = registry[provider || 'openai'];
@@ -28,8 +30,9 @@ export function LLMService({ logger, registry }) {
       return fromOpenAIChatResponse(response);
     }
     if (provider === 'vertexai') {
+      const universalResponse = await fromVertexAIChatResponse(response, parserService);
       return {
-        ...fromVertexAIChatResponse(response),
+        ...universalResponse,
         model: request.model,
       };
     }
@@ -46,13 +49,16 @@ export function LLMService({ logger, registry }) {
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+    logger.debug('provider request:', providerRequest);
     const response = await instance.createCompletion(providerRequest);
+    logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
-      return fromOpenAICompletionResponse(response);
+      return await fromOpenAICompletionResponse(response, parserService);
     }
     if (provider === 'vertexai') {
+      const universalResponse = await fromVertexAICompletionResponse(response, parserService);
       return {
-        ...fromVertexAICompletionResponse(response),
+        ...universalResponse,
         model: request.model,
       };
     }

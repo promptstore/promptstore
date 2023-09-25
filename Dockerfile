@@ -11,7 +11,7 @@ COPY ./backend/tsconfig.json ./
 COPY ./backend/scripts/wait-for-it.sh ./
 RUN chmod +x wait-for-it.sh
 
-RUN npm install
+RUN npm install --legacy-peer-deps
 # If you are building your code for production
 # RUN npm ci --only=production
 

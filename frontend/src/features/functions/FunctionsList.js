@@ -158,7 +158,7 @@ export function FunctionsList() {
       render: (_, { implementations = [] }) => (
         <Space size={[0, 8]} wrap>
           {implementations.map((impl) => (
-            impl.modelId && modelsLoaded ?
+            impl.modelId && modelsLoaded && models[impl.modelId] ?
               <Tag key={impl.modelId}
                 color={getColor(models[impl.modelId].type, isDarkMode)}
               >

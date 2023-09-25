@@ -1,4 +1,4 @@
-import { PARA_DELIM } from '../core/RosettaStone';
+import { PARA_DELIM } from '../core/conversions/RosettaStone';
 
 export default ({ app, auth, logger, services }) => {
 

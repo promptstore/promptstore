@@ -1,5 +1,5 @@
 import { SchemaError } from './errors';
-import { GConstructor, Validator } from './types';
+import { GConstructor, Validator } from './common_types';
 
 type Validatable = GConstructor<{ validator: Validator }>;
 

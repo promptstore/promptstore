@@ -29,10 +29,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public.file_uploads
-    OWNER TO promptstoreadmin;
+    OWNER TO psadmin;
 
 ALTER SEQUENCE public.file_uploads_id_seq
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public.file_uploads_id_seq
     OWNED BY public.file_uploads."id";
@@ -68,10 +68,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public.users
-    OWNER TO promptstoreadmin;
+    OWNER TO psadmin;
 
 ALTER SEQUENCE public.users_id_seq
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public.users_id_seq
     OWNED BY public.users."id";
@@ -113,10 +113,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."workspaces"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."workspaces_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."workspaces_id_seq"
     OWNED BY public."workspaces"."id";
@@ -159,10 +159,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."apps"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."apps_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."apps_id_seq"
     OWNED BY public."apps"."id";
@@ -214,10 +214,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."prompt_sets"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."prompt_sets_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."prompt_sets_id_seq"
     OWNED BY public."prompt_sets"."id";
@@ -260,10 +260,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."settings"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."settings_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."settings_id_seq"
     OWNED BY public."settings"."id";
@@ -306,10 +306,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."functions"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."functions_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."functions_id_seq"
     OWNED BY public."functions"."id";
@@ -353,10 +353,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."models"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."models_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."models_id_seq"
     OWNED BY public."models"."id";
@@ -391,10 +391,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."training"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."training_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."training_id_seq"
     OWNED BY public."training"."id";
@@ -437,10 +437,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."compositions"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."compositions_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."compositions_id_seq"
     OWNED BY public."compositions"."id";
@@ -475,10 +475,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."chat_sessions"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."chat_sessions_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."chat_sessions_id_seq"
     OWNED BY public."chat_sessions"."id";
@@ -513,10 +513,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."doc_indexes"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."doc_indexes_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."doc_indexes_id_seq"
     OWNED BY public."doc_indexes"."id";
@@ -578,10 +578,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."data_sources"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."data_sources_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."data_sources_id_seq"
     OWNED BY public."data_sources"."id";
@@ -633,10 +633,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."agents"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."agents_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."agents_id_seq"
     OWNED BY public."agents"."id";
@@ -670,10 +670,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."traces"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."traces_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."traces_id_seq"
     OWNED BY public."traces"."id";
@@ -708,10 +708,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."transformations"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."transformations_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."transformations_id_seq"
     OWNED BY public."transformations"."id";
@@ -746,10 +746,10 @@ WITH (
 TABLESPACE pg_default;
 
 ALTER TABLE public."destinations"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."destinations_id_seq"
-    OWNER to promptstoreadmin;
+    OWNER to psadmin;
 
 ALTER SEQUENCE public."destinations_id_seq"
     OWNED BY public."destinations"."id";

@@ -200,7 +200,7 @@ export function SearchService({ constants, logger }) {
         url += '&' + ps;
       }
       const res = await axios.get(url);
-      logger.log('debug', 'search results: %s', res.data);
+      logger.debug('search results:', res.data);
       return res.data;
     } catch (err) {
       logger.error(err);

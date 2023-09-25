@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function IndexesService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      name: row.name,
+      engine: row.engine,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getIndexes(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -15,18 +29,7 @@ export function IndexesService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const indexes = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      engine: row.engine,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return indexes;
+    return rows.map(mapRow);
   }
 
   async function getIndexByKey(workspaceId, key) {
@@ -46,18 +49,7 @@ export function IndexesService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      engine: row.engine,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getIndex(id) {
@@ -73,18 +65,7 @@ export function IndexesService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      engine: row.engine,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertIndex(index, username) {
@@ -94,14 +75,16 @@ export function IndexesService({ pg, logger }) {
     const val = omit(index, ['id', 'workspaceId', 'name', 'engine', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedIndex = await getIndex(index.id);
     if (savedIndex) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE doc_indexes
         SET name = $1, engine = $2, val = $3, modified_by = $4, modified = $5
         WHERE id = $6
+        RETURNING *
         `,
-        [index.name, index.engine, val, username, new Date(), index.id]
+        [index.name, index.engine, val, username, modified, index.id]
       );
-      return { ...savedIndex, ...index };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

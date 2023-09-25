@@ -53,7 +53,7 @@ const typeOptions = [
   {
     label: 'LLM - Text',
     value: 'completion',
-    disabled: true,
+    disabled: false,
   },
   {
     label: 'LLM - Embedding',

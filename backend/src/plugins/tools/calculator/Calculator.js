@@ -7,7 +7,7 @@ function Calculator({ __key, __name, constants, logger }) {
     try {
       return Parser.evaluate(input).toString();
     } catch (err) {
-      logger.error(err);
+      logger.error(`error evaluating calculator input "${input}":`, err);
       return "I don't know how to do that.";
     }
   }

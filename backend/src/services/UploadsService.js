@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function UploadsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      userId: row.user_id,
+      filename: row.filename,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getUploads(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -15,18 +29,7 @@ export function UploadsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const uploads = rows.map((row) => ({
-      ...omit(row.val, ['data']),
-      id: row.id,
-      workspaceId: row.workspace_id,
-      userId: row.user_id,
-      filename: row.filename,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return uploads;
+    return rows.map(mapRow);
   }
 
   async function getUpload(id) {
@@ -42,18 +45,7 @@ export function UploadsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      userId: row.user_id,
-      filename: row.filename,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertUpload(upload, username) {
@@ -63,14 +55,16 @@ export function UploadsService({ pg, logger }) {
     const val = omit(upload, ['id', 'workspaceId', 'userId', 'filename']);
     const savedUpload = await getUpload(upload.id);
     if (savedUpload) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE file_uploads
         SET val = $1, modified_by = $2, modified = $3
         WHERE id = $4
+        RETURNNG *
         `,
-        [val, username, new Date(), upload.id]
+        [val, username, modified, upload.id]
       );
-      return { ...savedUpload, ...upload };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

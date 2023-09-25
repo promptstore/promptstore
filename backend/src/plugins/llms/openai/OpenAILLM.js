@@ -114,7 +114,7 @@ function OpenAILLM({ __name, constants, logger }) {
 
   async function generateImageVariant(imageUrl, n) {
     const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-    const localFilePath = '/tmp/images/' + filename;
+    const localFilePath = '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);
     await fs.promises.mkdir(dirname, { recursive: true });
     await downloadImage(imageUrl, localFilePath);

@@ -1,5 +1,5 @@
 import { Model } from '../core/common_types';
-import { Callback } from '../core/Callback';
+import { Callback } from '../core/callbacks/Callback';
 import {
   composition,
   edge,
@@ -8,18 +8,18 @@ import {
   mapperNode,
   requestNode,
   outputNode,
-} from '../core/Composition';
-import { InputGuardrails } from '../core/InputGuardrails';
+} from '../core/compositions/Composition';
+import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
 import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
-import { OutputProcessingStep } from '../core/OutputProcessingPipeline_types';
+import { OutputProcessingStep } from '../core/outputprocessing/OutputProcessingPipeline_types';
 import {
   OutputProcessingPipeline,
   outputProcessingPipeline,
   outputGuardrail,
   outputParser,
-} from '../core/OutputProcessingPipeline';
-import { PromptEnrichmentStep } from '../core/PromptEnrichmentPipeline_types';
+} from '../core/outputprocessing/OutputProcessingPipeline';
+import { PromptEnrichmentStep } from '../core/promptenrichment/PromptEnrichmentPipeline_types';
 import {
   PromptEnrichmentPipeline,
   promptEnrichmentPipeline,
@@ -27,11 +27,11 @@ import {
   semanticSearchEnrichment,
   functionEnrichment,
   sqlEnrichment,
-} from '../core/PromptEnrichmentPipeline';
-import { message, promptTemplate } from '../core/PromptTemplate';
-import SemanticCache from '../core/SemanticCache';
-import { semanticFunction } from '../core/SemanticFunction';
-import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/SemanticFunctionImplementation';
+} from '../core/promptenrichment/PromptEnrichmentPipeline';
+import { message, promptTemplate } from '../core/promptenrichment/PromptTemplate';
+import SemanticCache from '../core/semanticcache/SemanticCache';
+import { semanticFunction } from '../core/semanticfunctions/SemanticFunction';
+import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/semanticfunctions/SemanticFunctionImplementation';
 
 export default ({ logger, rc, services }) => {
 
@@ -71,7 +71,10 @@ export default ({ logger, rc, services }) => {
     completionService: CompletionService,
     callbacks: Callback[]
   ) {
-    const semanticCache = createSemanticCache('sentenceencoder');
+    let semanticCache: SemanticCache;
+    if (semanticCacheEnabled) {
+      semanticCache = createSemanticCache('sentenceencoder');
+    }
     return llmModel({
       model: modelInfo.key,
       provider: modelInfo.provider,
@@ -100,7 +103,10 @@ export default ({ logger, rc, services }) => {
     completionService: CompletionService,
     callbacks: Callback[]
   ) {
-    const semanticCache = createSemanticCache('sentenceencoder');
+    let semanticCache: SemanticCache;
+    if (semanticCacheEnabled) {
+      semanticCache = createSemanticCache('sentenceencoder');
+    }
     return completionModel({
       model: modelInfo.key,
       provider: modelInfo.provider,

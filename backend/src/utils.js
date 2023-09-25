@@ -93,11 +93,17 @@ export const installModules = async (dir, options) => {
   const ret = {};
   for (const file of files) {
     const { name, ext } = path.parse(file);
-    // skip non-js files
-    if (ext !== '.js') continue;
-    const mod = await import(path.join(root, file));
-    if (typeof mod.default === 'function') {
-      ret[name] = mod.default(options);
+    // skip non-js/ts files
+    if (ext !== '.js' && ext !== '.ts') continue;
+    try {
+      const filepath = path.join(root, file);
+      const mod = await import(filepath);
+      if (typeof mod.default === 'function') {
+        ret[name] = mod.default(options);
+      }
+    } catch (err) {
+      logger.error(err, err.stack);
+      throw err;
     }
   }
   return ret;

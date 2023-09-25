@@ -2,6 +2,19 @@ import omit from 'lodash.omit';
 
 export function ModelsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      name: row.name,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getModels(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -16,17 +29,7 @@ export function ModelsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const models = rows.map((row) => ({
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return models;
+    return rows.map(mapRow);
   }
 
   async function getModelByKey(workspaceId, key) {
@@ -46,17 +49,7 @@ export function ModelsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getModelByName(workspaceId, name) {
@@ -76,17 +69,7 @@ export function ModelsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getModel(id) {
@@ -102,17 +85,7 @@ export function ModelsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      name: row.name,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertModel(model, username) {
@@ -122,14 +95,16 @@ export function ModelsService({ pg, logger }) {
     const val = omit(model, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedModel = await getModel(model.id);
     if (savedModel) {
-      await pg.query(`
+      const modified = new Date();
+      const { rows } = await pg.query(`
         UPDATE models
         SET name = $1, val = $2, modified_by = $3, modified = $4
         WHERE id = $5
+        RETURNING *
         `,
-        [model.name, val, username, new Date(), model.id]
+        [model.name, val, username, modified, model.id]
       );
-      return { ...savedModel, ...model };
+      return mapRow(rows[0]);
     } else {
       const created = new Date();
       const { rows } = await pg.query(`

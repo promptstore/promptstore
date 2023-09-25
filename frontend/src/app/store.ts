@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
+
 import agentsReducer from '../features/agents/agentsSlice';
 import appsReducer from '../features/apps/appsSlice';
 import authReducer from '../authSlice';

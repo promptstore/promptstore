@@ -2,6 +2,20 @@ import omit from 'lodash.omit';
 
 export function SettingsService({ pg, logger }) {
 
+  function mapRow(row) {
+    return {
+      ...row.val,
+      name: row.val.name || row.key,
+      id: row.id,
+      workspaceId: row.workspace_id,
+      key: row.key,
+      created: row.created,
+      createdBy: row.created_by,
+      modified: row.modified,
+      modifiedBy: row.modified_by,
+    };
+  }
+
   async function getSettings(workspaceId) {
     let q = `
       SELECT id, workspace_id, key, created, created_by, modified, modified_by, val
@@ -16,18 +30,7 @@ export function SettingsService({ pg, logger }) {
     if (rows.length === 0) {
       return [];
     }
-    const settings = rows.map((row) => ({
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      key: row.key,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    }));
-    return settings;
+    return rows.map(mapRow);
   }
 
   async function getSettingByKey(key) {
@@ -44,18 +47,7 @@ export function SettingsService({ pg, logger }) {
       return null;
     }
     logger.debug('rows: ', rows);
-    const row = rows[0];
-    return {
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      key: row.key,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function getSetting(id) {
@@ -71,18 +63,7 @@ export function SettingsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    const row = rows[0];
-    return {
-      ...row.val,
-      name: row.val.name || row.key,
-      id: row.id,
-      workspaceId: row.workspace_id,
-      key: row.key,
-      created: row.created,
-      createdBy: row.created_by,
-      modified: row.modified,
-      modifiedBy: row.modified_by,
-    };
+    return mapRow(rows[0]);
   }
 
   async function upsertSetting(setting) {
