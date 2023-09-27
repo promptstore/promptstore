@@ -106,6 +106,34 @@ export default ({ app, auth, constants, logger, services }) => {
    *         createdBy: markmo@acme.com
    *         modifiedBy: markmo@acme.com
    *
+   *     ApiKeyInput:
+   *       type: object
+   *       required:
+   *         - apiKey
+   *         - name
+   *       properties:
+   *         apiKey:
+   *           type: string
+   *           description: The generated API Key as an RFC version 4 (random) UUID.
+   *         name:
+   *           type: string
+   *           description: The key purpose used as a label.
+   * 
+   *     MemberInviteInput:
+   *       type: object
+   *       required:
+   *         - workspaceId
+   *         - invites
+   *       properties:
+   *         workspaceId:
+   *           type: integer
+   *           description: The ID of the workspace the user has been invited into.
+   *         invites:
+   *           type: array
+   *           description: A list of email addresses.
+   *           items:
+   *             type: string
+   * 
    *     Status:
    *       type: object
    *       properties:
@@ -184,22 +212,20 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /*
   req.user: {
-  name: 'Mark Mo',
-  picture: 'https://avatars.dicebear.com/api/gridy/0.XXX4164767352256.svg',
-  iss: 'https://securetoken.google.com/XXX',
-  aud: 'XXX',
-  auth_time: 1691469874,
-  user_id: 'XXX',
-  sub: 'XXX',
-  iat: 1691469874,
-  exp: 1691473474,
-  email: 'markmo@acme.com',
-  email_verified: false,
-  firebase: { identities: { email: [Array] }, sign_in_provider: 'password' },
-  uid: 'XXX'
-}
-
-  */
+    name: 'Mark Mo',
+    picture: 'https://avatars.dicebear.com/api/gridy/0.XXX4164767352256.svg',
+    iss: 'https://securetoken.google.com/XXX',
+    aud: 'XXX',
+    auth_time: 1691469874,
+    user_id: 'XXX',
+    sub: 'XXX',
+    iat: 1691469874,
+    exp: 1691473474,
+    email: 'markmo@acme.com',
+    email_verified: false,
+    firebase: { identities: { email: [Array] }, sign_in_provider: 'password' },
+    uid: 'XXX'
+  } */
 
   /**
    * @openapi
@@ -231,44 +257,100 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json(workspace);
   });
 
+  /**
+   * @openapi
+   * /api/workspaces/:workspaceId/keys:
+   *   post:
+   *     description: Create a new API key for a given user in a given workspace.
+   *     tags: [Workspaces]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: workspaceId
+   *         description: The workspace id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       description: The new api key values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/ApiKeyInput'
+   *     responses:
+   *       200:
+   *         description: The updated workspace
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Workspace'
+   *       500:
+   *         description: Error
+   */
   app.post('/api/workspaces/:workspaceId/keys', auth, async (req, res) => {
     const { workspaceId } = req.params;
     const { username } = req.user;
-    const { apiKey } = req.body;
+    const { apiKey, name } = req.body;
     const workspace = await workspacesService.getWorkspace(workspaceId);
     const apiKeys = workspace.apiKeys || {};
-    const key = Object.keys(apiKeys).find(k => apiKeys[k] === username);
-    if (key) {
-      delete apiKeys[key];
-    }
+    const maxId = Object.values(apiKeys)
+      .filter(v => v.username === username)
+      .reduce((a, v) => Math.max(a, v.id), 0)
+      ;
     const values = {
       ...workspace,
       apiKeys: {
         ...apiKeys,
-        [apiKey]: username,
+        [apiKey]: { name, username, created: new Date(), id: maxId + 1 },
       },
     };
-    await workspacesService.upsertWorkspace(values, username);
-    res.json({ status: 'OK' });
+    const updated = await workspacesService.upsertWorkspace(values, username);
+    res.json(updated);
   });
 
+  /**
+   * @openapi
+   * /api/workspaces/:workspaceId/keys:
+   *   delete:
+   *     description: Delete one or more api keys belonging to a user.
+   *     tags: [Workspaces]
+   *     parameters:
+   *       - name: ids
+   *         description: A comma separated list of ids
+   *         in: query
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The updated workspace
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Workspace'
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/workspaces/:workspaceId/keys', auth, async (req, res) => {
     const { workspaceId } = req.params;
     const { username } = req.user;
+    const ids = req.query.ids.split(',').map(id => +id);
+    logger.debug('deleting key ids: %s for user: %s', ids, username);
     const workspace = await workspacesService.getWorkspace(workspaceId);
-    const apiKeys = workspace.apiKeys;
-    if (apiKeys) {
-      const key = Object.keys(apiKeys).find(k => apiKeys[k] === username);
-      if (key) {
-        delete apiKeys[key];
-        const values = {
-          ...workspace,
-          apiKeys,
-        };
-        await workspacesService.upsertWorkspace(values, username);
-      }
-    }
-    res.json({ status: 'OK' });
+    const apiKeys = Object.entries(workspace.apiKeys || {})
+      .filter(([k, v]) => !(ids.includes(v.id) && v.username === username))
+      .reduce((a, [k, v]) => {
+        a[k] = v;
+        return a;
+      }, {})
+      ;
+    logger.debug('new keys:', apiKeys);
+    const values = {
+      ...workspace,
+      apiKeys,
+    };
+    const updated = await workspacesService.upsertWorkspace(values, username);
+    res.json(updated);
   });
 
   /**
@@ -396,6 +478,33 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json(ids);
   });
 
+  /**
+   * @openapi
+   * /api/invites:
+   *   post:
+   *     description: Assign a user to a workspace.
+   *     tags: [Workspaces]
+   *     produces:
+   *       application/json
+   *     requestBody:
+   *       description: The new api key values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/MemberInviteInput'
+   *     responses:
+   *       200:
+   *         description: The updated workspace
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Workspace'
+   *       404:
+   *         description: No valid emails provided.
+   *       500:
+   *         description: Error
+   */
   app.post('/api/invites', auth, async (req, res) => {
     logger.debug('req.user:', req.user);
     const { workspaceId, invites } = req.body;

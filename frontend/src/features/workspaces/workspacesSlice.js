@@ -67,14 +67,17 @@ export const deleteWorkspacesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeWorkspaces({ ids }));
 };
 
-export const handleKeyAssignmentAsync = ({ workspaceId, apiKey }) => async (dispatch) => {
+export const handleKeyAssignmentAsync = ({ workspaceId, apiKey, name }) => async (dispatch) => {
   const url = `/api/workspaces/${workspaceId}/keys`;
-  const res = http.post(url, { apiKey });
+  const res = await http.post(url, { apiKey, name });
+  console.log('updated workspace:', res.data);
+  dispatch(setWorkspaces({ workspaces: [res.data] }));
 };
 
-export const revokeKeyAssignmentAsync = ({ workspaceId }) => async (dispatch) => {
-  const url = `/api/workspaces/${workspaceId}/keys`;
-  const res = http.delete(url);
+export const revokeKeyAssignmentAsync = ({ workspaceId, ids }) => async (dispatch) => {
+  const url = `/api/workspaces/${workspaceId}/keys?ids=${ids.join(',')}`;
+  const res = await http.delete(url);
+  dispatch(setWorkspaces({ workspaces: [res.data] }));
 };
 
 export const inviteMembersAsync = ({ workspaceId, invites }) => async (dispatch) => {

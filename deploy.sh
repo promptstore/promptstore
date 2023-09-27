@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-app=openaiplatform
-ns=openaiplatform
+app=$HELM_APP_NAME
+ns=$K8S_NAMESPACE
+context=$K8S_CONTEXT
 
-kubectl config use-context europa
-kubectl config set-context --current --namespace=${ns}
+kubectl config use-context $context
+kubectl config set-context --current --namespace="${ns}"
 
-helm upgrade --install ${app} -f openaiplatform/values.yaml ./helm-chart
+helm upgrade --install $app  -n $ns -f $HELM_VALUES_FILE ./helm-chart

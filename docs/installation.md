@@ -95,3 +95,16 @@ In Prod mode:
     docker-compose up postgresql
     Ctrl-C
     docker-compose up
+
+### Kubernetes
+
+Prompt Store uses Helm for Kubernetes deployment.
+
+1. Update the variables in .env
+2. Export the environment variables. You can use the following script: `eval $(frontend/export-env.sh .env)`
+3. Build the image: `./build.sh`
+4. Deploy the image using Helm. You can use the following script: `./deploy.sh`
+
+The Helm Chart doesn't specify ingress as this is usually specific to your Kubernetes setup. If you use
+Istio, which is what I use, then you can use the additional yaml files under k8s/. You will need to
+create ingress-cert if terminating TLS at Kubernetes.

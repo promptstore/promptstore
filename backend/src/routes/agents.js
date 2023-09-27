@@ -55,23 +55,35 @@ export default ({ agents, app, auth, logger, services }) => {
    *         agentType:
    *           type: string
    *           description: The type of agent to run, e.g. "plan", "react"
-   *         goal:
-   *           type: string
-   *           description: The user request, query, or instruction.
-   *         name:
-   *           type: string
-   *           description: The agent name. Used for tracing.
-   *         tools:
+   *         allowedTools:
    *           type: array
    *           description: The allowed tools as a list of keys.
    *           items:
    *             type: string
+   *         goal:
+   *           type: string
+   *           description: The user request, query, or instruction.
    *         indexName:
    *           type: string
-   *           description: A parameter required by a tool - the name of a semantic index to query.
+   *           description: A parameter required by the search index tool - the name of the semantic index to query.
+   *         isChat:
+   *           type: boolean
+   *           description: A flag to indicate if the agent will use a chat api.
+   *         model:
+   *           type: string
+   *           description: The model key used by the agent.
+   *         name:
+   *           type: string
+   *           description: The agent name. Used for tracing.
+   *         provider:
+   *           type:
+   *           description: The model provider.
    *         selfEvaluate:
    *           type: boolean
    *           description: A flag to tell the agent to evaluate its own output using a model.
+   *         useFunctions:
+   *           type: boolean
+   *           description: A flag to indicate if the agent will use model supported function calling if available.
    *       
    *     AgentExecutionRequest:
    *       type: object
@@ -80,7 +92,7 @@ export default ({ agents, app, auth, logger, services }) => {
    *         - workspaceId
    *       properties:
    *         agent:
-   *           type: AgentParams
+   *           $ref: '#/components/schemas/AgentParams'
    *           description: Agent parameters
    *         workspaceId:
    *           type: integer
@@ -102,6 +114,88 @@ export default ({ agents, app, auth, logger, services }) => {
    *         description:
    *           type: string
    *           description: A description of the tool purpose and function. This is used by the LLM to determine when it is applicable for the tool to be called.
+   * 
+   *     Agent:
+   *       type: object
+   *       required:
+   *         - name
+   *       properties:
+   *         name:
+   *           type: string
+   *           description: The agent name.
+   *         goal:
+   *           type: string
+   *           description: The user request, query, or instruction.
+   *         agentType:
+   *           type: string
+   *           description: The type of agent to run, e.g. "plan", "react"
+   *         allowedTools:
+   *           type: array
+   *           description: The allowed tools as a list of keys.
+   *           items:
+   *             type: string
+   *         indexName:
+   *           type: string
+   *           description: A parameter required by the search index tool - the name of the semantic index to query.
+   *         modelId:
+   *           type: integer
+   *           description: The model id.
+   *         useFunctions:
+   *           type: boolean
+   *           description: A flag to indicate if the agent will use model supported function calling if available.
+   *         selfEvaluate:
+   *           type: boolean
+   *           description: A flag to tell the agent to evaluate its own output using a model.
+   *         created:
+   *           type: date
+   *           description: The date-time the agent was created.
+   *         createdBy:
+   *           type: string
+   *           description: The username of the user who created the workspace.
+   *         modified:
+   *           type: date
+   *           description: The date-time the agent was last modified.
+   *         modifiedBy:
+   *           type: string
+   *           description: The username of the user who last modified the workspace.
+   * 
+   *     AgentInput:
+   *       type: object
+   *       required:
+   *         - name
+   *       properties:
+   *         name:
+   *           type: string
+   *           description: The agent name.
+   *         goal:
+   *           type: string
+   *           description: The user request, query, or instruction.
+   *         agentType:
+   *           type: string
+   *           description: The type of agent to run, e.g. "plan", "react"
+   *         allowedTools:
+   *           type: array
+   *           description: The allowed tools as a list of keys.
+   *           items:
+   *             type: string
+   *         indexName:
+   *           type: string
+   *           description: A parameter required by the search index tool - the name of the semantic index to query.
+   *         modelId:
+   *           type: integer
+   *           description: The model id.
+   *         useFunctions:
+   *           type: boolean
+   *           description: A flag to indicate if the agent will use model supported function calling if available.
+   *         selfEvaluate:
+   *           type: boolean
+   *           description: A flag to tell the agent to evaluate its own output using a model.
+   *         createdBy:
+   *           type: string
+   *           description: The username of the user who created the workspace.
+   *         modifiedBy:
+   *           type: string
+   *           description: The username of the user who last modified the workspace.
    */
 
   /**
@@ -278,18 +372,96 @@ export default ({ agents, app, auth, logger, services }) => {
     res.json(tools);
   });
 
+  /**
+   * @openapi
+   * /api/workspaces/:workspaceId/agents:
+   *   get:
+   *     description: List all the agents available to the given user in the given workspace.
+   *     tags: [Agents]
+   *     produces:
+   *       - application/json
+   *     parameters:
+   *       - name: limit
+   *         description: the maximum number of records to retrieve in the paged result
+   *         in: query
+   *         schema:
+   *           type: integer
+   *       - name: start
+   *         description: The record offset to start the paged result
+   *         in: query
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The list of agents
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Agent'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/workspaces/:workspaceId/agents', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
     const agents = await agentsService.getAgents(workspaceId);
     res.json(agents);
   });
 
+  /**
+   * @openapi
+   * /api/agents/:id:
+   *   get:
+   *     description: Lookup an agent by id.
+   *     tags: [Workspaces]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: id
+   *         description: The agent id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The agent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Agent'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/agents/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const session = await agentsService.getAgent(id);
     res.json(session);
   });
 
+  /**
+   * @openapi
+   * /api/agents:
+   *   post:
+   *     description: Create a new agent.
+   *     tags: [Agents]
+   *     requestBody:
+   *       description: The new agent values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/AgentInput'
+   *     responses:
+   *       200:
+   *         description: The new agent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Agent'
+   *       500:
+   *         description: Error
+   */
   app.post('/api/agents', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
@@ -297,6 +469,35 @@ export default ({ agents, app, auth, logger, services }) => {
     res.json(agent);
   });
 
+  /**
+   * @openapi
+   * /api/agents/:id:
+   *   put:
+   *     description: Update an agent.
+   *     tags: [Agents]
+   *     parameters:
+   *       - name: id
+   *         description: The agent id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       description: The updated agent values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/AgentInput'
+   *     responses:
+   *       200:
+   *         description: The updated agent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Agent'
+   *       500:
+   *         description: Error
+   */
   app.put('/api/agents/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
@@ -305,12 +506,58 @@ export default ({ agents, app, auth, logger, services }) => {
     res.json(agent);
   });
 
+  /**
+   * @openapi
+   * /api/agents/:id:
+   *   delete:
+   *     description: Delete an agent.
+   *     tags: [Agents]
+   *     parameters:
+   *       - name: id
+   *         description: The agent id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The deleted id
+   *         content:
+   *           text/plain:
+   *             schema:
+   *               type: integer
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/agents/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await agentsService.deleteAgents([id]);
     res.json(id);
   });
 
+  /**
+   * @openapi
+   * /api/agents:
+   *   delete:
+   *     description: Delete multiple agents
+   *     tags: [Agents]
+   *     parameters:
+   *       - name: ids
+   *         description: A comma separated list of ids
+   *         in: query
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The deleted agent ids
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: string
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/agents', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await agentsService.deleteAgents(ids);

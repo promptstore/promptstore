@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Space, Table, message } from 'antd';
+import { Button, Space, Table, Typography, message } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 
@@ -89,10 +89,25 @@ export function WorkspacesList() {
 
   const columns = [
     {
+      title: 'ID',
+      dataIndex: 'key',
+      render: (_, { key }) => (
+        <div style={{ width: 65 }}>
+          <Typography.Text code copyable>
+            {key}
+          </Typography.Text>
+        </div>
+      ),
+      width: '100px',
+    },
+    {
       title: 'Name',
       dataIndex: 'name',
-      width: '100%',
-      render: (_, { key, name }) => <Link to={`/workspaces/${key}`}>{name}</Link>
+      render: (_, { key, name }) => (
+        <div style={{ minWidth: 250 }}>
+          <Link to={`/workspaces/${key}`}>{name}</Link>
+        </div>
+      ),
     },
   ];
 

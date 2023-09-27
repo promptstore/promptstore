@@ -10,7 +10,6 @@ __pycache__/
 backend/storage/
 .DS_Store
 examples/health_tracker/
-build.sh
 docker-compose-dev.yml
 README_internal.md
 helm-chart/values.yaml

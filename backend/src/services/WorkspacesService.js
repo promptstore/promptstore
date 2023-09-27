@@ -38,7 +38,7 @@ export function WorkspacesService({ pg, logger }) {
 
   async function getUsernameByApiKey(apiKey) {
     let q = `
-      SELECT id, val->'apiKeys'->>'${apiKey}' AS username
+      SELECT id, val->'apiKeys'->'${apiKey}'->>'username' AS username
       FROM workspaces
       WHERE val->'apiKeys'->>'${apiKey}' <> ''
     `;

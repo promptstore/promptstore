@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import NavbarContext from '../../contexts/NavbarContext';
 import UserContext from '../../contexts/UserContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { getHumanFriendlyDelta, slugify } from '../../utils';
 import {
   setAdmin,
 } from '../users/usersSlice';
@@ -34,6 +35,7 @@ export function WorkspaceForm() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [apiSelectedRowKeys, setApiSelectedRowKeys] = useState([]);
 
   const loaded = useSelector(selectLoaded);
   const workspaces = useSelector(selectWorkspaces);
@@ -41,6 +43,12 @@ export function WorkspaceForm() {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  const [form] = Form.useForm();
+  const [apiKeyForm] = Form.useForm();
+
+  const nameValue = Form.useWatch('name', form);
+  const keyValue = Form.useWatch('key', form);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { currentUser } = useContext(UserContext);
@@ -70,6 +78,12 @@ export function WorkspaceForm() {
     }
   }, [selectedWorkspace, isLinking]);
 
+  useEffect(() => {
+    if (nameValue && !keyValue) {
+      form.setFieldValue('key', slugify(nameValue));
+    }
+  }, [nameValue]);
+
   const data = useMemo(() => {
     if (workspace) {
       const members = workspace.members || [];
@@ -80,17 +94,37 @@ export function WorkspaceForm() {
       }));
     }
     return [];
-  }, [workspace]);
+  }, [workspaces]);
+
+  const apiKeyData = useMemo(() => {
+    if (workspace) {
+      const apiKeys = workspace.apiKeys || {};
+      const userKeys = Object.values(apiKeys)
+        .filter(v => v.username === currentUser.username)
+        ;
+      const list = Object.values(userKeys).map(v => ({
+        key: v.id,
+        name: v.name,
+        created: v.created,
+      }));
+      list.sort((a, b) => a.created > b.created ? 1 : -1);
+      return list;
+    }
+    return [];
+  }, [workspaces]);
 
   const hasSelected = selectedRowKeys.length > 0;
+  const hasApiKeysSelected = apiSelectedRowKeys.length > 0;
 
   const closeKeyModal = () => {
     setApiKey(null);
   };
 
-  const handleKeyAssignment = () => {
-    dispatch(handleKeyAssignmentAsync({ apiKey, workspaceId: id }));
+  const handleKeyAssignment = async () => {
+    const { name } = await apiKeyForm.validateFields();
+    dispatch(handleKeyAssignmentAsync({ apiKey, name, workspaceId: id }));
     setApiKey(null);
+    apiKeyForm.resetFields();
   };
 
   const handleInvite = async () => {
@@ -113,7 +147,8 @@ export function WorkspaceForm() {
   };
 
   const revokeKey = () => {
-    dispatch(revokeKeyAssignmentAsync({ workspaceId: id }));
+    dispatch(revokeKeyAssignmentAsync({ workspaceId: id, ids: apiSelectedRowKeys }));
+    setApiSelectedRowKeys([]);
   };
 
   const linkToApps = (ev) => {
@@ -158,6 +193,10 @@ export function WorkspaceForm() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  const onSelectApiKeyChange = (newSelectedRowKeys) => {
+    setApiSelectedRowKeys(newSelectedRowKeys);
+  };
+
   const openInviteModal = () => {
     setIsInviteModalOpen(true);
   };
@@ -167,7 +206,7 @@ export function WorkspaceForm() {
       key: 'name',
       title: 'Name',
       dataIndex: 'name',
-      width: '200px',
+      width: '250px',
     },
     {
       key: 'email',
@@ -190,9 +229,34 @@ export function WorkspaceForm() {
     // },
   ];
 
+  const apiKeyColumns = [
+    {
+      key: 'name',
+      title: 'Purpose',
+      dataIndex: 'name',
+      width: '250px',
+    },
+    {
+      key: 'created',
+      title: 'Created',
+      dataIndex: 'created',
+      render: (_, { created }) => (
+        <span style={{ whiteSpace: 'nowrap' }}>{getHumanFriendlyDelta(created)}</span>
+      ),
+    },
+  ];
+
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
+    selections: [
+      Table.SELECTION_ALL,
+    ],
+  };
+
+  const apiKeyRowSelection = {
+    apiSelectedRowKeys,
+    onChange: onSelectApiKeyChange,
     selections: [
       Table.SELECTION_ALL,
     ],
@@ -233,9 +297,28 @@ export function WorkspaceForm() {
       <Modal
         title="API Key"
         open={apiKey}
+        okText="Save"
         onCancel={closeKeyModal}
         onOk={handleKeyAssignment}
       >
+        <Form
+          autoComplete="off"
+          form={apiKeyForm}
+          layout="vertical"
+        >
+          <Form.Item
+            label="Purpose"
+            name="name"
+            rules={[
+              {
+                required: true,
+                message: 'Please enter a purpose to use as a label',
+              },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
         <Descriptions column={1} layout="vertical">
           <Descriptions.Item label="Key">
             <Typography.Text code copyable>
@@ -269,11 +352,23 @@ export function WorkspaceForm() {
         <div style={{ marginTop: 20 }}>
           <Form
             {...layout}
+            form={form}
             name="workspace"
             autoComplete="off"
             onFinish={onFinish}
             initialValues={workspace}
           >
+            {!isNew ?
+              <Form.Item
+                label="ID"
+                name="id"
+              >
+                <Typography.Text code copyable>
+                  {workspace.id}
+                </Typography.Text>
+              </Form.Item>
+              : null
+            }
             <Form.Item
               label="Name"
               name="name"
@@ -281,6 +376,20 @@ export function WorkspaceForm() {
                 {
                   required: true,
                   message: 'Please enter a workspace name',
+                },
+              ]}
+              trigger="onBlur"
+              validateTrigger="onBlur"
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Key"
+              name="key"
+              rules={[
+                {
+                  required: true,
+                  message: 'Please enter a workspace key',
                 },
               ]}
             >
@@ -315,7 +424,12 @@ export function WorkspaceForm() {
               }
               style={{ marginTop: 40 }}
             >
-              <Table rowSelection={rowSelection} columns={columns} dataSource={data} />
+              <Table
+                rowSelection={rowSelection}
+                columns={columns}
+                dataSource={data}
+                pagination={false}
+              />
               <div style={{ marginTop: 8 }}>
                 <Button danger type="primary" size="small"
                   disabled={!hasSelected}
@@ -329,21 +443,35 @@ export function WorkspaceForm() {
               </div>
             </Form.Item>
             <Form.Item
-              label="API"
+              colon={false}
+              label={
+                <label style={{ height: 'inherit', paddingTop: 32 }}>API Keys :</label>
+              }
             >
-              <Space>
-                <Button type="default" size="small"
-                  disabled={isNew}
-                  onClick={getKey}
-                >
-                  Get API Key
-                </Button>
-                <Button type="default" size="small"
-                  disabled={isNew}
-                  onClick={revokeKey}
-                >
-                  Revoke API Key
-                </Button>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Table
+                  rowSelection={apiKeyRowSelection}
+                  columns={apiKeyColumns}
+                  dataSource={apiKeyData}
+                  pagination={false}
+                />
+                <Space>
+                  <Button type="default" size="small"
+                    disabled={isNew}
+                    onClick={getKey}
+                  >
+                    Get API Key
+                  </Button>
+                  <Button danger type="primary" size="small"
+                    disabled={isNew || !hasApiKeysSelected}
+                    onClick={revokeKey}
+                  >
+                    Revoke API Key
+                  </Button>
+                  <span>
+                    {hasApiKeysSelected ? `Selected ${apiSelectedRowKeys.length} items` : ''}
+                  </span>
+                </Space>
               </Space>
             </Form.Item>
           </Form>
