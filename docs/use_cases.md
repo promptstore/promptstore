@@ -1,6 +1,3 @@
-## Use Cases
+# Use Cases
 
-### A Summarization Service
-
-Start Prompt Store.
-
+1. [A Summarization Service](./use_cases/summarization.md)

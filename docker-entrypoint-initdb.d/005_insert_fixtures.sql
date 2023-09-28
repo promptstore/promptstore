@@ -4,7 +4,7 @@ INSERT INTO public.users (username, val)
 VALUES ('test.account@promptstore.dev', '{"email":"test.account@promptstore.dev","roles":["admin"],"fullName":"Test Account","displayName":"Test Account","firstName":"Test","lastName":"Account","photoURL":"https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg"}');
 
 INSERT INTO public.workspaces (name, created_by, modified_by, val)
-VALUES ('Test Space', 'test.account@promptstore.dev', 'test.account@promptstore.dev', '{"members":[{"id":1,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}]}');
+VALUES ('Test Space', 'test.account@promptstore.dev', 'test.account@promptstore.dev', '{"members":[{"id":1,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}],"apiKeys":{"41317739-f8e4-4419-b64b-30666e255391":{"name":"Test","username":"test.account@promptstore.dev","created":"2023-09-26T08:33:36.649Z","id":1}}}');
 
 INSERT INTO public.settings (workspace_id, key, created_by, modified_by, val)
 VALUES (1, 'skills', 'test.account@promptstore.dev', 'test.account@promptstore.dev', '{"value":["summarize"]}');

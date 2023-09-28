@@ -1,10 +1,10 @@
-## Installation options
+# Installation options
 
 1. Docker Compose
 2. Kubernetes
 3. Local
 
-### Local install
+## Local install
 
 Install the packages:
 
@@ -39,7 +39,7 @@ As above, except instead of running the front-end in dev mode:
 
 This time, the backend server will serve the built frontend apps via the default route `/`.
 
-#### Context
+### Context
 
 Prompt Store consists of a frontend React SPA, and a backend Express server using TypeScript and JavaScript. TypeScript is
 used for core models while, currently, JavaScript is used for routes and services.
@@ -63,14 +63,14 @@ To create the promptstore namespace, use localhost as the host:
 
     docker exec -it --env TEMPORAL_CLI_ADDRESS=localhost:7233 temporal-admin-tools tctl --namespace promptstore namespace register
 
-#### Connecting to the database
+### Connecting to the database
 
-    docker exec -it temporal-postgresql-1 bash
+    docker exec -it promptstore-postgresql-1 bash
     psql -h localhost -U postgres
 
 default password: changeme
 
-### Docker Compose
+## Docker Compose
 
 1. Build the frontend: `cd frontend & npm run build`
 2. `cd ..`
@@ -96,7 +96,7 @@ In Prod mode:
     Ctrl-C
     docker-compose up
 
-### Kubernetes
+## Kubernetes
 
 Prompt Store uses Helm for Kubernetes deployment.
 

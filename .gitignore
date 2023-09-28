@@ -1,6 +1,7 @@
 data/
 node_modules/
 .env
+.env.firebase
 *.env
 volumes/
 venv/

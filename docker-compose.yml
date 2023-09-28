@@ -1,25 +1,20 @@
 version: '3.4'
 
-x-defaults:
-  &defaults
-  networks:
-    - promptstore_dev
-
 services:
   postgresql:
-    <<: *defaults
     image: postgres:14
+    ports:
+      - "5432:5432"
     restart: always
     environment:      
       POSTGRES_PASSWORD: changeme
-      POSTGRES_USER: psadmin
+      POSTGRES_USER: postgres
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
       - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
 
   redis:
-    <<: *defaults
     image: redislabs/redisearch:latest
     ports:
       - "6379:6379"
@@ -27,8 +22,9 @@ services:
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data:delegated"
 
   minio:
-    <<: *defaults
     image: minio/minio:RELEASE.2020-12-03T00-03-10Z
+    ports:
+      - "9000:9000"
     environment:
       - MINIO_ACCESS_KEY=minio
       - MINIO_SECRET_KEY=changeme
@@ -48,7 +44,6 @@ services:
       retries: 3
 
   elasticsearch:
-    <<: *defaults
     container_name: elasticsearch
     environment:
       - cluster.routing.allocation.disk.threshold_enabled=true
@@ -65,7 +60,6 @@ services:
       - /var/lib/elasticsearch/data
 
   temporal:
-    <<: *defaults
     container_name: temporal
     depends_on:
       - postgresql
@@ -73,7 +67,7 @@ services:
     environment:
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=psadmin
+      - POSTGRES_USER=postgres
       - POSTGRES_PWD=changeme
       - POSTGRES_SEEDS=postgresql
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
@@ -89,7 +83,6 @@ services:
       - ./dynamicconfig:/etc/temporal/config/dynamicconfig
 
   temporal-admin-tools:
-    <<: *defaults
     container_name: temporal-admin-tools
     depends_on:
       - temporal
@@ -101,7 +94,6 @@ services:
     tty: true
 
   temporal-ui:
-    <<: *defaults
     container_name: temporal-ui
     depends_on:
       - temporal
@@ -112,27 +104,21 @@ services:
     ports:
       - 8080:8080
 
+  vecsearch:
+    container_name: vecsearch
+    depends_on:
+      - redis
+      - minio
+    env_file:
+      - .vecsearch.env
+    image: markmo/vecsearch:${VECSEARCH_VERSION}
+    ports:
+      - 5002:5000
+
   app:
-    <<: *defaults
     build: .
     ports:
       - 5001:5000
-    env_file:
-      - ./backend/.env
-    environment:
-      ENV: prod
-      PGHOST: postgresql
-      PORT: 5000
-    depends_on:
-      - postgresql
-      - redis
-      - minio
-      - temporal
-
-  worker:
-    <<: *defaults
-    build: .
-    command: ["./wait-for-it.sh", "localhost:7233", "--timeout=60", "--", "node", "--loader", "ts-node/esm", "workflow/worker.js"]
     env_file:
       - ./backend/.env
     environment:
@@ -146,19 +132,18 @@ services:
       - minio
       - temporal
 
-  vecsearch:
-    <<: *defaults
-    container_name: vecsearch
+  worker:
+    build: .
+    command: ["./wait-for-it.sh", "temporal:7233", "--timeout=60", "--", "node", "--loader", "ts-node/esm", "workflow/worker.js"]
+    env_file:
+      - ./backend/.env
+    environment:
+      ENV: prod
+      PGHOST: postgresql
+      PORT: 5000
+      NODE_OPTIONS: "--experimental-modules --es-module-specifier-resolution=node"
     depends_on:
+      - postgresql
       - redis
       - minio
-    env_file:
-      - .vecsearch.env
-    image: markmo/vecsearch:${VECSEARCH_VERSION}
-    ports:
-      - 5002:5000
-
-networks:
-  promptstore_dev:
-    driver: host
-    name: promptstore_dev
+      - temporal

@@ -30,6 +30,7 @@ measurement, improvement, and governance.
 ## Further Instructions
 
 - [Installation](docs/installation.md)
+- [Use cases](docs/use_cases.md)
 
 ## Further Reading
 

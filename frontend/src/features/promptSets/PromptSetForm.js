@@ -369,8 +369,6 @@ export function PromptSetForm() {
 
   const saveAndCreateVersion = async () => {
     let values = await form.validateFields();
-    // const aWords = (promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
-    // const bWords = (values.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
     let versions = promptSet.versions;
     let diff;
     if (versions && versions.length) {
@@ -379,7 +377,7 @@ export function PromptSetForm() {
       const bWords = (promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
       diff = wordsDiff(aWords, bWords, 5);
     } else {
-      diff = 'Initial version';
+      diff = ['Initial', 'version'];
     }
     if (diff.length) {
       const title = diff.join(' ');
@@ -644,6 +642,7 @@ export function PromptSetForm() {
               columns={columns}
               dataSource={versions}
               loading={loading}
+              pagination={false}
             />
           </Sider>
           <Content>

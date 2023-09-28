@@ -34,10 +34,19 @@ const skyRating = (cloudsPercent) => {
 
 function OpenWeather({ __key, __name, constants, logger }) {
 
-  const client = new OpenWeatherAPI({
-    key: constants.OPENWEATHER_API_KEY,
-    units: 'metric',
-  });
+  function getClient() {
+    try {
+      return new OpenWeatherAPI({
+        key: constants.OPENWEATHER_API_KEY,
+        units: 'metric',
+      });
+    } catch (err) {
+      logger.error('Error getting OpenWeather API client:', err);
+      return null;
+    }
+  }
+
+  const client = getClient();
 
   async function call({ input }) {
     logger.debug('evaluating input:', input);
