@@ -11,7 +11,6 @@ __pycache__/
 backend/storage/
 .DS_Store
 examples/health_tracker/
-docker-compose-dev.yml
 README_internal.md
 helm-chart/values.yaml
 k8s/loki-virtualservice.yaml

@@ -121,7 +121,7 @@ Refine or change the prompt as you like. Here is a suggestion:
     Content:
     ${content}
 
-The word in '${ }' is called a variable, and is substituted with text provided in
+The word in `${ }` is called a variable, and is substituted with text provided in
 the request.
 
 Create a new version of the prompt by clicking on "Save & Create Version".
