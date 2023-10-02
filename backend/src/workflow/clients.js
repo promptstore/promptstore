@@ -26,6 +26,7 @@ export async function reload(file, workspaceId, username, uploadId, connectionOp
 
   // optional: wait for client result
   // console.log(await handle.result());
+  return handle.result();
 }
 
 export async function upload(file, workspaceId, username, constants, connectionOptions) {

@@ -12,6 +12,8 @@ export const fileUploaderSlice = createSlice({
     uploads: {},
     uploaded: false,
     uploading: false,
+    reloaded: {},
+    reloading: {},
   },
   reducers: {
     removeUploads: (state, action) => {
@@ -39,9 +41,17 @@ export const fileUploaderSlice = createSlice({
       state.uploading = true;
       state.uploaded = false;
     },
-    uploaded: (state, action) => {
+    uploaded: (state) => {
       state.uploaded = true;
       state.uploading = false;
+    },
+    startReload: (state, action) => {
+      state.reloading[action.payload.uploadId] = true;
+      state.reloaded[action.payload.uploadId] = false;
+    },
+    reloaded: (state, action) => {
+      state.reloaded[action.payload.uploadId] = true;
+      state.reloading[action.payload.uploadId] = false;
     },
   }
 });
@@ -52,6 +62,8 @@ export const {
   startLoad,
   startUpload,
   uploaded,
+  startReload,
+  reloaded,
 } = fileUploaderSlice.actions;
 
 export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState) => {
@@ -88,16 +100,34 @@ export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState)
 };
 
 export const reloadContentAsync = ({ workspaceId, uploadId, filepath }) => async (dispatch, getState) => {
+  dispatch(startReload({ uploadId }));
+  const correlationId = uuidv4();
   const url = '/api/reload';
-  await http.post(url, { workspaceId, uploadId, filepath });
-  // set `content` on upload to null to force refetch when previewing
-  const { uploads } = getState().fileUploader;
-  let newUploads = getNewUploads(uploads[workspaceId], uploadId, null);
-  if (!newUploads) {
-    const sourceUploads = await fetchUploads(workspaceId);
-    newUploads = getNewUploads(sourceUploads, uploadId, null);
-  }
-  dispatch(setUploads({ workspaceId, uploads: newUploads }));
+  await http.post(url, { correlationId, workspaceId, uploadId, filepath });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/upload-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('upload status res:', res);
+
+      // set `content` on upload to null to force refetch when previewing
+      const { uploads } = getState().fileUploader;
+      let newUploads = getNewUploads(uploads[workspaceId], uploadId, null);
+      if (!newUploads) {
+        const sourceUploads = await fetchUploads(workspaceId);
+        newUploads = getNewUploads(sourceUploads, uploadId, null);
+      }
+      dispatch(setUploads({ workspaceId, uploads: newUploads }));
+
+      dispatch(reloaded({ uploadId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
 const fetchUploads = async (workspaceId) => {
@@ -174,5 +204,9 @@ export const selectUploads = (state) => state.fileUploader.uploads;
 export const selectUploaded = (state) => state.fileUploader.uploaded;
 
 export const selectUploading = (state) => state.fileUploader.uploading;
+
+export const selectReloaded = (state) => state.fileUploader.reloaded;
+
+export const selectReloading = (state) => state.fileUploader.reloading;
 
 export default fileUploaderSlice.reducer;

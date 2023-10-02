@@ -6,6 +6,35 @@ export default ({ app, auth, logger, services }) => {
    * @openapi
    * components:
    *   schemas:
+   *     Edge:
+   *       type: object
+   *       required:
+   *         - id
+   *         - source
+   *         - target
+   *       properties:
+   *         id:
+   *           description: Edge id.
+   *           type: string
+   *         source:
+   *           description: Source Node id.
+   *           type: string
+   *         sourceHandle:
+   *           description: Source Handle alias.
+   *           type: string
+   *         target:
+   *           description: Target Node id.
+   *           type: string
+   *         targetHandle:
+   *           description: Target Handle alias.
+   *           type: string
+   *       example:
+   *         id: "reactflow__edge-b30111e5-7efb-457e-be93-cb09cf04a8c7a-b35187e1-da6f-4064-8968-34a035638fa4target"
+   *         source: "b30111e5-7efb-457e-be93-cb09cf04a8c7"
+   *         sourceHandle: "a"
+   *         target: "b35187e1-da6f-4064-8968-34a035638fa4"
+   *         targetHandle: "target"
+   * 
    *     NodePosition:
    *       type: object
    *       required:
@@ -24,6 +53,8 @@ export default ({ app, auth, logger, services }) => {
    * 
    *     RequestNodeData:
    *       type: object
+   *       required:
+   *         - label
    *       properties:
    *         label:
    *           type: string
@@ -31,25 +62,68 @@ export default ({ app, auth, logger, services }) => {
    *         arguments:
    *           type: JSONObject
    *           description: A JSONSchema definition of the request arguments.
-   *         position:
-   *           type: NodePosition
-   *           description: The position of the visual component on the canvas.
-   *         positionAbsolute:
-   *           type: NodePosition
-   *           description: The absolute position of the visual component on the canvas.
-   *         selected:
-   *           type: boolean
-   *           description: A flag to indicate if the visual component has been selected.
-   *         dragging:
-   *           type: boolean
-   *           description: A flag to indicate if the visual component is currently being dragged to a new position.
+   *       example:
+   *         label: "Request"
+   *         arguments:
+   *           type: object
+   *           properties:
+   *             input:
+   *               type: string
+   *           required:
+   *             - input
    * 
+   *     FunctionNodeData:
+   *       type: object
+   *       required:
+   *         - functionId
+   *         - functionName
+   *       properties:
+   *         functionId:
+   *           type: integer
+   *           description: The id of the semantic function
+   *         functionName:
+   *           type: string
+   *           description: The name of the semantic function
+   *       example:
+   *         functionId: 1
+   *         functionName: "summarize"
+   * 
+   *     MapperNodeData:
+   *       type: object
+   *       required:
+   *         - returnType
+   *       properties:
+   *         mappingData:
+   *           type: string
+   *           description: The mapping specification
+   *         returnType:
+   *           type: string
+   *           description: The mime type returned by the mapper.
+   *         returnTypeSchema:
+   *           type: JSONObject
+   *           description: A JSONSchema definition of the return type.
+   *       example:
+   *         mappingData: "{\n    text: 'input'\n}"
+   *         returnType: "application/json"
+   *         returnTypeSchema:
+   *           type: object
+   *           properties:
+   *             text:
+   *               type: string
+   *           required:
+   *             - text
+   * 
+   *     JoinerNodeData:
+   *       type: object
+   * 
+   *     OutputNodeData:
+   *       type: object
    * 
    *     Node:
    *       type: object
    *       properties:
    *         id:
-   *           type: integer
+   *           type: string
    *           description: Node id.
    *         type:
    *           type: string
@@ -61,7 +135,12 @@ export default ({ app, auth, logger, services }) => {
    *             - outputNode
    *           description: The node type
    *         data:
-   *           type: NodeData
+   *           oneOf:
+   *             - $ref: '#/components/schema/RequestNodeData'
+   *             - $ref: '#/components/schema/FunctionNodeData'
+   *             - $ref: '#/components/schema/MapperNodeData'
+   *             - $ref: '#/components/schema/JoinerNodeData'
+   *             - $ref: '#/components/schema/OutputNodeData'
    *           description: The node data.
    *         width:
    *           type: integer
@@ -69,7 +148,59 @@ export default ({ app, auth, logger, services }) => {
    *         height:
    *           type: integer
    *           description: Height of the visual component on the canvas.
-   *         
+   *         position:
+   *           $ref: '#/components/schemas/NodePosition'
+   *           description: The position of the visual component on the canvas.
+   *         positionAbsolute:
+   *           $ref: '#/components/schemas/NodePosition'
+   *           description: The absolute position of the visual component on the canvas.
+   *         selected:
+   *           type: boolean
+   *           description: A flag to indicate if the visual component has been selected.
+   *         dragging:
+   *           type: boolean
+   *           description: A flag to indicate if the visual component is currently being dragged to a new position.
+   *         zIndex:
+   *           type: number
+   *           description: Defines the order of overlapping elements.
+   *       example:
+   *         data:
+   *           functionId: 1
+   *           functionName: "summarize"
+   *         dragging: false
+   *         height: 62
+   *         id: "96ae6c8c-6bb5-4aa0-94fb-058505d7c1e4"
+   *         position:
+   *           x: 255
+   *           y: 180
+   *         positionAbsolute:
+   *           x: 255
+   *           y: 180
+   *         selected: false
+   *         type: "functionNode"
+   *         width: 150
+   *         zIndex: 1001
+   * 
+   *     Viewport:
+   *       type: object
+   *       requires:
+   *         - x
+   *         - y
+   *         - zoom
+   *       properties:
+   *         x:
+   *           description: The position on the horizontal plane.
+   *           type: number
+   *         y:
+   *           description: The position on the vertical plane.
+   *           type: number
+   *         zoom:
+   *           description: The zoom factor
+   *           type: number
+   *       example:
+   *         x: 0
+   *         y: 0
+   *         zoom: 1.5
    * 
    *     Flow:
    *       type: object
@@ -77,9 +208,46 @@ export default ({ app, auth, logger, services }) => {
    *         - nodes
    *       properties:
    *         nodes:
+   *           description: The set of execution steps.
    *           type: array
    *           items:
    *             $ref: '#/components/schemas/Node'
+   *         edges:
+   *           description: The set of edges connecting nodes in the flow that represent execution dependencies.
+   *           type: array
+   *           items:
+   *             $ref: '#/components/schemas/Edge'
+   *         viewport:
+   *           description: The current display properties
+   *           $ref: '#/components/schemas/Viewport'
+   *       example:
+   *         edges:
+   *           - id: "reactflow__edge-b30111e5-7efb-457e-be93-cb09cf04a8c7a-b35187e1-da6f-4064-8968-34a035638fa4target"
+   *             source: "b30111e5-7efb-457e-be93-cb09cf04a8c7"
+   *             sourceHandle: "a"
+   *             target: "b35187e1-da6f-4064-8968-34a035638fa4"
+   *             targetHandle: "target"
+   *         nodes:
+   *           - data:
+   *               functionId: 1
+   *               functionName: "summarize"
+   *             dragging: false
+   *             height: 62
+   *             id: "96ae6c8c-6bb5-4aa0-94fb-058505d7c1e4"
+   *             position:
+   *               x: 255
+   *               y: 180
+   *             positionAbsolute:
+   *               x: 255
+   *               y: 180
+   *             selected: false
+   *             type: "functionNode"
+   *             width: 150
+   *             zIndex: 1001
+   *         viewport:
+   *           x: 0
+   *           y: 0
+   *           zoom: 1.5
    * 
    *     Composition:
    *       type: object
@@ -98,7 +266,7 @@ export default ({ app, auth, logger, services }) => {
    *           type: string
    *           description: The composition name.
    *         flow:
-   *           type: Flow
+   *           $ref: '#/components/schemas/Flow'
    *           description: The composition flow.
    *         description:
    *           type: string
@@ -117,21 +285,48 @@ export default ({ app, auth, logger, services }) => {
    *         modifiedBy:
    *           type: string
    *           description: The username of the user who last modified the composition.
+   *         returnType:
+   *           type: string
+   *           description: The mime type returned by the composition.
    *       example:
    *         id: 1
-   *         workspaceId: 1
-   *         name: AGENCEE
-   *         description: Generate marketing copy.
-   *         promptSets: [3,24]
-   *         functions: [6,20]
-   *         dataSources: [11]
-   *         indexes: [42]
-   *         created: 2023-03-01T10:30
-   *         createdBy: markmo@acme.com
-   *         modified: 2023-03-01T10:30
-   *         modifiedBy: markmo@acme.com
+   *         workspaceId: 2
+   *         name: "Test Composition"
+   *         returnType: "application/json"
+   *         created: "2023-10-01T16:52:22.000Z"
+   *         createdBy: "test.account@promptstore.dev"
+   *         modified: "2023-10-01T17:29:47.000Z"
+   *         modifiedBy: "test.account@promptstore.dev"
+   *         flow:
+   *           edges:
+   *             - id: "reactflow__edge-b30111e5-7efb-457e-be93-cb09cf04a8c7a-b35187e1-da6f-4064-8968-34a035638fa4target"
+   *               source: "b30111e5-7efb-457e-be93-cb09cf04a8c7"
+   *               sourceHandle: "a"
+   *               target: "b35187e1-da6f-4064-8968-34a035638fa4"
+   *               targetHandle: "target"
+   *           nodes:
+   *             - data:
+   *                 functionId: 1
+   *                 functionName: "summarize"
+   *               dragging: false
+   *               height: 62
+   *               id: "96ae6c8c-6bb5-4aa0-94fb-058505d7c1e4"
+   *               position:
+   *                 x: 255
+   *                 y: 180
+   *               positionAbsolute:
+   *                 x: 255
+   *                 y: 180
+   *               selected: false
+   *               type: "functionNode"
+   *               width: 150
+   *               zIndex: 1001
+   *           viewport:
+   *             x: 0
+   *             y: 0
+   *             zoom: 1.5
    * 
-   *     AppInput:
+   *     CompositionInput:
    *       type: object
    *       required:
    *         - workspaceId
@@ -142,64 +337,31 @@ export default ({ app, auth, logger, services }) => {
    *           description: The workspace id
    *         name:
    *           type: string
-   *           description: The app name.
-   *         description:
-   *           type: string
-   *           description: A description of the app
-   *         promptSets:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of prompt templates in the app
-   *         functions:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of semantic functions in the app
-   *         dataSources:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of data sources in the app
-   *         indexes:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of semantic indexes in the app
+   *           description: The composition name.
+   *         flow:
+   *           $ref: '#/components/schemas/Flow'
+   *           description: The composition flow.
    *         createdBy:
    *           type: string
    *           description: The username of the user who created the workspace.
    *         modifiedBy:
    *           type: string
    *           description: The username of the user who last modified the workspace.
-   *       example:
-   *         id: 1
-   *         workspaceId: 1
-   *         name: AGENCEE
-   *         description: Generate marketing copy.
-   *         promptSets: [3,24]
-   *         functions: [6,20]
-   *         dataSources: [11]
-   *         indexes: [42]
-   *         created: 2023-03-01T10:30
-   *         createdBy: markmo@acme.com
-   *         modified: 2023-03-01T10:30
-   *         modifiedBy: markmo@acme.com
    */
 
   /**
    * @openapi
    * tags:
-   *   name: Apps
-   *   description: The App Management API
+   *   name: Compositions
+   *   description: The Composition Management API
    */
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/apps:
+   * /api/workspaces/:workspaceId/compositions:
    *   get:
-   *     description: List all the apps in the given workspace.
-   *     tags: [Apps]
+   *     description: List all the compositions in the given workspace.
+   *     tags: [Compositions]
    *     produces:
    *       - application/json
    *     parameters:
@@ -220,13 +382,13 @@ export default ({ app, auth, logger, services }) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The list of apps
+   *         description: The list of compositions
    *         content:
    *           application/json:
    *             schema:
    *               type: array
    *               items:
-   *                 $ref: '#/components/schemas/App'
+   *                 $ref: '#/components/schemas/Composition'
    *       500:
    *         description: Error
    */
@@ -236,12 +398,59 @@ export default ({ app, auth, logger, services }) => {
     res.json(compositions);
   });
 
+  /**
+   * @openapi
+   * /api/compositions/:id:
+   *   get:
+   *     description: Lookup a composition by id.
+   *     tags: [Compositions]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: id
+   *         description: The composition id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The composition
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Composition'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/compositions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const composition = await compositionsService.getComposition(id);
     res.json(composition);
   });
 
+  /**
+   * @openapi
+   * /api/compositions:
+   *   post:
+   *     description: Create a new composition.
+   *     tags: [Compositions]
+   *     requestBody:
+   *       description: The new composition values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CompositionInput'
+   *     responses:
+   *       200:
+   *         description: The new composition
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Composition'
+   *       500:
+   *         description: Error
+   */
   app.post('/api/compositions', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
@@ -249,6 +458,35 @@ export default ({ app, auth, logger, services }) => {
     res.json(composition);
   });
 
+  /**
+   * @openapi
+   * /api/compositions/:id:
+   *   put:
+   *     description: Update a composition.
+   *     tags: [Compositions]
+   *     parameters:
+   *       - name: id
+   *         description: The composition id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       description: The updated composition values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CompositionInput'
+   *     responses:
+   *       200:
+   *         description: The updated composition
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Composition'
+   *       500:
+   *         description: Error
+   */
   app.put('/api/compositions/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
@@ -257,12 +495,58 @@ export default ({ app, auth, logger, services }) => {
     res.json(composition);
   });
 
+  /**
+   * @openapi
+   * /api/compositions/:id:
+   *   delete:
+   *     description: Delete a composition.
+   *     tags: [Compositions]
+   *     parameters:
+   *       - name: id
+   *         description: The composition id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The deleted id
+   *         content:
+   *           text/plain:
+   *             schema:
+   *               type: integer
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/compositions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await compositionsService.deleteCompositions([id]);
     res.json(id);
   });
 
+  /**
+   * @openapi
+   * /api/compositions:
+   *   delete:
+   *     description: Delete multiple compositions
+   *     tags: [Compositions]
+   *     parameters:
+   *       - name: ids
+   *         description: A comma separated list of ids
+   *         in: query
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The deleted composition ids
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: string
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/compositions', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await compositionsService.deleteCompositions(ids);

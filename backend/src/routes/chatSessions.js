@@ -263,11 +263,11 @@ export default ({ app, auth, logger, services }) => {
    *             $ref: '#/components/schemas/ChatSessionInput'
    *     responses:
    *       200:
-   *         description: The new session id
+   *         description: The new session
    *         content:
-   *           text/plain:
+   *           application/json:
    *             schema:
-   *               type: integer
+   *               $ref: '#/components/schemas/ChatSession'
    *       500:
    *         description: Error
    */
@@ -329,11 +329,11 @@ export default ({ app, auth, logger, services }) => {
    *             $ref: '#/components/schemas/ChatSessionInput'
    *     responses:
    *       200:
-   *         description: The return status
+   *         description: The updated session
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Status'
+   *               $ref: '#/components/schemas/ChatSession'
    *       500:
    *         description: Error
    */

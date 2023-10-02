@@ -34,7 +34,7 @@ s3:
 
 # search / default semantic index
 vecsearch:
-  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5000/api"
+  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5002/api"
 
 # Background job processing
 temporal:

@@ -4,6 +4,71 @@ export default ({ app, auth, logger, services }) => {
 
   // TODO de-duplication
 
+  /**
+   * @openapi
+   * components:
+   *   schemas:
+   *     CrawlInput:
+   *       type: object
+   *       required:
+   *         - url
+   *         - spec
+   *         - workspaceId
+   *       properties:
+   *         url:
+   *           type: string
+   *           description: The URL to crawl
+   *         spec:
+   *           type: JSONObject
+   *           description: The Crawling Spec
+   *         maxRequestsPerCrawl:
+   *           type: number
+   *           description: The maximum number of crawl requests. Once the limit is reached, the crawling process is stopped even if there are more links to follow.
+   *         indexId:
+   *           type: integer
+   *           description: The id of an existing index to use for storing the crawled data
+   *         newIndexName:
+   *           type: string
+   *           description: The name of the new index to create for storing the crawled data
+   *         engine:
+   *           type: string
+   *           description: The key of the vector store to use for the new index
+   *         titleField:
+   *           type: string
+   *           description: The index field to use as a title in search results
+   *         vectorField:
+   *           type: string
+   *           description: The index field to use for computing embeddings
+   *         workspaceId:
+   *           type: integer
+   *           description: The workspace id. All Prompt Store artefacts are scoped to a workspace.
+   */
+  /**
+   * @openapi
+   * tags:
+   *   name: Crawler
+   *   description: The Crawler Management API
+   */
+
+  /**
+   * @openapi
+   * /api/crawls:
+   *   post:
+   *     description: Start a web crawl
+   *     tags: [Crawler]
+   *     requestBody:
+   *       description: The crawl specification
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CrawlInput'
+   *     responses:
+   *       200:
+   *         description: A successful crawl
+   *       500:
+   *         description: Error
+   */
   app.post('/api/crawls', async (req, res) => {
     const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField, workspaceId } = req.body;
     const schema = convertScrapingSpecToIndexSchema(spec, vectorField);

@@ -275,6 +275,12 @@ export const isNumber = (str) => {
     !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
 };
 
+const truthyValues = ['true', 't', '1', 'y', 'yes'];
+
+export const isTruthy = (str) => {
+  return (str && truthyValues.includes(String(str).trim().toLowerCase()));
+}
+
 export const makePromiseFromObject = (obj) => {
   const keys = Object.keys(obj);
   const values = Object.values(obj);

@@ -16,209 +16,66 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *       properties:
    *         id:
    *           type: integer
-   *           description: The auto-generated id of the data source
+   *           description: The auto-generated id of the destination
    *         workspaceId:
    *           type: integer
-   *           description: The data source id
+   *           description: The destination id
    *         name:
    *           type: string
-   *           description: The data source name.
+   *           description: The destination name.
    *         description:
    *           type: string
-   *           description: A description of the data source
+   *           description: A description of the destination
    *         type:
    *           type: string
    *           enum:
-   *             - api
    *             - document
-   *             - featurestore
    *             - sql
-   *             - crawler
-   *           description: The data source type.
-   *         documentType:
-   *           type: string
-   *           enum:
-   *             - text
-   *             - csv
-   *             - epub
-   *             - eml
-   *             - xlsx
-   *             - html
-   *             - json
-   *             - md
-   *             - doc
-   *             - docx
-   *             - odt
-   *             - msg
-   *             - pdf
-   *             - ppt
-   *             - pptx
-   *             - rst
-   *             - rtf
-   *             - tsv
-   *             - xml
-   *           description: The type (format) of the document (if type=document).
-   *         documents:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of document ids to include in the data source (if type=document).
-   *         extractMetadata:
-   *           type: boolean
-   *           description: A flag to indicate if the document loader will extract metadata from the text using a semantic function (if type=document).
-   *         extractSchema:
-   *           type: string
-   *           description: A JSONSchema that describes the metadata properties to extract from the text (if type=document).
-   *         delimiter:
-   *           type: string
-   *           description: The delimiter character to separate values (if type=document and documentType=csv).
-   *         quoteChar:
-   *           type: string
-   *           description: The character used to mark text values.
-   *         textProperty:
-   *           type: string
-   *           description: The name of the text field (if type=document and documentType=txt).
-   *         splitter:
-   *           type: string
-   *           enum:
-   *             - delimiter
-   *             - chunker
-   *           description: The method to split text into chunks (if type=document and documentType=txt).
-   *         characters:
-   *           type: string
-   *           description: The string to delimit chunks (if type=document and documentType=txt and splitter=delimiter).
-   *         chunker:
-   *           type: string
-   *           description: The semantic function id of the chunker (if type=document and documentType=txt and splitter=chunker).
-   *         featurestore:
-   *           type: string
-   *           enum:
-   *             - anaml
-   *             - feast
-   *             - vertex
-   *           description: The feature store provider (if type=featurestore).
-   *         httpMethod:
-   *           type: string
-   *           enum:
-   *             - get
-   *             - post
-   *           description: The HTTP method for the feature store endpoint (if type=featurestore).
-   *         url:
-   *           type: string
-   *           description: The URL of the feature store endpoint (if type=featurestore).
-   *         parameterSchema:
-   *           type: string
-   *           description: The JSONSchema that describes the return parameters from the feature store (if type=featurestore).
-   *         appId:
-   *           type: string
-   *           description: The App ID to access the feature store (if type=featurestore).
-   *         appSecret:
-   *           type: string
-   *           description: The App Secret to access the feature store (if type=featurestore).
-   *         featureService:
-   *           type: string
-   *           description: The name of the Feast Feature Service (if type=featurestore and featurestore=feast). Takes precedence over the feature list.
-   *         featureList:
-   *           type: string
-   *           description: A comma-separated list of feature name identifiers (if type=featurestore and featurestore=feast). Ignored if `featureService` is set.
-   *         entity:
-   *           type: string
-   *           description: The entity type, e.g., customer, driver.
-   *         featureStoreName:
-   *           type: string
-   *           description: The name of the Anaml feature store - equivalent to the Feast feature service (if type=featurestore and featurestore=anaml).
-   *         baseUrl:
-   *           type: string
-   *           description: The root address of the web site to crawl (if type=crawler).
-   *         maxRequestsPerCrawl:
-   *           type: integer
-   *           description: The maximum number of links (requests) to crawl (if type=crawler).
-   *         scrapingSpec:
-   *           type: string
-   *           description: A JSONSchema document that describes what should be extracted from crawled links (if type=crawler).
+   *           description: The destination type.
    *         dialect:
    *           type: string
    *           enum:
    *             - postgresql
    *           description: The database type (if type=sql).
-   *         sqlType:
-   *           type: string
-   *           enum:
-   *             - sample
-   *             - schema
-   *           description: The method used to extract table metadata (if type=sql).
    *         connectionString:
    *           type: string
-   *           description: The connection string to access the database source (if type=sql).
+   *           description: The connection string to access the database destination (if type=sql).
    *         username:
    *           type: string
-   *           description: The database username with permission to access the database source (if type=sql).
+   *           description: The database username with permission to access the database destination (if type=sql).
    *         password:
    *           type: string
-   *           description: The password to access the database source (if type=sql).
-   *         endpoint:
+   *           description: The password to access the database destination (if type=sql).
+   *         dataset:
    *           type: string
-   *           description: The endpoint URL for the API source (if type=api).
-   *         schema:
+   *           description: The name of the dataset or schema to use to store the output.
+   *         tableName:
    *           type: string
-   *           description: The JSONSchema that describes the return parameters from the API (if type=api).
+   *           description: The name of the table to use or create to store the output.
    *         created:
    *           type: string
    *           format: date
-   *           description: The date-time the data source was created
+   *           description: The date-time the destination was created
    *         createdBy:
    *           type: string
-   *           description: The username of the user who created the data source.
+   *           description: The username of the user who created the destination.
    *         modified:
    *           type: string
    *           format: date
-   *           description: The date-time the data source was last modified
+   *           description: The date-time the destination was last modified
    *         modifiedBy:
    *           type: string
-   *           description: The username of the user who last modified the data source.
+   *           description: The username of the user who last modified the destination.
    *       examples:
-   *         document:
-   *           id: 16
-   *           workspaceId: 1
-   *           name: Bond Issue
-   *           description: The latest bond issue from Acme Corp.
-   *           type: document
-   *           documentType: pdf
-   *           documents:
-   *             - 46
-   *           created: 2023-03-01T10:30
-   *           createdBy: markmo@acme.com
-   *           modified: 2023-03-01T10:30
-   *           modifiedBy: markmo@acme.com
-   *         text:
-   *           id: 15
-   *           workspaceId: 1
-   *           name: Customer Notes
-   *           description: Customer notes.
-   *           type: document
-   *           documentType: txt
-   *           documents:
-   *             - 37
-   *           textProperty: text
-   *           splitter: delimiter
-   *           characters: \\n\\n
-   *           created: 2023-03-01T10:30
-   *           createdBy: markmo@acme.com
-   *           modified: 2023-03-01T10:30
-   *           modifiedBy: markmo@acme.com
-   *         featurestore:
-   *           id: 1
-   *           workspaceId: 1
-   *           name: Driver data
-   *           description: Online feature store example.
-   *           type: featurestore
-   *           featurestore: feast
-   *           httpMethod: post
-   *           utl: https://feast.acme.com/get-online-features
-   *           parametersSchema: "{\"type\":\"array\",\"items\":{\"type\":\"string\",\"title\":\"Entity\",\"description\":\"Entity ID\"},\"title\":\"Request\"}"
-   *           featureList: driver_hourly_stats:conv_rate,driver_hourly_stats:acc_rate,driver_hourly_stats:avg_daily_trips
-   *           entity: driver_id
-   *           featureService: driver_activity
+   *         sql:
+   *           id: 12
+   *           workspaceId: 2
+   *           name: Scored users table
+   *           description: A table of scored users.
+   *           type: sql
+   *           dialect: BigQuery
+   *           dataset: online_users
+   *           table_name: scored_users
    *           created: 2023-03-01T10:30
    *           createdBy: markmo@acme.com
    *           modified: 2023-03-01T10:30
@@ -227,204 +84,60 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *     DestinationInput:
    *       type: object
    *       required:
-   *         - id
    *         - workspaceId
    *         - name
    *         - type
    *       properties:
-   *         id:
-   *           type: integer
-   *           description: The auto-generated id of the data source
    *         workspaceId:
    *           type: integer
-   *           description: The data source id
+   *           description: The destination id
    *         name:
    *           type: string
-   *           description: The data source name.
+   *           description: The destination name.
    *         description:
    *           type: string
-   *           description: A description of the data source
+   *           description: A description of the destination
    *         type:
    *           type: string
    *           enum:
-   *             - api
    *             - document
-   *             - featurestore
    *             - sql
-   *             - crawler
-   *           description: The data source type.
-   *         documentType:
-   *           type: string
-   *           enum:
-   *             - text
-   *             - csv
-   *             - epub
-   *             - eml
-   *             - xlsx
-   *             - html
-   *             - json
-   *             - md
-   *             - doc
-   *             - docx
-   *             - odt
-   *             - msg
-   *             - pdf
-   *             - ppt
-   *             - pptx
-   *             - rst
-   *             - rtf
-   *             - tsv
-   *             - xml
-   *           description: The type (format) of the document (if type=document).
-   *         documents:
-   *           type: array
-   *           items:
-   *             type: integer
-   *           description: The list of document ids to include in the data source (if type=document).
-   *         extractMetadata:
-   *           type: boolean
-   *           description: A flag to indicate if the document loader will extract metadata from the text using a semantic function (if type=document).
-   *         extractSchema:
-   *           type: string
-   *           description: A JSONSchema that describes the metadata properties to extract from the text.
-   *         delimiter:
-   *           type: string
-   *           description: The delimiter character to separate values (if type=document and documentType=csv).
-   *         quoteChar:
-   *           type: string
-   *           description: The character used to mark text values.
-   *         textProperty:
-   *           type: string
-   *           description: The name of the text field (if type=document and documentType=txt).
-   *         splitter:
-   *           type: string
-   *           enum:
-   *             - delimiter
-   *             - chunker
-   *           description: The method to split text into chunks (if type=document and documentType=txt).
-   *         characters:
-   *           type: string
-   *           description: The string to delimit chunks (if type=document and documentType=txt and splitter=delimiter).
-   *         chunker:
-   *           type: string
-   *           description: The semantic function id of the chunker (if type=document and documentType=txt and splitter=chunker).
-   *         featurestore:
-   *           type: string
-   *           enum:
-   *             - anaml
-   *             - feast
-   *             - vertex
-   *           description: The feature store provider (if type=featurestore).
-   *         httpMethod:
-   *           type: string
-   *           enum:
-   *             - get
-   *             - post
-   *           description: The HTTP method for the feature store endpoint (if type=featurestore).
-   *         url:
-   *           type: string
-   *           description: The URL of the feature store endpoint (if type=featurestore).
-   *         parameterSchema:
-   *           type: string
-   *           description: The JSONSchema that describes the return parameters from the feature store (if type=featurestore).
-   *         appId:
-   *           type: string
-   *           description: The App ID to access the feature store (if type=featurestore).
-   *         appSecret:
-   *           type: string
-   *           description: The App Secret to access the feature store (if type=featurestore).
-   *         featureService:
-   *           type: string
-   *           description: The name of the Feast Feature Service (if type=featurestore and featurestore=feast). Takes precedence over the feature list.
-   *         featureList:
-   *           type: string
-   *           description: A comma-separated list of feature name identifiers (if type=featurestore and featurestore=feast). Ignored if `featureService` is set.
-   *         entity:
-   *           type: string
-   *           description: The entity type, e.g., customer, driver.
-   *         featureStoreName:
-   *           type: string
-   *           description: The name of the Anaml feature store - equivalent to the Feast feature service (if type=featurestore and featurestore=anaml).
-   *         baseUrl:
-   *           type: string
-   *           description: The root address of the web site to crawl (if type=crawler).
-   *         maxRequestsPerCrawl:
-   *           type: integer
-   *           description: The maximum number of links (requests) to crawl (if type=crawler).
-   *         scrapingSpec:
-   *           type: string
-   *           description: A JSONSchema document that describes what should be extracted from crawled links (if type=crawler).
+   *           description: The destination type.
    *         dialect:
    *           type: string
    *           enum:
    *             - postgresql
    *           description: The database type (if type=sql).
-   *         sqlType:
-   *           type: string
-   *           enum:
-   *             - sample
-   *             - schema
-   *           description: The method used to extract table metadata (if type=sql).
    *         connectionString:
    *           type: string
-   *           description: The connection string to access the database source (if type=sql).
+   *           description: The connection string to access the database destination (if type=sql).
    *         username:
    *           type: string
-   *           description: The database username with permission to access the database source (if type=sql).
+   *           description: The database username with permission to access the database destination (if type=sql).
    *         password:
    *           type: string
-   *           description: The password to access the database source (if type=sql).
-   *         endpoint:
+   *           description: The password to access the database destination (if type=sql).
+   *         dataset:
    *           type: string
-   *           description: The endpoint URL for the API source (if type=api).
-   *         schema:
+   *           description: The name of the dataset or schema to use to store the output.
+   *         tableName:
    *           type: string
-   *           description: The JSONSchema that describes the return parameters from the API (if type=api).
+   *           description: The name of the table to use or create to store the output.
    *         createdBy:
    *           type: string
-   *           description: The username of the user who created the data source.
+   *           description: The username of the user who created the destination.
    *         modifiedBy:
    *           type: string
-   *           description: The username of the user who last modified the data source.
+   *           description: The username of the user who last modified the destination.
    *       examples:
-   *         document:
-   *           id: 16
-   *           workspaceId: 1
-   *           name: Bond Issue
-   *           description: The latest bond issue from Acme Corp.
-   *           type: document
-   *           documentType: pdf
-   *           documents:
-   *             - 46
-   *           createdBy: markmo@acme.com
-   *           modifiedBy: markmo@acme.com
-   *         text:
-   *           id: 15
-   *           workspaceId: 1
-   *           name: Customer Notes
-   *           description: Customer notes.
-   *           type: document
-   *           documentType: txt
-   *           documents:
-   *             - 37
-   *           textProperty: text
-   *           splitter: delimiter
-   *           characters: \\n\\n
-   *           createdBy: markmo@acme.com
-   *           modifiedBy: markmo@acme.com
-   *         featurestore:
-   *           id: 1
-   *           workspaceId: 1
-   *           name: Driver data
-   *           description: Online feature store example.
-   *           type: featurestore
-   *           featurestore: feast
-   *           httpMethod: post
-   *           utl: https://feast.acme.com/get-online-features
-   *           parametersSchema: "{\"type\":\"array\",\"items\":{\"type\":\"string\",\"title\":\"Entity\",\"description\":\"Entity ID\"},\"title\":\"Request\"}"
-   *           featureList: driver_hourly_stats:conv_rate,driver_hourly_stats:acc_rate,driver_hourly_stats:avg_daily_trips
-   *           entity: driver_id
-   *           featureService: driver_activity
+   *         sql:
+   *           workspaceId: 2
+   *           name: Scored users table
+   *           description: A table of scored users.
+   *           type: sql
+   *           dialect: BigQuery
+   *           dataset: online_users
+   *           table_name: scored_users
    *           createdBy: markmo@acme.com
    *           modifiedBy: markmo@acme.com
    */
@@ -433,14 +146,14 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    * @openapi
    * tags:
    *   name: Destinations
-   *   description: The Data Sources Management API
+   *   description: The Destinations Management API
    */
 
   /**
    * @openapi
    * /api/workspaces/:workspaceId/destinations:
    *   get:
-   *     description: List all the data sources in the given workspace.
+   *     description: List all the destinations in the given workspace.
    *     tags: [Destinations]
    *     produces:
    *       - application/json
@@ -467,7 +180,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The list of data sources
+   *         description: The list of destinations
    *         content:
    *           application/json:
    *             schema:
@@ -489,17 +202,59 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(destinations);
   });
 
+  /**
+   * @openapi
+   * /api/destinations/:id:
+   *   get:
+   *     description: Lookup a destination by id.
+   *     tags: [Destinations]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: id
+   *         description: The destination id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The destination
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Destination'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/destinations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const index = await destinationsService.getDestination(id);
     res.json(index);
   });
 
-  app.get('/api/dialects', auth, (req, res, next) => {
-    const dialects = sqlSourceService.getDialects();
-    res.json(dialects);
-  });
-
+  /**
+   * @openapi
+   * /api/destinations:
+   *   post:
+   *     description: Create a new destination.
+   *     tags: [Destinations]
+   *     requestBody:
+   *       description: The new destination values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/DestinationInput'
+   *     responses:
+   *       200:
+   *         description: The new destination
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Destination'
+   *       500:
+   *         description: Error
+   */
   app.post('/api/destinations', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
@@ -507,6 +262,35 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(destination);
   });
 
+  /**
+   * @openapi
+   * /api/destinations/:id:
+   *   put:
+   *     description: Update a destination.
+   *     tags: [Destinations]
+   *     parameters:
+   *       - name: id
+   *         description: The destination id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       description: The updated destination values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/DestinationInput'
+   *     responses:
+   *       200:
+   *         description: The updated destination
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Destination'
+   *       500:
+   *         description: Error
+   */
   app.put('/api/destinations/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
@@ -515,12 +299,58 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(destination);
   });
 
+  /**
+   * @openapi
+   * /api/destinations/:id:
+   *   delete:
+   *     description: Delete a destination.
+   *     tags: [Destinations]
+   *     parameters:
+   *       - name: id
+   *         description: The destination id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The deleted id
+   *         content:
+   *           text/plain:
+   *             schema:
+   *               type: integer
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/destinations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await destinationsService.deleteDestinations([id]);
     res.json(id);
   });
 
+  /**
+   * @openapi
+   * /api/destinations:
+   *   delete:
+   *     description: Delete multiple destinations
+   *     tags: [Destinations]
+   *     parameters:
+   *       - name: ids
+   *         description: A comma separated list of ids
+   *         in: query
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The deleted destination ids
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: string
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/destinations', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await destinationsService.deleteDestinations(ids);

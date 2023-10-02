@@ -222,11 +222,11 @@ export default ({ app, auth, logger, services }) => {
    *             $ref: '#/components/schemas/AppInput'
    *     responses:
    *       200:
-   *         description: The new app id
+   *         description: The new app
    *         content:
-   *           text/plain:
+   *           application/json:
    *             schema:
-   *               type: integer
+   *               $ref: '#/components/schemas/App'
    *       500:
    *         description: Error
    */
@@ -258,11 +258,11 @@ export default ({ app, auth, logger, services }) => {
    *             $ref: '#/components/schemas/AppInput'
    *     responses:
    *       200:
-   *         description: The return status
+   *         description: The updated app
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Status'
+   *               $ref: '#/components/schemas/App'
    *       500:
    *         description: Error
    */

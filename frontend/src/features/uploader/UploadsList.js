@@ -32,6 +32,7 @@ import {
   reloadContentAsync,
   selectLoading,
   selectUploads,
+  selectReloading,
 } from './fileUploaderSlice';
 
 const getDocIcon = (ext) => {
@@ -97,6 +98,7 @@ export function UploadsList({ workspaceId }) {
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const loading = useSelector(selectLoading);
   const uploads = useSelector(selectUploads);
+  const reloading = useSelector(selectReloading);
 
   const sourceUploads = uploads[workspaceId] || [];
 
@@ -261,6 +263,7 @@ export function UploadsList({ workspaceId }) {
               Preview
             </Button>
             <Button type="link"
+              loading={!!reloading[record.id]}
               style={{ paddingLeft: 0 }}
               onClick={() => reloadContent(record)}
             >

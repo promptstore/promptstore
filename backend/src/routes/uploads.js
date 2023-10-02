@@ -136,7 +136,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   });
 
   app.post('/api/reload', auth, async (req, res) => {
-    let { workspaceId, uploadId, filepath } = req.body;
+    let { correlationId, workspaceId, uploadId, filepath } = req.body;
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
@@ -147,11 +147,20 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     const file = await documentsService.download(filepath);
     // logger.debug('file:', file);
     workflowClient.reload(file, workspaceId, username, uploadId, {
-      DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
-      FILE_BUCKET: constants.FILE_BUCKET,
-    }, {
       address: constants.TEMPORAL_URL,
-    });
+    })
+      .then((result) => {
+        // logger.debug('upload result:', result);
+        if (correlationId) {
+          jobs[correlationId] = result;
+        }
+
+        // allow 10m to poll for results
+        setTimeout(() => {
+          delete jobs[correlationId];
+        }, 10 * 60 * 1000);
+
+      });
     res.sendStatus(200);
   });
 

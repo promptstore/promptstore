@@ -429,6 +429,19 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *           featureService: driver_activity
    *           createdBy: markmo@acme.com
    *           modifiedBy: markmo@acme.com
+   * 
+   *     Dialect:
+   *       type: object
+   *       required:
+   *         - key
+   *         - name
+   *       properties:
+   *         key:
+   *           type: string
+   *           description: The plugin key of the supported database
+   *         name:
+   *           type: string
+   *           description: The plugin name of the supported database
    */
 
   /**
@@ -491,12 +504,60 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(dataSources);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources/:id:
+   *   get:
+   *     description: Lookup a data source by id.
+   *     tags: [DataSources]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: id
+   *         description: The data source id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The data source
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/DataSource'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
-    const index = await dataSourcesService.getDataSource(id);
-    res.json(index);
+    const dataSource = await dataSourcesService.getDataSource(id);
+    res.json(dataSource);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources/:id/content:
+   *   get:
+   *     description: Return the data of a data source. The data may be the text content or a sample of rows from a database.
+   *     tags: [DataSources]
+   *     produces:
+   *       application/json
+   *     parameters:
+   *       - name: id
+   *         description: The data source id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The data source content
+   *         content:
+   *           text/plain:
+   *             schema:
+   *               type: string
+   *       500:
+   *         description: Error
+   */
   app.get('/api/data-sources/:id/content', auth, (req, res) => {
     let mb = +req.query.maxBytes;
     if (isNaN(mb)) mb = 1000 * 1024;
@@ -560,11 +621,50 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     );
   });
 
+  /**
+   * @openapi
+   * /api/data-sources:
+   *   get:
+   *     description: Return a list of supported database dialects
+   *     tags: [DataSources]
+   *     responses:
+   *       200:
+   *         description: The list of supported database dialects
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Dialect'
+   *       500:
+   *         description: Error
+   */
   app.get('/api/dialects', auth, (req, res, next) => {
     const dialects = sqlSourceService.getDialects();
     res.json(dialects);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources:
+   *   post:
+   *     description: Create a new data source.
+   *     tags: [DataSources]
+   *     requestBody:
+   *       description: The new source values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/DataSourceInput'
+   *     responses:
+   *       200:
+   *         description: The new data source
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/DataSource'
+   *       500:
+   *         description: Error
+   */
   app.post('/api/data-sources', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
@@ -572,6 +672,35 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(dataSource);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources/:id:
+   *   put:
+   *     description: Update a data source.
+   *     tags: [DataSources]
+   *     parameters:
+   *       - name: id
+   *         description: The data source id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       description: The updated source values
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/DataSourceInput'
+   *     responses:
+   *       200:
+   *         description: The updated data source
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/DataSource'
+   *       500:
+   *         description: Error
+   */
   app.put('/api/data-sources/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
@@ -580,12 +709,58 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     res.json(dataSource);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources/:id:
+   *   delete:
+   *     description: Delete a data source.
+   *     tags: [DataSources]
+   *     parameters:
+   *       - name: id
+   *         description: The data source id
+   *         in: path
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The deleted id
+   *         content:
+   *           text/plain:
+   *             schema:
+   *               type: integer
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await dataSourcesService.deleteDataSources([id]);
     res.json(id);
   });
 
+  /**
+   * @openapi
+   * /api/data-sources:
+   *   delete:
+   *     description: Delete multiple data sources
+   *     tags: [DataSources]
+   *     parameters:
+   *       - name: ids
+   *         description: A comma separated list of ids
+   *         in: query
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The deleted data source ids
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: string
+   *       500:
+   *         description: Error
+   */
   app.delete('/api/data-sources', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await dataSourcesService.deleteDataSources(ids);

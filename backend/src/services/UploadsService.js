@@ -60,7 +60,7 @@ export function UploadsService({ pg, logger }) {
         UPDATE file_uploads
         SET val = $1, modified_by = $2, modified = $3
         WHERE id = $4
-        RETURNNG *
+        RETURNING *
         `,
         [val, username, modified, upload.id]
       );
