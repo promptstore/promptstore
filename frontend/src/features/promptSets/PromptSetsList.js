@@ -203,6 +203,12 @@ export function PromptSetsList() {
           >
             Edit
           </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/design/${record.key}`)}
+          >
+            Design
+          </Button>
         </Space>
       ),
     },
@@ -289,8 +295,9 @@ export function PromptSetsList() {
                   <Space wrap size="small">
                     {(p.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
                   </Space>
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
                     <Link to={`/prompt-sets/${p.key}`}>Edit</Link>
+                    <Link to={`/design/${p.key}`}>Design</Link>
                   </div>
                 </div>
               </Card>

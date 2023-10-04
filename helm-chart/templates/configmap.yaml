@@ -45,7 +45,7 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,structureddocument|Structured Document Loader|./plugins/loaders/structureddocument,csv|CSV Loader|./plugins/loaders/csv"
@@ -109,6 +109,9 @@ data:
 
   # Llama 2 - ./plugins/llms/llama2
   LLAMA2_BASE_PATH: "{{ .Values.llama2.base_path }}"
+
+  # Llama API - ./plugins/llms/llamaapi
+  LLAMAAPI_BASE_PATH: "{{ .Values.llamaapi.base_path }}"
 
   # LocalAI - ./plugins/llms/localai
   LOCALAI_BASE_PATH: "{{ .Values.localai.base_path }}"

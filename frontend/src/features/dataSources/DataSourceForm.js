@@ -624,16 +624,34 @@ export function DataSourceForm() {
                 options={sqlTypeOptions}
               />
             </Form.Item>
-            {dialectValue === 'postgresql' ?
+            {dialectValue === 'postgresql' || dialectValue === 'bigquery' ?
               <>
                 <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
                   <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
                     Connection Info
                   </div>
                 </Form.Item>
+                {dialectValue === 'postgresql' ?
+                  <Form.Item
+                    label="Connection String"
+                    name="connectionString"
+                    wrapperCol={{ span: 10 }}
+                  >
+                    <Input />
+                  </Form.Item>
+                  : null
+                }
                 <Form.Item
-                  label="Connection String"
-                  name="connectionString"
+                  label={dialectValue === 'bigquery' ? 'Dataset' : 'Schema'}
+                  name="dataset"
+                  wrapperCol={{ span: 10 }}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  extra="Enter a comma separated list"
+                  label="Tables"
+                  name="tables"
                   wrapperCol={{ span: 10 }}
                 >
                   <Input />
@@ -722,43 +740,6 @@ export function DataSourceForm() {
                     <Input type="password" />
                   </Form.Item>
                 </Form.Item>
-              </>
-              : null
-            }
-            {dialectValue === 'bigquery' ?
-              <>
-                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-                  <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                    Connection Info
-                  </div>
-                </Form.Item>
-                <Form.Item
-                  label="Dataset"
-                  name="dataset"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  extra="Enter a comma separated list"
-                  label="Tables"
-                  name="tables"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                {sqlTypeValue === 'sample' ?
-                  <>
-                    <Form.Item
-                      label="Sample Rows"
-                      name="sampleRows"
-                      wrapperCol={{ span: 2 }}
-                    >
-                      <Input type="number" />
-                    </Form.Item>
-                  </>
-                  : null
-                }
               </>
               : null
             }

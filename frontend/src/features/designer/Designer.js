@@ -1,13 +1,22 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button, Layout, Table } from 'antd';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button, Form, Input, Layout, Select, Table } from 'antd';
+import { LinkOutlined } from '@ant-design/icons';
+import isEmpty from 'lodash.isempty';
+import SchemaForm from '@rjsf/antd';
+import validator from '@rjsf/validator-ajv8';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { createPromptSetAsync } from '../promptSets/promptSetsSlice';
+import {
+  createPromptSetAsync,
+  getPromptSetsAsync,
+  selectLoading as selectPromptSetsLoading,
+  selectPromptSets,
+} from '../promptSets/promptSetsSlice';
 
 import { ModelParamsForm } from './ModelParamsForm';
 import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
@@ -26,9 +35,19 @@ import {
   selectLoading as selectChatLoading,
   selectMessages,
   setMessages,
+  selectTraceId,
+  setTraceId,
 } from './chatSlice';
 
 const { Content, Sider } = Layout;
+const { TextArea } = Input;
+
+const uiSchema = {
+  'ui:title': 'Additional expected inputs',
+  'ui:submitButtonOptions': {
+    'norender': true,
+  },
+};
 
 export function Designer() {
 
@@ -38,23 +57,70 @@ export function Designer() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [modelParams, setModelParams] = useState({});
+  const [argsFormData, setArgsFormData] = useState(null);
 
   const chatLoading = useSelector(selectChatLoading);
   const chatSessions = useSelector(selectChatSessions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const messages = useSelector(selectMessages);
+  const promptSets = useSelector(selectPromptSets);
+  const promptSetsLoading = useSelector(selectPromptSetsLoading);
+  const traceId = useSelector(selectTraceId);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  let id;
+  const match = location.pathname.match(/\/design\/(.*)/);
+  if (match) {
+    id = +match[1];
+  }
+
+  const [promptForm] = Form.useForm();
+  const promptSetValue = Form.useWatch('promptSet', promptForm);
+
+  const [hasContentVar, varsSchema] = useMemo(() => {
+    if (promptSetValue) {
+      const promptSet = promptSets[promptSetValue];
+      if (promptSet && promptSet.arguments) {
+        const schema = promptSet.arguments;
+        if (schema.type === 'object') {
+          const props = { ...schema.properties };
+          if ('content' in props) {
+            const keys = Object.keys(props);
+            if (keys.length > 1) {
+              delete props['content'];
+              const required = [...(schema.required || [])];
+              const index = required.indexOf('content');
+              if (index > -1) {
+                required.splice(index, 1);
+              }
+              return [true, {
+                ...schema,
+                properties: props,
+                required,
+              }];
+            } else {
+              return [true, null];
+            }
+          } else {
+            return [false, schema];
+          }
+        }
+      }
+    }
+    return [false, null];
+  }, [promptSetValue]);
 
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      title: 'Prompt Designer',
+      title: 'Prompt Design',
     }));
     return () => {
       onReset();
@@ -64,6 +130,7 @@ export function Designer() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
+      dispatch(getPromptSetsAsync({ workspaceId }));
       dispatch(getChatSessionsAsync({ workspaceId, type: 'design' }));
     }
   }, [selectedWorkspace]);
@@ -77,6 +144,17 @@ export function Designer() {
       }
     }
   }, [chatSessions, createdUuid]);
+
+  const promptSetOptions = useMemo(() => {
+    if (promptSets) {
+      return Object.values(promptSets).map((s) => ({
+        key: s.id,
+        label: s.name,
+        value: s.id,
+      }));
+    }
+    return [];
+  }, [promptSets]);
 
   const columns = [
     {
@@ -105,9 +183,69 @@ export function Designer() {
     setSelectedSession(session);
   };
 
-  const handleChatSubmit = (values) => {
+  const handleChatSubmit = async (values) => {
+    let sp;
+    let history = [];
+    let messages = values.messages;
+    const originalMessages = messages;
+    let args;
+    let engine;
+    if (messages.length > 1) {
+      history = messages.slice(0, -1);
+      messages = messages.slice(-1);
+    }
+    const { promptSet, systemPrompt } = await promptForm.validateFields();
+    if (promptSet) {
+      const ps = promptSets[promptSet];
+      if (ps && ps.prompts) {
+        engine = ps.templateEngine || 'es6';
+        sp = ps.prompts
+          .filter(p => p.role === 'system')
+          .map(p => p.prompt)
+          .join('\n\n')
+          ;
+        if (hasContentVar || varsSchema) {
+          const nonSystemMessages = ps.prompts
+            .filter(p => p.role !== 'system')
+            .map(p => ({ role: p.role, content: p.prompt }))
+            ;
+          if (hasContentVar) {
+            const content = messages[0].content;
+            args = { content };
+            if (nonSystemMessages.length > 1) {
+              history = [
+                ...nonSystemMessages.slice(0, -1),
+                ...history,
+              ];
+            }
+            messages = nonSystemMessages.slice(-1);
+          }
+          if (varsSchema) {
+            args = { ...args, ...argsFormData };
+            if (nonSystemMessages.length > 0) {
+              history = [
+                ...nonSystemMessages,
+                ...history,
+              ];
+            }
+          }
+        } else {
+          history = [
+            ...ps.prompts.filter(p => p.role !== 'system').map(p => ({ role: p.role, content: p.prompt })),
+            ...history,
+          ];
+        }
+      }
+    } else if (systemPrompt) {
+      sp = systemPrompt;
+    }
     dispatch(getChatResponseAsync({
-      messages: values.messages,
+      systemPrompt: sp,
+      history,
+      messages,
+      originalMessages,
+      args,
+      engine,
       modelParams,
       workspaceId: selectedWorkspace.id,
     }));
@@ -125,6 +263,10 @@ export function Designer() {
     dispatch(setMessages({ messages: [] }));
     setSelectedSession(null);
     // dispatch(resetChatSessions());
+  };
+
+  const clearPromptFields = () => {
+    promptForm.resetFields();
   };
 
   const onSave = () => {
@@ -219,6 +361,58 @@ export function Designer() {
               loading={loading}
             />
           </Sider>
+          <Sider
+            style={{ height: '100%', marginRight: 20, padding: '24px 8px' }}
+            width={250}
+            theme="light"
+          >
+            <Form
+              autoComplete="off"
+              form={promptForm}
+              layout="vertical"
+              name="prompts-form"
+              initialValues={{ promptSet: id }}
+            >
+              <div style={{ display: 'flex' }}>
+                <Form.Item
+                  label="Prompt Template"
+                  name="promptSet"
+                  style={{ marginBottom: 16, width: promptSetValue ? 202 : 234 }}
+                >
+                  <Select allowClear
+                    loading={promptSetsLoading}
+                    options={promptSetOptions}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+                {promptSetValue ?
+                  <Button
+                    type="link"
+                    icon={<LinkOutlined />}
+                    onClick={() => navigate(`/prompt-sets/${promptSetValue}`)}
+                    style={{ marginTop: 32, width: 32 }}
+                  />
+                  : null
+                }
+              </div>
+              <div style={{ color: '#1677ff', marginBottom: 24 }}>
+                <Link to="/prompt-sets">Browse templates...</Link>
+              </div>
+              <Form.Item
+                label="System prompt"
+                name="systemPrompt"
+                extra="Instead of template"
+              >
+                <TextArea
+                  autoSize={{ minRows: 4, maxRows: 14 }}
+                  disabled={!!promptSetValue}
+                />
+              </Form.Item>
+              <Button onClick={clearPromptFields} type="default" size="small">
+                Reset
+              </Button>
+            </Form>
+          </Sider>
           <Content>
             <Chat
               enableActions={true}
@@ -232,14 +426,49 @@ export function Designer() {
               onReset={onReset}
               onSave={onSave}
               placeholder="Write an email subject line for the latest iPhone."
+              traceId={traceId}
             />
+            {varsSchema ?
+              <div style={{ marginTop: 24, width: 868 }}>
+                <div style={{ float: 'right' }}>
+                  <Button type="default" size="small"
+                    disabled={isEmpty(argsFormData)}
+                    onClick={() => { setArgsFormData(null); }}
+                  >
+                    Reset vars
+                  </Button>
+                </div>
+                <div style={{ width: '50%' }}>
+                  <SchemaForm
+                    schema={varsSchema}
+                    uiSchema={uiSchema}
+                    validator={validator}
+                    formData={argsFormData}
+                    onChange={(e) => setArgsFormData(e.formData)}
+                    submitter={false}
+                  />
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  The message will be assigned to the `content` variable if using a Prompt Template.
+                </div>
+              </div>
+              : null
+            }
           </Content>
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
             width={250}
           >
             <ModelParamsForm
-              includes={{ maxTokens: true, temperature: true, topP: true }}
+              includes={{
+                maxTokens: true,
+                temperature: true,
+                topP: true,
+                stopSequences: true,
+                frequencyPenalty: true,
+                presencePenalty: true,
+                topK: true,
+              }}
               onChange={setModelParams}
             />
           </Sider>

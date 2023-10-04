@@ -663,6 +663,46 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
 
 /*** ************/
 
+/*** translate to llamaapi ************/
+
+export function toLlamaApiChatRequest(request: ChatRequest) {
+  const {
+    functions,
+    function_call,
+    stream,
+  } = request;
+  const messages = createOpenAIMessages(request.prompt);
+  return {
+    messages,
+    functions,
+    function_call,
+    stream,
+  };
+}
+
+export function fromLlamaApiChatResponse(response: OpenAIChatCompletionResponse) {
+  const {
+    choices,
+  } = response;
+  return {
+    id: uuid.v4(),
+    created: new Date(),
+    model: 'llama-13b-chat',
+    n: choices.length,
+    choices: choices.map(c => ({
+      finish_reason: c.finish_reason,
+      index: c.index,
+      message: {
+        role: c.message.role,
+        content: c.message.content,
+        function_call: c.message.function_call,
+      }
+    })),
+  };
+}
+
+/*** ************/
+
 /*** utility ************/
 
 function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {

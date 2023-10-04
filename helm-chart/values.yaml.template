@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.3"
+version: "0.6.6"
 
 port: "5000"
 promptstore_email:
@@ -99,6 +99,11 @@ gpt4all:
 # Llama 2 - ./plugins/llms/llama2
 llama2:
   base_path:
+
+# Llama API - ./plugins/llms/llamaapi
+llamaapi:
+  base_path: "https://api.llama-api.com"
+  api_key:
 
 # LocalAI - ./plugins/llms/localai
 localai:

@@ -294,7 +294,7 @@ export default ({ app, auth, logger, services }) => {
         params: {},
       });
       if (errors) {
-        res.status(500).send({ errors });
+        return res.status(500).send({ errors });
       }
       const name = response.choices[0].message.content;
       logger.debug('name:', name);

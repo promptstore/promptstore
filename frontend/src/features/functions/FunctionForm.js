@@ -445,7 +445,7 @@ export function FunctionForm() {
               {func.returnType === 'application/json' ?
                 <ReactJson src={testResult} />
                 :
-                <div>{String(testResult.content)}</div>
+                <div>{String(testResult.choices[0].message.content)}</div>
               }
             </div>
             : null

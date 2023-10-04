@@ -1,5 +1,6 @@
-import { forwardRef, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { Avatar, Button, Checkbox, Divider, Input, Radio, Space, Spin } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +26,7 @@ export function Chat({
   selectMultiple,
   suggestPrompts,
   tourRefs,
+  traceId,
 }) {
 
   if (!placeholder) {
@@ -34,13 +36,12 @@ export function Chat({
   const [indeterminate, setIndeterminate] = useState(false);
   const [selected, setSelected] = useState({});
   const [checkAll, setCheckAll] = useState(false);
+  const [input, setInput] = useState(null);
 
   const selectedKeys = Object.entries(selected).filter(([_, v]) => v).map(([k, _]) => k);
   const hasSelected = selectedKeys.length > 0;
 
   const hasMessages = messages.length > 0;
-
-  const inputRef = useRef();
 
   const dispatch = useDispatch();
 
@@ -92,9 +93,9 @@ export function Chat({
     const msg = {
       key: uuidv4(),
       role: 'user',
-      content: inputRef.current.resizableTextArea.textArea.value,
+      content: input,
     };
-    inputRef.current.resizableTextArea.textArea.value = '';
+    setInput(null);
     onSubmit({ app, messages: [...messages, msg] });
   };
 
@@ -344,46 +345,15 @@ export function Chat({
           </Button>
           : null
         }
+        {traceId ?
+          <div style={{ color: '#1677ff' }}>
+            <Link to={`/traces/${traceId}`}>Latest trace...</Link>
+          </div>
+          : null
+        }
       </Space>
     );
   };
-
-  const MessageInput = forwardRef(({ disabled, handleSubmit, loading }, ref) => {
-
-    const [value, setValue] = useState(false);
-
-    const handleChange = (ev) => {
-      setValue(ev.target.value);
-    };
-
-    return (
-      <div>
-        <div style={{ display: 'flex' }}>
-          <TextArea
-            ref={ref}
-            autoSize={{ minRows: 1, maxRows: 14 }}
-            onPressEnter={(ev) => {
-              if (!ev.shiftKey) {
-                ev.preventDefault();
-                if (!disabled && ev.target.value) {
-                  handleSubmit(ev);
-                }
-              }
-            }}
-            style={{ flex: 1 }}
-            onChange={handleChange}
-            placeholder={placeholder}
-          />
-          <Button type="text"
-            disabled={disabled || loading || !value}
-            icon={<SendOutlined />}
-            onClick={handleSubmit}
-          />
-        </div>
-        <p style={{ lineHeight: '32px' }}>Press Shift+Enter to insert a new line.</p>
-      </div>
-    );
-  });
 
   return (
     <div className="chat">
@@ -406,12 +376,49 @@ export function Chat({
       />
       <div ref={tourRefs?.prompt}>
         <MessageInput
-          ref={inputRef}
           disabled={disabled}
           handleSubmit={handleSubmit}
           loading={loading}
+          onChange={setInput}
+          placeholder={placeholder}
+          value={input}
         />
       </div>
     </div>
   );
 }
+
+const MessageInput = ({ disabled, handleSubmit, loading, onChange, placeholder, value }) => {
+
+  const handleChange = (ev) => {
+    onChange(ev.target.value);
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex' }}>
+        <TextArea
+          autoSize={{ minRows: 1, maxRows: 14 }}
+          onPressEnter={(ev) => {
+            if (!ev.shiftKey) {
+              ev.preventDefault();
+              if (!disabled && ev.target.value) {
+                handleSubmit(ev);
+              }
+            }
+          }}
+          style={{ flex: 1 }}
+          onChange={handleChange}
+          placeholder={placeholder}
+          value={value}
+        />
+        <Button type="text"
+          disabled={disabled || loading || !value}
+          icon={<SendOutlined />}
+          onClick={handleSubmit}
+        />
+      </div>
+      <p style={{ lineHeight: '32px' }}>Press Shift+Enter to insert a new line.</p>
+    </div>
+  );
+};

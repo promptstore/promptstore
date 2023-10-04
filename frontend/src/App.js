@@ -596,6 +596,7 @@ function App() {
                     <Route path="/compositions" element={<CompositionsList />} />
                     <Route path="/data-sources/:id" element={<DataSourceForm />} />
                     <Route path="/data-sources" element={<DataSourcesList />} />
+                    <Route path="/design/:id" element={<Designer />} />
                     <Route path="/design" element={<Designer />} />
                     <Route path="/destinations/:id" element={<DestinationForm />} />
                     <Route path="/destinations" element={<DestinationsList />} />

@@ -1,8 +1,11 @@
+import { default as dayjs } from 'dayjs';
 import fs from 'fs';
 import path from 'path';
+import uuid from 'uuid';
 
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
-import { downloadImage, getMessages } from '../utils';
+import { Tracer } from '../core/tracing/Tracer';
+import { downloadImage, fillTemplate, getMessages } from '../utils';
 
 const COPY_GENERATION_SKILL = 'copy_generation';
 const QA_SKILL = 'qa';
@@ -22,6 +25,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     llmService,
     promptSetsService,
     searchService,
+    tracesService,
   } = services;
 
   app.post('/api/completion', auth, async (req, res, next) => {
@@ -97,12 +101,82 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/chat', auth, async (req, res) => {
-    let { indexName, messages, modelParams, workspaceId } = req.body;
+    const { username } = req.user;
+    let { args, engine, history, indexName, modelParams, systemPrompt, workspaceId } = req.body;
     let models = modelParams.models;
     if (!models) {
       // TODO move values to settings
       models = [{ model: 'gpt-3.5-turbo', provider: 'openai' }];
     }
+
+    const startTimes = [];
+    let startTime = new Date();
+    let endTime;
+    startTimes.push(startTime);
+    const traceName = ['chat', startTime.toISOString()].join(' - ');
+    const tracer = new Tracer(traceName, 'chat');
+    tracer
+      .push({
+        id: uuid.v4(),
+        type: 'chat',
+        models,
+        messages: req.body.messages,
+        args,
+        startTime: startTime.getTime(),
+      })
+      .down();
+
+    const messageTemplates = [];
+    if (systemPrompt) {
+      messageTemplates.push({
+        role: 'system',
+        content: systemPrompt,
+      });
+    }
+    messageTemplates.push(...req.body.messages);
+    startTime = new Date();
+    startTimes.push(startTime);
+    tracer
+      .push({
+        id: uuid.v4(),
+        type: 'call-prompt-template',
+        messageTemplates,
+        args,
+        startTime: startTime.getTime(),
+      });
+
+    let sp;
+    if (systemPrompt) {
+      if (args) {
+        sp = fillTemplate(systemPrompt, args, engine);
+      } else {
+        sp = systemPrompt;
+      }
+    }
+    let messages;
+    if (args) {
+      messages = req.body.messages.map(m => ({
+        role: m.role,
+        content: fillTemplate(m.content, args, engine),
+      }));
+    } else {
+      messages = req.body.messages;
+    }
+
+    const outputMessages = [];
+    if (sp) {
+      outputMessages.push({ role: 'system', content: sp });
+    }
+    outputMessages.push(...messages);
+    startTime = startTimes.pop();
+    endTime = new Date();
+    tracer
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      .addProperty('messages', outputMessages)
+      .addProperty('success', true)
+      ;
 
     // TODO place in loop
     if (indexName) {
@@ -113,9 +187,22 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       } else {
         content = message.content;
       }
+
+      startTime = new Date();
+      startTimes.push(startTime);
+      tracer
+        .push({
+          id: uuid.v4(),
+          type: 'semantic-search-enrichment',
+          index: { name: indexName },
+          args: { content },
+          startTime: startTime.getTime(),
+        });
+
       const hits = await searchService.search(indexName, content);
+      let context;
       if (hits && hits.length) {
-        const context = hits.map(h => h.content_text).join(PARA_DELIM);
+        context = hits.map(h => h.content_text).join(PARA_DELIM);
         const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, QA_SKILL);
         if (promptSets.length) {
           const prompts = promptSets[0].prompts;  // use first promptSet
@@ -127,24 +214,84 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           messages.splice(i, 1, ...ctxMsgs);
         }
       }
+
+      startTime = startTimes.pop();
+      endTime = new Date();
+      tracer
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('enrichedArgs', { content, context })
+        .addProperty('success', true)
+        ;
     }
 
     const model_params = {
       max_tokens: modelParams.maxTokens,
       n: 1,
+      temperature: modelParams.temperature,
+      top_p: modelParams.topP,
+      stop: modelParams.stop,
+      presence_penalty: modelParams.presencePenalty,
+      frequency_penalty: modelParams.frequencyPenalty,
+      top_k: modelParams.topK,
     };
     const proms = [];
     for (const { model, provider } of models) {
       let request = {
         model,
-        prompt: { messages: cleanMessages(model, messages) },
+        prompt: {
+          context: { system_prompt: sp },
+          history: cleanMessages(model, history),
+          messages: cleanMessages(model, messages),
+        },
         model_params,
       };
+
+      startTime = new Date();
+      startTimes.push(startTime);
+      tracer
+        .push({
+          id: uuid.v4(),
+          type: 'call-model',
+          ...request,
+          model,
+          modelParams: model_params,
+          startTime: startTime.getTime(),
+        })
+        .down();
+
       proms.push(llmService.createChatCompletion({ provider, request }));
     }
     const completions = await Promise.all(proms);
 
-    res.json(completions);
+    for (const completion of completions) {
+      startTime = startTimes.pop();
+      endTime = new Date();
+      tracer
+        .up()
+        .addProperty('endTime', endTime.getTime())
+        .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+        .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+        .addProperty('response', completion)
+        .addProperty('success', true)
+        ;
+    }
+
+    startTime = startTimes.pop();
+    endTime = new Date();
+    tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      .addProperty('response', completions)
+      .addProperty('success', true)
+      ;
+    const traceRecord = tracer.close();
+    const { id } = await tracesService.upsertTrace({ ...traceRecord, workspaceId }, username);
+
+    res.json({ completions, traceId: id });
   });
 
   const cleanMessages = (model, messages) => {

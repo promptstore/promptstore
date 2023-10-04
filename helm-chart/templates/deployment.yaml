@@ -193,6 +193,11 @@ spec:
                 configMapKeyRef:
                   key: LLAMA2_BASE_PATH
                   name: "{{ .Values.appname }}"
+            - name: LLAMAAPI_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: LLAMAAPI_BASE_PATH
+                  name: "{{ .Values.appname }}"
             - name: LOCALAI_BASE_PATH
               valueFrom:
                 configMapKeyRef:
@@ -278,6 +283,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: HUGGINGFACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: LLAMAAPI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: LLAMAAPI_API_KEY
                   name: "{{ .Values.appname }}"
             - name: OPENAI_API_KEY
               valueFrom:
@@ -515,6 +525,11 @@ spec:
                 configMapKeyRef:
                   key: LLAMA2_BASE_PATH
                   name: "{{ .Values.appname }}"
+            - name: LLAMAAPI_BASE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: LLAMAAPI_BASE_PATH
+                  name: "{{ .Values.appname }}"
             - name: LOCALAI_BASE_PATH
               valueFrom:
                 configMapKeyRef:
@@ -600,6 +615,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: HUGGINGFACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: LLAMAAPI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: LLAMAAPI_API_KEY
                   name: "{{ .Values.appname }}"
             - name: OPENAI_API_KEY
               valueFrom:

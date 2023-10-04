@@ -7,6 +7,7 @@ import { Agent } from './Agent';
 import { AgentStepEvaluation } from './AgentStepEvaluation';
 import { AgentTurn } from './AgentTurn';
 import { CacheLookup } from './CacheLookup';
+import { Chat } from './Chat';
 import { CustomModelCall } from './CustomModelCall';
 import { ExecutionUnit } from './ExecutionUnit';
 import { Experiment } from './Experiment';
@@ -28,6 +29,9 @@ export function Inspector({ step }) {
 
     case 'call-implementation':
       return <ExecutionUnit step={step} title="Call Implementation" />
+
+    case 'chat':
+      return <Chat step={step} title="Chat" />
 
     case 'call-composition':
       return <ExecutionUnit step={step} title="Call Composition" />

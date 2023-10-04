@@ -73,6 +73,28 @@ export function Output({ step }) {
     )
 }
 
+export function OutputMultiple({ step }) {
+  return step.errors ?
+    <Errors step={step} />
+    : (
+      <div>
+        {step.response?.map(r => (
+          <Space direction="vertical" style={{ marginBottom: 24 }}>
+            <div>
+              <Typography.Paragraph className="first" style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>
+                {r.model}
+              </Typography.Paragraph>
+              <Typography.Text type="secondary">
+                model
+              </Typography.Text>
+            </div>
+            <Choices step={{ response: r }} />
+          </Space>
+        ))}
+      </div>
+    )
+}
+
 export function Messages({ step }) {
   const messages = step.messages || step.prompt?.messages || [];
   return (

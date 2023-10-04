@@ -22,6 +22,7 @@ import {
   MinusCircleOutlined,
 } from '@ant-design/icons';
 
+import { TagsInput } from '../../components/TagsInput';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getModelsAsync,
@@ -43,6 +44,7 @@ const initialValues = {
   n: 1,
   temperature: 1,
   topP: 1,
+  topK: 40,
 };
 
 export function ModelParamsForm({
@@ -93,7 +95,7 @@ export function ModelParamsForm({
   const modelOptions = useMemo(() => {
     if (models) {
       return Object.values(models)
-        .filter((m) => m.type === 'gpt')
+        .filter((m) => m.type === 'gpt' && !m.disabled)
         .map((m) => ({
           key: m.id,
           label: m.name,
@@ -203,7 +205,7 @@ export function ModelParamsForm({
           <div>
             <Form.Item
               extra="Only the first 3 will be used"
-              label="Compare Models"
+              label="Use/Compare Models"
               name="models"
             >
               <Select allowClear
@@ -238,6 +240,7 @@ export function ModelParamsForm({
               <Form.Item
                 label="Max Tokens"
                 name="maxTokens"
+                tooltip={<div>The maximum number of tokens to <span style={{ fontWeight: 600 }}>generate</span> shared between the prompt and completion. The exact limit varies by model. (One token is roughly 4 characters for standard English text.)</div>}
               >
                 <InputNumber ref={tourRefs?.maxTokens} />
               </Form.Item>
@@ -247,6 +250,7 @@ export function ModelParamsForm({
               <Form.Item
                 label="Temperature"
                 name="temperature"
+                tooltip="Controls randomness: lowering results in less random completions. As the temperature approaches zero, the model will become deterministic and repetitive."
               >
                 <Slider min={0.1} max={2.0} step={0.1} />
               </Form.Item>
@@ -256,14 +260,55 @@ export function ModelParamsForm({
               <Form.Item
                 label="Top-p"
                 name="topP"
+                tooltip="Controls diversity via nucleus sampling: 0.5 means half of all likelihood-weighted options are considered."
               >
-                <Slider min={0.05} max={1} step={0.05} />
+                <Slider min={0.05} max={1.0} step={0.05} />
+              </Form.Item>
+              : null
+            }
+            {includes['topK'] ?
+              <Form.Item
+                label="Top-k"
+                name="topK"
+                tooltip="This setting only applies to PaLM models. The maximum number of tokens to consider when sampling. Top-k sampling considers the set of top_k most probable tokens."
+              >
+                <InputNumber />
+              </Form.Item>
+              : null
+            }
+            {includes['frequencyPenalty'] ?
+              <Form.Item
+                label="Frequency penalty"
+                name="frequencyPenalty"
+                tooltip="How much to oenalize new tokens based on their existing frequency in the text so far. It decreases the model's likelihood to repeat the same line verbatim."
+              >
+                <Slider min={-2.0} max={2.0} step={0.05} />
+              </Form.Item>
+              : null
+            }
+            {includes['presencePenalty'] ?
+              <Form.Item
+                label="Presence penalty"
+                name="presencePenalty"
+                tooltip="How much to penalize new tokens based on whether they appear in the text so far. It increases the model's likelihood to talk about new topics."
+              >
+                <Slider min={-2.0} max={2.0} step={0.05} />
+              </Form.Item>
+              : null
+            }
+            {includes['stopSequences'] ?
+              <Form.Item
+                label="Stop sequences"
+                name="stop"
+                tooltip="Up to four sequences where the API will stop generating further tokens. The returned text will not contain the stop sequence."
+              >
+                <TagsInput />
               </Form.Item>
               : null
             }
             {includes['promptSet'] ?
               <Form.Item
-                label="Prompt Set"
+                label="Prompt"
                 name="promptSet"
               >
                 <Select allowClear

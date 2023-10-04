@@ -10,6 +10,7 @@ export const chatSlice = createSlice({
     loaded: false,
     loading: false,
     messages: [],
+    traceId: null,
   },
   reducers: {
     setMessages: (state, action) => {
@@ -21,12 +22,16 @@ export const chatSlice = createSlice({
       state.loaded = false;
       state.loading = true;
     },
+    setTraceId: (state, action) => {
+      state.traceId = action.payload.traceId;
+    },
   }
 });
 
 export const {
   setMessages,
   startLoad,
+  setTraceId,
 } = chatSlice.actions;
 
 // Not used
@@ -56,12 +61,14 @@ export const getResponseAsync = (req) => async (dispatch) => {
   const url = '/api/chat';
   const res = await http.post(url, {
     ...req,
+    history: req.history.map(cleanMessage),
     messages: req.messages.map(cleanMessage),  // remove keys
   });
+  const { completions, traceId } = res.data;
   const messages = [];
   let cost = 0;
   let totalTokens = 0;
-  for (const { choices, model, usage } of res.data) {
+  for (const { choices, model, usage } of completions) {
     let i = 0;
     for (const { message } of choices) {
       if (!messages[i]) {
@@ -83,7 +90,8 @@ export const getResponseAsync = (req) => async (dispatch) => {
       totalTokens += usage.total_tokens;
     }
   }
-  dispatch(setMessages({ messages: [...req.messages, ...messages] }));
+  dispatch(setMessages({ messages: [...req.originalMessages, ...messages] }));
+  dispatch(setTraceId({ traceId }));
   const app = req.app;
   if (app) {
     dispatch(updateAppAsync({
@@ -135,5 +143,7 @@ export const selectLoaded = (state) => state.chat.loaded;
 export const selectLoading = (state) => state.chat.loading;
 
 export const selectMessages = (state) => state.chat.messages;
+
+export const selectTraceId = (state) => state.chat.traceId;
 
 export default chatSlice.reducer;

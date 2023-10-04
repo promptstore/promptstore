@@ -9,6 +9,8 @@ import {
   toVertexAIChatRequest,
   toVertexAICompletionRequest,
   toVertexAIEmbeddingRequest,
+  fromLlamaApiChatResponse,
+  toLlamaApiChatRequest,
 } from '../core/conversions/RosettaStone';
 
 export function LLMService({ logger, registry, services }) {
@@ -20,14 +22,21 @@ export function LLMService({ logger, registry, services }) {
     let providerRequest;
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAIChatRequest(request);
+    } else if (provider === 'llamaapi') {
+      providerRequest = toLlamaApiChatRequest(request);
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAIChatRequest(request);
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+    logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
+    logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return fromOpenAIChatResponse(response);
+    }
+    if (provider === 'llamaapi') {
+      return fromLlamaApiChatResponse(response);
     }
     if (provider === 'vertexai') {
       const universalResponse = await fromVertexAIChatResponse(response, parserService);
@@ -44,6 +53,8 @@ export function LLMService({ logger, registry, services }) {
     let providerRequest;
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAICompletionRequest(request);
+    } else if (provider === 'llamaapi') {
+      providerRequest = toLlamaApiChatRequest(request);
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAICompletionRequest(request);
     } else {
@@ -52,8 +63,11 @@ export function LLMService({ logger, registry, services }) {
     logger.debug('provider request:', providerRequest);
     const response = await instance.createCompletion(providerRequest);
     logger.debug('provider response:', response);
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai' || provider === 'llamaapi') {
       return await fromOpenAICompletionResponse(response, parserService);
+    }
+    if (provider === 'llamaapi') {
+      return fromLlamaApiChatResponse(response);
     }
     if (provider === 'vertexai') {
       const universalResponse = await fromVertexAICompletionResponse(response, parserService);

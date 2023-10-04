@@ -19,7 +19,7 @@ const tagPlusStyle = {
   cursor: 'pointer',
 };
 
-export function TagsInput({ existingTags, onChange, value }) {
+export function TagsInput({ existingTags = [], onChange, value }) {
 
   const [editInputIndex, setEditInputIndex] = useState(-1);
   const [editInputValue, setEditInputValue] = useState(null);
@@ -87,7 +87,7 @@ export function TagsInput({ existingTags, onChange, value }) {
   };
 
   const onSelect = (data) => {
-    console.log('onSelect', data);
+    // console.log('onSelect', data);
   };
 
   const search = (text) => {

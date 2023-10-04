@@ -1,6 +1,7 @@
 import pg from 'pg';
 import Handlebars from 'handlebars';
 import fs from 'fs';
+import { inferSchema } from '@jsonhero/schema-infer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,6 +27,92 @@ function PostgresqlSource({ __name, constants, logger }) {
       await connections[connectionString].connect();
     }
     return connections[connectionString];
+  }
+
+  async function getData(source, limit) {
+    const client = await getConnection();
+    const { dataset } = source;
+    const tables = source.tables.split(/\s*,\s*/);
+    const table = tables[0];
+    const template = 'SELECT * FROM `${dataset}`.`${table}` LIMIT @limit';
+    const query = fillTemplate(template, { dataset, table });
+    logger.debug('query:', query);
+    const [rows] = await client.query(
+      query,
+      [limit],
+    );
+    return rows;
+  }
+
+  function getDDLOpts(val) {
+    switch (val.type) {
+      case 'int':
+        return { type: 'INTEGER' };
+
+      case 'array':
+        const { type } = getDDLOpts(val.items);
+        return { mode: 'REPEATED', type };
+
+      default:
+        return { type: val.type.toUpperCase() };
+    }
+  }
+
+  async function insertData(table, data, timeout) {
+    let time;
+    return new Promise((resolve, reject) => {
+      const loop = async () => {
+        try {
+          await table.insert(data);
+          resolve();
+        } catch (err) {
+          logger.debug(JSON.stringify(err));
+          if (err.code === 404) {
+            // table not ready yet, try again
+            if (time > timeout) {
+              reject();
+            }
+            time += 5000;
+            setTimeout(loop, time);
+          } else {
+            reject();
+          }
+        }
+      };
+      loop();
+    });
+  }
+
+  async function createTable(destination, data) {
+    if (!data.length) {
+      return;
+    }
+    const client = await getConnection();
+    const { dataset, tableName } = destination;
+    const { inferredSchema } = inferSchema(data[0]);
+    logger.debug('inferredSchema:', inferredSchema);
+    const schema = Object.entries(inferredSchema.properties.required).map(([k, v]) => {
+      const opts = getDDLOpts(v);
+      return {
+        name: k,
+        ...opts,
+      };
+    });
+    logger.debug('schema:', schema);
+    try {
+      // delete table if exists
+      client.query(`DROP TABLE \`${dataset}\`.\`${tableName}\``);
+    } catch (err) {
+      console.error(err);
+      // ignore
+    }
+    const [table] = await client
+      .dataset(dataset)
+      .createTable(tableName, { schema });
+
+    await insertData(table, data, 60000);
+
+    logger.debug(`inserted ${data.length} rows`);
   }
 
   async function getDDL(source) {
@@ -105,6 +192,7 @@ function PostgresqlSource({ __name, constants, logger }) {
 
   return {
     __name,
+    getData,
     getSample,
     getDDL,
   };

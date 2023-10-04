@@ -1,6 +1,6 @@
--- Table: public.file_uploads
-
 \connect promptstore
+
+-- Table: public.file_uploads
 
 DROP TABLE IF EXISTS public.file_uploads;
 
