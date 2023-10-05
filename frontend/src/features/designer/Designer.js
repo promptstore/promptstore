@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Layout, Select, Table } from 'antd';
-import { LinkOutlined } from '@ant-design/icons';
+import { LinkOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
@@ -58,6 +58,8 @@ export function Designer() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [modelParams, setModelParams] = useState({});
   const [argsFormData, setArgsFormData] = useState(null);
+  const [sessionsCollapsed, setSessionsCollapsed] = useState(true);
+  const [promptsCollapsed, setPromptsCollapsed] = useState(true);
 
   const chatLoading = useSelector(selectChatLoading);
   const chatSessions = useSelector(selectChatSessions);
@@ -352,6 +354,10 @@ export function Designer() {
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
           <Sider
+            collapsible
+            collapsed={sessionsCollapsed}
+            collapsedWidth={0}
+            trigger={null}
             style={{ height: '100%', marginRight: 20 }}
             width={250}
             theme="light"
@@ -372,7 +378,11 @@ export function Designer() {
             />
           </Sider>
           <Sider
-            style={{ height: '100%', marginRight: 20, padding: '24px 8px' }}
+            collapsible
+            collapsed={promptsCollapsed}
+            collapsedWidth={0}
+            trigger={null}
+            style={{ height: '100%', marginRight: 20 }}
             width={250}
             theme="light"
           >
@@ -382,6 +392,7 @@ export function Designer() {
               layout="vertical"
               name="prompts-form"
               initialValues={{ promptSet: id }}
+              style={{ padding: '24px 8px' }}
             >
               <div style={{ display: 'flex' }}>
                 <Form.Item
@@ -424,6 +435,32 @@ export function Designer() {
             </Form>
           </Sider>
           <Content>
+            <div style={{ marginLeft: -8 }}>
+              <Button
+                type="text"
+                icon={sessionsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setSessionsCollapsed(!sessionsCollapsed)}
+                style={{
+                  fontSize: '14px',
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <span>Sessions</span>
+            </div>
+            <div style={{ marginBottom: 10, marginLeft: -8 }}>
+              <Button
+                type="text"
+                icon={promptsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setPromptsCollapsed(!promptsCollapsed)}
+                style={{
+                  fontSize: '14px',
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <span>Prompts</span>
+            </div>
             <Chat
               enableActions={true}
               loading={chatLoading}

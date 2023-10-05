@@ -26,6 +26,7 @@ import Icon, {
   HomeOutlined,
   InfoCircleOutlined,
   InteractionOutlined,
+  IssuesCloseOutlined,
   NodeIndexOutlined,
   NotificationOutlined,
   RobotOutlined,
@@ -396,6 +397,13 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             <Link to="/api-docs" target="_blank" rel="noopener noreferrer">API</Link>
           ),
         },
+        {
+          key: 'issues',
+          icon: <IssuesCloseOutlined />,
+          label: (
+            <Link to={process.env.REACT_APP_ISSUES_URL} target="_blank" rel="noopener noreferrer">Issues</Link>
+          ),
+        },
       ],
     },
   ]];
@@ -405,7 +413,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
 
 function SideMenu({ isDarkMode, isWorkspaceSelected, currentUser }) {
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorageState('ps-side-menu', false);
 
   return (
     <Sider id="menu" collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={isDarkMode ? 'dark' : 'light'}>

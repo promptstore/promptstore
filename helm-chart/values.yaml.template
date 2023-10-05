@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.9"
+version: "0.6.11"
 
 port: "5000"
 promptstore_email:

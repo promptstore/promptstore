@@ -37,7 +37,7 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.delete('/api/traces', auth, async (req, res, next) => {
-    const ids = req.query.ids.split(',');
+    const ids = req.query.ids.split(',').map(id => +id);
     await tracesService.deleteTraces(ids);
     res.json(ids);
   });

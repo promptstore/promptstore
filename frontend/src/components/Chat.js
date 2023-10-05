@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Avatar, Button, Checkbox, Divider, Input, Radio, Space, Spin } from 'antd';
+import { Avatar, Button, Checkbox, Divider, Input, Radio, Space, Spin, Typography } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -37,6 +37,7 @@ export function Chat({
   const [selected, setSelected] = useState({});
   const [checkAll, setCheckAll] = useState(false);
   const [input, setInput] = useState(null);
+  const [lastInput, setLastInput] = useState(null);
 
   const selectedKeys = Object.entries(selected).filter(([_, v]) => v).map(([k, _]) => k);
   const hasSelected = selectedKeys.length > 0;
@@ -95,7 +96,17 @@ export function Chat({
       role: 'user',
       content: input,
     };
+    setLastInput(input);
     setInput(null);
+    onSubmit({ app, messages: [...messages, msg] });
+  };
+
+  const regenerate = () => {
+    const msg = {
+      key: uuidv4(),
+      role: 'user',
+      content: lastInput,
+    };
     onSubmit({ app, messages: [...messages, msg] });
   };
 
@@ -160,7 +171,7 @@ export function Chat({
             <Space size="large">
               {message.content.map((c, i) => (
                 <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                  <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
                   <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
                 </div>
               ))}
@@ -178,7 +189,7 @@ export function Chat({
               <Space size="large">
                 {message.content.map((c, i) => (
                   <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                    <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
                     <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
                   </div>
                 ))}
@@ -196,7 +207,7 @@ export function Chat({
             <Space size="large">
               {message.content.map((c, i) => (
                 <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                  <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
                   <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
                 </div>
               ))}
@@ -213,7 +224,7 @@ export function Chat({
         <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
           <div className="chatline user">
             <div className="content">
-              <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+              <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography.Text>
             </div>
             <div className="avatar"><Avatar>U</Avatar></div>
           </div>
@@ -223,7 +234,7 @@ export function Chat({
     return (
       <div className="chatline user">
         <div className="content">
-          <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+          <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography.Text>
         </div>
         <div className="avatar"><Avatar>U</Avatar></div>
       </div>
@@ -311,6 +322,7 @@ export function Chat({
     disabled,
     hasMessages,
     hasSelected,
+    regenerate,
     saveChatSession,
     startNewChatSession,
     useContent,
@@ -320,7 +332,7 @@ export function Chat({
       return null;
     }
     return (
-      <Space style={{ marginBottom: 16 }}>
+      <div className="chat-actions">
         {selectable ?
           <Button type="primary" size="small"
             disabled={disabled || !hasSelected}
@@ -345,13 +357,19 @@ export function Chat({
           </Button>
           : null
         }
+        <Button type="primary" size="small"
+          disabled={disabled || !hasMessages}
+          onClick={regenerate}
+        >
+          Regenerate
+        </Button>
         {traceId ?
-          <div style={{ color: '#1677ff' }}>
+          <div style={{ color: '#1677ff', flex: 1, marginRight: 36, textAlign: 'end' }}>
             <Link to={`/traces/${traceId}`}>Latest trace...</Link>
           </div>
           : null
         }
-      </Space>
+      </div>
     );
   };
 
@@ -369,6 +387,7 @@ export function Chat({
         handleSuggestPrompts={handleSuggestPrompts}
         hasMessages={hasMessages}
         hasSelected={hasSelected}
+        regenerate={regenerate}
         saveChatSession={handleSave}
         startNewChatSession={handleReset}
         useContent={useContent}

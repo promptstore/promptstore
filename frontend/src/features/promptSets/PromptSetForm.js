@@ -532,7 +532,7 @@ export function PromptSetForm() {
               style={{ width: '100%' }}
               type="dashed"
             >
-              Add Prompt
+              Add Message
             </Button>
             <Form.ErrorList errors={errors} />
           </div>

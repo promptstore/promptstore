@@ -44,7 +44,7 @@ export function PromptSetsList() {
 
   const [filterPublic, setFilterPublic] = useLocalStorageState('public-prompt-sets', false);
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', false);
-  const [layout, setLayout] = useLocalStorageState('prompt-sets-layout', 'list');
+  const [layout, setLayout] = useLocalStorageState('prompt-sets-layout', 'grid');
   const [page, setPage] = useLocalStorageState('prompt-sets-list-page', 1);
   const [searchValue, setSearchValue] = useState('');
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', []);
