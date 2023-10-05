@@ -68,7 +68,6 @@ export default ({ app, auth, logger, services, workflowClient }) => {
 
     const transformation = await transformationsService.upsertTransformation(values, username);
     res.json(transformation);
-    res.json('OK')
   });
 
   app.put('/api/transformations/:id', auth, async (req, res, next) => {

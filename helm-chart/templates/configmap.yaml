@@ -60,7 +60,7 @@ data:
   PASSPORT_PLUGINS: "localapikey|Local API Key|./plugins/passport/localapikey,keycloakbearer|Keycloak Bearer|./plugins/passport/keycloak"
 
   # SQL source plugins
-  SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql"
+  SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql,clickhouse|ClickHouse|./plugins/sqlsources/clickhouse,bigquery|BigQuery|./plugins/sqlsources/bigquery"
 
   # Tool plugins
   TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email"

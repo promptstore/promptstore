@@ -99,6 +99,7 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
       <Form.Item
         name={[field.name, 'column']}
         className="table-col"
+        style={{ width: '28%' }}
       >
         <Select allowClear showSearch
           options={columnOptions}
@@ -109,6 +110,7 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
       <Form.Item
         name={[field.name, 'dataType']}
         className="table-col"
+        style={{ width: '16%' }}
       >
         <Select allowClear showSearch
           options={dataTypeOptions}
@@ -119,6 +121,7 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
       <Form.Item
         name={[field.name, 'functionId']}
         className="table-col"
+        style={{ width: '28%' }}
       >
         <Select allowClear showSearch
           options={functionOptions}
@@ -133,6 +136,7 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
       <Form.Item
         name={[field.name, 'name']}
         className="table-col"
+        style={{ width: '28%' }}
       >
         <Input placeholder="Feature name" />
       </Form.Item>

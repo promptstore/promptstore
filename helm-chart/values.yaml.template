@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.7"
+version: "0.6.8"
 
 port: "5000"
 promptstore_email:
@@ -140,6 +140,15 @@ keycloak:
 # localapikey - ./plugins/passport/localapikey
 system_api_key:
 token_store_key: "onetoks"
+
+########
+
+## SQL sources ########
+
+## BigQuery
+bigquery:
+  project_id:
+  key_filename:
 
 ########
 

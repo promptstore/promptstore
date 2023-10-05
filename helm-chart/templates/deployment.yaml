@@ -329,6 +329,16 @@ spec:
                 secretKeyRef:
                   key: PROMPTSTORE_API_KEY
                   name: "{{ .Values.appname }}"
+            - name: PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: PROJECT_ID
+                  name: "{{ .Values.appname }}"
+            - name: KEY_FILENAME
+              valueFrom:
+                secretKeyRef:
+                  key: KEY_FILENAME
+                  name: "{{ .Values.appname }}"
             - name: SERPAPI_KEY
               valueFrom:
                 secretKeyRef:
@@ -680,6 +690,16 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: PROMPTSTORE_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: PROJECT_ID
+                  name: "{{ .Values.appname }}"
+            - name: KEY_FILENAME
+              valueFrom:
+                secretKeyRef:
+                  key: KEY_FILENAME
                   name: "{{ .Values.appname }}"
             - name: SERPAPI_KEY
               valueFrom:
