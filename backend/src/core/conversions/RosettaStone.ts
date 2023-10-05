@@ -4,6 +4,9 @@ import logger from '../../logger';
 
 import { SchemishConverter } from './Schemish';
 import {
+  AnthropicChatCompletionResponse
+} from '../models/anthropic_types';
+import {
   OpenAIMessageImpl,
   UserMessage,
   AssistantMessage,
@@ -698,6 +701,108 @@ export function fromLlamaApiChatResponse(response: OpenAIChatCompletionResponse)
         function_call: c.message.function_call,
       }
     })),
+  };
+}
+
+/*** ************/
+
+/*** translate to anthropic ************/
+
+export function toAnthropicChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+    user,
+  } = request;
+  const {
+    temperature,
+    top_k,
+    top_p,
+    stop = [],
+    max_tokens,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  const prompt =
+    PARA_DELIM + 'Human: ' +
+    messages.map(m => m.content).join(PARA_DELIM) + PARA_DELIM +
+    'Assistant:'
+    ;
+  const stop_sequences = ['\\n\\nHuman:', ...stop];
+  return {
+    modelId: model,
+    body: {
+      // model,
+      prompt,
+      max_tokens_to_sample: max_tokens,
+      temperature,
+      top_k,
+      top_p,
+      stop_sequences,
+      // metadata: {
+      //   user_id: user,
+      // },
+      stream,
+    }
+  };
+}
+
+export async function fromAnthropicChatResponse(response: AnthropicChatCompletionResponse, parserService) {
+  const {
+    completion,
+    stop_reason,
+    model,
+  } = response;
+  let choices: ChatCompletionChoice[];
+  const { action, action_input } = await parserService.parse('json', completion);
+  if (action) {
+    if (action === 'Final Answer') {
+      choices = [
+        {
+          finish_reason: stop_reason,
+          index: 0,
+          message: {
+            role: MessageRole.assistant,
+            content: action_input,
+            final: true,
+          },
+        }
+      ];
+    } else {
+      const args = { input: action_input };
+      choices = [
+        {
+          finish_reason: stop_reason,
+          index: 0,
+          message: {
+            role: MessageRole.function,
+            content: null,
+            function_call: {
+              name: action,
+              arguments: JSON.stringify(args),
+            },
+          },
+        }
+      ];
+    }
+  } else {
+    choices = [
+      {
+        finish_reason: stop_reason,
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content: completion,
+        },
+      }
+    ];
+  }
+  return {
+    id: uuid.v4(),
+    created: new Date(),
+    model,
+    n: choices.length,
+    choices,
   };
 }
 

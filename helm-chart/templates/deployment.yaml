@@ -183,6 +183,11 @@ spec:
                 configMapKeyRef:
                   key: HUGGINGFACE_HUB_API
                   name: "{{ .Values.appname }}"
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  key: AWS_REGION
+                  name: "{{ .Values.appname }}"
             - name: PALM2_MODEL_NAME
               valueFrom:
                 configMapKeyRef:
@@ -283,6 +288,21 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: HUGGINGFACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_ACCESS_KEY_ID
+                  name: "{{ .Values.appname }}"
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_SECRET_ACCESS_KEY
+                  name: "{{ .Values.appname }}"
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_SESSION_TOKEN
                   name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:
@@ -515,6 +535,11 @@ spec:
                 configMapKeyRef:
                   key: HUGGINGFACE_HUB_API
                   name: "{{ .Values.appname }}"
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  key: AWS_REGION
+                  name: "{{ .Values.appname }}"
             - name: PALM2_MODEL_NAME
               valueFrom:
                 configMapKeyRef:
@@ -615,6 +640,21 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: HUGGINGFACE_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_ACCESS_KEY_ID
+                  name: "{{ .Values.appname }}"
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_SECRET_ACCESS_KEY
+                  name: "{{ .Values.appname }}"
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: AWS_SESSION_TOKEN
                   name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:

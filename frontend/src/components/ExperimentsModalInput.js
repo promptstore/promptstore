@@ -17,7 +17,9 @@ export function ExperimentsModalInput({
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setState(implementationsValue.map((x, i) => ({ percentage: value?.[i]?.percentage })));
+    if (implementationsValue.length && value) {
+      setState(implementationsValue.map((x, i) => ({ percentage: value?.[i]?.percentage })));
+    }
   }, [implementationsValue, value]);
 
   const handleClose = (ev) => {

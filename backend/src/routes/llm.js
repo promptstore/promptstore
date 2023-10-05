@@ -101,6 +101,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/chat', auth, async (req, res) => {
+    logger.debug('body:', req.body);
     const { username } = req.user;
     let { args, engine, history, indexName, modelParams, systemPrompt, workspaceId } = req.body;
     let models = modelParams.models;

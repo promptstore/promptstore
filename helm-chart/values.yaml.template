@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.6"
+version: "0.6.7"
 
 port: "5000"
 promptstore_email:
@@ -91,6 +91,13 @@ huggingface:
 ########
 
 ## LLM plugins ########
+
+# bedrock - ./plugins/llms/bedrock
+bedrock:
+  region:
+  access_key_id:
+  secret_access_key:
+  session_token:
 
 # gpt4all - ./plugins/llms/gpt4all
 gpt4all:

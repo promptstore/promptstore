@@ -84,14 +84,22 @@ export function Designer() {
   const [promptForm] = Form.useForm();
   const promptSetValue = Form.useWatch('promptSet', promptForm);
 
-  const [hasContentVar, varsSchema] = useMemo(() => {
+  const [contentVar, varsSchema] = useMemo(() => {
     if (promptSetValue) {
       const promptSet = promptSets[promptSetValue];
       if (promptSet && promptSet.arguments) {
         const schema = promptSet.arguments;
         if (schema.type === 'object') {
           const props = { ...schema.properties };
+          let contentVar;
           if ('content' in props) {
+            contentVar = 'content';
+          } else if ('text' in props) {
+            contentVar = 'text';
+          } else if ('input' in props) {
+            contentVar = 'input';
+          }
+          if (contentVar) {
             const keys = Object.keys(props);
             if (keys.length > 1) {
               delete props['content'];
@@ -100,21 +108,21 @@ export function Designer() {
               if (index > -1) {
                 required.splice(index, 1);
               }
-              return [true, {
+              return [contentVar, {
                 ...schema,
                 properties: props,
                 required,
               }];
             } else {
-              return [true, null];
+              return [contentVar, null];
             }
           } else {
-            return [false, schema];
+            return [null, schema];
           }
         }
       }
     }
-    return [false, null];
+    return [null, null];
   }, [promptSetValue]);
 
   useEffect(() => {
@@ -204,14 +212,14 @@ export function Designer() {
           .map(p => p.prompt)
           .join('\n\n')
           ;
-        if (hasContentVar || varsSchema) {
+        if (contentVar || varsSchema) {
           const nonSystemMessages = ps.prompts
             .filter(p => p.role !== 'system')
             .map(p => ({ role: p.role, content: p.prompt }))
             ;
-          if (hasContentVar) {
+          if (contentVar) {
             const content = messages[0].content;
-            args = { content };
+            args = { [contentVar]: content };
             if (nonSystemMessages.length > 1) {
               history = [
                 ...nonSystemMessages.slice(0, -1),
@@ -222,11 +230,13 @@ export function Designer() {
           }
           if (varsSchema) {
             args = { ...args, ...argsFormData };
-            if (nonSystemMessages.length > 0) {
-              history = [
-                ...nonSystemMessages,
-                ...history,
-              ];
+            if (!contentVar) {
+              if (nonSystemMessages.length > 0) {
+                history = [
+                  ...nonSystemMessages,
+                  ...history,
+                ];
+              }
             }
           }
         } else {

@@ -45,7 +45,7 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,structureddocument|Structured Document Loader|./plugins/loaders/structureddocument,csv|CSV Loader|./plugins/loaders/csv"
@@ -103,6 +103,9 @@ data:
   ########
 
   ## LLM plugins ########
+
+  # bedrock - ./plugins/llms/bedrock
+  AWS_REGION: "{{ .Values.bedrock.region }}"
 
   # gpt4all - ./plugins/llms/gpt4all
   GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"

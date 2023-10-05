@@ -532,6 +532,7 @@ article.collapsible .panel.closed {
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
+  min-width: 25%;
 }
 
 .chatline.assistant {
@@ -707,4 +708,30 @@ article.collapsible .panel.closed {
 
 #promptSets .ant-col-4 {
   min-width: 120px;
+}
+
+.table {
+  border-collapse: separate;
+  display: table;
+  width: 100%;
+}
+
+.table-row {
+  display: table-row;
+}
+
+.table-col {
+  display: table-cell;
+  padding: 0 10px 10px 0;
+}
+
+.table-col:first-child,
+.table-col:last-child {
+  padding: 0 0 10px 0;
+}
+
+.table-col>.drag-handle {
+  width: 32px;
+  height: 32px;
+  padding: 10px;
 }

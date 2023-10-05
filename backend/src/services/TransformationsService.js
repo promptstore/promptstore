@@ -58,7 +58,7 @@ export function TransformationsService({ pg, logger }) {
     const savedTransformation = await getTransformation(transformation.id);
     if (savedTransformation) {
       const modified = new Date();
-      await pg.query(`
+      const { rows } = await pg.query(`
         UPDATE transformations
         SET name = $1, data_source_id = $2, val = $3, modified_by = $4, modified = $5
         WHERE id = $6

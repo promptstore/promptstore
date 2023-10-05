@@ -67,6 +67,7 @@ function BigQuerySource({ __name, constants, logger }) {
     }
     const client = await getConnection();
     const { dataset, tableName } = destination;
+    logger.debug('data:', data);
     const { inferredSchema } = inferSchema(data[0]);
     logger.debug('inferredSchema:', inferredSchema);
     const schema = Object.entries(inferredSchema.properties.required).map(([k, v]) => {
@@ -81,7 +82,7 @@ function BigQuerySource({ __name, constants, logger }) {
       // delete table if exists
       await client.dataset(dataset).table(tableName).delete();
     } catch (err) {
-      console.error(err);
+      console.warn(String(err));
       // ignore
     }
     const [table] = await client

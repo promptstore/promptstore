@@ -3,6 +3,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Col, Divider, Form, Input, Row, Select, Space } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
@@ -48,6 +65,87 @@ const dataTypeOptions = ['Vector', 'String', 'Integer', 'Float', 'Boolean'].map(
   label: t,
   value: t,
 }));
+
+function Draghandle({ attributes, listeners }) {
+  return (
+    <button
+      className="drag-handle"
+      {...listeners}
+      {...attributes}
+    >
+      <svg viewBox="0 0 20 20" width="12">
+        <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path>
+      </svg>
+    </button>
+  );
+}
+
+function SortableItem({ field, index, remove, columnOptions, functionOptions }) {
+
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: field.key,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div key={field.key} ref={setNodeRef} style={style} className="table-row">
+      <div className="table-col">
+        <Draghandle attributes={attributes} listeners={listeners} />
+      </div>
+      <Form.Item
+        name={[field.name, 'column']}
+        className="table-col"
+      >
+        <Select allowClear showSearch
+          options={columnOptions}
+          optionFilterProp="label"
+          placeholder="Select column"
+        />
+      </Form.Item>
+      <Form.Item
+        name={[field.name, 'dataType']}
+        className="table-col"
+      >
+        <Select allowClear showSearch
+          options={dataTypeOptions}
+          optionFilterProp="label"
+          placeholder="Select data type"
+        />
+      </Form.Item>
+      <Form.Item
+        name={[field.name, 'functionId']}
+        className="table-col"
+      >
+        <Select allowClear showSearch
+          options={functionOptions}
+          optionFilterProp="children"
+          placeholder="Search to select a function"
+          filterOption={(input, option) => (option?.label ?? '').includes(input)}
+          filterSort={(a, b) =>
+            (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
+          }
+        />
+      </Form.Item>
+      <Form.Item
+        name={[field.name, 'name']}
+        className="table-col"
+      >
+        <Input placeholder="Feature name" />
+      </Form.Item>
+      <div className="table-col">
+        <Button type="text"
+          icon={<CloseOutlined />}
+          className="dynamic-delete-button"
+          onClick={() => remove(field.name)}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function TransformationForm() {
 
@@ -215,6 +313,79 @@ export function TransformationForm() {
     setNewIndex(ev.target.value);
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function FeatureList({ fields, errors, add, move, remove }) {
+
+    const [activeId, setActiveId] = useState(null);
+
+    const handleDragStart = (ev) => {
+      setActiveId(ev.active.id);
+    };
+
+    const handleDragEnd = ({ active, over }) => {
+      setActiveId(null);
+      if (active.id !== over.id) {
+        const from = fields.findIndex(f => f.key === active.id);
+        const to = fields.findIndex(f => f.key === over.id);
+        move(from, to);
+      }
+    }
+
+    return (
+      <>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+            <div className="table">
+              {fields.map((field, index) => (
+                <SortableItem key={field.key}
+                  field={field}
+                  index={index}
+                  remove={remove}
+                  columnOptions={columnOptions}
+                  functionOptions={functionOptions}
+                />
+              ))}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeId ? (
+              <SortableItem
+                field={fields.find(f => f.key === activeId)}
+                index={fields.findIndex(f => f.key === activeId)}
+                remove={remove}
+                columnOptions={columnOptions}
+                functionOptions={functionOptions}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+        <Form.Item wrapperCol={{ span: 24 }}>
+          <Button
+            type="dashed"
+            onClick={() => add()}
+            style={{ width: '100%', zIndex: 101 }}
+            icon={<PlusOutlined />}
+          >
+            Add Feature
+          </Button>
+          <Form.ErrorList errors={errors} />
+        </Form.Item>
+      </>
+    );
+  }
+
   if (!isNew && !loaded) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
@@ -351,87 +522,14 @@ export function TransformationForm() {
               <div style={{ width: 32 }}></div>
             </div>
             <Form.List name="features">
-              {(fields, { add, remove }, { errors }) => (
-                <>
-                  {fields.map((field, idx) => (
-                    <Row key={field.key} style={{
-                      marginBottom: '8px',
-                    }}>
-                      <Col span={24}>
-                        <div style={{ display: 'flex' }}>
-                          <Form.Item
-                            name={[field.name, 'column']}
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            style={{ flex: 1 }}
-                          >
-                            <Select allowClear showSearch
-                              options={columnOptions}
-                              optionFilterProp="label"
-                              placeholder="Select column"
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            name={[field.name, 'dataType']}
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            style={{ flex: 1, marginLeft: 8 }}
-                          >
-                            <Select allowClear showSearch
-                              options={dataTypeOptions}
-                              optionFilterProp="label"
-                              placeholder="Select data type"
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            name={[field.name, 'functionId']}
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            style={{ flex: 1, marginLeft: 8 }}
-                          >
-                            <Select allowClear showSearch
-                              options={functionOptions}
-                              optionFilterProp="children"
-                              placeholder="Search to select a function"
-                              filterOption={(input, option) => (option?.label ?? '').includes(input)}
-                              filterSort={(a, b) =>
-                                (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
-                              }
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            name={[field.name, 'name']}
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
-                            style={{ flex: 1, marginLeft: 8 }}
-                          >
-                            <Input placeholder="Feature name" />
-                          </Form.Item>
-                          {fields.length ?
-                            <Button type="text"
-                              icon={<CloseOutlined />}
-                              className="dynamic-delete-button"
-                              onClick={() => remove(field.name)}
-                              style={{ width: 32 }}
-                            />
-                            : null
-                          }
-                        </div>
-                      </Col>
-                    </Row>
-                  ))}
-                  <Form.Item wrapperCol={{ span: 24 }}>
-                    <Button
-                      type="dashed"
-                      onClick={() => add()}
-                      style={{ width: '100%', zIndex: 101 }}
-                      icon={<PlusOutlined />}
-                    >
-                      Add Feature
-                    </Button>
-                    <Form.ErrorList errors={errors} />
-                  </Form.Item>
-                </>
+              {(fields, { add, move, remove }, { errors }) => (
+                <FeatureList
+                  fields={fields}
+                  add={add}
+                  move={move}
+                  remove={remove}
+                  errors={errors}
+                />
               )}
             </Form.List>
           </Form.Item>

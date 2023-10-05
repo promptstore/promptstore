@@ -11,6 +11,8 @@ import {
   toVertexAIEmbeddingRequest,
   fromLlamaApiChatResponse,
   toLlamaApiChatRequest,
+  fromAnthropicChatResponse,
+  toAnthropicChatRequest,
 } from '../core/conversions/RosettaStone';
 
 export function LLMService({ logger, registry, services }) {
@@ -22,6 +24,8 @@ export function LLMService({ logger, registry, services }) {
     let providerRequest;
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAIChatRequest(request);
+    } else if (provider === 'bedrock') {
+      providerRequest = toAnthropicChatRequest(request);
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
     } else if (provider === 'vertexai') {
@@ -34,6 +38,13 @@ export function LLMService({ logger, registry, services }) {
     logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return fromOpenAIChatResponse(response);
+    }
+    if (provider === 'bedrock') {
+      const universalResponse = await fromAnthropicChatResponse(response, parserService);
+      return {
+        ...universalResponse,
+        model: request.model,
+      };
     }
     if (provider === 'llamaapi') {
       return fromLlamaApiChatResponse(response);

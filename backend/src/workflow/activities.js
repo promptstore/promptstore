@@ -91,7 +91,7 @@ export const createActivities = ({
         logger.info('File uploaded successfully.');
 
         let data;
-        logger.debug('mimetype:' ,file.mimetype);
+        logger.debug('mimetype:', file.mimetype);
         if (supportedMimetypes.includes(file.mimetype)) {
           if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
             logger.debug('using onesource');
@@ -139,8 +139,8 @@ export const createActivities = ({
     logger.info('workspaceId:', workspaceId);
     logger.info('username:', username);
     const source = await dataSourcesService.getDataSource(transformation.dataSourceId);
-    const rows = await sqlSourceService.getData(source, 3);
-    // logger.debug('data:', data);
+    const rows = await sqlSourceService.getData(source, 25);
+    logger.debug('rows:', rows);
     const res = [];
     const features = transformation.features || [];
     for (const row of rows) {
@@ -175,14 +175,15 @@ export const createActivities = ({
               params: {},
             });
             if (!errors) {
-              result[feature.name] = response.value;
+              // logger.debug('response:', response);
+              result[feature.name] = response.choices[0].message.content;
             }
           }
         }
       }
       res.push(result);
     }
-    // logger.info('res:', res);
+    logger.info('res:', res);
     for (const dstId of transformation.destinationIds) {
       const dst = await destinationsService.getDestination(dstId);
       if (dst) {
