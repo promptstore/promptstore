@@ -1,6 +1,6 @@
 import { columnsToFields } from '../core/conversions/schema';
 
-export default ({ app, auth, logger, services, workflowClient }) => {
+export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const { dataSourcesService, sqlSourceService, transformationsService } = services;
 
@@ -95,7 +95,9 @@ export default ({ app, auth, logger, services, workflowClient }) => {
     const { correlationId, workspaceId } = req.body;
     const tx = await transformationsService.getTransformation(req.params.id);
     workflowClient
-      .transform(tx, workspaceId, username)
+      .transform(tx, workspaceId, username, {
+        address: constants.TEMPORAL_URL,
+      })
       .then((result) => {
         logger.debug('result:', result);
         if (correlationId) {
