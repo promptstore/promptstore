@@ -76,6 +76,8 @@ export const hashStr = (str) => {
   return String(Math.abs(hash));
 };
 
+export const intersects = (a, b) => a.filter(x => b.includes(x)).length > 0;
+
 export const getColor = (key, isDarkMode) => {
   if (!key) return 'rgba(0, 0, 0, 0.25)';
   if (isDarkMode) {

@@ -520,7 +520,13 @@ article.collapsible .panel.closed {
 .chat {
   display: flex;
   flex-direction: column;
-  max-width: 900px;
+  width: 100%;
+}
+
+@media (width > 2057px) {
+  .chat {
+    max-width: 1500px
+  }
 }
 
 .chat .ant-radio-group>* {

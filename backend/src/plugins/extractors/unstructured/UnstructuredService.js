@@ -52,7 +52,7 @@ function UnstructuredService({ __name, constants, logger }) {
     try {
       if (!fs.existsSync(file.path)) {
         return Promise.reject(new Error('File no longer on path: ' + file.path));
-      }  
+      }
       const stats = fs.statSync(file.path);
       logger.debug('stats:', stats);
       const fileSizeInBytes = stats.size;

@@ -132,6 +132,9 @@ export function Designer() {
       ...state,
       title: 'Prompt Design',
     }));
+    if (id) {
+      setPromptsCollapsed(false);
+    }
     return () => {
       onReset();
     };

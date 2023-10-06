@@ -3,7 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Button, Descriptions, Layout, Select, Space, Table, Tag } from 'antd';
+import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
+import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
@@ -33,6 +35,7 @@ import {
   selectDataSources,
 } from '../dataSources/dataSourcesSlice';
 import {
+  getFunctionsAsync,
   getFunctionsByTagAsync,
   selectFunctions,
 } from '../functions/functionsSlice';
@@ -44,8 +47,18 @@ import {
   getModelsAsync,
   selectModels,
 } from '../models/modelsSlice';
+import {
+  getSettingAsync,
+  selectLoading as selectSettingsLoading,
+  selectSettings,
+} from '../promptSets/settingsSlice';
+import { intersects } from '../../utils';
 
 const { Content, Sider } = Layout;
+
+const TAGS_KEY = 'functionTags';
+
+const hasIndex = (f) => !!f.implementations?.find(m => m.indexes?.length);
 
 export function RagTester() {
 
@@ -56,7 +69,9 @@ export function RagTester() {
   const [selectedMessages, setSelectedMessages] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionsCollapsed, setSessionsCollapsed] = useState(true);
   const [copyParams, setCopyParams] = useState({});
+  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-rag-tags', []);
 
   const chatLoading = useSelector(selectChatLoading);
   const messages = useSelector(selectMessages);
@@ -67,6 +82,8 @@ export function RagTester() {
   const functions = useSelector(selectFunctions);
   const indexes = useSelector(selectIndexes);
   const models = useSelector(selectModels);
+  const settings = useSelector(selectSettings);
+  const settingsLoading = useSelector(selectSettingsLoading);
 
   const func = functions[selectedFunction];
   const impl = func?.implementations.find((impl) => impl.modelId === selectedImplementation);
@@ -103,8 +120,10 @@ export function RagTester() {
       dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getFunctionsByTagAsync({ tag: 'rag', workspaceId }));
+      // dispatch(getFunctionsByTagAsync({ tag: 'rag', workspaceId }));
+      dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getChatSessionsAsync({ workspaceId, type: 'rag' }));
+      dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
     }
   }, [selectedWorkspace]);
 
@@ -139,13 +158,16 @@ export function RagTester() {
   }, [chatSessions]);
 
   const functionOptions = useMemo(() => {
-    const list = Object.values(functions).map((f) => ({
-      value: f.id,
-      label: f.name,
-    }));
+    const tags = selectedTags || [];
+    const list = Object.values(functions)
+      .filter((f) => hasIndex(f) && (!tags.length || intersects(tags, f.tags)))
+      .map((f) => ({
+        value: f.id,
+        label: f.name,
+      }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
-  }, [functions]);
+  }, [functions, selectedTags]);
 
   const implementationOptions = useMemo(() => {
     if (!func) {
@@ -158,6 +180,19 @@ export function RagTester() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [func]);
+
+  const tagOptions = useMemo(() => {
+    const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
+    if (setting) {
+      const list = [...setting.value];
+      list.sort();
+      return list.map(s => ({
+        label: s,
+        value: s,
+      }));
+    }
+    return [];
+  }, [settings]);
 
   const openSession = (id) => {
     const session = chatSessions[id];
@@ -271,6 +306,10 @@ export function RagTester() {
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
           <Sider
+            collapsible
+            collapsed={sessionsCollapsed}
+            collapsedWidth={0}
+            trigger={null}
             style={{ height: '100%', marginRight: 20 }}
             width={250}
             theme="light"
@@ -291,9 +330,31 @@ export function RagTester() {
             />
           </Sider>
           <Content>
+            <div style={{ marginBottom: 10, marginLeft: -8 }}>
+              <Button
+                type="text"
+                icon={sessionsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setSessionsCollapsed(!sessionsCollapsed)}
+                style={{
+                  fontSize: '14px',
+                  width: 32,
+                  height: 32,
+                }}
+              />
+              <span>Sessions</span>
+            </div>
             <div style={{ marginBottom: 20 }}>
               <Space direction="vertical">
                 <Space>
+                  <Select allowClear mode="multiple"
+                    options={tagOptions}
+                    optionFilterProp="label"
+                    loading={settingsLoading}
+                    placeholder="select tags"
+                    onChange={setSelectedTags}
+                    style={{ width: 220 }}
+                    value={selectedTags}
+                  />
                   <Select allowClear
                     options={functionOptions}
                     optionFilterProp="label"
