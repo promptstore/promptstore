@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Divider, Form, Input, Radio, Select, Space, Switch } from 'antd';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
+import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
@@ -128,6 +129,13 @@ const featurestoreOptions = [
   },
 ];
 
+const graphstoreOptions = [
+  {
+    label: 'Neo4j',
+    value: 'neo4j',
+  },
+];
+
 const httpMethodOptions = [
   {
     label: 'GET',
@@ -175,6 +183,10 @@ const typeOptions = [
     value: 'featurestore',
   },
   {
+    label: 'Graph Store',
+    value: 'graphstore',
+  },
+  {
     label: 'SQL',
     value: 'sql',
   },
@@ -206,6 +218,7 @@ export function DataSourceForm() {
   const documentTypeValue = Form.useWatch('documentType', form);
   const splitterValue = Form.useWatch('splitter', form);
   const featurestoreValue = Form.useWatch('featurestore', form);
+  const graphstoreValue = Form.useWatch('graphstore', form);
   const extractMetadataValue = Form.useWatch('extractMetadata', form);
   const dialectValue = Form.useWatch('dialect', form);
   const sqlTypeValue = Form.useWatch('sqlType', form);
@@ -565,6 +578,90 @@ export function DataSourceForm() {
               wrapperCol={{ span: 10 }}
             >
               <Input />
+            </Form.Item>
+          </>
+          : null
+        }
+        {typeValue === 'graphstore' ?
+          <>
+            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                Graph Store Connection Info
+              </div>
+            </Form.Item>
+            <Form.Item
+              label="Graph Store"
+              name="graphstore"
+              wrapperCol={{ span: 10 }}
+            >
+              <Select options={graphstoreOptions} optionFilterProp="label" />
+            </Form.Item>
+            {/* <Form.Item
+              label="Host"
+              name="host"
+              wrapperCol={{ span: 10 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Credentials"
+              wrapperCol={{ span: 10 }}
+            >
+              <Form.Item
+                label="Username"
+                name="uaername"
+                colon={false}
+                style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="Password"
+                name="password"
+                colon={false}
+                style={{ display: 'inline-block', width: 'calc(50% - 8px)', marginLeft: 16 }}
+              >
+                <Input type="password" />
+              </Form.Item>
+            </Form.Item> */}
+          </>
+          : null
+        }
+        {graphstoreValue === 'neo4j' ?
+          <>
+            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                Neo4j Parameters
+              </div>
+            </Form.Item>
+            <Form.Item
+              label="Node Label"
+              name="nodeLabel"
+              wrapperCol={{ span: 10 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Embedding Node Property"
+              name="embeddingNodeProperty"
+              initialValue="embedding"
+              wrapperCol={{ span: 10 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Text Node Properties"
+              name="textNodeProperties"
+            >
+              <TagsInput />
+            </Form.Item>
+            <Form.Item
+              label="Limit"
+              name="limit"
+              initialValue={1000}
+              wrapperCol={{ span: 10 }}
+            >
+              <Input type="number" style={{ width: 100 }} />
             </Form.Item>
           </>
           : null

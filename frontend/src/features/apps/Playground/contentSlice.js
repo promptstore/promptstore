@@ -338,10 +338,10 @@ export const generateCopyImageAsync = (appId, contentId, params) => async (dispa
   dispatch(setExpandedRowKeys({ key: contentId }));
 };
 
-export const searchClient = {
+export const searchClient = (indexParams) => ({
   async search(requests) {
     const url = '/api/search';
-    const res = await http.post(url, { requests });
+    const res = await http.post(url, { requests, indexParams });
     return res.data;
   },
   async searchForFacetValues(requests) {
@@ -349,7 +349,7 @@ export const searchClient = {
     const res = await http.post(url, { requests });
     return res.data;
   },
-};
+});
 
 export const selectLoaded = (state) => state.content.loaded;
 

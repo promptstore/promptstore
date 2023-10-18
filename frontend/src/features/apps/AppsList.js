@@ -17,7 +17,7 @@ import './AppsList.css';
 
 export function AppsList() {
 
-  const [page, setPage] = useLocalStorageState('apps-list-page', 1);
+  const [page, setPage] = useLocalStorageState('apps-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);

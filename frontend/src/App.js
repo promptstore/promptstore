@@ -175,11 +175,38 @@ const LokiSvg = () => (
   </svg>
 );
 
+const MageSvg = () => (
+  <svg viewBox="0 0 330 255" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fillRule="evenodd" clipRule="evenodd" d="M130.937 2.25H206.445L206.445 95.8788L255.333 2.25H330.861V250.925H253.302V157.232L204.395 250.897L128.871 250.927L128.884 157.275L79.9847 250.925H1.09293L130.937 2.25ZM134.092 136.055L134.078 245.721L201.239 245.694L258.507 136.016V245.721H325.655V7.4541H258.487L201.239 117.094L201.24 7.4541H134.092L9.68215 245.721H76.8302L134.092 136.055V136.055Z" fill="black" />
+    <path d="M201.24 7.45312H134.092L9.68201 245.72H76.8302L134.092 136.054V245.72H201.239V7.45453L201.24 7.45312V7.45312Z" fill="url(#paint0_linear_789_14)" />
+    <path opacity="0.4" d="M258.487 7.45312H325.635L201.225 245.72H134.077L258.487 7.45312Z" fill="url(#paint1_linear_789_14)" />
+    <path d="M258.507 7.45312H325.655V245.72H258.507V7.45312Z" fill="url(#paint2_linear_789_14)" />
+    <defs>
+      <linearGradient id="paint0_linear_789_14" x1="-6.60498" y1="7.45307" x2="286.799" y2="36.3535" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FFCC19" />
+        <stop offset="0.585938" stopColor="#2ECDF7" />
+        <stop offset="1" stopColor="#9E7BFF" />
+      </linearGradient>
+      <linearGradient id="paint1_linear_789_14" x1="124.203" y1="7.45307" x2="303.17" y2="18.1404" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FFCC19" />
+        <stop offset="0.585938" stopColor="#2ECDF7" />
+        <stop offset="1" stopColor="#9E7BFF" />
+      </linearGradient>
+      <linearGradient id="paint2_linear_789_14" x1="-6.59917" y1="7.45302" x2="286.804" y2="36.3535" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FFCC19" />
+        <stop offset="0.585938" stopColor="#2ECDF7" />
+        <stop offset="1" stopColor="#9E7BFF" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 const TemporalSvg = () => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Temporal</title><path d="M16.206 7.794C15.64 3.546 14.204 0 12 0 9.796 0 8.361 3.546 7.794 7.794 3.546 8.36 0 9.796 0 12c0 2.204 3.546 3.639 7.794 4.206C8.36 20.453 9.796 24 12 24c2.204 0 3.639-3.546 4.206-7.794C20.454 15.64 24 14.204 24 12c0-2.204-3.547-3.64-7.794-4.206Zm-8.55 7.174c-4.069-.587-6.44-1.932-6.44-2.969 0-1.036 2.372-2.381 6.44-2.969-.09.98-.137 1.98-.137 2.97 0 .99.047 1.99.137 2.968zM12 1.215c1.036 0 2.381 2.372 2.969 6.44a32.718 32.718 0 0 0-5.938 0c.587-4.068 1.932-6.44 2.969-6.44Zm4.344 13.753c-.2.03-1.022.126-1.23.146-.02.209-.117 1.03-.145 1.23-.588 4.068-1.933 6.44-2.97 6.44-1.036 0-2.38-2.372-2.968-6.44-.03-.2-.126-1.022-.147-1.23a31.833 31.833 0 0 1 0-6.23 31.813 31.813 0 0 1 7.46.146c4.068.587 6.442 1.933 6.442 2.969-.001 1.036-2.374 2.382-6.442 2.97z" /></svg>
 );
 
 const LokiIcon = (props) => (<Icon component={LokiSvg} {...props} />);
+const MageIcon = (props) => (<Icon component={MageSvg} {...props} />);
 const TemporalIcon = (props) => (<Icon component={TemporalSvg} {...props} />);
 
 const { Header, Content, Footer, Sider } = Layout;
@@ -361,6 +388,14 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
         ),
       },
       {
+        key: 'pipelines',
+        icon: <MageIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
+        style: { display: 'flex', alignItems: 'center' },
+        label: (
+          <Link to={process.env.REACT_APP_MAGE_WEB_URL} target="_blank" rel="noopener noreferrer">Data Pipelines</Link>
+        ),
+      },
+      {
         key: 'monitoring',
         icon: <LokiIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
         style: { display: 'flex', alignItems: 'center' },
@@ -413,7 +448,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
 
 function SideMenu({ isDarkMode, isWorkspaceSelected, currentUser }) {
 
-  const [collapsed, setCollapsed] = useLocalStorageState('ps-side-menu', false);
+  const [collapsed, setCollapsed] = useLocalStorageState('ps-side-menu', { defaultValue: false });
 
   return (
     <Sider id="menu" collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={isDarkMode ? 'dark' : 'light'}>
@@ -437,11 +472,11 @@ function SideMenu({ isDarkMode, isWorkspaceSelected, currentUser }) {
 function App() {
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useLocalStorageState('darkMode', true);
+  const [isDarkMode, setIsDarkMode] = useLocalStorageState('darkMode', { defaultValue: false });
   const [navbarState, setNavbarState] = useState({});
   const [ready, setReady] = useState(0);
 
-  const [selectedWorkspace, setSelectedWorkspace] = useLocalStorageState('workspace', null);
+  const [selectedWorkspace, setSelectedWorkspace] = useLocalStorageState('workspace', { defaultValue: null });
 
   const navbarContextValue = { isDarkMode, navbarState, setNavbarState, setIsDarkMode };
   const workspaceContextValue = { selectedWorkspace, setSelectedWorkspace };

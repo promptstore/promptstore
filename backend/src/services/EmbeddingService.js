@@ -5,8 +5,17 @@ export function EmbeddingService({ logger, registry }) {
     return instance.createEmbedding(content);
   };
 
+  function getEmbeddingProviders() {
+    return Object.entries(registry)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
+  }
+
   return {
     createEmbedding,
+    getEmbeddingProviders,
   }
 
 }

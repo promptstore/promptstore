@@ -13,6 +13,7 @@ import { IndexModal } from '../uploader/IndexModal';
 import {
   getUploadsAsync,
   indexApiAsync,
+  indexGraphAsync,
   indexStructuredDocumentAsync,
   selectLoaded as selectUploadsLoaded,
   selectUploads,
@@ -31,7 +32,7 @@ export function DataSourcesList() {
 
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [page, setPage] = useLocalStorageState('data-sources-list-page', 1);
+  const [page, setPage] = useLocalStorageState('data-sources-list-page', { defaultValue: 1 });
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
@@ -45,7 +46,7 @@ export function DataSourcesList() {
       key: ds.id,
       name: ds.name,
       type: ds.type,
-      instance: ds.featurestore || ds.documentType || ds.dialect,
+      instance: ds.featurestore || ds.documentType || ds.dialect || ds.graphstore,
       documentId: ds.documentId,
       documents: ds.documents,
       baseUrl: ds.baseUrl,
@@ -121,6 +122,7 @@ export function DataSourcesList() {
         indexId: values.indexId,
         newIndexName: values.newIndexName,
         engine: values.engine,
+        embedding: values.embedding,
         titleField: values.titleField,
         vectorField: values.vectorField,
         workspaceId: selectedWorkspace.id,
@@ -134,6 +136,7 @@ export function DataSourcesList() {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
           engine: values.engine,
+          embedding: values.embedding,
           vectorField: values.vectorField,
         },
         workspaceId: selectedWorkspace.id,
@@ -146,6 +149,21 @@ export function DataSourcesList() {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
           engine: values.engine,
+          embedding: values.embedding,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+    } else if (dataSource.type === 'graphstore') {
+      dispatch(indexGraphAsync({
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          graphstore: dataSource.graphstore,
+          engine: values.engine,
+          embedding: values.embedding,
+          nodeLabel: dataSource.nodeLabel,
+          embeddingNodeProperty: dataSource.embeddingNodeProperty,
+          textNodeProperties: dataSource.textNodeProperties,
         },
         workspaceId: selectedWorkspace.id,
       }));
@@ -237,7 +255,7 @@ export function DataSourcesList() {
             </>
             : null
           }
-          {record.type === 'crawler' || record.type === 'api' ?
+          {record.type === 'crawler' || record.type === 'api' || record.type === 'graphstore' ?
             <Button type="link"
               disabled={false}
               style={{ paddingLeft: 0 }}

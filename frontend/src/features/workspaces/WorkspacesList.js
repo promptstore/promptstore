@@ -18,7 +18,7 @@ import {
 export function WorkspacesList() {
 
   const [isLinking, setIsLinking] = useState(false);
-  const [page, setPage] = useLocalStorageState('workspaces-list-page', 1);
+  const [page, setPage] = useLocalStorageState('workspaces-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);

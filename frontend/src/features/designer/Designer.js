@@ -1,12 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Layout, Select, Table } from 'antd';
+import { Button, Divider, Form, Input, Layout, Select, Table } from 'antd';
 import { LinkOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import { v4 as uuidv4 } from 'uuid';
+import useLocalStorageState from 'use-local-storage-state';
 
 import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -18,7 +19,7 @@ import {
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
 
-import { ModelParamsForm } from './ModelParamsForm';
+import { ModelParamsForm, initialValues as initialModelParamsValue } from './ModelParamsForm';
 import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
 import {
   createChatSessionAsync,
@@ -49,17 +50,62 @@ const uiSchema = {
   },
 };
 
+const criteriaOptions = [
+  {
+    label: 'Conciseness',
+    value: 'conciseness',
+  },
+  {
+    label: 'Relevance',
+    value: 'relevance',
+  },
+  {
+    label: 'Correctness',
+    value: 'correctness',
+  },
+  {
+    label: 'Harmfulness',
+    value: 'harmfulness',
+  },
+  {
+    label: 'Maliciousness',
+    value: 'maliciousness',
+  },
+  {
+    label: 'Helpfulness',
+    value: 'helpfulness',
+  },
+  {
+    label: 'Controversiality',
+    value: 'controversiality',
+  },
+  {
+    label: 'Misogyny',
+    value: 'misogyny',
+  },
+  {
+    label: 'Criminality',
+    value: 'criminality',
+  },
+  {
+    label: 'Insensitivity',
+    value: 'insensitivity',
+  },
+];
+
 export function Designer() {
 
   const [createdUuid, setCreatedUuid] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(null);
+  const [usedMessages, setUsedMessages] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [modelParams, setModelParams] = useState({});
+  const [initialModelParams, setInitialModelParams] = useState({});
   const [argsFormData, setArgsFormData] = useState(null);
-  const [sessionsCollapsed, setSessionsCollapsed] = useState(true);
-  const [promptsCollapsed, setPromptsCollapsed] = useState(true);
+  const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('design-sessions-collapsed', { defaultValue: true });
+  const [promptsCollapsed, setPromptsCollapsed] = useLocalStorageState('design-prompts-collapsed', { defaultValue: true });
 
   const chatLoading = useSelector(selectChatLoading);
   const chatSessions = useSelector(selectChatSessions);
@@ -85,6 +131,9 @@ export function Designer() {
 
   const [promptForm] = Form.useForm();
   const promptSetValue = Form.useWatch('promptSet', promptForm);
+  const critiquePromptSetValue = Form.useWatch('critiquePromptSet', promptForm);
+  const critiquePromptValue = Form.useWatch('critiquePrompt', promptForm);
+  const enableCritique = critiquePromptSetValue || critiquePromptValue;
 
   const [contentVar, varsSchema] = useMemo(() => {
     if (promptSetValue) {
@@ -92,40 +141,31 @@ export function Designer() {
       if (promptSet && promptSet.arguments) {
         const schema = promptSet.arguments;
         if (schema.type === 'object') {
-          const props = { ...schema.properties };
-          let contentVar;
-          if ('content' in props) {
-            contentVar = 'content';
-          } else if ('text' in props) {
-            contentVar = 'text';
-          } else if ('input' in props) {
-            contentVar = 'input';
-          }
-          if (contentVar) {
-            const keys = Object.keys(props);
-            if (keys.length > 1) {
-              delete props['content'];
-              const required = [...(schema.required || [])];
-              const index = required.indexOf('content');
-              if (index > -1) {
-                required.splice(index, 1);
-              }
-              return [contentVar, {
-                ...schema,
-                properties: props,
-                required,
-              }];
-            } else {
-              return [contentVar, null];
-            }
-          } else {
-            return [null, schema];
-          }
+          const contentVar = getInputProp(schema.properties);
+          const newSchema = excludeProps([contentVar], schema.properties);
+          return [contentVar, newSchema];
         }
       }
     }
     return [null, null];
   }, [promptSetValue]);
+
+  const [critiqueContentVar, completionVar, criterionVar, critiqueVarsSchema] = useMemo(() => {
+    if (critiquePromptSetValue) {
+      const promptSet = promptSets[critiquePromptSetValue];
+      if (promptSet && promptSet.arguments) {
+        const schema = promptSet.arguments;
+        if (schema.type === 'object') {
+          const contentVar = getInputProp(schema.properties);
+          const completionVar = getCompletionProp(schema.properties);
+          const criterionVar = getCritterionProp(schema.properties);
+          const newSchema = excludeProps([contentVar, completionVar, criterionVar], schema.properties);
+          return [contentVar, completionVar, criterionVar, newSchema];
+        }
+      }
+    }
+    return [null, null, null, null];
+  }, [critiquePromptSetValue]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -158,6 +198,32 @@ export function Designer() {
     }
   }, [chatSessions, createdUuid]);
 
+  useEffect(() => {
+    if (loaded) {
+      const sessions = Object.values(chatSessions);
+      if (sessions.length) {
+        const lastSession = sessions.find(s => s.name === 'last session');
+        // console.log('lastSession:', lastSession);
+        if (lastSession) {
+          dispatch(setMessages({ messages: lastSession.messages.map(formatMessage) }));
+          setSelectedSession(lastSession);
+          setInitialModelParams({
+            ...lastSession.modelParams,
+            models: lastSession.modelParams?.models?.map(m => m.id),
+            criticModels: lastSession.modelParams?.criticModels?.map(m => m.id),
+          });
+          promptForm.setFieldsValue({
+            promptSet: lastSession.promptSetId,
+            systemPrompt: lastSession.systemPromptInput,
+            critiquePromptSet: lastSession.critiquePromptSetId,
+            critiquePrompt: lastSession.critiquePromptInput,
+            criterion: lastSession.criterion,
+          });
+        }
+      }
+    }
+  }, [loaded]);
+
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
       return Object.values(promptSets).map((s) => ({
@@ -175,7 +241,9 @@ export function Designer() {
       dataIndex: 'name',
       width: '100%',
       render: (_, { key, name }) => (
-        <Link onClick={() => openSession(key)}>{name}</Link>
+        <Link onClick={() => openSession(key)}
+          style={{ color: selectedSession?.id === key ? '#177ddc' : 'inherit' }}
+        >{name}</Link>
       )
     },
   ];
@@ -184,16 +252,28 @@ export function Designer() {
     const list = Object.values(chatSessions).map((sess) => ({
       key: sess.id,
       name: sess.name || sess.id,
+      modified: sess.modified,
     }));
-    // list.sort((a, b) => a.name > b.name ? 1 : -1);
+    list.sort((a, b) => a.modified > b.modified ? -1 : 1);
     return list;
   }, [chatSessions]);
 
   const openSession = (id) => {
     const session = chatSessions[id];
-    dispatch(setMessages({ messages: session.messages }));
-    console.log('session:', session)
+    dispatch(setMessages({ messages: session.messages.map(formatMessage) }));
     setSelectedSession(session);
+    setInitialModelParams({
+      ...session.modelParams,
+      models: session.modelParams?.models?.map(m => m.id),
+      criticModels: session.modelParams?.criticModels?.map(m => m.id),
+    });
+    promptForm.setFieldsValue({
+      promptSet: session.promptSetId,
+      systemPrompt: session.systemPromptInput,
+      critiquePromptSet: session.critiquePromptSetId,
+      critiquePrompt: session.critiquePromptInput,
+      criterion: session.criterion,
+    });
   };
 
   const handleChatSubmit = async (values) => {
@@ -207,7 +287,13 @@ export function Designer() {
       history = messages.slice(0, -1);
       messages = messages.slice(-1);
     }
-    const { promptSet, systemPrompt } = await promptForm.validateFields();
+    const {
+      promptSet,
+      systemPrompt,
+      critiquePromptSet,
+      critiquePrompt,
+      criterion,
+    } = await promptForm.validateFields();
     if (promptSet) {
       const ps = promptSets[promptSet];
       if (ps && ps.prompts) {
@@ -232,17 +318,16 @@ export function Designer() {
               ];
             }
             messages = nonSystemMessages.slice(-1);
+          } else {
+            if (nonSystemMessages.length > 0) {
+              history = [
+                ...nonSystemMessages,
+                ...history,
+              ];
+            }
           }
           if (varsSchema) {
             args = { ...args, ...argsFormData };
-            if (!contentVar) {
-              if (nonSystemMessages.length > 0) {
-                history = [
-                  ...nonSystemMessages,
-                  ...history,
-                ];
-              }
-            }
           }
         } else {
           history = [
@@ -250,12 +335,20 @@ export function Designer() {
             ...history,
           ];
         }
+      } else {
+        console.error(`prompt set with id (${promptSet}) not found or has no prompts`);
       }
     } else if (systemPrompt) {
+      // TODO ignore variables?
       sp = systemPrompt;
     }
     dispatch(getChatResponseAsync({
       systemPrompt: sp,
+      promptSetId: promptSet,
+      systemPromptInput: systemPrompt,
+      critiquePromptSetId: critiquePromptSet,
+      critiquePromptInput: critiquePrompt,
+      criterion: criterion,
       history,
       messages,
       originalMessages,
@@ -266,11 +359,122 @@ export function Designer() {
     }));
   };
 
+  const onCritique = async ({ input, completion }) => {
+    let sp;
+    let history = [...messages];
+    let newMessages;
+    let engine;
+    let args;
+    const { promptSet, systemPrompt, critiquePromptSet, critiquePrompt, criterion } = await promptForm.validateFields();
+    if (critiquePromptSet) {
+      const ps = promptSets[critiquePromptSet];
+      if (ps && ps.prompts) {
+        engine = ps.templateEngine || 'es6';
+        sp = ps.prompts
+          .filter(p => p.role === 'system')
+          .map(p => p.prompt)
+          .join('\n\n')
+          ;
+        if (critiqueContentVar || completionVar || criterionVar || critiqueVarsSchema) {
+          const nonSystemMessages = ps.prompts
+            .filter(p => p.role !== 'system')
+            .map(p => ({ role: p.role, content: p.prompt }))
+            ;
+          if (critiqueContentVar) {
+            if (nonSystemMessages.length > 1) {
+              history = [
+                ...history,
+                ...nonSystemMessages.slice(0, -1),
+              ];
+            }
+            newMessages = nonSystemMessages.slice(-1);
+            args = { [critiqueContentVar]: input };
+          } else {
+            // TODO resend last message as new message following prompt,
+            // or assume that prompt will refer to the last message?
+            // if (nonSystemMessages.length > 0) {
+            //   history = [
+            //     ...history,
+            //     ...nonSystemMessages,
+            //   ];
+            // }
+            // newMessages = messages.slice(-1);
+            if (nonSystemMessages.length > 1) {
+              history = [
+                ...messages,
+                ...nonSystemMessages.slice(0, -1),
+              ];
+            }
+            newMessages = nonSystemMessages.slice(-1);
+          }
+          if (completionVar) {
+            args = { ...args, [completionVar]: completion };
+          }
+          if (criterionVar) {
+            args = { ...args, [criterionVar]: criterion };
+          }
+          if (critiqueVarsSchema) {
+            args = { ...args, ...argsFormData };
+          }
+        } else {
+          history = [
+            ...history,
+            ...ps.prompts.filter(p => p.role !== 'system').map(p => ({ role: p.role, content: p.prompt })),
+          ];
+        }
+      } else {
+        console.error(`prompt set with id (${critiquePromptSet}) not found or has no prompts`);
+      }
+    } else if (critiquePrompt) {
+      if (critiqueContentVar) {
+        newMessages = [{ role: 'user', content: critiquePrompt }];
+        args = { [critiqueContentVar]: input };
+      } else {
+        // TODO resend last message as new message following prompt,
+        // or assume that prompt will refer to the last message?
+
+        // TODO or send multiple messages instead?
+        // history = [
+        //   ...history,
+        //   { role: 'user', content: critiquePrompt },
+        // ];
+        // newMessages = messages.slice(-1);
+        newMessages = [{ role: 'user', content: critiquePrompt }];
+      }
+      if (completionVar) {
+        args = { ...args, [completionVar]: completion };
+      }
+      if (criterionVar) {
+        args = { ...args, [criterionVar]: criterion };
+      }
+      if (critiqueVarsSchema) {
+        args = { ...args, ...argsFormData };
+      }
+    }
+    dispatch(getChatResponseAsync({
+      isCritic: true,
+      systemPrompt: sp,
+      promptSetId: promptSet,
+      systemPromptInput: systemPrompt,
+      critiquePromptSetId: critiquePromptSet,
+      critiquePromptInput: critiquePrompt,
+      criterion: criterion,
+      history,
+      messages: newMessages,
+      originalMessages: messages,
+      args,
+      engine,
+      modelParams,
+      workspaceId: selectedWorkspace.id,
+    }))
+  };
+
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
   };
 
-  const onUseSelected = () => {
+  const onUseSelected = (msgs) => {
+    setUsedMessages(msgs);
     setIsCreateModalOpen(true);
   };
 
@@ -278,17 +482,26 @@ export function Designer() {
     dispatch(setMessages({ messages: [] }));
     setSelectedSession(null);
     // dispatch(resetChatSessions());
+    clearPromptFields();
+    setInitialModelParams(initialModelParamsValue);
   };
 
   const clearPromptFields = () => {
     promptForm.resetFields();
   };
 
-  const onSave = () => {
-    if (selectedSession) {
+  const onSave = async () => {
+    const { promptSet, systemPrompt } = await promptForm.validateFields();
+    if (selectedSession && !(selectedSession.name === 'last session')) {
       dispatch(updateChatSessionAsync({
         id: selectedSession.id,
-        values: { messages },
+        values: {
+          messages,
+          modelParams,
+          promptSetId: promptSet,
+          systemPromptInput: systemPrompt,
+          workspaceId: selectedWorkspace.id,
+        },
       }));
     } else {
       const uuid = uuidv4();
@@ -296,19 +509,58 @@ export function Designer() {
         uuid,
         values: {
           messages,
-          workspaceId: selectedWorkspace.id,
+          modelParams,
+          promptSetId: promptSet,
+          systemPromptInput: systemPrompt,
           type: 'design',
+          workspaceId: selectedWorkspace.id,
         },
       }));
       setCreatedUuid(uuid);
     }
   };
 
+  // const findMessage = (key) => {
+  //   for (const m of messages) {
+  //     if (Array.isArray(m.content)) {
+  //       const content = m.content.find(c => c.key === key);
+  //       if (content) {
+  //         return { message: m, content };
+  //       }
+  //     } else if (m.key === key) {
+  //       return { message: m };
+  //     }
+  //   }
+  //   return {};
+  // };
+
+  // const createMessages = (selectedKeys) => {
+  //   return selectedKeys.map(key => {
+  //     const { message, content } = findMessage(key);
+  //     if (content) {
+  //       return {
+  //         role: message.role,
+  //         content: content.content,
+  //         key: content.key,
+  //       };
+  //     }
+  //     return message;
+  //   });
+  // };
+
   const handleCreate = (values) => {
     // console.log('values:', values);
     if (selectedWorkspace) {
-      const msgs = messages.filter((m) => selectedMessages.indexOf(m.key) !== -1);
-      const prompts = msgs.map((m) => ({
+
+      // `selectedMessages` (keys) is unordered
+      // const msgs = messages.filter((m) => selectedMessages.indexOf(m.key) !== -1);
+      // const msgs = createMessages(selectedMessages);
+      // const prompts = msgs.map((m) => ({
+      //   prompt: m.content,
+      //   role: m.role,
+      // }));
+
+      const prompts = usedMessages.map((m) => ({
         prompt: m.content,
         role: m.role,
       }));
@@ -432,6 +684,47 @@ export function Designer() {
                   disabled={!!promptSetValue}
                 />
               </Form.Item>
+              <Divider />
+              <div style={{ display: 'flex' }}>
+                <Form.Item
+                  label="Critique Prompt Template"
+                  name="critiquePromptSet"
+                  style={{ marginBottom: 16, width: critiquePromptSetValue ? 202 : 234 }}
+                >
+                  <Select allowClear
+                    loading={promptSetsLoading}
+                    options={promptSetOptions}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+                {critiquePromptSetValue ?
+                  <Button
+                    type="link"
+                    icon={<LinkOutlined />}
+                    onClick={() => navigate(`/prompt-sets/${critiquePromptSetValue}`)}
+                    style={{ marginTop: 32, width: 32 }}
+                  />
+                  : null
+                }
+              </div>
+              <Form.Item
+                label="Critique prompt"
+                name="critiquePrompt"
+                extra="Instead of template"
+              >
+                <TextArea
+                  autoSize={{ minRows: 4, maxRows: 14 }}
+                  disabled={!!critiquePromptSetValue}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Criteria"
+                name="criterion"
+              >
+                <Select allowClear
+                  options={criteriaOptions}
+                />
+              </Form.Item>
               <Button onClick={clearPromptFields} type="default" size="small">
                 Reset
               </Button>
@@ -466,8 +759,10 @@ export function Designer() {
             </div>
             <Chat
               enableActions={true}
+              enableCritique={enableCritique}
               loading={chatLoading}
               messages={messages}
+              onCritique={onCritique}
               onSelected={setSelectedMessages}
               onSubmit={handleChatSubmit}
               selectable={true}
@@ -520,6 +815,7 @@ export function Designer() {
                 topK: true,
               }}
               onChange={setModelParams}
+              value={initialModelParams}
             />
           </Sider>
         </Layout>
@@ -527,3 +823,67 @@ export function Designer() {
     </>
   );
 }
+
+const formatMessage = (m) => {
+  if (Array.isArray(m.content)) {
+    return {
+      key: uuidv4(),
+      role: m.role,
+      content: m.content.map(msg => ({
+        key: uuidv4(),
+        content: msg.content,
+        model: msg.model,
+      })),
+    };
+  }
+  return {
+    key: uuidv4(),
+    role: m.role,
+    content: m.content,
+  };
+};
+
+const inputTerms = ['input', 'text', 'content', 'query', 'question'];
+
+const getInputProp = (props) => {
+  return inputTerms.find(t => t in props);
+};
+
+const completionTerms = ['completion', 'response', 'result', 'answer'];
+
+const getCompletionProp = (props) => {
+  return completionTerms.find(t => t in props);
+};
+
+const criterionTerms = ['criterion', 'criteria'];
+
+const getCritterionProp = (props) => {
+  return criterionTerms.find(t => t in props);
+};
+
+const excludeProps = (props, schema) => {
+  const schemaProps = { ...schema.properties };
+  let required;
+  if (schema.required) {
+    required = [...schema.required];
+  }
+  for (const prop of props) {
+    if (prop) {
+      delete schemaProps[prop];
+      if (required) {
+        const index = required.indexOf(prop);
+        if (index > -1) {
+          required.splice(index, 1);
+        }
+      }
+    }
+  }
+  if (Object.keys(schemaProps).length) {
+    return {
+      ...schema,
+      properties: schemaProps,
+      required,
+    };
+  }
+  return null;
+};

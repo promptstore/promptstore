@@ -19,7 +19,7 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 export function TracesList() {
 
-  const [page, setPage] = useLocalStorageState('traces-list-page', 1);
+  const [page, setPage] = useLocalStorageState('traces-list-page', { defaultValue: 1 });
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 

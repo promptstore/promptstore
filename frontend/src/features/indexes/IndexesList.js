@@ -18,8 +18,8 @@ import {
 export function IndexesList() {
 
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [page, setPage] = useLocalStorageState('indexes-list-page', 1);
-  const [selectedIndex, setSelectedIndex] = useState('');
+  const [page, setPage] = useLocalStorageState('indexes-list-page', { defaultValue: 1 });
+  const [selectedIndex, setSelectedIndex] = useState({});
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);
@@ -30,7 +30,7 @@ export function IndexesList() {
       key: index.id,
       name: index.name,
       engine: index.engine,
-      titleField: index.titleField,
+      nodeLabel: index.nodeLabel,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -80,7 +80,7 @@ export function IndexesList() {
 
   const onSearchCancel = () => {
     setIsSearchModalOpen(false);
-    setSelectedIndex('');
+    setSelectedIndex({});
   };
 
   const openSearch = (index) => {
@@ -137,6 +137,17 @@ export function IndexesList() {
   };
 
   const hasSelected = selectedRowKeys.length > 0;
+  // const titleField = selectedIndex.nodeLabel?.toLowerCase() + '___text';
+  const titleField = '__text';
+  const index = indexes[selectedIndex.key];
+  let indexParams;
+  if (index) {
+    indexParams = {
+      engine: index.engine,
+      embedding: index.embedding,
+      nodeLabel: index.nodeLabel,
+    };
+  }
 
   // console.log('selectedIndex:', selectedIndex);
 
@@ -146,9 +157,10 @@ export function IndexesList() {
       <SearchModal
         onCancel={onSearchCancel}
         open={isSearchModalOpen}
-        indexName={selectedIndex?.name}
+        indexName={selectedIndex.name}
         theme={isDarkMode ? 'dark' : 'light'}
-        titleField={selectedIndex?.titleField}
+        titleField={titleField}
+        indexParams={indexParams}
       />
       <div style={{ marginTop: 20 }}>
         <div style={{ marginBottom: 16 }}>

@@ -17,7 +17,7 @@ import {
 
 export function DestinationsList() {
 
-  const [page, setPage] = useLocalStorageState('destinations-list-page', 1);
+  const [page, setPage] = useLocalStorageState('destinations-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const destinations = useSelector(selectDestinations);

@@ -14,8 +14,10 @@ export function Chat({
   app,
   disabled,
   enableActions,
+  enableCritique,
   loading,
   messages,
+  onCritique,
   onSave,
   onSelected,
   onSubmit,
@@ -37,35 +39,75 @@ export function Chat({
   const [selected, setSelected] = useState({});
   const [checkAll, setCheckAll] = useState(false);
   const [input, setInput] = useState(null);
-  const [lastInput, setLastInput] = useState(null);
+  // const [lastInput, setLastInput] = useState(null);
 
-  const selectedKeys = Object.entries(selected).filter(([_, v]) => v).map(([k, _]) => k);
+  const selectedEntries = Object.entries(selected).filter(([_, v]) => v.checked).map(([k, v]) => [k, v.index]);
+  selectedEntries.sort((a, b) => a[1] < b[1] ? -1 : 1);
+  const selectedKeys = selectedEntries.map(x => x[0]);
   const hasSelected = selectedKeys.length > 0;
 
   const hasMessages = messages.length > 0;
 
   const dispatch = useDispatch();
 
+  const findMessage = (key) => {
+    for (const m of messages) {
+      if (Array.isArray(m.content)) {
+        const content = m.content.find(c => c.key === key);
+        if (content) {
+          return { message: m, content };
+        }
+      } else if (m.key === key) {
+        return { message: m };
+      }
+    }
+    return {};
+  };
+
   const handleChange = (key) => {
     if (selectMultiple) {
-      const selectedUpdate = {
-        ...selected,
-        [key]: !selected[key],
-      };
-      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v).map(([k, _]) => k);
-      if (selectedEntries.length > 0 && selectedEntries.length < messages.length) {
+      const { message, content } = findMessage(key);
+      let selectedUpdate;
+      if (content) {
+        selectedUpdate = {
+          ...selected,
+          ...message.content.reduce((a, c) => {
+            a[c.key] = {
+              checked: false,
+              index: message.index,
+            };
+            return a;
+          }, {}),
+          [key]: {
+            checked: !selected[key]?.checked,
+            index: message.index,
+          },
+        };
+      } else {
+        selectedUpdate = {
+          ...selected,
+          [key]: {
+            checked: !selected[key]?.checked,
+            index: message.index,
+          },
+        };
+      }
+      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v.checked).map(([k, v]) => [k, v.index]);
+      selectedEntries.sort((a, b) => a[1] < b[1] ? -1 : 1);
+      const selectedKeys = selectedEntries.map(x => x[0]);
+      if (selectedKeys.length > 0 && selectedKeys.length < messages.length) {
         setIndeterminate(true);
       } else {
         setIndeterminate(false);
       }
-      if (selectedEntries.length === messages.length) {
+      if (selectedKeys.length === messages.length) {
         setCheckAll(true);
       } else {
         setCheckAll(false);
       }
       setSelected(selectedUpdate);
       if (typeof onSelected === 'function') {
-        onSelected(selectedEntries);
+        onSelected(selectedKeys);
       }
     } else {
       setSelected({ [key]: true });
@@ -96,7 +138,7 @@ export function Chat({
       role: 'user',
       content: input,
     };
-    setLastInput(input);
+    // setLastInput(input);
     setInput(null);
     onSubmit({ app, messages: [...messages, msg] });
   };
@@ -105,9 +147,15 @@ export function Chat({
     const msg = {
       key: uuidv4(),
       role: 'user',
-      content: lastInput,
+      content: [...messages].reverse().find(m => m.role === 'user').content,
     };
     onSubmit({ app, messages: [...messages, msg] });
+  };
+
+  const critique = () => {
+    const input = messages.slice(-2)[0].content;
+    const completion = messages.slice(-1)[0].content[0].content;
+    onCritique({ input, completion });
   };
 
   const handleSuggestPrompts = () => {
@@ -118,13 +166,25 @@ export function Chat({
     if (ev.target.checked) {
       setCheckAll(true);
       const selectedUpdate = messages.reduce((a, m) => {
-        a[m.key] = true;
+        if (Array.isArray(m.content)) {
+          a[m.content[0].key] = {
+            checked: true,
+            index: m.index,
+          };
+        } else {
+          a[m.key] = {
+            checked: true,
+            index: m.index,
+          };
+        }
         return a;
       }, {});
       setSelected(selectedUpdate);
-      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v).map(([k, _]) => k);
+      const selectedEntries = Object.entries(selectedUpdate).filter(([_, v]) => v.checked).map(([k, v]) => [k, v.index]);
+      selectedEntries.sort((a, b) => a[1] < b[1] ? -1 : 1);
+      const selectedKeys = selectedEntries.map(x => x[0]);
       if (typeof onSelected === 'function') {
-        onSelected(selectedEntries);
+        onSelected(selectedKeys);
       }
     } else {
       setCheckAll(false);
@@ -133,16 +193,39 @@ export function Chat({
     setIndeterminate(false);
   };
 
+  const createMessages = (selectedKeys) => {
+    return selectedKeys.map(key => {
+      const { message, content } = findMessage(key);
+      if (content) {
+        return {
+          role: message.role,
+          content: content.content,
+          key: content.key,
+        };
+      }
+      return message;
+    });
+  };
+
   const useContent = () => {
     if (hasSelected) {
       if (typeof onUseSelected === 'function') {
-        const msgs = messages.filter((m) => selectedKeys.indexOf(m.key) !== -1);
+        const msgs = createMessages(selectedKeys);
         onUseSelected(msgs);
       } else {
         const contents = [];
         for (const key of selectedKeys) {
-          const message = messages.find((m) => m.key === key);
-          if (message) {
+          const { message, content } = findMessage(key);
+          if (content) {
+            contents.push({
+              appId,
+              contentId: uuidv4(),
+              isNew: true,
+              text: content.content,
+              model: content.model,
+              usage: message.usage,
+            });
+          } else {
             contents.push({
               appId,
               contentId: uuidv4(),
@@ -181,22 +264,41 @@ export function Chat({
       );
     }
     if (selectMultiple) {
+      // return (
+      //   <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]?.checked}>
+      //     <div className="chatline assistant">
+      //       <div className="avatar"><Avatar>A</Avatar></div>
+      //       <div className="content">
+      //         <Space size="large">
+      //           {message.content.map((c, i) => (
+      //             <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+      //               <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
+      //               <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
+      //             </div>
+      //           ))}
+      //         </Space>
+      //       </div>
+      //     </div>
+      //   </Checkbox>
+      // );
       return (
-        <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
-          <div className="chatline assistant">
-            <div className="avatar"><Avatar>A</Avatar></div>
-            <div className="content">
-              <Space size="large">
-                {message.content.map((c, i) => (
-                  <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+        <div className="chatline assistant">
+          <div className="avatar"><Avatar>A</Avatar></div>
+          <div className="content">
+            <Space size="large">
+              {message.content.map((c, i) => (
+                <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
+                  <Checkbox value={c.key} checked={selected[c.key]?.checked}
+                    onChange={onChange}
+                  >
                     <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
                     <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
-                  </div>
-                ))}
-              </Space>
-            </div>
+                  </Checkbox>
+                </div>
+              ))}
+            </Space>
           </div>
-        </Checkbox>
+        </div>
       );
     }
     return (
@@ -221,7 +323,7 @@ export function Chat({
   const UserMessage = ({ message, onChange }) => {
     if (selectMultiple) {
       return (
-        <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]}>
+        <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]?.checked}>
           <div className="chatline user">
             <div className="content">
               <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography.Text>
@@ -320,6 +422,7 @@ export function Chat({
 
   const Actions = ({
     disabled,
+    enableCritique,
     hasMessages,
     hasSelected,
     regenerate,
@@ -363,8 +466,14 @@ export function Chat({
         >
           Regenerate
         </Button>
+        <Button type="primary" size="small"
+          disabled={disabled || !hasMessages || !enableCritique}
+          onClick={critique}
+        >
+          Critique
+        </Button>
         {traceId ?
-          <div style={{ color: '#1677ff', flex: 1, marginRight: 36, textAlign: 'end' }}>
+          <div style={{ color: '#1677ff', flex: 1, marginRight: 36, textAlign: 'end', whiteSpace: 'nowrap' }}>
             <Link to={`/traces/${traceId}`}>Latest trace...</Link>
           </div>
           : null
@@ -383,7 +492,9 @@ export function Chat({
         value={selectedKeys[0]}
       />
       <Actions
+        critique={critique}
         disabled={disabled}
+        enableCritique={enableCritique}
         handleSuggestPrompts={handleSuggestPrompts}
         hasMessages={hasMessages}
         hasSelected={hasSelected}

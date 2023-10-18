@@ -15,15 +15,18 @@ function SentenceEncoder({ __name, constants, logger }) {
           _model = m;
           resolve(m);
         })
-        .reject(err => {
+        .catch(err => {
+          logger.debug(err);
           reject(err);
         });
     });
   }
 
-  async function createEmbedding(content) {
+  async function createEmbedding(input) {
+    // logger.debug('input:', input);
     const model = await getModel();
-    const embedding = await model.embed(content);
+    // logger.debug('model:', model);
+    const embedding = await model.embed(input);
     const values = embedding.dataSync();
     return Array.from(values);
   }

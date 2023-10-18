@@ -89,7 +89,7 @@ export function UploadsList({ workspaceId }) {
   const [correlationId, setCorrelationId] = useState({});
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [page, setPage] = useLocalStorageState('documents-list-page', 1);
+  const [page, setPage] = useLocalStorageState('documents-list-page', { defaultValue: 1 });
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);

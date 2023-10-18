@@ -44,7 +44,12 @@ import {
   selectLoading as selectIndexesLoading,
   setIndexes,
 } from '../indexes/indexesSlice';
-import { engineOptions } from '../../options';
+import {
+  getVectorStores,
+  selectVectorStores,
+  selectLoaded as selectVectorStoresLoaded,
+  selectLoading as selectVectorStoresLoading,
+} from '../uploader/vectorStoresSlice';
 
 import {
   createTransformationAsync,
@@ -163,6 +168,9 @@ export function TransformationForm() {
   const loaded = useSelector(selectLoaded);
   const [newIndex, setNewIndex] = useState('');
   const transformations = useSelector(selectTransformations);
+  const vectorStoresLoaded = useSelector(selectVectorStoresLoaded);
+  const vectorStoresLoading = useSelector(selectVectorStoresLoading);
+  const vectorStores = useSelector(selectVectorStores);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -246,6 +254,15 @@ export function TransformationForm() {
     return list;
   }, [indexes]);
 
+  const vectorStoreOptions = useMemo(() => {
+    const list = vectorStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [vectorStores]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -275,6 +292,12 @@ export function TransformationForm() {
       }
     }
   }, [dataSourceIdValue, dataSources]);
+
+  useEffect(() => {
+    if (indexValue === 'new' && !vectorStoresLoaded) {
+      dispatch(getVectorStores());
+    }
+  }, [indexValue]);
 
   const createNewIndex = (ev) => {
     ev.preventDefault();
@@ -499,17 +522,22 @@ export function TransformationForm() {
         </Form.Item>
         {indexValue === 'new' ?
           <Form.Item
-            label="Index Engine"
+            label="Vector Store"
             name="engine"
             rules={[
               {
                 required: true,
-                message: 'Please select the engine',
+                message: 'Please select the vector store',
               },
             ]}
             wrapperCol={{ span: 14 }}
           >
-            <Select options={engineOptions} optionFilterProp="label" />
+            <Select
+              allowClear
+              loading={vectorStoresLoading}
+              options={vectorStoreOptions}
+              optionFilterProp="label"
+            />
           </Form.Item>
           : null
         }

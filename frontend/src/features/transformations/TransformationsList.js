@@ -27,7 +27,7 @@ export function TransformationsList() {
 
   const [correlationId, setCorrelationId] = useState({});
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [page, setPage] = useLocalStorageState('transformations-list-page', 1);
+  const [page, setPage] = useLocalStorageState('transformations-list-page', { defaultValue: 1 });
   const [selectedKey, setSelectedKey] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 

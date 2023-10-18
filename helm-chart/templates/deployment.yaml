@@ -12,8 +12,10 @@ spec:
       labels:
         app: api
     spec:
+      {{ if .Values.imagePullSecret }}
       imagePullSecrets:
         - name: "{{ .Values.imagePullSecret }}"
+      {{ end }}
       containers:
         - name: api
           image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
@@ -73,11 +75,6 @@ spec:
                 configMapKeyRef:
                   key: S3_PORT
                   name: "{{ .Values.appname }}"
-            - name: SEARCH_API
-              valueFrom:
-                configMapKeyRef:
-                  key: SEARCH_API
-                  name: "{{ .Values.appname }}"
             - name: TEMPORAL_URL
               valueFrom:
                 configMapKeyRef:
@@ -107,6 +104,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: FEATURE_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: GRAPH_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: GRAPH_STORE_PLUGINS
                   name: "{{ .Values.appname }}"
             - name: GUARDRAIL_PLUGINS
               valueFrom:
@@ -148,10 +150,20 @@ spec:
                 configMapKeyRef:
                   key: TOOL_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: VECTOR_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: VECTOR_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: ANAML_API_URL
               valueFrom:
                 configMapKeyRef:
                   key: ANAML_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_HOST
                   name: "{{ .Values.appname }}"
             - name: EUROPA_PII_API_URL
               valueFrom:
@@ -248,6 +260,21 @@ spec:
                 configMapKeyRef:
                   key: MAILTRAP_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_VECTOR_STORE_HOST
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_VECTOR_STORE_PORT
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_API
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_API
+                  name: "{{ .Values.appname }}"
 
             - name: PGUSER
               valueFrom:
@@ -283,6 +310,16 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: ANAML_API_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_PASSWORD
                   name: "{{ .Values.appname }}"
             - name: HUGGINGFACE_TOKEN
               valueFrom:
@@ -368,6 +405,16 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_VECTOR_STORE_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_VECTOR_STORE_PASSWORD
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data
@@ -435,11 +482,6 @@ spec:
                 configMapKeyRef:
                   key: S3_PORT
                   name: "{{ .Values.appname }}"
-            - name: SEARCH_API
-              valueFrom:
-                configMapKeyRef:
-                  key: SEARCH_API
-                  name: "{{ .Values.appname }}"
             - name: TEMPORAL_URL
               valueFrom:
                 configMapKeyRef:
@@ -469,6 +511,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: FEATURE_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
+            - name: GRAPH_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: GRAPH_STORE_PLUGINS
                   name: "{{ .Values.appname }}"
             - name: GUARDRAIL_PLUGINS
               valueFrom:
@@ -510,10 +557,20 @@ spec:
                 configMapKeyRef:
                   key: TOOL_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: VECTOR_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: VECTOR_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: ANAML_API_URL
               valueFrom:
                 configMapKeyRef:
                   key: ANAML_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_HOST
                   name: "{{ .Values.appname }}"
             - name: EUROPA_PII_API_URL
               valueFrom:
@@ -610,6 +667,21 @@ spec:
                 configMapKeyRef:
                   key: MAILTRAP_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_VECTOR_STORE_HOST
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: NEO4J_VECTOR_STORE_PORT
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_API
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_API
+                  name: "{{ .Values.appname }}"
 
             - name: PGUSER
               valueFrom:
@@ -645,6 +717,16 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: ANAML_API_SECRET
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_PASSWORD
                   name: "{{ .Values.appname }}"
             - name: HUGGINGFACE_TOKEN
               valueFrom:
@@ -730,6 +812,16 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_VECTOR_STORE_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: NEO4J_VECTOR_STORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: NEO4J_VECTOR_STORE_PASSWORD
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data

@@ -62,7 +62,7 @@ export default class SemanticCache {
 
   async get(prompt: string, n: number = 1) {
     try {
-      const embedding = await this.embeddingService.createEmbedding(prompt);
+      const embedding = await this.embeddingService.createEmbedding('sentenceencoder', prompt);
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {
         PARAMS: {
@@ -90,7 +90,7 @@ export default class SemanticCache {
 
   async set(prompt: string, content: string, embedding?: number[]) {
     try {
-      embedding = embedding || await this.embeddingService.createEmbedding(prompt);
+      embedding = embedding || await this.embeddingService.createEmbedding('sentenceencoder', prompt);
       const uid = uuid.v4();
       const doc = {
         __uid: uid,

@@ -14,27 +14,23 @@ ingress:
   gateway: "promptstore-gateway"
   virtualservice_namespace: "promptstore"
 
-# postgresql metastore
+# PostgreSQL Metastore
 db:
   host: "postgres-postgresql.pgdatabase.svc.cluster.local"
   name: "promptstore"
   user: "psadmin"
   pass: "changeme"
 
-# redis
+# Redis
 redis:
   host: "redis-master.redis.svc.cluster.local"
   pass:
 
-# minio filestore
+# MinIO filestore
 s3:
   endpoint:
   access_key:
   secret_key:
-
-# search / default semantic index
-vecsearch:
-  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5002/api"
 
 # Background job processing
 temporal:
@@ -49,13 +45,24 @@ loki:
 
 ## PLUGIN SETTINGS ########
 
-## feature store plugins ########
+## Feature store plugins ########
 
-# anaml
+# Anaml
 anaml:
   api_url:
   api_key:
   api_secret:
+
+########
+
+## Graph store plugins ########
+graph_stores:
+
+  # Neo4j
+  neo4j:
+    host:
+    username:
+    password:
 
 ########
 
@@ -69,11 +76,11 @@ custom_models:
 
 ## Loader plugins ########
 
-# onesource
+# Onesource
 onesource:
   api_url: "http://onesource-service.promptstore.svc.cluster.local:5000"
 
-# unstructured
+# Unstructured
 unstructured:
   api_url:
 
@@ -92,7 +99,7 @@ huggingface:
 
 ## LLM plugins ########
 
-# bedrock - ./plugins/llms/bedrock
+# Bedrock - ./plugins/llms/bedrock
 bedrock:
   region:
   access_key_id:
@@ -129,7 +136,7 @@ google_vertex:
 
 ## Passport auth plugins ########
 
-# keycloak - ./plugins/passport/keycloak
+# Keycloak - ./plugins/passport/keycloak
 keycloak:
   host:
   callback:
@@ -168,4 +175,21 @@ mailtrap:
   template_uuid:
   token:
   sender_email:
+
+########
+
+## Vector store plugins ########
+vector_stores:
+
+  # Neo4j
+  neo4j:
+    host:
+    port:
+    username:
+    password:
+
+# RediSearch (default semantic index)
+vecsearch:
+  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5002/api"
+
 ########

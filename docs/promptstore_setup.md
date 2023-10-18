@@ -10,7 +10,7 @@ Prerequisites:
     git clone git@github.com:promptstore/promptstore.git
     cd promptstore
     cp .env.template .env
-    cp .vecsearch.env.template .vecsearch.env
+    cp .env.vecsearch.template .env.vecsearch
     cp backend/.env.template backend/.env
 
 Edit `backend/.env`, set `OPENAI_API_KEY`.

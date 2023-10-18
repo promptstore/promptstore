@@ -19,7 +19,8 @@ export function SearchModal({
   open,
   width = 800,
   theme = 'light',
-  titleField = 'text',
+  titleField,
+  indexParams,
 }) {
 
   const [isHitOpen, setIsHitOpen] = useState({});
@@ -59,7 +60,7 @@ export function SearchModal({
       title="Search"
       width={width}
     >
-      <InstantSearch searchClient={searchClient} indexName={indexName}>
+      <InstantSearch searchClient={searchClient(indexParams)} indexName={indexName}>
         <Configure hitsPerPage={hitsPerPage} />
         <div className="search-panel">
           <div className="search-panel__results">

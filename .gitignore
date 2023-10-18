@@ -2,7 +2,8 @@ data/
 node_modules/
 .env
 .env.firebase
-*.env
+.env.neo4j
+.env.vecsearch
 volumes/
 venv/
 .venv/
@@ -18,3 +19,6 @@ k8s/openaiplatform-virtualservice.yaml
 openaiplatform/
 backend/src/plugins/sqlsources/bigquery/keys/
 scratchpad.md
+neo4j/
+mage_data/
+metadata.yaml

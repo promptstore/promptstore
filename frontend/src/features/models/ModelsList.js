@@ -30,9 +30,9 @@ const { Search } = Input;
 
 export function ModelsList() {
 
-  const [filterPublic, setFilterPublic] = useLocalStorageState('models-filter-system', false);
-  const [layout, setLayout] = useLocalStorageState('models-layout', 'grid');
-  const [page, setPage] = useLocalStorageState('models-list-page', 1);
+  const [filterPublic, setFilterPublic] = useLocalStorageState('models-filter-system', { defaultValue: false });
+  const [layout, setLayout] = useLocalStorageState('models-layout', { defaultValue: 'grid' });
+  const [page, setPage] = useLocalStorageState('models-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 

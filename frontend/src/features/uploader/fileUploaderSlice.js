@@ -181,6 +181,11 @@ export const indexApiAsync = ({ endpoint, schema, params, workspaceId }) => asyn
   await http.post(url, { endpoint, schema, params, workspaceId });
 };
 
+export const indexGraphAsync = ({ params, workspaceId }) => async (dispatch) => {
+  const url = '/api/loader/graph';
+  await http.post(url, { params, workspaceId });
+};
+
 export const indexStructuredDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
   const url = '/api/loader/structureddocument';
   await http.post(url, { documents, params, workspaceId });

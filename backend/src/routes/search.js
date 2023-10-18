@@ -80,7 +80,7 @@ export default ({ app, auth, logger, services }) => {
   app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
     const { indexName, uid } = req.params;
     try {
-      await searchService.deleteDocument(indexName, uid);
+      await searchService.deleteDocument(uid, { indexName });
       res.sendStatus(200);
     } catch (e) {
       logger.log('error', '%s\n%s', e, e.stack);
@@ -93,7 +93,7 @@ export default ({ app, auth, logger, services }) => {
   app.post('/api/bulk-delete', async (req, res) => {
     const { indexName, uids } = req.body;
     try {
-      const resp = await searchService.deleteDocuments(indexName, uids);
+      const resp = await searchService.deleteDocuments(uids, { indexName });
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -115,11 +115,19 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/search', auth, async (req, res, next) => {
-    const { requests, attrs } = req.body;
+    const { requests, attrs, indexParams } = req.body;
     const { indexName, params: { query } } = requests[0];
-    const rawResults = await searchService.search(indexName, query, attrs);
+    const {
+      embedding,
+      engine,
+      nodeLabel,
+    } = indexParams;
+    const rawResults = await searchService.search(engine, indexName, query, attrs, {
+      embedding,
+      nodeLabel,
+    });
     logger.log('debug', 'rawResults:', rawResults);
-    const result = formatAlgolia(requests, rawResults);
+    const result = formatAlgolia(requests, rawResults, nodeLabel);
     res.status(200).send({ results: [result] });
   });
 
@@ -129,13 +137,17 @@ export default ({ app, auth, logger, services }) => {
     res.status(200).send(results);
   });
 
-  const formatAlgolia = (requests, rawResult) => {
+  const formatAlgolia = (requests, rawResult, nodeLabel) => {
     const documents = rawResult;
     const nbHits = documents.length;
+    const prefix = nodeLabel.toLowerCase() + '_';
     const hits = documents
       .map((val) => Object.entries(val).reduce((a, [k, v]) => {
-        const key = k.match(/([^_]+_)?(.*)/)[2];
-        a[key] = v;
+        if (k.startsWith(prefix)) {
+          a[k.slice(prefix.length)] = v;
+        } else {
+          a[k] = v;
+        }
         return a;
       }, {}))
       .map((val) => ({
@@ -143,7 +155,6 @@ export default ({ app, auth, logger, services }) => {
         score: parseFloat(val.score),
       }))
       ;
-    hits.sort((a, b) => a.score < b.score ? -1 : 1);
     return {
       exhaustive: {
         nbHits: true,

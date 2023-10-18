@@ -51,7 +51,7 @@ const useOAuth2 = <TData = AuthTokenPayload>(props: OAuth2Props) => {
   const popupRef = useRef<Window | null>();
 
   const [{ error, loading }, setUI] = useState<UIState>({ error: null, loading: false });
-  const [data, setData] = useLocalStorageState<State>(appId, {});
+  const [data, setData] = useLocalStorageState(appId, { defaultValue: {} });
 
   const getAuth = useCallback(() => {
     // 1. Init

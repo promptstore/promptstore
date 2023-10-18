@@ -33,6 +33,7 @@ import { EmbeddingService } from './services/EmbeddingService';
 import { ExecutionsService } from './services/ExecutionsService';
 import { ExtractorService } from './services/ExtractorService';
 import { FeatureStoreService } from './services/FeatureStoreService';
+import { GraphStoreService } from './services/GraphStoreService';
 import { GuardrailsService } from './services/GuardrailsService';
 import { FunctionsService } from './services/FunctionsService';
 import { IndexesService } from './services/IndexesService';
@@ -52,6 +53,7 @@ import { TransformationsService } from './services/TransformationsService';
 import { UploadsService } from './services/UploadsService';
 import { UsersService } from './services/UsersService';
 import { WorkspacesService } from './services/WorkspacesService';
+import { VectorStoreService } from './services/VectorStoreService';
 import { getPlugins, installModules } from './utils';
 import * as workflowClient from './workflow/clients';
 
@@ -71,6 +73,7 @@ const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
+const GRAPH_STORE_PLUGINS = process.env.GRAPH_STORE_PLUGINS || '';
 const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
 const LLM_PLUGINS = process.env.LLM_PLUGINS || '';
 const LOADER_PLUGINS = process.env.LOADER_PLUGINS || '';
@@ -79,17 +82,20 @@ const OUTPUT_PARSER_PLUGINS = process.env.OUTPUT_PARSER_PLUGINS || '';
 const PASSPORT_PLUGINS = process.env.PASSPORT_PLUGINS || '';
 const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
 const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
+const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 
 const basePath = path.dirname(fileURLToPath(import.meta.url));
 const embeddingPlugins = await getPlugins(basePath, EMBEDDING_PLUGINS, logger);
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
+const graphStorePlugins = await getPlugins(basePath, GRAPH_STORE_PLUGINS, logger);
 const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
 const loaderPlugins = await getPlugins(basePath, LOADER_PLUGINS, logger);
 const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
 const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
 const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
 const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger);
+const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
 const app = express();
 
@@ -176,6 +182,8 @@ const featureStoreService = FeatureStoreService({ logger, registry: featureStore
 
 const functionsService = FunctionsService({ pg, logger });
 
+const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugins });
+
 const indexesService = IndexesService({ pg, logger });
 
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
@@ -187,11 +195,6 @@ const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 
 const promptSetsService = PromptSetsService({ pg, logger });
-
-const searchService = SearchService({
-  constants: { SEARCH_API },
-  logger,
-});
 
 const settingsService = SettingsService({ pg, logger });
 
@@ -210,6 +213,17 @@ const uploadsService = UploadsService({ pg, logger });
 const usersService = UsersService({ pg });
 
 const workspacesService = WorkspacesService({ pg, logger });
+
+const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
+
+const searchService = SearchService({
+  constants: { SEARCH_API },
+  logger,
+  services: {
+    embeddingService,
+    vectorStoreService,
+  }
+});
 
 const RedisStore = connectRedis(session);
 const sess = {
@@ -372,6 +386,7 @@ const options = {
     extractorService,
     featureStoreService,
     functionsService,
+    graphStoreService,
     guardrailsService,
     indexesService,
     llmService,
@@ -390,6 +405,7 @@ const options = {
     uploadsService,
     usersService,
     workspacesService,
+    vectorStoreService,
   },
   workflowClient,
 };

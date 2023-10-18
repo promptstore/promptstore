@@ -5,21 +5,20 @@ data:
   DOCUMENTS_PREFIX: "documents"
   IMAGES_PREFIX: "images"
   PORT: "{{ .Values.port }}"
+  PROJECT_NAME: "{{ .Values.appname }}"
+  DISABLE_TERMINAL: "1"
 
-  # postgresql metastore
+  # PostgreSQL Metastore
   PGHOST: "{{ .Values.db.host }}"
   PGPORT: "5432"
   PGDATABASE: "{{ .Values.db.name }}"
 
-  # redis
+  # Redis
   REDIS_HOST: "{{ .Values.redis.host }}"
 
-  # minio filestore
+  # MinIO filestore
   S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
   S3_PORT: "80"
-
-  # search / default semantic index
-  SEARCH_API: "{{ .Values.vecsearch.api_url }}"
 
   # Background job processing
   TEMPORAL_URL: "{{ .Values.temporal.api_url }}"
@@ -32,14 +31,17 @@ data:
 
   ## PLUGINS ########
 
-  # embedding plugins
+  # Embedding plugins
   EMBEDDING_PLUGINS: "sentenceencoder|Sentence Encoder|./plugins/embedding/sentenceencoder"
 
-  # extractor plugins
+  # Extractor plugins
   EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured"
 
-  # feature store plugins
+  # Feature store plugins
   FEATURE_STORE_PLUGINS: "feast|Feast|./plugins/featurestores/feast,anaml|Anaml|./plugins/featurestores/anaml"
+
+  # Graph store plugins
+  GRAPH_STORE_PLUGINS: "neo4j|Neo4j|./plugins/graphstores/neo4j"
 
   # Guardrail plugins
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
@@ -65,14 +67,24 @@ data:
   # Tool plugins
   TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email"
 
+  # Vector store plugins
+  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j"
+
   ########
 
   ## PLUGIN SETTINGS ########
 
-  ## feature store plugins ########
+  ## Feature store plugins ########
 
-  # anaml
+  # Anaml
   ANAML_API_URL: "{{ .Values.anaml.api_url }}"
+
+  ########
+
+  ## Graph store plugins ########
+
+  # Neo4j
+  NEO4J_HOST: "{{ .Values.graph_stores.neo4j.host }}"
 
   ########
 
@@ -86,10 +98,10 @@ data:
 
   ## Loader plugins ########
 
-  # onesource
+  # Onesource
   ONESOURCE_API_URL: "{{ .Values.onesource.api_url }}"
 
-  # unstructured
+  # Unstructured
   UNSTRUCTURED_API_URL: "{{ .Values.unstructured.api_url }}"
 
   ########
@@ -104,7 +116,7 @@ data:
 
   ## LLM plugins ########
 
-  # bedrock - ./plugins/llms/bedrock
+  # Bedrock - ./plugins/llms/bedrock
   AWS_REGION: "{{ .Values.bedrock.region }}"
 
   # gpt4all - ./plugins/llms/gpt4all
@@ -128,7 +140,7 @@ data:
 
   ## Passport auth plugins ########
 
-  # keycloak - ./plugins/passport/keycloak
+  # Keycloak - ./plugins/passport/keycloak
   KEYCLOAK_HOST: "{{ .Values.keycloak.host }}"
   KEYCLOAK_CALLBACK: "{{ .Values.keycloak.callback }}"
   KEYCLOAK_REALM: "{{ .Values.keycloak.realm }}"
@@ -148,6 +160,17 @@ data:
 
   # Mailtrap - ./plugins/tools/email
   MAILTRAP_TEMPLATE_UUID: "{{ .Values.mailtrap.template_uuid }}"
+
+  ########
+
+  ## Vector store plugins ########
+
+  # Neo4j
+  NEO4J_VECTOR_STORE_HOST: "{{ .Values.vector_stores.neo4j.host }}"
+  NEO4J_VECTOR_STORE_PORT: "{{ .Values.vector_stores.neo4j.port }}"
+
+  # Redis
+  SEARCH_API: "{{ .Values.vecsearch.api_url }}"
 
   ########
 

@@ -15,12 +15,15 @@ export default ({ app, auth, logger, services }) => {
 
   const {
     documentsService,
+    embeddingService,
     executionsService,
     functionsService,
+    graphStoreService,
     indexesService,
     loaderService,
     searchService,
     uploadsService,
+    vectorStoreService,
   } = services;
 
   app.post('/api/loader/api', auth, async (req, res) => {
@@ -32,6 +35,100 @@ export default ({ app, auth, logger, services }) => {
       await indexApi(endpoint, schema, { ...params, indexId });
     } else {
       await indexApi(endpoint, schema, params);
+    }
+    res.json({ indexId });
+  });
+
+  app.post('/api/loader/graph', auth, async (req, res) => {
+    const { params, workspaceId } = req.body;
+    const {
+      newIndexName,
+      graphstore,
+      engine,
+      embedding,
+      nodeLabel,
+      embeddingNodeProperty,
+      textNodeProperties,
+      similarityMetric = 'cosine',
+    } = params;
+    let indexId = params.indexId;
+    if (engine === 'neo4j') {
+      if (indexId === 'new') {
+        const existingIndex = await vectorStoreService.getIndex(engine, newIndexName, {
+          nodeLabel,
+          embeddingNodeProperty,
+        });
+        if (!existingIndex) {
+          const schema = await graphStoreService.getSchema(graphstore, { nodeLabel });
+          const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
+          const embeddingDimension = testEmbedding.length;
+          const index = await indexesService.upsertIndex({
+            name: newIndexName,
+            engine,
+            embedding,
+            embeddingDimension,
+            nodeLabel,
+            embeddingNodeProperty,
+            textNodeProperties,
+            similarityMetric,
+            schema,
+            workspaceId,
+          });
+          logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
+          indexId = index.id;
+          await vectorStoreService.createIndex(engine, newIndexName, {
+            nodeLabel,
+            embeddingNodeProperty,
+            embeddingDimension,
+            similarityMetric,
+          });
+        }
+      }
+      const docs = await graphStoreService.getDocuments(graphstore, {
+        nodeLabel,
+        embeddingNodeProperty,
+        textNodeProperties,
+      });
+      const proms = docs.map(d => embeddingService.createEmbedding('sentenceencoder', d.__text));
+      const embeddings = await Promise.all(proms).catch((err) => {
+        logger.error(err);
+        throw err;
+      });
+      await vectorStoreService.addDocuments(engine, docs, embeddings, {
+        nodeLabel,
+        embeddingNodeProperty,
+      });
+    } else if (engine === 'redis') {
+      if (indexId === 'new') {
+        const schema = await graphStoreService.getSchema(graphstore, { nodeLabel });
+        const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
+        const embeddingDimension = testEmbedding.length;
+        const index = await indexesService.upsertIndex({
+          name: newIndexName,
+          engine,
+          embedding,
+          embeddingDimension,
+          nodeLabel,
+          embeddingNodeProperty,
+          textNodeProperties,
+          similarityMetric,
+          schema,
+          workspaceId,
+        });
+        logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
+        indexId = index.id;
+        const fields = searchService.getSearchSchema(schema);
+        await searchService.createIndex(newIndexName, fields);
+      }
+      const docs = await graphStoreService.getDocuments(graphstore, {
+        nodeLabel,
+        embeddingNodeProperty,
+        textNodeProperties,
+      });
+      await indexDocs(indexId, docs);
+    } else {
+      logger.error('Unsupported engine:', engine);
+      return res.sendStatus(400);
     }
     res.json({ indexId });
   });
@@ -108,6 +205,18 @@ export default ({ app, auth, logger, services }) => {
     logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
     const fields = searchService.getSearchSchema(indexSchema);
     await searchService.createIndex(newIndexName, fields);
+    return index.id;
+  }
+
+  async function createIndexFromGraph(workspaceId, newIndexName, engine, params) {
+    const index = await indexesService.upsertIndex({
+      name: newIndexName,
+      engine,
+      params,
+      workspaceId,
+    });
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
+    await vectorStoreService.createIndex(newIndexName, params);
     return index.id;
   }
 
@@ -288,6 +397,11 @@ export default ({ app, auth, logger, services }) => {
       text,
     });
     await indexDocs(indexId, chunks);
+  }
+
+  async function indexGraph(graphstore, params) {
+    const docs = await graphStoreService.getDocuments(graphstore, params);
+    logger.debug('docs:', docs);
   }
 
   // async function indexStructuredDocument(uploadId, { indexId }) {

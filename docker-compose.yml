@@ -110,7 +110,7 @@ services:
       - redis
       - minio
     env_file:
-      - .vecsearch.env
+      - .env.vecsearch
     image: markmo/vecsearch:${VECSEARCH_VERSION}
     ports:
       - 5002:5002

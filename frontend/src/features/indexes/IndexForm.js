@@ -6,7 +6,11 @@ import { Button, Descriptions, Form, Input, Popconfirm, Select, Space, Table } f
 import JsonInput from '../../components/JsonInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { engineOptions } from '../../options';
+import {
+  getVectorStores,
+  selectVectorStores,
+  selectLoading as selectVectorStoresLoading,
+} from '../uploader/vectorStoresSlice';
 
 import { SearchModal } from './SearchModal';
 import {
@@ -36,6 +40,8 @@ export function IndexForm() {
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const indexes = useSelector(selectIndexes);
+  const vectorStoresLoading = useSelector(selectVectorStoresLoading);
+  const vectorStores = useSelector(selectVectorStores);
 
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -47,8 +53,17 @@ export function IndexForm() {
   const [form] = Form.useForm();
 
   const id = location.pathname.match(/\/indexes\/(.*)/)[1];
-  const index = indexes[id];
+  const index = indexes[id] || {};
   const isNew = id === 'new';
+
+  const vectorStoreOptions = useMemo(() => {
+    const list = vectorStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [vectorStores]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -59,6 +74,7 @@ export function IndexForm() {
     if (!isNew) {
       dispatch(getIndexAsync(id));
     }
+    dispatch(getVectorStores());
   }, []);
 
   const onCancel = () => {
@@ -150,6 +166,15 @@ export function IndexForm() {
     setIsSearchModalOpen(true);
   };
 
+  let indexParams;
+  if (index) {
+    indexParams = {
+      engine: index.engine,
+      embedding: index.embedding,
+      nodeLabel: index.nodeLabel,
+    };
+  }
+
   // console.log('index:', index);
 
   if (!isNew && !loaded) {
@@ -162,9 +187,10 @@ export function IndexForm() {
       <SearchModal
         onCancel={onSearchCancel}
         open={isSearchModalOpen}
-        indexName={index?.name}
+        indexName={index.name}
         theme={isDarkMode ? 'dark' : 'light'}
-        titleField={index?.titleField}
+        titleField={'__text'}
+        indexParams={indexParams}
       />
       <div style={{ marginTop: 20 }}>
         <Form
@@ -188,7 +214,7 @@ export function IndexForm() {
             <Input />
           </Form.Item>
           <Form.Item
-            label="Engine"
+            label="Vector Store"
             name="engine"
             rules={[
               {
@@ -198,7 +224,12 @@ export function IndexForm() {
             ]}
             wrapperCol={{ span: 10 }}
           >
-            <Select options={engineOptions} optionFilterProp="label" />
+            <Select
+              allowClear
+              loading={vectorStoresLoading}
+              options={vectorStoreOptions}
+              optionFilterProp="label"
+            />
           </Form.Item>
           <Form.Item
             label="Description"

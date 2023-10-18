@@ -6,9 +6,11 @@ import uuid from 'uuid';
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
 import { downloadImage, fillTemplate, getMessages } from '../utils';
+import chatSessions from './chatSessions';
 
 const COPY_GENERATION_SKILL = 'copy_generation';
 const QA_SKILL = 'qa';
+const LAST_SESSION_NAME = 'last session';
 
 const DEFAULT_CHAT_MODEL = 'chat-3.5-turbo';
 
@@ -22,6 +24,8 @@ const maxTokensByFormat = {
 export default ({ app, auth, constants, logger, mc, services }) => {
 
   const {
+    chatSessionsService,
+    embeddingService,
     llmService,
     promptSetsService,
     searchService,
@@ -103,9 +107,24 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   app.post('/api/chat', auth, async (req, res) => {
     logger.debug('body:', req.body);
     const { username } = req.user;
-    let { args, engine, history, indexName, modelParams, systemPrompt, workspaceId } = req.body;
-    let models = modelParams.models;
-    if (!models) {
+    let {
+      args,
+      engine,
+      history,
+      indexName,
+      isCritic,
+      modelParams,
+      originalMessages,
+      promptSetId,
+      systemPromptInput,
+      critiquePromptSetId,
+      critiquePromptInput,
+      criterion,
+      systemPrompt,
+      workspaceId,
+    } = req.body;
+    let models = isCritic ? modelParams.criticModels : modelParams.models;
+    if (!models || !models.length) {
       // TODO move values to settings
       models = [{ model: 'gpt-3.5-turbo', provider: 'openai' }];
     }
@@ -292,8 +311,80 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const traceRecord = tracer.close();
     const { id } = await tracesService.upsertTrace({ ...traceRecord, workspaceId }, username);
 
-    res.json({ completions, traceId: id });
+    const newMessages = [];
+    for (const { choices, model } of completions) {
+      let i = 0;
+      for (const { message } of choices) {
+        if (!newMessages[i]) {
+          newMessages[i] = {
+            role: message.role,
+            content: [],
+            // key: uuid.v4(),
+          };
+        }
+        newMessages[i].content.push({
+          model,
+          content: message.content,
+          // key: uuid.v4(),
+        });
+        i += 1;
+      }
+    }
+    const userMessage = [...originalMessages].reverse().find(m => m.role === 'user');
+
+    // TODO why was this needed?
+    // const curMessages = [...history, userMessage];
+    const curMessages = [...history];
+
+    const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username);
+    let session;
+    if (lastSession) {
+      session = await chatSessionsService.upsertChatSession({
+        ...lastSession,
+        messages: [...curMessages, ...newMessages],
+        modelParams,
+        promptSetId,
+        systemPromptInput,
+        critiquePromptSetId,
+        critiquePromptInput,
+        criterion,
+      }, username);
+    } else {
+      session = await chatSessionsService.upsertChatSession({
+        messages: [...curMessages, ...newMessages],
+        modelParams,
+        name: LAST_SESSION_NAME,
+        promptSetId,
+        systemPromptInput,
+        critiquePromptSetId,
+        critiquePromptInput,
+        criterion,
+        type: 'design',
+        workspaceId,
+      }, username);
+    }
+
+    res.json({ completions, lastSession: session, traceId: id });
   });
+
+  // const formatMessage = (m) => {
+  //   if (Array.isArray(m.content)) {
+  //     return {
+  //       key: uuid.v4(),
+  //       role: m.role,
+  //       content: m.content.map(msg => ({
+  //         key: uuid.v4(),
+  //         content: msg.content,
+  //         model: msg.model,
+  //       })),
+  //     };
+  //   }
+  //   return {
+  //     key: uuid.v4(),
+  //     role: m.role,
+  //     content: m.content,
+  //   };
+  // }
 
   const cleanMessages = (model, messages) => {
     return messages.map(m => {
@@ -320,6 +411,17 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   app.get('/api/providers/completion', auth, (req, res, next) => {
     const providers = llmService.getCompletionProviders();
     res.json(providers);
+  });
+
+  app.post('/api/embedding', auth, async (req, res) => {
+    const { input, model, provider } = req.body;
+    let embedding;
+    if (provider === 'sentenceencoder') {
+      embedding = await embeddingService.createEmbedding(provider, input);
+    } else {
+      embedding = await llmService.createEmbedding(provider, { model, input });
+    }
+    res.json(embedding);
   });
 
 
@@ -379,7 +481,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.post('/api/gen-image-variant', auth, async (req, res, next) => {
     const { imageUrl, n = 1 } = req.body;
-    logger.debug('imageUrl:', imageUrl);
+    // logger.debug('imageUrl:', imageUrl);
     const response = await llmService.generateImageVariant('openai', imageUrl, n);
     res.json(response);
   });

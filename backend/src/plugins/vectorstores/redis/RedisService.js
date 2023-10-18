@@ -1,9 +1,6 @@
 import axios from 'axios';
-import isObject from 'lodash.isobject';
 
-export function SearchService({ constants, logger, services }) {
-
-  const { embeddingService, vectorStoreService } = services;
+function RedisService({ __name, constants, logger }) {
 
   const documents = [];
   const parentDocuments = [];
@@ -20,14 +17,14 @@ export function SearchService({ constants, logger, services }) {
       });
       return res.data;
     } catch (err) {
-      logger.error(String(err));
+      logger.error(err);
       return [];
     }
   }
 
-  async function getIndex(name) {
+  async function getIndex(indexName) {
     try {
-      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
+      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName), {
         headers: {
           'Accept': 'application/json',
         }
@@ -39,11 +36,11 @@ export function SearchService({ constants, logger, services }) {
     }
   }
 
-  async function createIndex(sourceId, fields) {
-    logger.debug('Creating index for source: ', sourceId);
-    logger.debug('fields: ', JSON.stringify(fields, null, 2));
+  async function createIndex(indexName, { fields }) {
+    logger.debug('Creating index for source:', indexName);
+    logger.debug('fields:', fields);
     const res = await axios.post(constants.SEARCH_API + '/index', {
-      indexName: sourceId,
+      indexName,
       fields,
     }, {
       headers: {
@@ -53,35 +50,35 @@ export function SearchService({ constants, logger, services }) {
     return res.data;
   }
 
-  async function dropIndex(name) {
+  async function dropIndex(indexName) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName), {
         headers: {
           'Accept': 'application/json',
         }
       });
       return res.data;
     } catch (err) {
-      logger.error(String(err));
+      logger.error(err);
       return null;
     }
   }
 
-  async function dropData(name) {
+  async function dropData({ indexName }) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(name) + '/data', {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName) + '/data', {
         headers: {
           'Accept': 'application/json',
         }
       });
       return res.data;
     } catch (err) {
-      logger.error(String(err));
+      logger.error(err);
       return null;
     }
   }
 
-  function sendDocuments(indexName) {
+  function addDocuments(indexName) {
     if (documents.length) {
       axios.post(constants.SEARCH_API + '/document', {
         indexName,
@@ -95,7 +92,6 @@ export function SearchService({ constants, logger, services }) {
     } else {
       clearInterval(documentsIntervalId);
       documentsIntervalId = null;
-
     }
   }
 
@@ -118,31 +114,18 @@ export function SearchService({ constants, logger, services }) {
   }
 
   function indexDocument(indexName, doc) {
-    logger.debug('doc:', doc);
     const prefix = doc.nodeType.toLowerCase();
-    const value = Object.entries(doc)
+    const values = Object.entries(doc)
       .filter(([k, _]) => notIn(['nodeType'])(k))
       .reduce((a, [k, v]) => {
-        if (isObject(v)) {
-          if (v.nodeType && v.__id) {
-            for (const [k1, v1] of Object.entries(v)) {
-              if (!['__id', 'nodeType'].includes(k1)) {
-                a[v.nodeType.toLowerCase() + '_' + k1] = v1;
-              }
-            }
-            a[prefix + '_' + k] = v.__id;
-          }
-        } else {
-          a[prefix + '_' + k] = v;
-        }
+        a[prefix + '_' + k] = v;
         return a;
       }, {});
-
-    value[prefix + '___label'] = doc.nodeType;
-    logger.debug('value:', value);
-    documents.push(value);
+    values[prefix + '___label'] = doc.nodeType;
+    // logger.debug('values:', values);
+    documents.push(values);
     if (!documentsIntervalId) {
-      documentsIntervalId = setInterval(sendDocuments, 1000, indexName);
+      documentsIntervalId = setInterval(addDocuments, 1000, indexName);
     }
   }
 
@@ -204,24 +187,13 @@ export function SearchService({ constants, logger, services }) {
     }
   }
 
-  async function search(provider, indexName, query, attrs = {}, params = {}) {
+  async function search(indexName, query, attrs = {}) {
     logger.log('debug', 'searching %s for "%s"', indexName, query);
-    const q = query.trim();
-    if (q.length < 3) {
-      return [];
-    }
     try {
-      if (provider === 'neo4j') {
-        const { embedding } = params;
-        const queryEmbedding = await embeddingService.createEmbedding(embedding, q);
-        return vectorStoreService.search('neo4j', indexName, query, attrs, {
-          queryEmbedding,
-        });
-      }
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
       let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
-      if (q) {
-        url += `&q=` + encodeURIComponent(q);
+      if (query) {
+        url += `&q=` + encodeURIComponent(query);
       }
       if (ps) {
         url += '&' + ps;
@@ -261,8 +233,6 @@ export function SearchService({ constants, logger, services }) {
         return 'TEXT';
 
       case 'Boolean':
-      case 'Id':
-      case 'object':
         return 'TAG';
 
       case 'Double':
@@ -278,6 +248,7 @@ export function SearchService({ constants, logger, services }) {
   const notIn = (arr) => (val) => arr.indexOf(val) === -1;
 
   return {
+    __name,
     createIndex,
     deleteDocuments,
     deleteDocumentsMatching,
@@ -292,3 +263,5 @@ export function SearchService({ constants, logger, services }) {
     search,
   };
 }
+
+export default RedisService;

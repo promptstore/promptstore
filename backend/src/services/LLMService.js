@@ -100,7 +100,9 @@ export function LLMService({ logger, registry, services }) {
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+    logger.debug('provider request:', providerRequest);
     const response = await await instance.createEmbedding(providerRequest);
+    logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return response;
     }

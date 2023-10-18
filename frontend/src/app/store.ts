@@ -9,6 +9,7 @@ import compositionsReducer from '../features/composer/compositionsSlice';
 import contentReducer from '../features/apps/Playground/contentSlice';
 import dataSourcesReducer from '../features/dataSources/dataSourcesSlice';
 import destinationsReducer from '../features/destinations/destinationsSlice';
+import embeddingReducer from '../features/uploader/embeddingSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
 import guardrailsReducer from '../features/functions/guardrailsSlice';
@@ -25,6 +26,7 @@ import trainingReducer from '../features/training/trainingSlice';
 import transformationsReducer from '../features/transformations/transformationsSlice';
 import usersReducer from '../features/users/usersSlice';
 import workspacesReducer from '../features/workspaces/workspacesSlice';
+import vectorStoresReducer from '../features/uploader/vectorStoresSlice';
 
 export const store = configureStore({
   reducer: {
@@ -37,6 +39,7 @@ export const store = configureStore({
     content: contentReducer,
     dataSources: dataSourcesReducer,
     destinations: destinationsReducer,
+    embedding: embeddingReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
     guardrails: guardrailsReducer,
@@ -53,6 +56,7 @@ export const store = configureStore({
     transformations: transformationsReducer,
     users: usersReducer,
     workspaces: workspacesReducer,
+    vectorStores: vectorStoresReducer,
   },
 });
 

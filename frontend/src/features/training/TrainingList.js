@@ -19,7 +19,7 @@ import './TrainingList.css';
 
 export function TrainingList() {
 
-  const [page, setPage] = useLocalStorageState('training-list-page', 1);
+  const [page, setPage] = useLocalStorageState('training-list-page', { defdaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const loading = useSelector(selectLoading);

@@ -45,6 +45,22 @@ export function ChatSessionsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
+  async function getChatSessionByName(name, username) {
+    if (name === null || typeof name === 'undefined') {
+      return null;
+    }
+    let q = `
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
+      FROM chat_sessions
+      WHERE name = $1 AND created_by = $2
+      `;
+    const { rows } = await pg.query(q, [name, username]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
   async function upsertChatSession(session, username) {
     if (session === null || typeof session === 'undefined') {
       return null;
@@ -90,6 +106,7 @@ export function ChatSessionsService({ pg, logger }) {
   return {
     getChatSessions,
     getChatSession,
+    getChatSessionByName,
     upsertChatSession,
     deleteChatSessions,
   };

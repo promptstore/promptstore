@@ -153,12 +153,19 @@ export interface SafetyRating {
   probability: string;
 }
 
+export interface LogProbs {
+  text_offset: number[];
+  token_logprobs: number[];
+  tokens: string[];
+  top_logprobs: Record<string, number>[];
+}
+
 interface ChatCompletionChoice {
   finish_reason?: string;
   index: number;
   message: Message;
   safety_ratings?: SafetyRating[];  // Ratings for the safety of a response. There is at most one rating per category.
-  logprobs?: object;
+  logprobs?: LogProbs;
 }
 
 export interface ChatCompletionUsage {

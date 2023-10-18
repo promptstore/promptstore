@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { updateAppAsync } from '../apps/appsSlice';
 import { http } from '../../http';
 
+import { setChatSessions } from './chatSessionsSlice';
+
 export const chatSlice = createSlice({
   name: 'chat',
   initialState: {
@@ -38,23 +40,34 @@ export const {
 export const getPromptsAsync = (req) => async (dispatch) => {
   const url = '/api/prompts';
   const res = await http.post(url, req.app);
-  const messages = res.data.map(formatMessage);
+  const messages = res.data;  //.map(formatMessage);
   dispatch(getResponseAsync({
     ...req,
     messages: [...req.messages, ...messages],
   }));
 };
 
-const cleanMessage = (message) => ({
-  role: message.role,
-  content: message.content,
-});
+const cleanMessage = (m) => {
+  if (Array.isArray(m.content)) {
+    return {
+      role: m.role,
+      content: m.content.map(msg => ({
+        content: msg.content,
+        model: msg.model,
+      })),
+    };
+  }
+  return {
+    role: m.role,
+    content: m.content,
+  };
+};
 
-const formatMessage = ({ message }) => ({
-  key: uuidv4(),
-  role: message.role,
-  content: message.content,
-});
+// const formatMessage = ({ message }) => ({
+//   key: uuidv4(),
+//   role: message.role,
+//   content: message.content,
+// });
 
 export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(startLoad());
@@ -64,7 +77,7 @@ export const getResponseAsync = (req) => async (dispatch) => {
     history: req.history.map(cleanMessage),
     messages: req.messages.map(cleanMessage),  // remove keys
   });
-  const { completions, traceId } = res.data;
+  const { completions, lastSession, traceId } = res.data;
   const messages = [];
   let cost = 0;
   let totalTokens = 0;
@@ -90,7 +103,9 @@ export const getResponseAsync = (req) => async (dispatch) => {
       totalTokens += usage.total_tokens;
     }
   }
-  dispatch(setMessages({ messages: [...req.originalMessages, ...messages] }));
+  const allMessages = [...req.originalMessages, ...messages];
+  dispatch(setMessages({ messages: allMessages.map((m, index) => ({ ...m, index })) }));
+  dispatch(setChatSessions({ chatSessions: [lastSession] }));
   dispatch(setTraceId({ traceId }));
   const app = req.app;
   if (app) {
@@ -122,7 +137,7 @@ export const getFunctionResponseAsync = ({ functionName, args, history, params, 
     role: message.role,
     content: [
       {
-        key: uuidv4(),
+        // key: uuidv4(),
         content: message.content,
         model,
       },
@@ -132,7 +147,8 @@ export const getFunctionResponseAsync = ({ functionName, args, history, params, 
   dispatch(setMessages({
     messages: [
       ...history,
-      formatMessage({ message }),
+      // formatMessage({ message }),
+      message,
       ...messages,
     ]
   }));

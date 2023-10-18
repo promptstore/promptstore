@@ -115,7 +115,7 @@ export function Messages({ step }) {
 
 export function MappingTemplate({ step }) {
   return (
-    <div>
+    <div style={{ color: 'rgb(0, 43, 54)', fontFamily: 'monospace', whiteSpace: 'pre' }}>
       {String(step.mappingTemplate).split('\n').map((line) => (
         <div key={hashStr(line)}>{line}</div>
       ))}

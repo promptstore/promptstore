@@ -4,7 +4,6 @@ import { Button, Divider, Form, Input, Modal, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { engineOptions } from '../../options';
 import {
   getFunctionsByTagAsync,
   selectFunctions,
@@ -18,6 +17,19 @@ import {
   selectLoading as selectIndexesLoading,
   setIndexes,
 } from '../indexes/indexesSlice';
+
+import {
+  getEmbeddingProviders,
+  selectEmbeddingProviders,
+  selectLoaded as selectEmbeddingProvidersLoaded,
+  selectLoading as selectEmbeddingProvidersLoading,
+} from './embeddingSlice';
+import {
+  getVectorStores,
+  selectVectorStores,
+  selectLoaded as selectVectorStoresLoaded,
+  selectLoading as selectVectorStoresLoading,
+} from './vectorStoresSlice';
 
 const CHUNKER_TAG = 'chunker';
 
@@ -49,22 +61,39 @@ export function IndexModal({
 
   const [newIndex, setNewIndex] = useState('');
 
+  const embeddingProvidersLoaded = useSelector(selectEmbeddingProvidersLoaded);
+  const embeddingProvidersLoading = useSelector(selectEmbeddingProvidersLoading);
+  const embeddingProviders = useSelector(selectEmbeddingProviders);
   const functions = useSelector(selectFunctions);
   const functionsLoaded = useSelector(selectFunctionsLoaded);
   const functionsLoading = useSelector(selectFunctionsLoading);
   const indexes = useSelector(selectIndexes);
   const indexesLoaded = useSelector(selectIndexesLoaded);
   const indexesLoading = useSelector(selectIndexesLoading);
+  const vectorStoresLoaded = useSelector(selectVectorStoresLoaded);
+  const vectorStoresLoading = useSelector(selectVectorStoresLoading);
+  const vectorStores = useSelector(selectVectorStores);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
+  const embeddingOptions = useMemo(() => {
+    const list = embeddingProviders.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [embeddingProviders]);
+
   const functionOptions = useMemo(() => {
-    return Object.values(functions)
+    const list = Object.values(functions)
       .filter((func) => func.tags?.includes(CHUNKER_TAG))
       .map((func) => ({
         label: func.name,
         value: func.id,
       }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
   }, [functions]);
 
   const indexOptions = useMemo(() => {
@@ -76,6 +105,15 @@ export function IndexModal({
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [indexes]);
+
+  const vectorStoreOptions = useMemo(() => {
+    const list = vectorStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [vectorStores]);
 
   const dispatch = useDispatch();
 
@@ -96,6 +134,17 @@ export function IndexModal({
       dispatch(getFunctionsByTagAsync({ tag: CHUNKER_TAG, workspace: selectedWorkspace.id }));
     }
   }, [functionsLoaded, splitterValue, selectedWorkspace]);
+
+  useEffect(() => {
+    if (indexValue === 'new') {
+      if (!embeddingProvidersLoaded) {
+        dispatch(getEmbeddingProviders());
+      }
+      if (!vectorStoresLoaded) {
+        dispatch(getVectorStores());
+      }
+    }
+  }, [indexValue]);
 
   const createNewIndex = (ev) => {
     ev.preventDefault();
@@ -176,19 +225,44 @@ export function IndexModal({
           />
         </Form.Item>
         {indexValue === 'new' ?
-          <Form.Item
-            label="Engine"
-            name="engine"
-            rules={[
-              {
-                required: true,
-                message: 'Please select the engine',
-              },
-            ]}
-            wrapperCol={{ span: 10 }}
-          >
-            <Select options={engineOptions} optionFilterProp="label" />
-          </Form.Item>
+          <>
+            <Form.Item
+              label="Vector Store"
+              name="engine"
+              rules={[
+                {
+                  required: true,
+                  message: 'Please select the vector store',
+                },
+              ]}
+              wrapperCol={{ span: 10 }}
+            >
+              <Select
+                allowClear
+                loading={vectorStoresLoading}
+                options={vectorStoreOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Embedding"
+              name="embedding"
+              rules={[
+                {
+                  required: true,
+                  message: 'Please select the embedding provider',
+                },
+              ]}
+              wrapperCol={{ span: 10 }}
+            >
+              <Select
+                allowClear
+                loading={embeddingProvidersLoading}
+                options={embeddingOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          </>
           : null
         }
         {!isDataSource && ext === 'txt' ?

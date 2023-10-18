@@ -352,24 +352,28 @@ export default ({ app, auth, logger, services }) => {
       ;
     const args = { content };
     let sessionInput;
-    try {
-      const { response, errors } = await executionsService.executeFunction({
-        workspaceId: values.workspaceId,
-        username,
-        semanticFunctionName: 'create_summary_label',
-        args,
-        params: {},
-      });
-      if (errors) {
-        res.status(500).send({ errors });
+    if (values.name === 'last session') {
+      sessionInput = values;
+    } else {
+      try {
+        const { response, errors } = await executionsService.executeFunction({
+          workspaceId: values.workspaceId,
+          username,
+          semanticFunctionName: 'create_summary_label',
+          args,
+          params: {},
+        });
+        if (errors) {
+          res.status(500).send({ errors });
+        }
+        const name = response.choices[0].message.content;
+        logger.debug('name:', name);
+        sessionInput = { ...values, id, name };
+      } catch (err) {
+        logger.warn(err);
+        // skip name
+        sessionInput = { ...values, id };
       }
-      const name = response.choices[0].message.content;
-      logger.debug('name:', name);
-      sessionInput = { ...values, id, name };
-    } catch (err) {
-      logger.warn(err);
-      // skip name
-      sessionInput = { ...values, id };
     }
     const session = await chatSessionsService.upsertChatSession(sessionInput, username);
     res.json(session);

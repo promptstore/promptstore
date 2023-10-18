@@ -59,9 +59,9 @@ See the Temporal documentation. On OS X, Temporal can be installed using Homebre
 
     brew install temporal
 
-To create the promptstore namespace, use localhost as the host:
+To create the promptstore namespace, use temporal as the host:
 
-    docker exec -it --env TEMPORAL_CLI_ADDRESS=localhost:7233 temporal-admin-tools tctl --namespace promptstore namespace register
+    docker exec -it --env TEMPORAL_CLI_ADDRESS=temporal:7233 temporal-admin-tools tctl --namespace promptstore namespace register
 
 ### Connecting to the database
 

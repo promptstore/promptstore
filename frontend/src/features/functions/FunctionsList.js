@@ -39,12 +39,12 @@ const intersects = (arr1 = [], arr2 = []) => {
 
 export function FunctionsList() {
 
-  const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', false);
-  const [page, setPage] = useLocalStorageState('functions-list-page', 1);
+  const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', { defaultValue: false });
+  const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', []);
-  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', []);
+  const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', { defaultValue: [] });
+  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', { defaultValue: [] });
 
   const functions = useSelector(selectFunctions);
   const loading = useSelector(selectLoading);

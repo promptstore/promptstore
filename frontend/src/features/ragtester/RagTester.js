@@ -71,7 +71,7 @@ export function RagTester() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [sessionsCollapsed, setSessionsCollapsed] = useState(true);
   const [copyParams, setCopyParams] = useState({});
-  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-rag-tags', []);
+  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-rag-tags', { defaultValue: [] });
 
   const chatLoading = useSelector(selectChatLoading);
   const messages = useSelector(selectMessages);

@@ -39,18 +39,24 @@ import {
   optionsMap,
 } from './options';
 
-const initialValues = {
+export const initialValues = {
   maxTokens: 64,
   n: 1,
   temperature: 1,
   topP: 1,
   topK: 40,
+  models: [],
+  criticModels: [],
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  stop: [],
 };
 
 export function ModelParamsForm({
   includes,
   onChange,
   tourRefs,
+  value,
 }) {
 
   if (!includes) {
@@ -92,6 +98,12 @@ export function ModelParamsForm({
     handleChange();
   }, [selectedVariationKey]);
 
+  useEffect(() => {
+    if (value) {
+      form.setFieldsValue(value);
+    }
+  }, [value]);
+
   const modelOptions = useMemo(() => {
     if (models) {
       return Object.values(models)
@@ -123,7 +135,11 @@ export function ModelParamsForm({
     } else {
       selectedVariations = `${selectedVariationValues.length} ${optionsMap[selectedVariationKey][0]}`;
     }
-  }
+  };
+
+  const clearFields = () => {
+    form.resetFields();
+  };
 
   const handleChange = () => {
     const values = form.getFieldsValue(true);
@@ -137,7 +153,13 @@ export function ModelParamsForm({
     if (params.models) {
       params.models = params.models.map((id) => {
         const { key, provider } = models[id];
-        return { model: key, provider };
+        return { id, model: key, provider };
+      });
+    }
+    if (params.criticModels) {
+      params.criticModels = params.criticModels.map((id) => {
+        const { key, provider } = models[id];
+        return { id, model: key, provider };
       });
     }
     if (typeof onChange === 'function') {
@@ -207,6 +229,18 @@ export function ModelParamsForm({
               extra="Only the first 3 will be used"
               label="Use/Compare Models"
               name="models"
+            >
+              <Select allowClear
+                loading={modelsLoading}
+                mode="multiple"
+                options={modelOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+            <Form.Item
+              extra="Only the first 3 will be used"
+              label="Critic Models"
+              name="criticModels"
             >
               <Select allowClear
                 loading={modelsLoading}
@@ -328,6 +362,9 @@ export function ModelParamsForm({
               </Form.Item>
               : null
             }
+            <Button onClick={clearFields} type="default" size="small">
+              Reset
+            </Button>
           </div>
         </div>
       </Form>
