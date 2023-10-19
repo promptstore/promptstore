@@ -57,7 +57,7 @@ export function SchemaModalInput({
         onOk={handleOk}
         open={isModalOpen}
         title={title}
-        width={'90%'}
+        width={'75%'}
       >
         <JsonSchemaEditor
           onChange={setState}

@@ -66,6 +66,7 @@ import { WorkspaceForm } from './features/workspaces/WorkspaceForm';
 import { WorkspacesList } from './features/workspaces/WorkspacesList';
 import { PromptSetsList } from './features/promptSets/PromptSetsList';
 import { PromptSetForm } from './features/promptSets/PromptSetForm';
+import { PromptSetView } from './features/promptSets/PromptSetView';
 import { RagTester } from './features/ragtester/RagTester';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
@@ -651,7 +652,8 @@ function App() {
                     <Route path="/models/:id" element={<ModelForm />} />
                     <Route path="/models" element={<ModelsList />} />
                     {/* <Route path="/profile" element={<ProfileView />} /> */}
-                    <Route path="/prompt-sets/:id" element={<PromptSetForm />} />
+                    <Route path="/prompt-sets/:id/edit" element={<PromptSetForm />} />
+                    <Route path="/prompt-sets/:id" element={<PromptSetView />} />
                     <Route path="/prompt-sets" element={<PromptSetsList />} />
                     <Route path="/rag" element={<RagTester />} />
                     <Route path="/traces/:id" element={<TraceView />} />

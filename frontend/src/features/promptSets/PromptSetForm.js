@@ -195,7 +195,7 @@ export function PromptSetForm() {
 
   const vars = Object.keys(argumentsValue?.properties || {});
 
-  const id = location.pathname.match(/\/prompt-sets\/(.*)/)[1];
+  const id = location.pathname.match(/\/prompt-sets\/(.*)\/edit/)[1];
   const isNew = id === 'new';
   const promptSet = promptSets[id];
 
@@ -618,19 +618,25 @@ export function PromptSetForm() {
         onSubmit={useTemplate}
         open={isTemplateModalOpen}
       />
-      <div style={{ height: '100%', marginTop: 20 }}>
-        <Layout style={{ height: '100%' }}>
+      <div style={{ marginTop: 20 }}>
+        <Layout>
           <Sider
-            style={{ height: '100%', marginRight: 20 }}
+            style={{ height: 'fit-content', marginRight: 20 }}
             width={250}
             theme="light"
           >
             <div style={{ margin: '24px 8px 16px' }}>
               <Space>
-                <Button danger type="primary" size="small" onClick={handleRollback} disabled={!hasSelected}>
+                <Button danger type="primary" size="small"
+                  disabled={!hasSelected}
+                  onClick={handleRollback}
+                >
                   Rollback
                 </Button>
-                <Button type="primary" size="small" onClick={handleReset} disabled={!selectedVersion && !hasSelected}>
+                <Button type="primary" size="small"
+                  disabled={!selectedVersion && !hasSelected}
+                  onClick={handleReset}
+                >
                   Reset
                 </Button>
               </Space>
@@ -652,6 +658,18 @@ export function PromptSetForm() {
               onFinish={onFinish}
               initialValues={promptSet}
             >
+              <Form.Item wrapperCol={{ span: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16 }}>
+                  {!isNew ?
+                    <>
+                      <Link to={`/design/${id}`}>Design</Link>
+                      <Link to={`/prompt-sets/${id}`}>View</Link>
+                    </>
+                    : null
+                  }
+                  <Link to={`/prompt-sets`}>List</Link>
+                </div>
+              </Form.Item>
               <Form.Item
                 label="Name"
                 name="name"

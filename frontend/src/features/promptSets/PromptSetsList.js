@@ -101,7 +101,7 @@ export function PromptSetsList() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      createLink: '/prompt-sets/new',
+      createLink: '/prompt-sets/new/edit',
       title: 'Prompt Templates',
     }));
   }, []);
@@ -201,6 +201,12 @@ export function PromptSetsList() {
             style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/prompt-sets/${record.key}`)}
           >
+            View
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/prompt-sets/${record.key}/edit`)}
+          >
             Edit
           </Button>
           <Button type="link"
@@ -296,8 +302,9 @@ export function PromptSetsList() {
                     {(p.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
                   </Space>
                   <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
-                    <Link to={`/prompt-sets/${p.key}`}>Edit</Link>
                     <Link to={`/design/${p.key}`}>Design</Link>
+                    <Link to={`/prompt-sets/${p.key}/edit`}>Edit</Link>
+                    <Link to={`/prompt-sets/${p.key}`}>View</Link>
                   </div>
                 </div>
               </Card>

@@ -199,7 +199,7 @@ export function Designer() {
   }, [chatSessions, createdUuid]);
 
   useEffect(() => {
-    if (loaded) {
+    if (!id && loaded) {
       const sessions = Object.values(chatSessions);
       if (sessions.length) {
         const lastSession = sessions.find(s => s.name === 'last session');

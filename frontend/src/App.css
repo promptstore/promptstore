@@ -754,3 +754,31 @@ article.collapsible .panel.closed {
 .chat-actions>*:first-child {
   margin-left: 0;
 }
+
+.prompttext p {
+  font-size: 1.1em;
+  margin-bottom: 0;
+}
+
+.prompttext .promptindent {
+  padding-left: 24px;
+}
+
+.prompttext code {
+  color: chocolate;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.prompttext code.promptcontrol {
+  background: none;
+  border: none;
+  color: blueviolet;
+  display: block;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.prompttext code.highlightedvar {
+  background-color: gold;
+}
