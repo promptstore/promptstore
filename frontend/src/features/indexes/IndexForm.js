@@ -110,50 +110,36 @@ export function IndexForm() {
 
   const store = index?.store;
 
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'attribute',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'type',
-    },
-    {
-      title: 'Weight',
-      dataIndex: 'weight',
-    },
-  ];
-
-  const data = useMemo(() => {
-    if (!store) return [];
-    const list = store.attributes.map((a) => ({
-      key: a.identifier,
-      attribute: a.attribute,
-      type: a.type,
-      weight: a.WEIGHT,
-    }));
-    list.sort((a, b) => a.attribute > b.attribute ? 1 : -1);
-    return list;
-  }, [store]);
-
   const createPhysicalIndex = () => {
+    let params;
+    if (index.engine === 'neo4j') {
+      params = {
+        nodeLabel: index.nodeLabel,
+        embedding: index.embedding,
+      };
+    }
     dispatch(createPhysicalIndexAsync({
       id: index.id,
+      engine: index.engine,
       name: index.name,
       schema: index.schema,
+      params,
     }));
   };
 
   const dropData = () => {
     dispatch(dropDataAsync({
+      id: index.id,
+      engine: index.engine,
       name: index.name,
+      nodeLabel: index.nodeLabel,
     }));
   };
 
   const dropPhysicalIndex = () => {
     dispatch(dropPhysicalIndexAsync({
       id: index.id,
+      engine: index.engine,
       name: index.name,
     }));
   };
@@ -176,6 +162,90 @@ export function IndexForm() {
   }
 
   // console.log('index:', index);
+
+  function RedisStoreInfo({ store }) {
+
+    const columns = [
+      {
+        title: 'Name',
+        dataIndex: 'attribute',
+      },
+      {
+        title: 'Type',
+        dataIndex: 'type',
+      },
+      {
+        title: 'Weight',
+        dataIndex: 'weight',
+      },
+    ];
+
+    const data = useMemo(() => {
+      if (!store) return [];
+      const list = store.attributes.map((a) => ({
+        key: a.identifier,
+        attribute: a.attribute,
+        type: a.type,
+        weight: a.WEIGHT,
+      }));
+      list.sort((a, b) => a.attribute > b.attribute ? 1 : -1);
+      return list;
+    }, [store]);
+
+    return (
+      <>
+        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+          <Descriptions title="Physical Index Info">
+            <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
+            <Descriptions.Item label="Number of records">{store.numRecords}</Descriptions.Item>
+            <Descriptions.Item label="Number of terms">{store.numTerms}</Descriptions.Item>
+            <Descriptions.Item label="Average number of records per document">{getInt(store.recordsPerDocAvg)}</Descriptions.Item>
+          </Descriptions>
+        </Form.Item>
+        <Form.Item wrapperCol={{ offset: 4, span: 10 }}>
+          <Descriptions layout="vertical">
+            <Descriptions.Item label="Attributes">
+              <Table columns={columns} dataSource={data} pagination={false} size="small" loading={loading} style={{ minWidth: 500 }} />
+            </Descriptions.Item>
+          </Descriptions>
+        </Form.Item>
+      </>
+    );
+  }
+
+  function Neo4jStoreInfo({ store }) {
+
+    return (
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+        <Descriptions title="Physical Index Info" column={2}>
+          <Descriptions.Item label="Embedding dimension">{store.embeddingDimension}</Descriptions.Item>
+          <Descriptions.Item label="Similarity metric">{store.similarityMetric}</Descriptions.Item>
+          <Descriptions.Item label="Node label">{store.nodeLabel}</Descriptions.Item>
+          <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
+        </Descriptions>
+      </Form.Item>
+    );
+  }
+
+  function PhysicalStoreInfo({ engine, store }) {
+    if (store) {
+      if (engine === 'redis') {
+        return (
+          <RedisStoreInfo store={store} />
+        );
+      }
+      if (engine === 'neo4j') {
+        return (
+          <Neo4jStoreInfo store={store} />
+        );
+      }
+    }
+    return (
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+        <div>Physical index not found</div>
+      </Form.Item>
+    );
+  }
 
   if (!isNew && !loaded) {
     return (
@@ -291,26 +361,7 @@ export function IndexForm() {
               </Button>
             </Space>
           </Form.Item>
-          {store ?
-            <>
-              <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-                <Descriptions title="Physical Index Info">
-                  <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
-                  <Descriptions.Item label="Number of records">{store.numRecords}</Descriptions.Item>
-                  <Descriptions.Item label="Number of terms">{store.numTerms}</Descriptions.Item>
-                  <Descriptions.Item label="Average number of records per document">{getInt(store.recordsPerDocAvg)}</Descriptions.Item>
-                </Descriptions>
-              </Form.Item>
-              <Form.Item wrapperCol={{ offset: 4, span: 10 }}>
-                <Descriptions layout="vertical">
-                  <Descriptions.Item label="Attributes">
-                    <Table columns={columns} dataSource={data} pagination={false} size="small" loading={loading} style={{ minWidth: 500 }} />
-                  </Descriptions.Item>
-                </Descriptions>
-              </Form.Item>
-            </>
-            : null
-          }
+          <PhysicalStoreInfo engine={index?.engine} store={store} />
         </Form>
       </div>
     </>

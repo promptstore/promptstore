@@ -1,6 +1,6 @@
 export default ({ app, auth, logger, services }) => {
 
-  const { searchService } = services;
+  const { embeddingService, searchService, vectorStoreService } = services;
 
   app.post('/api/workspaces/:workspaceId/index', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
@@ -24,10 +24,11 @@ export default ({ app, auth, logger, services }) => {
     res.send(indexes);
   });
 
-  app.get('/api/index/:name', auth, async (req, res, next) => {
-    const { name } = req.params;
+  app.get('/api/index/:engine/:name', auth, async (req, res, next) => {
+    const { engine, name } = req.params;
+    const { nodeLabel } = req.query;
     logger.debug('GET physical index:', name);
-    const index = await searchService.getIndex(name);
+    const index = await vectorStoreService.getIndex(engine, name, { nodeLabel });
     if (!index) {
       return res.sendStatus(404);
     }
@@ -35,10 +36,22 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/index', auth, async (req, res, next) => {
-    const { indexName, schema } = req.body;
+    const { engine, indexName, schema, params } = req.body;
     try {
-      const searchSchema = searchService.getSearchSchema(schema);
-      const resp = await searchService.createIndex(indexName, searchSchema);
+      let resp;
+      if (engine === 'neo4j') {
+        const { nodeLabel, embedding } = params;
+        const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
+        const embeddingDimension = testEmbedding.length;
+        resp = await vectorStoreService.createIndex(engine, indexName, schema, {
+          nodeLabel,
+          embeddingDimension,
+        });
+      } else if (engine === 'redis') {
+        resp = await vectorStoreService.createIndex(engine, indexName, schema);
+      } else {
+        throw new Error('Engine not supported: ' + engine);
+      }
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -46,10 +59,10 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
-  app.delete('/api/index/:name', auth, async (req, res, next) => {
-    const { name } = req.params;
+  app.delete('/api/index/:engine/:name', auth, async (req, res, next) => {
+    const { engine, name } = req.params;
     try {
-      const resp = await searchService.dropIndex(name);
+      const resp = await vectorStoreService.dropIndex(engine, name);
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -57,10 +70,11 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
-  app.delete('/api/index/:name/data', auth, async (req, res, next) => {
-    const { name } = req.params;
+  app.delete('/api/index/:engine/:name/data', auth, async (req, res, next) => {
+    const { engine, name } = req.params;
+    const { nodeLabel } = req.query;
     try {
-      const resp = await searchService.dropData(name);
+      const resp = await vectorStoreService.dropData(engine, name, { nodeLabel });
       res.send(resp);
     } catch (err) {
       logger.error(String(err));

@@ -8,6 +8,7 @@ import pg from '../db';
 import { DataSourcesService } from '../services/DataSourcesService';
 import { DestinationsService } from '../services/DestinationsService';
 import { ExecutionsService } from '../services/ExecutionsService';
+import { EmbeddingService } from '../services/EmbeddingService';
 import { ExtractorService } from '../services/ExtractorService';
 import { FeatureStoreService } from '../services/FeatureStoreService';
 import { GuardrailsService } from '../services/GuardrailsService';
@@ -22,6 +23,7 @@ import { SearchService } from '../services/SearchService';
 import { SqlSourceService } from '../services/SqlSourceService';
 import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
+import { VectorStoreService } from '../services/VectorStoreService';
 import { getPlugins } from '../utils';
 
 import { createActivities } from './activities';
@@ -48,6 +50,9 @@ const mc = new Minio.Client({
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(__dirname, '..');
 
+const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';
+const embeddingPlugins = await getPlugins(basePath, EMBEDDING_PLUGINS, logger);
+
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 
@@ -69,8 +74,12 @@ const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, lo
 const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
 const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
 
+const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
+const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
+
 const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
+const embeddingService = EmbeddingService({ logger, registry: embeddingPlugins });
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 const functionsService = FunctionsService({ pg, logger });
@@ -80,15 +89,21 @@ const modelProviderService = ModelProviderService({ logger, registry: modelProvi
 const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 const promptSetsService = PromptSetsService({ pg, logger });
-const searchService = SearchService({
-  constants: { SEARCH_API },
-  logger,
-});
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
+const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
+
+const searchService = SearchService({
+  constants: { SEARCH_API },
+  logger,
+  services: {
+    embeddingService,
+    vectorStoreService,
+  }
+});
 
 const executionsService = ExecutionsService({
   logger,
@@ -106,6 +121,7 @@ const executionsService = ExecutionsService({
     searchService,
     sqlSourceService,
     tracesService,
+    vectorStoreService,
   },
 });
 

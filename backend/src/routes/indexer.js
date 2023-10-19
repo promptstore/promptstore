@@ -44,16 +44,17 @@ export default ({ app, auth, logger, services }) => {
     const {
       newIndexName,
       graphstore,
-      engine,
       embedding,
       nodeLabel,
       embeddingNodeProperty,
       textNodeProperties,
       similarityMetric = 'cosine',
     } = params;
+    let engine;
     let indexId = params.indexId;
-    if (engine === 'neo4j') {
-      if (indexId === 'new') {
+    if (indexId === 'new') {
+      engine = params.engine;
+      if (engine === 'neo4j') {
         const existingIndex = await vectorStoreService.getIndex(engine, newIndexName, {
           nodeLabel,
           embeddingNodeProperty,
@@ -76,19 +77,54 @@ export default ({ app, auth, logger, services }) => {
           });
           logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
           indexId = index.id;
-          await vectorStoreService.createIndex(engine, newIndexName, {
+          await vectorStoreService.createIndex(engine, newIndexName, schema, {
             nodeLabel,
             embeddingNodeProperty,
             embeddingDimension,
             similarityMetric,
           });
         }
+      } else if (engine === 'redis') {
+        const existingIndex = await vectorStoreService.getIndex(engine, newIndexName);
+        if (!existingIndex) {
+          const schema = await graphStoreService.getSchema(graphstore, { nodeLabel });
+          const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
+          const embeddingDimension = testEmbedding.length;
+          const index = await indexesService.upsertIndex({
+            name: newIndexName,
+            engine,
+            embedding,
+            embeddingDimension,
+            nodeLabel,
+            embeddingNodeProperty,
+            textNodeProperties,
+            similarityMetric,
+            schema,
+            workspaceId,
+          });
+          logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
+          indexId = index.id;
+          const fields = searchService.getSearchSchema(schema);
+          await searchService.createIndex(newIndexName, fields);
+        }
+      } else {
+        logger.error('Unsupported engine:', engine);
+        return res.sendStatus(400);
       }
-      const docs = await graphStoreService.getDocuments(graphstore, {
-        nodeLabel,
-        embeddingNodeProperty,
-        textNodeProperties,
-      });
+    } else {
+      const index = await indexesService.getIndex(indexId);
+      if (!index) {
+        logger.error('Index not found:', indexId);
+        return res.sendStatus(404);
+      }
+      engine = index.engine;
+    }
+    const docs = await graphStoreService.getDocuments(graphstore, {
+      nodeLabel,
+      embeddingNodeProperty,
+      textNodeProperties,
+    });
+    if (engine === 'neo4j') {
       const proms = docs.map(d => embeddingService.createEmbedding('sentenceencoder', d.__text));
       const embeddings = await Promise.all(proms).catch((err) => {
         logger.error(err);
@@ -99,32 +135,6 @@ export default ({ app, auth, logger, services }) => {
         embeddingNodeProperty,
       });
     } else if (engine === 'redis') {
-      if (indexId === 'new') {
-        const schema = await graphStoreService.getSchema(graphstore, { nodeLabel });
-        const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
-        const embeddingDimension = testEmbedding.length;
-        const index = await indexesService.upsertIndex({
-          name: newIndexName,
-          engine,
-          embedding,
-          embeddingDimension,
-          nodeLabel,
-          embeddingNodeProperty,
-          textNodeProperties,
-          similarityMetric,
-          schema,
-          workspaceId,
-        });
-        logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
-        indexId = index.id;
-        const fields = searchService.getSearchSchema(schema);
-        await searchService.createIndex(newIndexName, fields);
-      }
-      const docs = await graphStoreService.getDocuments(graphstore, {
-        nodeLabel,
-        embeddingNodeProperty,
-        textNodeProperties,
-      });
       await indexDocs(indexId, docs);
     } else {
       logger.error('Unsupported engine:', engine);

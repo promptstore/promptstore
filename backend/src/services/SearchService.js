@@ -25,9 +25,9 @@ export function SearchService({ constants, logger, services }) {
     }
   }
 
-  async function getIndex(name) {
+  async function getIndex(indexName) {
     try {
-      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
+      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(`idx:${indexName}`), {
         headers: {
           'Accept': 'application/json',
         }
@@ -55,7 +55,7 @@ export function SearchService({ constants, logger, services }) {
 
   async function dropIndex(name) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(name), {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(`idx:${name}`), {
         headers: {
           'Accept': 'application/json',
         }

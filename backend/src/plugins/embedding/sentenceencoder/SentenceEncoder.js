@@ -1,7 +1,7 @@
 import '@tensorflow/tfjs-node';
 import use from '@tensorflow-models/universal-sentence-encoder';
 
-function SentenceEncoder({ __name, constants, logger }) {
+function SentenceEncoder({ __name, __metadata, constants, logger }) {
 
   let _model;
 

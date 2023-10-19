@@ -49,6 +49,7 @@ export default ({ logger, rc, services }) => {
     promptSetsService,
     searchService,
     sqlSourceService,
+    vectorStoreService,
   } = services;
 
   function createPromptTemplate(promptTemplateInfo: any, callbacks: Callback[]) {
@@ -158,11 +159,14 @@ export default ({ logger, rc, services }) => {
       indexContentPropertyPath: indexInfo.indexContentPropertyPath,
       indexContextPropertyPath: indexInfo.indexContextPropertyPath,
       allResults: indexInfo.allResults,
+      embeddingProvider: index.embedding,
+      vectorStoreProvider: index.engine,
     };
     return semanticSearchEnrichment({
       indexName: index.name,
       indexParams,
-      searchService,
+      embeddingService,
+      searchService: vectorStoreService,
       callbacks,
     });
   }

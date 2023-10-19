@@ -24,7 +24,7 @@ function RedisService({ __name, constants, logger }) {
 
   async function getIndex(indexName) {
     try {
-      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName), {
+      const res = await axios.get(constants.SEARCH_API + '/index/' + encodeURIComponent(`idx:${indexName}`), {
         headers: {
           'Accept': 'application/json',
         }
@@ -36,8 +36,9 @@ function RedisService({ __name, constants, logger }) {
     }
   }
 
-  async function createIndex(indexName, { fields }) {
+  async function createIndex(indexName, schema) {
     logger.debug('Creating index for source:', indexName);
+    const fields = getSearchSchema(schema);
     logger.debug('fields:', fields);
     const res = await axios.post(constants.SEARCH_API + '/index', {
       indexName,
@@ -52,7 +53,7 @@ function RedisService({ __name, constants, logger }) {
 
   async function dropIndex(indexName) {
     try {
-      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName), {
+      const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(`idx:${indexName}`), {
         headers: {
           'Accept': 'application/json',
         }
@@ -64,7 +65,17 @@ function RedisService({ __name, constants, logger }) {
     }
   }
 
-  async function dropData({ indexName }) {
+  async function getNumberChunks(indexName, params) {
+    try {
+      const index = await getIndex(indexName);
+      return index.numDocs;
+    } catch (err) {
+      logger.error(err);
+      throw err;
+    }
+  }
+
+  async function dropData(indexName) {
     try {
       const res = await axios.delete(constants.SEARCH_API + '/index/' + encodeURIComponent(indexName) + '/data', {
         headers: {
@@ -257,6 +268,7 @@ function RedisService({ __name, constants, logger }) {
     dropIndex,
     getIndexes,
     getIndex,
+    getNumberChunks,
     getSearchSchema,
     indexDocument,
     indexParentDocument,

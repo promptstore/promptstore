@@ -352,6 +352,7 @@ const executionsService = ExecutionsService({
     searchService,
     sqlSourceService,
     tracesService,
+    vectorStoreService,
   },
 });
 

@@ -23,6 +23,7 @@ export function ExecutionsService({ logger, rc, services }) {
     searchService,
     sqlSourceService,
     tracesService,
+    vectorStoreService,
   } = services;
 
   const adapter = CoreModelAdapter({
@@ -40,6 +41,7 @@ export function ExecutionsService({ logger, rc, services }) {
       promptSetsService,
       searchService,
       sqlSourceService,
+      vectorStoreService,
     }
   });
 

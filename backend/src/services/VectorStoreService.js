@@ -12,10 +12,10 @@ export function VectorStoreService({ logger, registry }) {
     return instance.getIndex(indexName, params);
   };
 
-  async function createIndex(vectorstore, indexName, params) {
+  async function createIndex(vectorstore, indexName, schema, params) {
     logger.debug('vectorstore:', vectorstore);
     const instance = registry[vectorstore];
-    return instance.createIndex(indexName, params);
+    return instance.createIndex(indexName, schema, params);
   };
 
   async function dropIndex(vectorstore, indexName) {
@@ -24,10 +24,10 @@ export function VectorStoreService({ logger, registry }) {
     return instance.dropIndex(indexName);
   };
 
-  async function dropData(vectorstore, params) {
+  async function dropData(vectorstore, indexName, params) {
     logger.debug('vectorstore:', vectorstore);
     const instance = registry[vectorstore];
-    return instance.dropData(params);
+    return instance.dropData(indexName, params);
   };
 
   async function addDocuments(vectorstore, docs, embeddings, params) {
@@ -46,6 +46,12 @@ export function VectorStoreService({ logger, registry }) {
     logger.debug('vectorstore:', vectorstore);
     const instance = registry[vectorstore];
     return instance.deleteDocuments(ids);
+  };
+
+  async function getNumberChunks(vectorstore, indexName, params) {
+    logger.debug('vectorstore:', vectorstore);
+    const instance = registry[vectorstore];
+    return instance.getNumberChunks(indexName, params);
   };
 
   async function search(vectorstore, indexName, query, attrs, params) {
@@ -71,6 +77,7 @@ export function VectorStoreService({ logger, registry }) {
     addDocuments,
     deleteDocument,
     deleteDocuments,
+    getNumberChunks,
     getVectorStores,
     search,
   };

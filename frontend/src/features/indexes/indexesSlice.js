@@ -51,28 +51,48 @@ export const getIndexAsync = (id) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/indexes/${id}`;
   const res = await http.get(url);
-  const { name } = res.data;
+  const { engine, name, nodeLabel } = res.data;
   let index;
   try {
-    const res1 = await http.get(`/api/index/idx:${name}`);
+    const res1 = await http.get(`/api/index/${engine}/${name}?nodeLabel=${nodeLabel}`);
     // console.log('res1:', res1.data);
-    const {
-      attributes,
-      numDocs,
-      numRecords,
-      numTerms,
-      recordsPerDocAvg,
-    } = res1.data;
-    index = {
-      ...res.data,
-      store: {
+    if (engine === 'redis') {
+      const {
         attributes,
         numDocs,
         numRecords,
         numTerms,
         recordsPerDocAvg,
-      },
-    };
+      } = res1.data;
+      index = {
+        ...res.data,
+        store: {
+          attributes,
+          numDocs,
+          numRecords,
+          numTerms,
+          recordsPerDocAvg,
+        },
+      };
+    } else if (engine === 'neo4j') {
+      const {
+        indexName,
+        embeddingDimension,
+        similarityMetric,
+        nodeLabel,
+        numDocs,
+      } = res1.data;
+      index = {
+        ...res.data,
+        store: {
+          indexName,
+          embeddingDimension,
+          similarityMetric,
+          nodeLabel,
+          numDocs,
+        },
+      }
+    }
   } catch (err) {
     // index probably doesn't exist
     index = res.data;
@@ -99,27 +119,38 @@ export const deleteIndexesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeIndexes({ ids }));
 };
 
-export const createPhysicalIndexAsync = ({ id, name, schema }) => async (dispatch, getState) => {
+export const createPhysicalIndexAsync = ({ id, name, engine, schema, params }) => async (dispatch, getState) => {
   const indexes = getState().indexes.indexes;
   const currentIndex = indexes[id];
   const url = `/api/index`;
-  const res = await http.post(url, { indexName: name, schema });
+  const res = await http.post(url, { indexName: name, engine, schema, params });
   const index = { ...currentIndex, store: res.data };
   dispatch(setIndexes({ indexes: [index] }));
 };
 
-export const dropPhysicalIndexAsync = ({ id, name }) => async (dispatch, getState) => {
+export const dropPhysicalIndexAsync = ({ id, engine, name }) => async (dispatch, getState) => {
   const indexes = getState().indexes.indexes;
   const currentIndex = indexes[id];
-  const url = `/api/index/idx:${name}`;
+  const url = `/api/index/${engine}/${name}`;
   await http.delete(url);
   const index = { ...currentIndex, store: null };
   dispatch(setIndexes({ indexes: [index] }));
 };
 
-export const dropDataAsync = ({ name }) => async () => {
-  const url = `/api/index/${name}/data`;
+export const dropDataAsync = ({ id, engine, name, nodeLabel }) => async (dispatch, getState) => {
+  const indexes = getState().indexes.indexes;
+  const currentIndex = indexes[id];
+  const url = `/api/index/${engine}/${name}/data?nodeLabel=${nodeLabel}`;
   await http.delete(url);
+  const index = {
+    ...currentIndex, store: {
+      ...currentIndex.store,
+      numDocs: 0,
+      numRecords: 0,
+      numTerms: 0,
+    }
+  };
+  dispatch(setIndexes({ indexes: [index] }));
 };
 
 export const selectLoaded = (state) => state.indexes.loaded;
