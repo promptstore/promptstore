@@ -30,7 +30,7 @@ export default ({ app, auth, logger, services }) => {
    *         newIndexName:
    *           type: string
    *           description: The name of the new index to create for storing the crawled data
-   *         engine:
+   *         vectorStoreProvider:
    *           type: string
    *           description: The key of the vector store to use for the new index
    *         titleField:
@@ -70,18 +70,28 @@ export default ({ app, auth, logger, services }) => {
    *         description: Error
    */
   app.post('/api/crawls', async (req, res) => {
-    const { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField, workspaceId } = req.body;
+    const {
+      url,
+      spec,
+      maxRequestsPerCrawl,
+      indexId,
+      newIndexName,
+      titleField,
+      workspaceId,
+      vectorField,
+      vectorStoreProvider,
+    } = req.body;
     const schema = convertScrapingSpecToIndexSchema(spec, vectorField);
     logger.debug('schema: ', JSON.stringify(schema, null, 2));
     let indexName;
     if (indexId === 'new') {
       const newIndex = await indexesService.upsertIndex({
         name: newIndexName,
-        engine,
         schema,
         titleField,
-        vectorField,
         workspaceId,
+        vectorField,
+        vectorStoreProvider,
       });
       logger.debug(`Created new index '${newIndexName}' [${newIndex.id}]`);
       const fields = searchService.getSearchSchema(schema);

@@ -29,8 +29,8 @@ export function IndexesList() {
     const list = Object.values(indexes).map((index) => ({
       key: index.id,
       name: index.name,
-      engine: index.engine,
       nodeLabel: index.nodeLabel,
+      vectorStoreProvider: index.vectorStoreProvider,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -99,11 +99,11 @@ export function IndexesList() {
       )
     },
     {
-      title: 'Engine',
-      dataIndex: 'engine',
+      title: 'Vector Store',
+      dataIndex: 'vectorStoreProvider',
       width: '100%',
-      render: (_, { engine }) => (
-        <Tag>{engine}</Tag>
+      render: (_, { vectorStoreProvider }) => (
+        <Tag>{vectorStoreProvider}</Tag>
       )
     },
     {
@@ -143,9 +143,9 @@ export function IndexesList() {
   let indexParams;
   if (index) {
     indexParams = {
-      engine: index.engine,
-      embedding: index.embedding,
       nodeLabel: index.nodeLabel,
+      embeddingProvider: index.embeddingProvider,
+      vectorStoreProvider: index.vectorStoreProvider,
     };
   }
 

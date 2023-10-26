@@ -8,7 +8,7 @@ export function IndexesService({ pg, logger }) {
       id: row.id,
       workspaceId: row.workspace_id,
       name: row.name,
-      engine: row.engine,
+      vectorStoreProvider: row.engine,
       created: row.created,
       createdBy: row.created_by,
       modified: row.modified,
@@ -72,7 +72,7 @@ export function IndexesService({ pg, logger }) {
     if (index === null || typeof index === 'undefined') {
       return null;
     }
-    const val = omit(index, ['id', 'workspaceId', 'name', 'engine', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const val = omit(index, ['id', 'workspaceId', 'name', 'vectorStoreProvider', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedIndex = await getIndex(index.id);
     if (savedIndex) {
       const modified = new Date();
@@ -82,7 +82,7 @@ export function IndexesService({ pg, logger }) {
         WHERE id = $6
         RETURNING *
         `,
-        [index.name, index.engine, val, username, modified, index.id]
+        [index.name, index.vectorStoreProvider, val, username, modified, index.id]
       );
       return mapRow(rows[0]);
     } else {
@@ -91,7 +91,7 @@ export function IndexesService({ pg, logger }) {
         INSERT INTO doc_indexes (workspace_id, name, engine, val, created_by, created, modified_by, modified)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
         `,
-        [index.workspaceId, index.name, index.engine, val, username, created, username, created]
+        [index.workspaceId, index.name, index.vectorStoreProvider, val, username, created, username, created]
       );
       return { ...index, id: rows[0].id };
     }

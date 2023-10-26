@@ -388,14 +388,14 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           <Link to={process.env.REACT_APP_TEMPORAL_WEB_URL} target="_blank" rel="noopener noreferrer">Background Jobs</Link>
         ),
       },
-      {
-        key: 'pipelines',
-        icon: <MageIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
-        style: { display: 'flex', alignItems: 'center' },
-        label: (
-          <Link to={process.env.REACT_APP_MAGE_WEB_URL} target="_blank" rel="noopener noreferrer">Data Pipelines</Link>
-        ),
-      },
+      // {
+      //   key: 'pipelines',
+      //   icon: <MageIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
+      //   style: { display: 'flex', alignItems: 'center' },
+      //   label: (
+      //     <Link to={process.env.REACT_APP_MAGE_WEB_URL} target="_blank" rel="noopener noreferrer">Data Pipelines</Link>
+      //   ),
+      // },
       {
         key: 'monitoring',
         icon: <LokiIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,

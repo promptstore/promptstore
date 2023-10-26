@@ -122,10 +122,9 @@ export function PromptSetView() {
 
   const getPrompt = useCallback((p) => {
     let prompt = p.prompt
-      .replace(/\n/g, '<br>')
       .replace(/([\[\]\*])/g, '\\$1')
-      .replace(/({{(#if|#ifmultiple)\s+(.*?)\s*}})/g, '<div class="promptindent"><code class="promptcontrol">$1</code>')
-      .replace(/({{\/(if|ifmultiple)\s*}})/g, '<code class="promptcontrol">$1</code></div>')
+      .replace(/({{(#if|#ifmultiple|#each)\s+(.*?)\s*}})/g, '<div class="promptindent"><code class="promptcontrol">$1</code>')
+      .replace(/({{\/(if|ifmultiple|each)\s*}})/g, '<code class="promptcontrol">$1</code></div>')
       .replace(/({{\s*else\s*}})/g, '<code class="promptcontrol">$1</code>');
 
     if (selectedRowKeys.length) {
@@ -190,7 +189,7 @@ export function PromptSetView() {
             <Descriptions column={1} layout="vertical">
               <Descriptions.Item label="description">
                 <Typography.Text className="prompttext">
-                  {ps.description}
+                  <p>{ps.description}</p>
                 </Typography.Text>
               </Descriptions.Item>
               <Descriptions.Item>

@@ -51,12 +51,12 @@ export const getIndexAsync = (id) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/indexes/${id}`;
   const res = await http.get(url);
-  const { engine, name, nodeLabel } = res.data;
+  const { name, nodeLabel, vectorStoreProvider } = res.data;
   let index;
   try {
-    const res1 = await http.get(`/api/index/${engine}/${name}?nodeLabel=${nodeLabel}`);
+    const res1 = await http.get(`/api/index/${vectorStoreProvider}/${name}?nodeLabel=${nodeLabel}`);
     // console.log('res1:', res1.data);
-    if (engine === 'redis') {
+    if (vectorStoreProvider === 'redis') {
       const {
         attributes,
         numDocs,
@@ -74,7 +74,7 @@ export const getIndexAsync = (id) => async (dispatch) => {
           recordsPerDocAvg,
         },
       };
-    } else if (engine === 'neo4j') {
+    } else if (vectorStoreProvider === 'neo4j') {
       const {
         indexName,
         embeddingDimension,
@@ -119,28 +119,28 @@ export const deleteIndexesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeIndexes({ ids }));
 };
 
-export const createPhysicalIndexAsync = ({ id, name, engine, schema, params }) => async (dispatch, getState) => {
+export const createPhysicalIndexAsync = ({ id, name, schema, vectorStoreProvider, params }) => async (dispatch, getState) => {
   const indexes = getState().indexes.indexes;
   const currentIndex = indexes[id];
   const url = `/api/index`;
-  const res = await http.post(url, { indexName: name, engine, schema, params });
+  const res = await http.post(url, { indexName: name, schema, vectorStoreProvider, params });
   const index = { ...currentIndex, store: res.data };
   dispatch(setIndexes({ indexes: [index] }));
 };
 
-export const dropPhysicalIndexAsync = ({ id, engine, name }) => async (dispatch, getState) => {
+export const dropPhysicalIndexAsync = ({ id, name, vectorStoreProvider }) => async (dispatch, getState) => {
   const indexes = getState().indexes.indexes;
   const currentIndex = indexes[id];
-  const url = `/api/index/${engine}/${name}`;
+  const url = `/api/index/${vectorStoreProvider}/${name}`;
   await http.delete(url);
   const index = { ...currentIndex, store: null };
   dispatch(setIndexes({ indexes: [index] }));
 };
 
-export const dropDataAsync = ({ id, engine, name, nodeLabel }) => async (dispatch, getState) => {
+export const dropDataAsync = ({ id, name, nodeLabel, vectorStoreProvider }) => async (dispatch, getState) => {
   const indexes = getState().indexes.indexes;
   const currentIndex = indexes[id];
-  const url = `/api/index/${engine}/${name}/data?nodeLabel=${nodeLabel}`;
+  const url = `/api/index/${vectorStoreProvider}/${name}/data?nodeLabel=${nodeLabel}`;
   await http.delete(url);
   const index = {
     ...currentIndex, store: {

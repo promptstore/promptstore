@@ -123,7 +123,7 @@ export interface SearchIndexEnrichmentParams {
   indexName: string;
   indexParams: IndexParams;
   embeddingService: any;
-  searchService: any;
+  vectorStoreService: any;
   callbacks?: Callback[];
 }
 

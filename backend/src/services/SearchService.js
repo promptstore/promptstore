@@ -204,16 +204,16 @@ export function SearchService({ constants, logger, services }) {
     }
   }
 
-  async function search(provider, indexName, query, attrs = {}, params = {}) {
+  async function search(vectorStoreProvider, indexName, query, attrs = {}, params = {}) {
     logger.log('debug', 'searching %s for "%s"', indexName, query);
     const q = query.trim();
     if (q.length < 3) {
       return [];
     }
     try {
-      if (provider === 'neo4j') {
-        const { embedding } = params;
-        const queryEmbedding = await embeddingService.createEmbedding(embedding, q);
+      if (vectorStoreProvider === 'neo4j') {
+        const { embeddingProvider } = params;
+        const queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, q);
         return vectorStoreService.search('neo4j', indexName, query, attrs, {
           queryEmbedding,
         });

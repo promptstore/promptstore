@@ -1,9 +1,19 @@
+import Minio from 'minio';
 import fs from 'fs';
 import mime from 'mime-types';
 import path from 'path';
+import uuid from 'uuid';
 import { Blob } from 'buffer';
 
-export function DocumentsService({ constants, mc, logger }) {
+function MinIODocumentLoader({ __name, constants, logger }) {
+
+  const mc = new Minio.Client({
+    endPoint: constants.S3_ENDPOINT,
+    port: parseInt(constants.S3_PORT, 10),
+    useSSL: false,
+    accessKey: constants.AWS_ACCESS_KEY,
+    secretKey: constants.AWS_SECRET_KEY,
+  });
 
   function download(filepath) {
     return new Promise((resolve, reject) => {
@@ -36,13 +46,13 @@ export function DocumentsService({ constants, mc, logger }) {
     });
   }
 
-  function read(filepath, maxBytes = 0) {
+  function load({ objectName, maxBytes = 0 }) {
     return new Promise((resolve, reject) => {
-      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
+      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${objectName}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       const fileStream = fs.createWriteStream(localFilePath);
-      mc.getPartialObject(constants.FILE_BUCKET, filepath, 0, maxBytes, (err, dataStream) => {
+      mc.getPartialObject(constants.FILE_BUCKET, objectName, 0, maxBytes, (err, dataStream) => {
         if (err) {
           logger.error(err);
           reject(err);
@@ -51,17 +61,28 @@ export function DocumentsService({ constants, mc, logger }) {
           fileStream.write(chunk);
         });
         dataStream.on('end', () => {
-          const contents = fs.readFileSync(localFilePath, { encoding: 'utf-8' });
-          // logger.debug('contents: ', contents);
-          resolve(contents);
+          const filename = path.parse(objectName).base;
+          const content = fs.readFileSync(localFilePath, { encoding: 'utf-8' });
+          const size = new Blob([content]).size;
+          resolve([
+            {
+              id: uuid.v4(),
+              filename,
+              objectName,
+              size,
+              content,
+            }
+          ]);
         });
       });
     });
   }
 
   return {
+    __name,
     download,
-    read,
+    load,
   };
-
 }
+
+export default MinIODocumentLoader;

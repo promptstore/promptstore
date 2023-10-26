@@ -159,14 +159,14 @@ export default ({ logger, rc, services }) => {
       indexContentPropertyPath: indexInfo.indexContentPropertyPath,
       indexContextPropertyPath: indexInfo.indexContextPropertyPath,
       allResults: indexInfo.allResults,
-      embeddingProvider: index.embedding,
-      vectorStoreProvider: index.engine,
+      embeddingProvider: index.embeddingProvider,
+      vectorStoreProvider: index.vectorStoreProvider,
     };
     return semanticSearchEnrichment({
       indexName: index.name,
       indexParams,
       embeddingService,
-      searchService: vectorStoreService,
+      vectorStoreService,
       callbacks,
     });
   }

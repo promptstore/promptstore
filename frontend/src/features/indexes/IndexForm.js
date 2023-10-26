@@ -112,17 +112,17 @@ export function IndexForm() {
 
   const createPhysicalIndex = () => {
     let params;
-    if (index.engine === 'neo4j') {
+    if (index.vectorStoreProvider === 'neo4j') {
       params = {
         nodeLabel: index.nodeLabel,
-        embedding: index.embedding,
+        embeddingProvider: index.embeddingProvider,
       };
     }
     dispatch(createPhysicalIndexAsync({
       id: index.id,
-      engine: index.engine,
       name: index.name,
       schema: index.schema,
+      vectorStoreProvider: index.vectorStoreProvider,
       params,
     }));
   };
@@ -130,17 +130,17 @@ export function IndexForm() {
   const dropData = () => {
     dispatch(dropDataAsync({
       id: index.id,
-      engine: index.engine,
       name: index.name,
       nodeLabel: index.nodeLabel,
+      vectorStoreProvider: index.vectorStoreProvider,
     }));
   };
 
   const dropPhysicalIndex = () => {
     dispatch(dropPhysicalIndexAsync({
       id: index.id,
-      engine: index.engine,
       name: index.name,
+      vectorStoreProvider: index.vectorStoreProvider,
     }));
   };
 
@@ -155,9 +155,9 @@ export function IndexForm() {
   let indexParams;
   if (index) {
     indexParams = {
-      engine: index.engine,
-      embedding: index.embedding,
       nodeLabel: index.nodeLabel,
+      embeddingProvider: index.embeddingProvider,
+      vectorStoreProvider: index.vectorStoreProvider,
     };
   }
 
@@ -227,14 +227,14 @@ export function IndexForm() {
     );
   }
 
-  function PhysicalStoreInfo({ engine, store }) {
+  function PhysicalStoreInfo({ store, vectorStoreProvider }) {
     if (store) {
-      if (engine === 'redis') {
+      if (vectorStoreProvider === 'redis') {
         return (
           <RedisStoreInfo store={store} />
         );
       }
-      if (engine === 'neo4j') {
+      if (vectorStoreProvider === 'neo4j') {
         return (
           <Neo4jStoreInfo store={store} />
         );
@@ -285,11 +285,11 @@ export function IndexForm() {
           </Form.Item>
           <Form.Item
             label="Vector Store"
-            name="engine"
+            name="vectorStoreProvider"
             rules={[
               {
                 required: true,
-                message: 'Please select the engine',
+                message: 'Please select the vector store provider',
               },
             ]}
             wrapperCol={{ span: 10 }}
@@ -361,7 +361,7 @@ export function IndexForm() {
               </Button>
             </Space>
           </Form.Item>
-          <PhysicalStoreInfo engine={index?.engine} store={store} />
+          <PhysicalStoreInfo vectorStoreProvider={index?.vectorStoreProvider} store={store} />
         </Form>
       </div>
     </>

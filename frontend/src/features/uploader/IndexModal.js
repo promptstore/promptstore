@@ -228,7 +228,7 @@ export function IndexModal({
           <>
             <Form.Item
               label="Vector Store"
-              name="engine"
+              name="vectorStoreProvider"
               rules={[
                 {
                   required: true,
@@ -246,7 +246,7 @@ export function IndexModal({
             </Form.Item>
             <Form.Item
               label="Embedding"
-              name="embedding"
+              name="embeddingProvider"
               rules={[
                 {
                   required: true,

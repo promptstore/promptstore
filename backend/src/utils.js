@@ -239,33 +239,37 @@ export function toAbsoluteUrl(path, depth) {
 const currentFunction = toAbsoluteUrl;
 
 export const getPlugins = async (basePath, config, logger, options) => {
+  logger.debug('plugins:', config);
   const a = {};
-  for (const p of config.split(',')) {
-    const [key, name, path, metadata = ''] = p.split('|').map(e => e.trim());
-    const __metadata = metadata.split(',').reduce((a, p) => {
-      const [k, v] = p.split('=').map(x => x.trim());
-      if (typeof v === 'undefined') {
-        a[k] = true;
-      } else if (isNumber(v)) {
-        a[k] = +v;
-      } else {
-        a[k] = v;
-      }
-      return a;
-    }, {});
-    const resolvedPath = toAbsoluteUrl(path);
-    logger.log('debug', 'requiring:', resolvedPath);
-    const { constants, plugin } = await import(resolvedPath);
-    logger.log('debug', 'constants:', constants);
-    logger.log('debug', 'plugin: %s - %s', name, typeof plugin);
-    a[key] = plugin({
-      __key: key,
-      __name: name,
-      __metadata,
-      constants,
-      logger,
-      ...options,
-    });
+  if (config) {
+    for (const p of config.split(',')) {
+      logger.debug('config:', p);
+      const [key, name, path, metadata = ''] = p.split('|').map(e => e.trim());
+      const __metadata = metadata.split(',').reduce((a, p) => {
+        const [k, v] = p.split('=').map(x => x.trim());
+        if (typeof v === 'undefined') {
+          a[k] = true;
+        } else if (isNumber(v)) {
+          a[k] = +v;
+        } else {
+          a[k] = v;
+        }
+        return a;
+      }, {});
+      const resolvedPath = toAbsoluteUrl(path);
+      logger.debug('requiring:', resolvedPath);
+      const { constants, plugin } = await import(resolvedPath);
+      logger.debug('constants:', constants);
+      logger.debug('plugin: %s - %s', name, typeof plugin);
+      a[key] = plugin({
+        __key: key,
+        __name: name,
+        __metadata,
+        constants,
+        logger,
+        ...options,
+      });
+    }
   }
   return a;
 };

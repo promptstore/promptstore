@@ -1,35 +1,70 @@
 import axios from 'axios';
+import uuid from 'uuid';
 
 function ApiLoader({ __name, constants, logger }) {
 
   async function load({
     endpoint,
-    nodeType,
     schema,
   }) {
     const res = await axios.get(endpoint);
-    let chunks;
+    let documents;
     if (schema.type === 'array') {
-      chunks = res.data.map((val) => {
+      documents = res.data.map((doc) => {
         if (schema.items.type === 'object') {
-          const doc = Object.keys(schema.items.properties).reduce((a, key) => {
-            a[key] = val[key];
+          const content = Object.keys(schema.items.properties).reduce((a, key) => {
+            a[key] = doc[key];
             return a;
           }, {});
-          return { ...doc, nodeType };
+          const text = JSON.stringify(content);
+          const size = new Blob([text]).size;
+          return {
+            id: uuid.v4(),
+            endpoint,
+            mimetype: 'application/json',
+            size,
+            content,
+          };
         }
-        return { text: val, nodeType: 'content' };
+        const text = JSON.stringify(content);
+        const size = new Blob([text]).size;
+        return {
+          id: uuid.v4(),
+          endpoint,
+          mimetype: 'application/json',
+          size,
+          content,
+        };
       });
     } else if (schema.type === 'object') {
-      const doc = Object.keys(schema.properties).reduce((a, key) => {
-        a[key] = res.data[key];
+      const content = Object.keys(schema.properties).reduce((a, key) => {
+        a[key] = doc[key];
         return a;
       }, {});
-      chunks = [{ ...doc, nodeType }];
+      const text = JSON.stringify(content);
+      const size = new Blob([text]).size;
+      return [
+        {
+          id: uuid.v4(),
+          endpoint,
+          mimetype: 'application/json',
+          size,
+          content,
+        }
+      ];
     } else {
-      chunks = [{ text: res.data, nodeType }];
+      const text = JSON.stringify(res.data);
+      const size = new Blob([text]).size;
+      return [
+        {
+          id: uuid.v4(),
+          endpoint,
+          mimetype: 'application/json',
+          size,
+          content: res.data,
+        }
+      ];
     }
-    return { chunks };
   }
 
   return {

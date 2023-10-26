@@ -767,7 +767,6 @@ article.collapsible .panel.closed {
 .prompttext code {
   color: chocolate;
   font-size: 0.9em;
-  white-space: nowrap;
 }
 
 .prompttext code.promptcontrol {

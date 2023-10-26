@@ -1,58 +1,25 @@
-import FormData from 'form-data';
-import axios from 'axios';
-import fs from 'fs';
 import uuid from 'uuid';
 
-function OnesourceService({ __name, constants, logger }) {
+function JsonParser({ __name, constants, logger }) {
 
-  /**
-   * Expected output format:
-   * 
-   * {
-   *   "metadata": {
-   *     "doc_type": "PDF",
-   *     "record_id": "<filename, no ext>"
-   *     "created_date": "",
-   *     "last_mod_date": "",
-   *     "author": "",
-   *     "word_count": -1
-   *   },
-   *   "data": {
-   *     "text": [<array of text>],
-   *     "structured_content": [
-   *       {
-   *         "type": "heading|text|...",
-   *         "text": ""
-   *       }
-   *     ]
-   *   }
-   * }
-   * 
-   * @param {*} file 
-   * @returns 
-   */
-  async function extract(filepath, originalname, mimetype) {
-    try {
-      const data = await fs.promises.readFile(filepath);
-      const form = new FormData();
-      form.append('file', data, {
-        filename: originalname,
-        contentType: mimetype,
-      });
-      const res = await axios.post(constants.ONESOURCE_API_URL, form, {
-        headers: form.getHeaders(),
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
-      logger.debug('File uploaded to document service successfully.');
-      logger.debug('res: ', res.data);
-      return res.data;
-    } catch (err) {
-      logger.log('error', String(err), err.stack);
-    }
-  }
+  const allowedTypes = ['string', 'number', 'boolean'];
 
-  function getSchema() {
+  function getSchema({ apiJsonSchema, textNodeProperties }) {
+    const props = Object.entries(apiJsonSchema.properties).reduce((a, [k, v]) => {
+      const isTag = (
+        v.type === 'string' &&
+        textNodeProperties &&
+        !textNodeProperties.includes(k)
+      );
+      if (allowedTypes.includes(v.type)) {
+        a[k] = {
+          type: v.type,
+          description: v.description,
+          tag: isTag,
+        };
+      }
+      return a;
+    }, {});
     return {
       "$id": "https://promptstore.dev/chunk.schema.json",
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -79,34 +46,10 @@ function OnesourceService({ __name, constants, logger }) {
           "type": "string",
           "description": "The chunk text",
         },
-        // "data": {
-        //   "type": "array",
-        //   "description": "Additional data fields that are indexed to support hybrid or faceted search",
-        //   "items": {
-        //     "type": "object",
-        //     "properties": {
-        //       "key": {
-        //         "type": "string",
-        //         "description": "The field name"
-        //       },
-        //       "value": {
-        //         "type": {},
-        //         "description": "The field value"
-        //       },
-        //       "type": {
-        //         "type": "string",
-        //         "description": "The value type"
-        //       },
-        //       "subtype": {
-        //         "type": "string",
-        //         "description": "The value subtype, e.g., \"Tag\""
-        //       }
-        //     }
-        //   }
-        // },
         "data": {
           "type": {},
-          "description": "Additional data fields that are indexed to support hybrid or faceted search"
+          "description": "Additional data fields that are indexed to support hybrid or faceted search",
+          "properties": props
         },
         "metadata": {
           "type": "object",
@@ -196,63 +139,64 @@ function OnesourceService({ __name, constants, logger }) {
     };
   }
 
-  async function getChunks({
-    filepath,
-    mimetype,
-    originalname,
+  function getChunks(documents, {
+    apiJsonSchema,
+    textNodeProperties,
     nodeLabel = 'Chunk',
   }) {
-    const { data, metadata } = await extract(filepath, originalname, mimetype);
+    const schema = getSchema({ apiJsonSchema, textNodeProperties });
+    const props = schema.properties.data.properties;
     const createdDateTime = new Date().toISOString();
-    return data.structured_content.map((el) => {
-      let text;
-      if (el.type === 'list') {
-        text = el.heading + '\n' + el.items.map((it) => '- ' + it).join('\n');
-      } else {
-        text = el.text;
-      }
+    return documents.map((doc) => {
+      const text = Object.entries(doc.content)
+        .map(([k, v]) => {
+          if (props[k] === 'string') {
+            return k + ': ' + String(value);
+          }
+          return '';
+        })
+        .filter(([k, v]) => v)
+        .join('\n')
+        ;
+      const scalarValues = Object.entries(doc.content).reduce((a, [k, v]) => {
+        if (allowedTypes.includes(v.type)) {
+          a[k] = v;
+        }
+        return a;
+      }, {});
       const { wordCount, length, size } = getTextStats(text);
       return {
         id: uuid.v4(),
         nodeLabel,
-        type: el.type,
-        documentId: null,
+        type: 'json',
+        documentId: doc.id,
         text,
         imageURI: null,
-        data: {},
+        data: scalarValues,
         metadata: {
-          author: metadata.author,
-          mimetype: getMimeType(metadata.doc_type),
-          objectName: metadata.record_id,
-          endpoint: null,
-          subtype: el.subtype,
+          author: null,
+          mimetype: doc.mimetype,
+          objectName: null,
+          endpoint: doc.endpoint,
+          subtype: null,
           parentIds: [],
-          page: el.metadata.page_number,
+          page: null,
+          row: null,
           wordCount,
           length,
           size,
         },
-        createdDateTime: metadata.created_date || createdDateTime,
+        createdDateTime,
         createdBy: constants.CREATED_BY,
-        startDateTime: metadata.created_date || createdDateTime,
+        startDateTime: createdDateTime,
         endDateTime: null,
         version: 1,
       };
     });
   }
 
-  function getMimeType(doctype) {
-    switch (doctype) {
-      case 'PDF':
-        return 'application/pdf';
 
-      case 'Word':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-      default:
-        return 'text/plain';
-    }
-  }
+  // ----------------------------------------------------------------------
 
   function getTextStats(text) {
     if (!text) return 0;
@@ -264,12 +208,12 @@ function OnesourceService({ __name, constants, logger }) {
     return { wordCount, length, size };
   }
 
+
   return {
     __name,
-    extract,
     getChunks,
     getSchema,
   };
 }
 
-export default OnesourceService;
+export default JsonParser;

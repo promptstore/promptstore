@@ -24,11 +24,11 @@ export default ({ app, auth, logger, services }) => {
     res.send(indexes);
   });
 
-  app.get('/api/index/:engine/:name', auth, async (req, res, next) => {
-    const { engine, name } = req.params;
+  app.get('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
+    const { name, vectorStoreProvider } = req.params;
     const { nodeLabel } = req.query;
     logger.debug('GET physical index:', name);
-    const index = await vectorStoreService.getIndex(engine, name, { nodeLabel });
+    const index = await vectorStoreService.getIndex(vectorStoreProvider, name, { nodeLabel });
     if (!index) {
       return res.sendStatus(404);
     }
@@ -36,21 +36,21 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/index', auth, async (req, res, next) => {
-    const { engine, indexName, schema, params } = req.body;
+    const { indexName, schema, params, vectorStoreProvider } = req.body;
     try {
       let resp;
-      if (engine === 'neo4j') {
-        const { nodeLabel, embedding } = params;
-        const testEmbedding = await embeddingService.createEmbedding(embedding, 'foo');
+      if (vectorStoreProvider === 'neo4j') {
+        const { embeddingProvider, nodeLabel } = params;
+        const testEmbedding = await embeddingService.createEmbedding(embeddingProvider, 'foo');
         const embeddingDimension = testEmbedding.length;
-        resp = await vectorStoreService.createIndex(engine, indexName, schema, {
+        resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
           embeddingDimension,
         });
-      } else if (engine === 'redis') {
-        resp = await vectorStoreService.createIndex(engine, indexName, schema);
+      } else if (vectorStoreProvider === 'redis') {
+        resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema);
       } else {
-        throw new Error('Engine not supported: ' + engine);
+        throw new Error('Vector store provider not supported: ' + vectorStoreProvider);
       }
       res.send(resp);
     } catch (err) {
@@ -59,10 +59,10 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
-  app.delete('/api/index/:engine/:name', auth, async (req, res, next) => {
-    const { engine, name } = req.params;
+  app.delete('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
+    const { name, vectorStoreProvider } = req.params;
     try {
-      const resp = await vectorStoreService.dropIndex(engine, name);
+      const resp = await vectorStoreService.dropIndex(vectorStoreProvider, name);
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -70,11 +70,11 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
-  app.delete('/api/index/:engine/:name/data', auth, async (req, res, next) => {
-    const { engine, name } = req.params;
+  app.delete('/api/index/:vectorStoreProvider/:name/data', auth, async (req, res, next) => {
+    const { name, vectorStoreProvider } = req.params;
     const { nodeLabel } = req.query;
     try {
-      const resp = await vectorStoreService.dropData(engine, name, { nodeLabel });
+      const resp = await vectorStoreService.dropData(vectorStoreProvider, name, { nodeLabel });
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -132,12 +132,12 @@ export default ({ app, auth, logger, services }) => {
     const { requests, attrs, indexParams } = req.body;
     const { indexName, params: { query } } = requests[0];
     const {
-      embedding,
-      engine,
       nodeLabel,
+      embeddingProvider,
+      vectorStoreProvider,
     } = indexParams;
-    const rawResults = await searchService.search(engine, indexName, query, attrs, {
-      embedding,
+    const rawResults = await searchService.search(vectorStoreProvider, indexName, query, attrs, {
+      embeddingProvider,
       nodeLabel,
     });
     logger.log('debug', 'rawResults:', rawResults);

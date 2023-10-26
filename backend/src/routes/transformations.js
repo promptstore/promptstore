@@ -34,7 +34,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/transformations', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const { dataSourceId, engine, features, indexId, indexName, workspaceId } = values;
+    const { dataSourceId, features, indexId, indexName, workspaceId, vectorStoreProvider } = values;
 
     // create index if new
     if (indexId === 'new') {
@@ -45,9 +45,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       //   const indexFields = columnsToFields(schema.columns);
       //   const index = await indexesService.upsertIndex({
       //     name: indexName,
-      //     engine,
       //     schema: { content: indexFields },
       //     workspaceId,
+      //     vectorStoreProvider,
       //   });
       // }
       const indexFields = Object.values(features).reduce((a, f) => {
@@ -60,9 +60,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       }, {});
       const index = await indexesService.upsertIndex({
         name: indexName,
-        engine,
         schema: { content: indexFields },
         workspaceId,
+        vectorStoreProvider,
       });
     }
 

@@ -37,9 +37,9 @@ export const createActivities = ({
     let data;
     if (supportedMimetypes.includes(file.mimetype)) {
       if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-        data = await extractorService.extract('onesource', file);
+        data = await extractorService.extract('onesource', file.path, file.originalname, file.mimetype);
       } else {
-        data = await extractorService.extract('unstructured', file);
+        data = await extractorService.extract('unstructured', file.path, file.originalname, file.mimetype);
       }
     }
 
@@ -95,10 +95,10 @@ export const createActivities = ({
         if (supportedMimetypes.includes(file.mimetype)) {
           if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
             logger.debug('using onesource');
-            data = await extractorService.extract('onesource', file);
+            data = await extractorService.extract('onesource', file.path, file.originalname, file.mimetype);
           } else {
             logger.debug('using unstructured');
-            data = await extractorService.extract('unstructured', file);
+            data = await extractorService.extract('unstructured', file.path, file.originalname, file.mimetype);
           }
         }
 

@@ -171,7 +171,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
   indexName: string;
   indexParams: IndexParams;
   embeddingService: any;
-  searchService: any;
+  vectorStoreService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
@@ -179,13 +179,13 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     indexName,
     indexParams,
     embeddingService,
-    searchService,
+    vectorStoreService,
     callbacks,
   }: SearchIndexEnrichmentParams) {
     this.indexName = indexName;
     this.indexParams = indexParams;
     this.embeddingService = embeddingService;
-    this.searchService = searchService;
+    this.vectorStoreService = vectorStoreService;
     this.callbacks = callbacks || [];
   }
 
@@ -196,7 +196,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       const query = this.getQuery(args);
       const { embeddingProvider, vectorStoreProvider } = this.indexParams;
       const queryEmbedding = await this.embeddingService.createEmbedding(embeddingProvider, query);
-      const results = await this.searchService.search(vectorStoreProvider, this.indexName, query, null, { queryEmbedding });
+      const results = await this.vectorStoreService.search(vectorStoreProvider, this.indexName, query, null, { queryEmbedding });
       const contextLines = results.map((r: any) => r.__text);
       const context = contextLines.join('\n\n');
       const enrichedArgs = this.enrich(args, context);
@@ -478,7 +478,7 @@ interface SemanticSearchEnrichmentOptions {
   indexName: string;
   indexParams: IndexParams;
   embeddingService: any;
-  searchService: any;
+  vectorStoreService: any;
   callbacks?: Callback[];
 }
 
