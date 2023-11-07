@@ -191,9 +191,9 @@ export const indexStructuredDocumentAsync = ({ documents, params, workspaceId })
   await http.post(url, { documents, params, workspaceId });
 };
 
-export const indexDocumentAsync = ({ filepath, params, workspaceId }) => async (dispatch) => {
+export const indexDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
   const url = '/api/loader/document';
-  await http.post(url, { filepath, params, workspaceId });
+  await http.post(url, { documents, params, workspaceId });
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;

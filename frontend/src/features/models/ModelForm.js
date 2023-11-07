@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Select, Space, Switch } from 'antd';
@@ -72,6 +72,8 @@ const typeOptions = [
 
 export function ModelForm() {
 
+  const [backOnSave, setBackOnSave] = useState(false);
+
   const loaded = useSelector(selectLoaded);
   const models = useSelector(selectModels);
   const providers = useSelector(selectProviders);
@@ -128,6 +130,13 @@ export function ModelForm() {
     }
   }, [typeValue]);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/models');
+    }
+  }, [models]);
+
   const onCancel = () => {
     navigate('/models');
   };
@@ -149,7 +158,7 @@ export function ModelForm() {
         },
       }));
     }
-    navigate('/models');
+    setBackOnSave(true);
   };
 
   if (!isNew && !loaded) {

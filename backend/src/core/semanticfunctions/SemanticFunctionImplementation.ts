@@ -19,6 +19,7 @@ import {
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import {
   PARA_DELIM,
+  Function,
   Message,
   ChatRequestContext,
   ResponseMetadata,
@@ -63,7 +64,15 @@ export class SemanticFunctionImplementation {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, history, modelKey, modelParams, isBatch, callbacks = [] }: SemanticFunctionImplementationCallParams) {
+  async call({
+    args,
+    history,
+    modelKey,
+    modelParams,
+    isBatch,
+    returnTypeSchema,
+    callbacks = [],
+  }: SemanticFunctionImplementationCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     modelKey = modelKey || this.model.model;
     this.onStart({ args, history, modelKey, modelParams, isBatch });
@@ -78,6 +87,7 @@ export class SemanticFunctionImplementation {
         let context: ChatRequestContext;
         let hist: Message[];
         let msgs: Message[];
+        let functions: Function[];
         if (this.promptEnrichmentPipeline) {
           messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
           if (!messages.length) {
@@ -95,9 +105,18 @@ export class SemanticFunctionImplementation {
         if (this.inputGuardrails) {
           await this.inputGuardrails.call({ messages });
         }
+        if (returnTypeSchema) {
+          const outputFormatter = new Func(
+            'output_formatter',
+            'Output formatter. Should always be used to format your response to the user',
+            returnTypeSchema
+          );
+          functions = [outputFormatter.toJSON()];
+        }
         const request = {
           model: modelKey,
           model_params: modelParams,
+          functions,
           prompt: {
             context,
             history: hist,
@@ -270,4 +289,26 @@ export const semanticFunctionImplementation = (options: SemanticFunctionImplemen
     inputGuardrails,
     outputProcessingPipeline,
   });
+}
+
+class Func implements Function {
+
+  name: string;
+  description: string;
+  parameters: any;
+
+  constructor(name: string, description: string, parameters: any) {
+    this.name = name;
+    this.description = description;
+    this.parameters = parameters;
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      description: this.description,
+      parameters: this.parameters,
+    };
+  }
+
 }

@@ -47,7 +47,6 @@ export default ({ logger, rc, services }) => {
     modelsService,
     parserService,
     promptSetsService,
-    searchService,
     sqlSourceService,
     vectorStoreService,
   } = services;
@@ -290,6 +289,7 @@ export default ({ logger, rc, services }) => {
     }
     const options = {
       argsSchema: semanticFunctionInfo.arguments,
+      returnTypeSchema: semanticFunctionInfo.returnTypeSchema,
       callbacks,
       experiments: semanticFunctionInfo.experiments,
     };

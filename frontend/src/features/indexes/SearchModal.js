@@ -28,16 +28,16 @@ export function SearchModal({
   const Hit = ({ hit }) => {
 
     const toggleOpen = () => {
-      setIsHitOpen((cur) => ({ [hit.__uid]: !cur[hit.__uid] }));
+      setIsHitOpen((cur) => ({ [hit.id]: !cur[hit.id] }));
     };
 
     return (
       <article className="collapsible">
         <div className="header" onClick={toggleOpen}>
-          {isHitOpen[hit.__uid] ? <DownOutlined /> : <RightOutlined />}
+          {isHitOpen[hit.id] ? <DownOutlined /> : <RightOutlined />}
           <span>{hit[titleField]}</span>
         </div>
-        <div className={'panel' + (isHitOpen[hit.__uid] ? '' : ' closed')}>
+        <div className={'panel' + (isHitOpen[hit.id] ? '' : ' closed')}>
           <Divider />
           <ReactJson src={hit}
             theme={theme === 'dark' ? 'shapeshifter' : 'rjv-default'}

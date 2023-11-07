@@ -51,50 +51,54 @@ export const getIndexAsync = (id) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/indexes/${id}`;
   const res = await http.get(url);
-  const { name, nodeLabel, vectorStoreProvider } = res.data;
+  const { name, nodeLabel, vectorStoreProvider, graphStoreProvider } = res.data;
   let index;
-  try {
-    const res1 = await http.get(`/api/index/${vectorStoreProvider}/${name}?nodeLabel=${nodeLabel}`);
-    // console.log('res1:', res1.data);
-    if (vectorStoreProvider === 'redis') {
-      const {
-        attributes,
-        numDocs,
-        numRecords,
-        numTerms,
-        recordsPerDocAvg,
-      } = res1.data;
-      index = {
-        ...res.data,
-        store: {
+  if (vectorStoreProvider) {
+    try {
+      const res1 = await http.get(`/api/index/${vectorStoreProvider}/${name}?nodeLabel=${nodeLabel}`);
+      // console.log('res1:', res1.data);
+      if (vectorStoreProvider === 'redis') {
+        const {
           attributes,
           numDocs,
           numRecords,
           numTerms,
           recordsPerDocAvg,
-        },
-      };
-    } else if (vectorStoreProvider === 'neo4j') {
-      const {
-        indexName,
-        embeddingDimension,
-        similarityMetric,
-        nodeLabel,
-        numDocs,
-      } = res1.data;
-      index = {
-        ...res.data,
-        store: {
+        } = res1.data;
+        index = {
+          ...res.data,
+          store: {
+            attributes,
+            numDocs,
+            numRecords,
+            numTerms,
+            recordsPerDocAvg,
+          },
+        };
+      } else if (vectorStoreProvider === 'neo4j') {
+        const {
           indexName,
           embeddingDimension,
           similarityMetric,
           nodeLabel,
           numDocs,
-        },
+        } = res1.data;
+        index = {
+          ...res.data,
+          store: {
+            indexName,
+            embeddingDimension,
+            similarityMetric,
+            nodeLabel,
+            numDocs,
+          },
+        }
       }
+    } catch (err) {
+      // index probably doesn't exist
+      index = res.data;
     }
-  } catch (err) {
-    // index probably doesn't exist
+  } else {
     index = res.data;
   }
   dispatch(setIndexes({ indexes: [index] }));
@@ -151,6 +155,11 @@ export const dropDataAsync = ({ id, name, nodeLabel, vectorStoreProvider }) => a
     }
   };
   dispatch(setIndexes({ indexes: [index] }));
+};
+
+export const dropGraphDataAsync = ({ graphStoreProvider }) => async () => {
+  const url = `/api/graph-stores/${graphStoreProvider}`;
+  await http.delete(url);
 };
 
 export const selectLoaded = (state) => state.indexes.loaded;

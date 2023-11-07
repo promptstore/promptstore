@@ -25,6 +25,12 @@ import {
   selectLoading as selectEmbeddingProvidersLoading,
 } from './embeddingSlice';
 import {
+  getGraphStores,
+  selectGraphStores,
+  selectLoaded as selectGraphStoresLoaded,
+  selectLoading as selectGraphStoresLoading,
+} from './graphStoresSlice';
+import {
   getVectorStores,
   selectVectorStores,
   selectLoaded as selectVectorStoresLoaded,
@@ -42,6 +48,10 @@ const splitterOptions = [
   {
     label: 'Delimiter',
     value: 'delimiter',
+  },
+  {
+    label: 'Token',
+    value: 'token',
   },
   {
     label: 'Chunking Function',
@@ -67,6 +77,9 @@ export function IndexModal({
   const functions = useSelector(selectFunctions);
   const functionsLoaded = useSelector(selectFunctionsLoaded);
   const functionsLoading = useSelector(selectFunctionsLoading);
+  const graphStoresLoaded = useSelector(selectGraphStoresLoaded);
+  const graphStoresLoading = useSelector(selectGraphStoresLoading);
+  const graphStores = useSelector(selectGraphStores);
   const indexes = useSelector(selectIndexes);
   const indexesLoaded = useSelector(selectIndexesLoaded);
   const indexesLoading = useSelector(selectIndexesLoading);
@@ -115,6 +128,15 @@ export function IndexModal({
     return list;
   }, [vectorStores]);
 
+  const graphStoreOptions = useMemo(() => {
+    const list = graphStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [graphStores]);
+
   const dispatch = useDispatch();
 
   const newIndexInputRef = useRef(null);
@@ -122,6 +144,8 @@ export function IndexModal({
   const [form] = Form.useForm();
   const indexValue = Form.useWatch('indexId', form);
   const splitterValue = Form.useWatch('splitter', form);
+  const vectorStoreProviderValue = Form.useWatch('vectorStoreProvider', form);
+  const graphStoreProviderValue = Form.useWatch('graphStoreProvider', form);
 
   useEffect(() => {
     if (!indexesLoaded && open) {
@@ -142,6 +166,9 @@ export function IndexModal({
       }
       if (!vectorStoresLoaded) {
         dispatch(getVectorStores());
+      }
+      if (!graphStoresLoaded) {
+        dispatch(getGraphStores());
       }
     }
   }, [indexValue]);
@@ -229,51 +256,62 @@ export function IndexModal({
             <Form.Item
               label="Vector Store"
               name="vectorStoreProvider"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please select the vector store',
-                },
-              ]}
               wrapperCol={{ span: 10 }}
             >
               <Select
                 allowClear
+                disabled={!!graphStoreProviderValue}
                 loading={vectorStoresLoading}
                 options={vectorStoreOptions}
                 optionFilterProp="label"
               />
             </Form.Item>
             <Form.Item
-              label="Embedding"
-              name="embeddingProvider"
-              rules={[
-                {
-                  required: true,
-                  message: 'Please select the embedding provider',
-                },
-              ]}
+              label="Graph Store"
+              name="graphStoreProvider"
               wrapperCol={{ span: 10 }}
             >
               <Select
                 allowClear
-                loading={embeddingProvidersLoading}
-                options={embeddingOptions}
+                disabled={!!vectorStoreProviderValue}
+                loading={graphStoresLoading}
+                options={graphStoreOptions}
                 optionFilterProp="label"
               />
             </Form.Item>
+            {vectorStoreProviderValue === 'neo4j' ?
+              <Form.Item
+                label="Embedding"
+                name="embeddingProvider"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please select the embedding provider',
+                  },
+                ]}
+                wrapperCol={{ span: 10 }}
+              >
+                <Select
+                  allowClear
+                  loading={embeddingProvidersLoading}
+                  options={embeddingOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
           </>
           : null
         }
         {!isDataSource && ext === 'txt' ?
           <>
-            <Form.Item
+            {/* <Form.Item
               label="Text Property"
               name="textProperty"
               initialValue="text"
             >
               <Input />
-            </Form.Item>
+            </Form.Item> */}
             <Form.Item
               label="Split by"
               name="splitter"
@@ -305,7 +343,27 @@ export function IndexModal({
                   optionFilterProp="label"
                 />
               </Form.Item>
-
+              : null
+            }
+            {splitterValue === 'token' ?
+              <>
+                <Form.Item
+                  label="Chunk Size"
+                  name="chunkSize"
+                  initialValue="2048"
+                  wrapperCol={{ span: 5 }}
+                >
+                  <Input type="number" />
+                </Form.Item>
+                <Form.Item
+                  label="Chunk Overlap"
+                  name="chunkOverlap"
+                  initialValue="24"
+                  wrapperCol={{ span: 5 }}
+                >
+                  <Input type="number" />
+                </Form.Item>
+              </>
               : null
             }
           </>

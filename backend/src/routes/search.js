@@ -1,3 +1,5 @@
+import { unflatten } from 'flat';
+
 export default ({ app, auth, logger, services }) => {
 
   const { embeddingService, searchService, vectorStoreService } = services;
@@ -48,7 +50,10 @@ export default ({ app, auth, logger, services }) => {
           embeddingDimension,
         });
       } else if (vectorStoreProvider === 'redis') {
-        resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema);
+        const { nodeLabel } = params;
+        resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
+          nodeLabel,
+        });
       } else {
         throw new Error('Vector store provider not supported: ' + vectorStoreProvider);
       }
@@ -140,8 +145,9 @@ export default ({ app, auth, logger, services }) => {
       embeddingProvider,
       nodeLabel,
     });
-    logger.log('debug', 'rawResults:', rawResults);
+    // logger.debug('rawResults:', rawResults);
     const result = formatAlgolia(requests, rawResults, nodeLabel);
+    // logger.debug('result:', result);
     res.status(200).send({ results: [result] });
   });
 
@@ -154,21 +160,31 @@ export default ({ app, auth, logger, services }) => {
   const formatAlgolia = (requests, rawResult, nodeLabel) => {
     const documents = rawResult;
     const nbHits = documents.length;
-    const prefix = nodeLabel.toLowerCase() + '_';
-    const hits = documents
+    let hits = documents
       .map((val) => Object.entries(val).reduce((a, [k, v]) => {
-        if (k.startsWith(prefix)) {
-          a[k.slice(prefix.length)] = v;
-        } else {
-          a[k] = v;
-        }
+        // if (k.startsWith(prefix)) {
+        //   a[k.slice(prefix.length)] = v;
+        // } else {
+        //   a[k] = v;
+        // }
+        const key = k.replace(/__/g, '.');
+        a[key] = v;
         return a;
       }, {}))
-      .map((val) => ({
-        ...val,
-        score: parseFloat(val.score),
-      }))
-      ;
+    hits = hits.map(unflatten);
+    hits = hits.map((val) => {
+      if (val.dist) {
+        return {
+          ...val[nodeLabel],
+          dist: val.dist,
+        };
+      } else {
+        return {
+          ...val[nodeLabel],
+          score: parseFloat(val.score),
+        };
+      }
+    });
     return {
       exhaustive: {
         nbHits: true,

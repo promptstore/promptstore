@@ -102,7 +102,7 @@ export function Designer() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [modelParams, setModelParams] = useState({});
-  const [initialModelParams, setInitialModelParams] = useState({});
+  // const [initialModelParams, setInitialModelParams] = useState({});
   const [argsFormData, setArgsFormData] = useState(null);
   const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('design-sessions-collapsed', { defaultValue: true });
   const [promptsCollapsed, setPromptsCollapsed] = useLocalStorageState('design-prompts-collapsed', { defaultValue: true });
@@ -142,7 +142,7 @@ export function Designer() {
         const schema = promptSet.arguments;
         if (schema.type === 'object') {
           const contentVar = getInputProp(schema.properties);
-          const newSchema = excludeProps([contentVar], schema.properties);
+          const newSchema = excludeProps([contentVar], schema);
           return [contentVar, newSchema];
         }
       }
@@ -207,11 +207,12 @@ export function Designer() {
         if (lastSession) {
           dispatch(setMessages({ messages: lastSession.messages.map(formatMessage) }));
           setSelectedSession(lastSession);
-          setInitialModelParams({
-            ...lastSession.modelParams,
-            models: lastSession.modelParams?.models?.map(m => m.id),
-            criticModels: lastSession.modelParams?.criticModels?.map(m => m.id),
-          });
+          // setInitialModelParams({
+          //   ...lastSession.modelParams,
+          //   models: lastSession.modelParams?.models?.map(m => m.id),
+          //   criticModels: lastSession.modelParams?.criticModels?.map(m => m.id),
+          // });
+          setModelParams(lastSession.modelParams);
           promptForm.setFieldsValue({
             promptSet: lastSession.promptSetId,
             systemPrompt: lastSession.systemPromptInput,
@@ -219,6 +220,7 @@ export function Designer() {
             critiquePrompt: lastSession.critiquePromptInput,
             criterion: lastSession.criterion,
           });
+          setArgsFormData(lastSession.argsFormData);
         }
       }
     }
@@ -262,11 +264,12 @@ export function Designer() {
     const session = chatSessions[id];
     dispatch(setMessages({ messages: session.messages.map(formatMessage) }));
     setSelectedSession(session);
-    setInitialModelParams({
-      ...session.modelParams,
-      models: session.modelParams?.models?.map(m => m.id),
-      criticModels: session.modelParams?.criticModels?.map(m => m.id),
-    });
+    // setInitialModelParams({
+    //   ...session.modelParams,
+    //   models: session.modelParams?.models?.map(m => m.id),
+    //   criticModels: session.modelParams?.criticModels?.map(m => m.id),
+    // });
+    setModelParams(session.modelParams);
     promptForm.setFieldsValue({
       promptSet: session.promptSetId,
       systemPrompt: session.systemPromptInput,
@@ -274,6 +277,7 @@ export function Designer() {
       critiquePrompt: session.critiquePromptInput,
       criterion: session.criterion,
     });
+    setArgsFormData(session.argsFormData);
   };
 
   const handleChatSubmit = async (values) => {
@@ -483,7 +487,13 @@ export function Designer() {
     setSelectedSession(null);
     // dispatch(resetChatSessions());
     clearPromptFields();
-    setInitialModelParams(initialModelParamsValue);
+    // setInitialModelParams(initialModelParamsValue);
+    setModelParams({
+      ...initialModelParamsValue,
+      models: initialModelParamsValue.models?.map(id => ({ id })),
+      criticModels: initialModelParamsValue.criticModels?.map(id => ({ id })),
+    });
+    setArgsFormData(null);
   };
 
   const clearPromptFields = () => {
@@ -491,15 +501,25 @@ export function Designer() {
   };
 
   const onSave = async () => {
-    const { promptSet, systemPrompt } = await promptForm.validateFields();
+    const {
+      promptSet,
+      systemPrompt,
+      critiquePromptSet,
+      critiquePrompt,
+      criterion,
+    } = await promptForm.validateFields();
     if (selectedSession && !(selectedSession.name === 'last session')) {
       dispatch(updateChatSessionAsync({
         id: selectedSession.id,
         values: {
+          argsFormData,
           messages,
           modelParams,
           promptSetId: promptSet,
           systemPromptInput: systemPrompt,
+          critiquePromptSetId: critiquePromptSet,
+          critiquePromptInput: critiquePrompt,
+          criterion,
           workspaceId: selectedWorkspace.id,
         },
       }));
@@ -508,10 +528,14 @@ export function Designer() {
       dispatch(createChatSessionAsync({
         uuid,
         values: {
+          argsFormData,
           messages,
           modelParams,
           promptSetId: promptSet,
           systemPromptInput: systemPrompt,
+          critiquePromptSetId: critiquePromptSet,
+          critiquePromptInput: critiquePrompt,
+          criterion,
           type: 'design',
           workspaceId: selectedWorkspace.id,
         },
@@ -815,7 +839,12 @@ export function Designer() {
                 topK: true,
               }}
               onChange={setModelParams}
-              value={initialModelParams}
+              // value={initialModelParams}
+              value={{
+                ...modelParams,
+                models: modelParams.models?.map(m => m.id),
+                criticModels: modelParams.criticModels?.map(m => m.id),
+              }}
             />
           </Sider>
         </Layout>

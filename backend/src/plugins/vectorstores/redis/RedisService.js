@@ -1,5 +1,5 @@
 import axios from 'axios';
-import camelCase from 'lodash.camelcase';
+import { flatten, unflatten } from 'flat';
 import isEmpty from 'lodash.isempty';
 
 const BATCH_SIZE = 100;
@@ -39,14 +39,15 @@ function RedisService({ __name, constants, logger }) {
       return res.data;
     } catch (err) {
       logger.error(err);
-      throw err;
+      return null;
     }
   }
 
-  async function createIndex(indexName, schema) {
-    logger.debug('Creating index for source:', indexName);
+  async function createIndex(indexName, schema, params) {
+    logger.debug('Creating index:', indexName);
+    const { nodeLabel } = params;
     try {
-      const fields = getSearchSchema(schema);
+      const fields = getSearchSchema(schema, nodeLabel);
       logger.debug('fields:', fields);
       const url = constants.SEARCH_API + '/index';
       const res = await axios.post(url, {
@@ -104,23 +105,21 @@ function RedisService({ __name, constants, logger }) {
     }
   }
 
-  function indexChunks(chunks, embeddings = [], params) {
+  function indexChunks(chunks, embeddings, params) {
+    if (!embeddings) {
+      embeddings = [];
+    }
     chunks.forEach((chunk, i) => indexChunk(chunk, embeddings[i], params));
   }
 
   function indexChunk(chunk, embedding, { indexName, nodeLabel }) {
-    const prefix = camelCase(nodeLabel).toLowerCase();
-    const values = Object.entries(chunk)
-      .filter(([k, _]) => k !== 'nodeLabel')
-      .reduce((a, [k, v]) => {
-        a[prefix + '_' + k] = v;
-        return a;
-      }, {});
-    values[prefix + '___label'] = chunk.nodeLabel;
-    // logger.debug('values:', values);
+    const values = Object.entries(flatten(chunk)).reduce((a, [k, v]) => {
+      a[nodeLabel + '.' + k] = v;
+      return a;
+    }, {});
     _chunks.push(values);
     if (!_sendChunksIntervalId) {
-      _sendChunksIntervalId = setInterval(sendChunks, SEND_DOCUMENT_INTERVAL, indexName);
+      _sendChunksIntervalId = setInterval(sendChunks, SEND_DOCUMENT_INTERVAL, indexName, nodeLabel);
     }
   }
 
@@ -166,7 +165,10 @@ function RedisService({ __name, constants, logger }) {
     }
   }
 
-  async function deleteChunksMatching(query, attrs = {}, { indexName }) {
+  async function deleteChunksMatching(query, attrs, { indexName }) {
+    if (!attrs) {
+      attrs = {};
+    }
     try {
       const attribs = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
       let url = constants.SEARCH_API + '/delete-matching?indexName=' + encodeURIComponent(indexName);
@@ -188,7 +190,10 @@ function RedisService({ __name, constants, logger }) {
   }
 
   async function search(indexName, query, attrs = {}) {
-    logger.log('debug', 'searching %s for "%s"', indexName, query);
+    logger.debug('searching %s for "%s"', indexName, query);
+    if (!attrs) {
+      attrs = {};
+    }
     try {
       const attribs = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');
       let url = constants.SEARCH_API + '/search?indexName=' + encodeURIComponent(indexName);
@@ -199,8 +204,12 @@ function RedisService({ __name, constants, logger }) {
         url += '&' + attribs;
       }
       const res = await axios.get(url);
-      // logger.debug('search results:', res.data);
-      return res.data;
+      const data = Object.entries(res.data).reduce((a, [k, v]) => {
+        const key = k.split('.').slice(1).join('.');
+        a[key] = v;
+        return a;
+      });
+      return unflatten(data);
     } catch (err) {
       logger.error(err, err.stack);
       return [];
@@ -214,34 +223,55 @@ function RedisService({ __name, constants, logger }) {
     if (jsonschema.type === 'array') {
       return getSearchSchema(jsonschema.items, nodeLabel);
     }
-    const prefix = camelCase(nodeLabel).toLowerCase();
     const fields = Object.entries(jsonschema.properties).reduce((a, [k, v]) => {
-      const prop = prefix + '_' + camelCase(k).toLowerCase();
-      const type = v.tag ? 'TAG' : getSearchType(v.type);
-      a[prop] = { type };
+      const prop = nodeLabel + '.data.' + k;
+      if (v.$ref) {
+        const refLabel = v.$ref.split('/').pop();
+        const refProps = jsonschema.definitions[refLabel].properties;
+        for (const [key, val] of Object.entries(refProps)) {
+          if (!val.$ref && val.type !== 'object') {
+            let type;
+            if (key === 'id') {
+              type = 'TAG';
+            } else {
+              type = getSearchType(val.type);
+            }
+            a[prop + '.' + key] = { type };
+          }
+        }
+      } else {
+        let type;
+        if (k === 'id') {
+          type = 'TAG';
+        } else {
+          type = getSearchType(v.type);
+        }
+        a[prop] = { type };
+      }
+      return a;
     }, {});
-    fields[prefix + '___id'] = { type: 'TAG' };
-    fields[prefix + '___label'] = { type: 'TAG' };
-    fields[prefix + '___document_id'] = { type: 'TAG' };
-    fields[prefix + '___type'] = { type: 'TAG' };
-    fields[prefix + '___text'] = { type: 'VECTOR' };
-    fields[prefix + '___created_datetime'] = { type: 'TAG' };
-    fields[prefix + '___author'] = { type: 'TAG' };
-    fields[prefix + '___mimetype'] = { type: 'TAG' };
-    fields[prefix + '___object_name'] = { type: 'TAG' };
-    fields[prefix + '___endpoint'] = { type: 'TAG' };
-    fields[prefix + '___subtype'] = { type: 'TAG' };
-    fields[prefix + '___parent_ids'] = { type: 'TAG' };
-    fields[prefix + '___page'] = { type: 'TAG' };
-    fields[prefix + '___row'] = { type: 'TAG' };
-    fields[prefix + '___word_count'] = { type: 'NUMERIC' };
-    fields[prefix + '___length'] = { type: 'NUMERIC' };
-    fields[prefix + '___size'] = { type: 'NUMERIC' };
-    fields[prefix + '___created_datetime'] = { type: 'TAG' };
-    fields[prefix + '___created_by'] = { type: 'TAG' };
-    fields[prefix + '___start_datetime'] = { type: 'TAG' };
-    fields[prefix + '___end_datetime'] = { type: 'TAG' };
-    fields[prefix + '___version'] = { type: 'NUMERIC' };
+    fields[nodeLabel + '.id'] = { type: 'TAG' };
+    fields[nodeLabel + '.nodeLabel'] = { type: 'TAG' };
+    fields[nodeLabel + '.type'] = { type: 'TAG' };
+    fields[nodeLabel + '.documentId'] = { type: 'TAG' };
+    fields[nodeLabel + '.text'] = { type: 'VECTOR' };
+    fields[nodeLabel + '.metadata.author'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.mimetype'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.objectName'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.endpoint'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.database'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.subtype'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.parentIds'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.page'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.row'] = { type: 'TAG' };
+    fields[nodeLabel + '.metadata.wordCount'] = { type: 'NUMERIC' };
+    fields[nodeLabel + '.metadata.length'] = { type: 'NUMERIC' };
+    fields[nodeLabel + '.metadata.size'] = { type: 'NUMERIC' };
+    fields[nodeLabel + '.createdDatetime'] = { type: 'TAG' };
+    fields[nodeLabel + '.createdBy'] = { type: 'TAG' };
+    fields[nodeLabel + '.startDatetime'] = { type: 'TAG' };
+    fields[nodeLabel + '.endDatetime'] = { type: 'TAG' };
+    fields[nodeLabel + '.version'] = { type: 'NUMERIC' };
     return fields;
   }
 
@@ -261,12 +291,13 @@ function RedisService({ __name, constants, logger }) {
     }
   }
 
-  function sendChunks(indexName) {
+  function sendChunks(indexName, nodeLabel) {
     if (_chunks.length) {
       const chunks = _chunks.splice(-BATCH_SIZE, BATCH_SIZE);
       axios.post(constants.SEARCH_API + '/document', {
-        indexName,
         documents: chunks,
+        indexName,
+        nodeLabel,
       }, {
         headers: {
           'Content-Type': 'application/json',
@@ -283,8 +314,8 @@ function RedisService({ __name, constants, logger }) {
     if (_parentChunks.length) {
       const chunks = _parentChunks.splice(-BATCH_SIZE, BATCH_SIZE);
       axios.post(constants.SEARCH_API + '/parent-documents', {
-        indexName,
         parentDocuments: chunks,
+        indexName,
       }, {
         headers: {
           'Content-Type': 'application/json',
@@ -294,43 +325,6 @@ function RedisService({ __name, constants, logger }) {
     } else {
       clearInterval(_sendParentChunksIntervalId);
       _sendParentChunksIntervalId = null;
-    }
-  }
-
-  function getSearchSchema_v1(schema) {
-    const prefix = camelCase(nodeLabel).toLowerCase();
-    const fields = Object.entries(schema).reduce((a, [k, v]) => {
-      const flds = Object.entries(v).reduce((b, [key, val]) => {
-        b[prefix + '_' + camelCase(key).toLowerCase()] = {
-          type: getSearchType_v1(val.dataType),
-        };
-        return b;
-      }, a);
-      flds[prefix + '___label'] = { type: 'TAG' };
-      return flds;
-    }, {});
-    return fields;
-  }
-
-  function getSearchType_v1(dataType) {
-    switch (dataType) {
-      case 'Vector':
-        return 'VECTOR';
-
-      case 'String':
-      case 'DateTime':
-        return 'TEXT';
-
-      case 'Boolean':
-        return 'TAG';
-
-      case 'Double':
-      case 'Long':
-      case 'Integer':
-        return 'NUMERIC';
-
-      default:
-        return 'TEXT';
     }
   }
 

@@ -32,6 +32,7 @@ const layout = {
 export function WorkspaceForm() {
 
   const [apiKey, setApiKey] = useState(null);
+  const [backOnSave, setBackOnSave] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -83,6 +84,13 @@ export function WorkspaceForm() {
       form.setFieldValue('key', slugify(nameValue));
     }
   }, [nameValue]);
+
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/workspaces');
+    }
+  }, [workspaces]);
 
   const data = useMemo(() => {
     if (workspace) {
@@ -180,7 +188,7 @@ export function WorkspaceForm() {
         },
       }));
     }
-    navigate('/workspaces');
+    setBackOnSave(true);
   };
 
   const onRemoveMembers = () => {

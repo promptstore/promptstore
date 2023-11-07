@@ -197,7 +197,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       const { embeddingProvider, vectorStoreProvider } = this.indexParams;
       const queryEmbedding = await this.embeddingService.createEmbedding(embeddingProvider, query);
       const results = await this.vectorStoreService.search(vectorStoreProvider, this.indexName, query, null, { queryEmbedding });
-      const contextLines = results.map((r: any) => r.__text);
+      const contextLines = results.map((r: any) => r.text);
       const context = contextLines.join('\n\n');
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });

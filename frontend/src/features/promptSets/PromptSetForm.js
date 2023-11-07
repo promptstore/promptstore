@@ -163,6 +163,7 @@ function SortableItem({ field, index, remove }) {
 
 export function PromptSetForm() {
 
+  const [backOnSave, setBackOnSave] = useState(false);
   const [existingTags, setExistingTags] = useState([]);
   const [newSkill, setNewSkill] = useState('');
   const [skills, setSkills] = useState([]);
@@ -299,6 +300,13 @@ export function PromptSetForm() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/prompt-sets');
+    }
+  }, [promptSets]);
+
   const addNewSkill = (ev) => {
     ev.preventDefault();
     if (newSkill && selectedWorkspace) {
@@ -360,7 +368,7 @@ export function PromptSetForm() {
       dispatch(updatePromptSetAsync({ id, values }));
     }
     updateExistingTags(values.tags || []);
-    navigate('/prompt-sets');
+    setBackOnSave(true);
   };
 
   const cleanVersion = (ver) => ({ ...ver, id: ver.id || uuidv4() });

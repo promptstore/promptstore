@@ -5,51 +5,51 @@ import uuid from 'uuid';
 
 function OnesourceService({ __name, constants, logger }) {
 
-  /**
-   * Expected output format:
-   * 
-   * {
-   *   "metadata": {
-   *     "doc_type": "PDF",
-   *     "record_id": "<filename, no ext>"
-   *     "created_date": "",
-   *     "last_mod_date": "",
-   *     "author": "",
-   *     "word_count": -1
-   *   },
-   *   "data": {
-   *     "text": [<array of text>],
-   *     "structured_content": [
-   *       {
-   *         "type": "heading|text|...",
-   *         "text": ""
-   *       }
-   *     ]
-   *   }
-   * }
-   * 
-   * @param {*} file 
-   * @returns 
-   */
-  async function extract(filepath, originalname, mimetype) {
-    try {
-      const data = await fs.promises.readFile(filepath);
-      const form = new FormData();
-      form.append('file', data, {
-        filename: originalname,
-        contentType: mimetype,
-      });
-      const res = await axios.post(constants.ONESOURCE_API_URL, form, {
-        headers: form.getHeaders(),
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
-      logger.debug('File uploaded to document service successfully.');
-      logger.debug('res: ', res.data);
-      return res.data;
-    } catch (err) {
-      logger.log('error', String(err), err.stack);
-    }
+  async function getChunks(documents, {
+    nodeLabel = 'Chunk',
+    filepath,
+    originalname,
+    mimetype,
+  }) {
+    const { data, metadata } = await extract(filepath, originalname, mimetype);
+    const createdDateTime = new Date().toISOString();
+    return data.structured_content.map((el) => {
+      let text;
+      if (el.type === 'list') {
+        text = el.heading + '\n' + el.items.map((it) => '- ' + it).join('\n');
+      } else {
+        text = el.text;
+      }
+      const { wordCount, length, size } = getTextStats(text);
+      return {
+        id: uuid.v4(),
+        nodeLabel,
+        type: el.type,
+        documentId: null,
+        text,
+        imageURI: null,
+        data: {},
+        metadata: {
+          author: metadata.author,
+          mimetype: getMimeType(metadata.doc_type),
+          objectName: metadata.record_id,
+          endpoint: null,
+          database: null,
+          subtype: el.subtype,
+          parentIds: [],
+          page: el.metadata.page_number,
+          row: null,
+          wordCount,
+          length,
+          size,
+        },
+        createdDateTime: metadata.created_date || createdDateTime,
+        createdBy: constants.CREATED_BY,
+        startDateTime: metadata.created_date || createdDateTime,
+        endDateTime: null,
+        version: 1,
+      };
+    });
   }
 
   function getSchema() {
@@ -196,49 +196,54 @@ function OnesourceService({ __name, constants, logger }) {
     };
   }
 
-  async function getChunks({
-    filepath,
-    mimetype,
-    originalname,
-    nodeLabel = 'Chunk',
-  }) {
-    const { data, metadata } = await extract(filepath, originalname, mimetype);
-    const createdDateTime = new Date().toISOString();
-    return data.structured_content.map((el) => {
-      let text;
-      if (el.type === 'list') {
-        text = el.heading + '\n' + el.items.map((it) => '- ' + it).join('\n');
-      } else {
-        text = el.text;
-      }
-      const { wordCount, length, size } = getTextStats(text);
-      return {
-        id: uuid.v4(),
-        nodeLabel,
-        type: el.type,
-        documentId: null,
-        text,
-        imageURI: null,
-        data: {},
-        metadata: {
-          author: metadata.author,
-          mimetype: getMimeType(metadata.doc_type),
-          objectName: metadata.record_id,
-          endpoint: null,
-          subtype: el.subtype,
-          parentIds: [],
-          page: el.metadata.page_number,
-          wordCount,
-          length,
-          size,
-        },
-        createdDateTime: metadata.created_date || createdDateTime,
-        createdBy: constants.CREATED_BY,
-        startDateTime: metadata.created_date || createdDateTime,
-        endDateTime: null,
-        version: 1,
-      };
-    });
+
+  // ----------------------------------------------------------------------
+
+  /**
+   * Original output format:
+   * 
+   * {
+   *   "metadata": {
+   *     "doc_type": "PDF",
+   *     "record_id": "<filename, no ext>"
+   *     "created_date": "",
+   *     "last_mod_date": "",
+   *     "author": "",
+   *     "word_count": -1
+   *   },
+   *   "data": {
+   *     "text": [<array of text>],
+   *     "structured_content": [
+   *       {
+   *         "type": "heading|text|...",
+   *         "text": ""
+   *       }
+   *     ]
+   *   }
+   * }
+   * 
+   * @param {*} file 
+   * @returns 
+   */
+  async function extract(filepath, originalname, mimetype) {
+    try {
+      const data = await fs.promises.readFile(filepath);
+      const form = new FormData();
+      form.append('file', data, {
+        filename: originalname,
+        contentType: mimetype,
+      });
+      const res = await axios.post(constants.ONESOURCE_API_URL, form, {
+        headers: form.getHeaders(),
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+      logger.debug('File uploaded to document service successfully.');
+      logger.debug('res: ', res.data);
+      return res.data;
+    } catch (err) {
+      logger.log('error', String(err), err.stack);
+    }
   }
 
   function getMimeType(doctype) {
@@ -263,6 +268,7 @@ function OnesourceService({ __name, constants, logger }) {
     const size = new Blob([text]).size;
     return { wordCount, length, size };
   }
+
 
   return {
     __name,

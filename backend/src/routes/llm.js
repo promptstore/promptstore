@@ -26,10 +26,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   const {
     chatSessionsService,
     embeddingService,
+    indexesService,
     llmService,
     promptSetsService,
-    searchService,
     tracesService,
+    vectorStoreService,
   } = services;
 
   app.post('/api/completion', auth, async (req, res, next) => {
@@ -219,19 +220,28 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           startTime: startTime.getTime(),
         });
 
-      const hits = await searchService.search(indexName, content);
-      let context;
-      if (hits && hits.length) {
-        context = hits.map(h => h.content_text).join(PARA_DELIM);
-        const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, QA_SKILL);
-        if (promptSets.length) {
-          const prompts = promptSets[0].prompts;  // use first promptSet
-          const features = { content, context };
-          const ctxMsgs = getMessages(prompts, features);
+      const index = await indexesService.getIndexByName(workspaceId, indexName);
+      if (index && index.vectorStoreProvider) {
+        const { embeddingProvider, vectorStoreProvider } = index;
+        const searchParams = {};
+        if (vectorStoreProvider === 'neo4j') {
+          const queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, content);
+          searchParams['queryEmbedding'] = queryEmbedding;
+        }
+        const hits = await vectorStoreService.search(vectorStoreProvider, indexName, content, null, searchParams);
+        let context;
+        if (hits && hits.length) {
+          context = hits.map(h => h.content_text).join(PARA_DELIM);
+          const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, QA_SKILL);
+          if (promptSets.length) {
+            const prompts = promptSets[0].prompts;  // use first promptSet
+            const features = { content, context };
+            const ctxMsgs = getMessages(prompts, features);
 
-          // TODO what is i
-          const i = 0;  // temp
-          messages.splice(i, 1, ...ctxMsgs);
+            // TODO what is i
+            const i = 0;  // temp
+            messages.splice(i, 1, ...ctxMsgs);
+          }
         }
       }
 
@@ -333,14 +343,15 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const userMessage = [...originalMessages].reverse().find(m => m.role === 'user');
 
     // TODO why was this needed?
-    // const curMessages = [...history, userMessage];
-    const curMessages = [...history];
+    // to make sure the message used as an argument is also included
+    const curMessages = [...history, userMessage];
 
     const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username);
     let session;
     if (lastSession) {
       session = await chatSessionsService.upsertChatSession({
         ...lastSession,
+        argsFormData: args,
         messages: [...curMessages, ...newMessages],
         modelParams,
         promptSetId,
@@ -351,6 +362,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       }, username);
     } else {
       session = await chatSessionsService.upsertChatSession({
+        argsFormData: args,
         messages: [...curMessages, ...newMessages],
         modelParams,
         name: LAST_SESSION_NAME,

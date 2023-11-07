@@ -35,13 +35,13 @@ data:
   EMBEDDING_PLUGINS: "sentenceencoder|Sentence Encoder|./plugins/embedding/sentenceencoder"
 
   # Extractor plugins
-  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured"
+  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured,csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,neo4j|Neo4j|./plugins/extractors/neo4j"
 
   # Feature store plugins
   FEATURE_STORE_PLUGINS: "feast|Feast|./plugins/featurestores/feast,anaml|Anaml|./plugins/featurestores/anaml"
 
   # Graph store plugins
-  GRAPH_STORE_PLUGINS: "neo4j|Neo4j|./plugins/graphstores/neo4j"
+  GRAPH_STORE_PLUGINS: ""
 
   # Guardrail plugins
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
@@ -50,7 +50,7 @@ data:
   LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock"
 
   # Loader plugins
-  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,structureddocument|Structured Document Loader|./plugins/loaders/structureddocument,csv|CSV Loader|./plugins/loaders/csv"
+  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio"
 
   # Model Provider plugins
   MODEL_PROVIDER_PLUGINS: "huggingface|Huggingface|./plugins/modelproviders/huggingface"

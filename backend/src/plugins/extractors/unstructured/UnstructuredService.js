@@ -5,83 +5,45 @@ import uuid from 'uuid';
 
 function UnstructuredService({ __name, constants, logger }) {
 
-  /**
-   * 
-   * Input format:
-   * 
-   * [
-   *   {
-   *     "type": "UncategorizedText|Title|NarrativeText",
-   *     "element_id": "09fb33b69d26487f33c84385d961d0a8",
-   *     "metadata": {
-   *       "filetype": "application/pdf",
-   *       "page_number": 1,
-   *       "filename": "<filename with ext>"
-   *     },
-   *     "text": ""
-   *   }
-   * ]
-   * 
-   * Expected output format:
-   * 
-   * {
-   *   "metadata": {
-   *     "doc_type": "PDF",
-   *     "record_id": "<filename, no ext>"
-   *     "created_date": "",
-   *     "last_mod_date": "",
-   *     "author": "",
-   *     "word_count": -1
-   *   },
-   *   "data": {
-   *     "text": [<array of text>],
-   *     "structured_content": [
-   *       {
-   *         "type": "heading|text|...",
-   *         "text": ""
-   *       }
-   *     ]
-   *   }
-   * }
-   * 
-   * @param {*} filepath 
-   * @param {*} originalname 
-   * @param {*} mimetype 
-   * @returns 
-   */
-  async function extract(filepath, originalname, mimetype) {
-    logger.debug('extracting file content using the unstructured api');
-    try {
-      if (!fs.existsSync(filepath)) {
-        return Promise.reject(new Error('File no longer on path: ' + filepath));
-      }
-      const stats = fs.statSync(filepath);
-      logger.debug('stats:', stats);
-      const fileSizeInBytes = stats.size;
-      const data = await fs.promises.readFile(filepath);
-      const form = new FormData();
-      // must be `files` (plural) not `file`
-      form.append('files', data, {
-        filename: originalname,
-        contentType: mimetype,
-      });
-      form.append('strategy', "hi_res");
-      form.append('pdf_infer_table_structure', "true");
-      const res = await axios.post(constants.UNSTRUCTURED_API_URL, form, {
-        headers: {
-          ...form.getHeaders(),
-          'Content-Size': fileSizeInBytes,
-          'Accept': 'application/json',
+  async function getChunks({
+    nodeLabel = 'Chunk',
+    filepath,
+    originalname,
+    mimetype,
+  }) {
+    const content = await extract(filepath, originalname, mimetype);
+    const createdDateTime = new Date().toISOString();
+    return content.map((el) => {
+      const { wordCount, length, size } = getTextStats(el.text);
+      return {
+        id: el.element_id,
+        nodeLabel,
+        type: el.type,
+        documentId: null,
+        text: el.text,
+        imageURI: null,
+        data: {},
+        metadata: {
+          author: null,
+          mimetype: el.metadata.filetype,
+          filename: el.metadata.filename,
+          endpoint: null,
+          database: null,
+          subtype: null,
+          parentIds: [],  // TODO see `convertToOnesourceFormat`
+          page: el.metadata.page_number,
+          row: null,
+          wordCount,
+          length,
+          size,
         },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
-      logger.debug('File uploaded to document service successfully.');
-      // return convertToOnesourceFormat(res.data);
-      return res.data;
-    } catch (err) {
-      logger.log('error', String(err), err.stack);
-    }
+        createdDateTime,
+        createdBy: constants.CREATED_BY,
+        startDateTime: createdDateTime,
+        endDateTime: null,
+        version: 1,
+      };
+    });
   }
 
   function getSchema() {
@@ -228,47 +190,111 @@ function UnstructuredService({ __name, constants, logger }) {
     };
   }
 
-  async function getChunks({
-    filepath,
-    mimetype,
-    originalname,
-    nodeLabel = 'Chunk',
-  }) {
-    const content = await extract(filepath, originalname, mimetype);
-    const createdDateTime = new Date().toISOString();
-    return content.map((el) => {
-      const { wordCount, length, size } = getTextStats(el.text);
-      return {
-        id: el.element_id,
-        nodeLabel,
-        type: el.type,
-        documentId: null,
-        text: el.text,
-        imageURI: null,
-        data: {},
-        metadata: {
-          author: null,
-          mimetype: el.metadata.filetype,
-          objectName: el.metadata.filename,
-          endpoint: null,
-          subtype: null,
-          parentIds: [],  // TODO see `convertToOnesourceFormat`
-          page: el.metadata.page_number,
-          wordCount,
-          length,
-          size,
-        },
-        createdDateTime,
-        createdBy: constants.CREATED_BY,
-        startDateTime: createdDateTime,
-        endDateTime: null,
-        version: 1,
-      };
-    });
-  }
-
 
   // ----------------------------------------------------------------------
+
+  /**
+   * 
+   * Input format:
+   * 
+   * [
+   *   {
+   *     "type": "UncategorizedText|Title|NarrativeText",
+   *     "element_id": "09fb33b69d26487f33c84385d961d0a8",
+   *     "metadata": {
+   *       "filetype": "application/pdf",
+   *       "page_number": 1,
+   *       "filename": "<filename with ext>"
+   *     },
+   *     "text": ""
+   *   }
+   * ]
+   * 
+   * Original output format:
+   * 
+   * {
+   *   "metadata": {
+   *     "doc_type": "PDF",
+   *     "record_id": "<filename, no ext>"
+   *     "created_date": "",
+   *     "last_mod_date": "",
+   *     "author": "",
+   *     "word_count": -1
+   *   },
+   *   "data": {
+   *     "text": [<array of text>],
+   *     "structured_content": [
+   *       {
+   *         "type": "heading|text|...",
+   *         "text": ""
+   *       }
+   *     ]
+   *   }
+   * }
+   * 
+   * @param {*} filepath 
+   * @param {*} originalname 
+   * @param {*} mimetype 
+   * @returns 
+   */
+  async function extract(filepath, originalname, mimetype) {
+    logger.debug('extracting file content using the unstructured api');
+    try {
+      if (!fs.existsSync(filepath)) {
+        return Promise.reject(new Error('File no longer on path: ' + filepath));
+      }
+      const stats = fs.statSync(filepath);
+      logger.debug('stats:', stats);
+      const fileSizeInBytes = stats.size;
+      const data = await fs.promises.readFile(filepath);
+      const form = new FormData();
+      // must be `files` (plural) not `file`
+      form.append('files', data, {
+        filename: originalname,
+        contentType: mimetype,
+      });
+      form.append('strategy', "hi_res");
+      form.append('pdf_infer_table_structure', "true");
+      const res = await axios.post(constants.UNSTRUCTURED_API_URL, form, {
+        headers: {
+          ...form.getHeaders(),
+          'Content-Size': fileSizeInBytes,
+          'Accept': 'application/json',
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+      logger.debug('File uploaded to document service successfully.');
+      // return convertToOnesourceFormat(res.data);
+      return res.data;
+    } catch (err) {
+      logger.log('error', String(err), err.stack);
+    }
+  }
+
+  function getOnesourceType(itemType) {
+    switch (itemType) {
+      case 'Title':
+        return 'heading';
+
+      case 'UncategorizedText':
+      case 'NarrativeText':
+        return 'text';
+
+      default:
+        return 'text';
+    }
+  }
+
+  function getTextStats(text) {
+    if (!text) return 0;
+    text = text.trim();
+    if (!text.length) return 0;
+    const wordCount = text.split(/\s+/).length;
+    const length = text.length;
+    const size = new Blob([text]).size;
+    return { wordCount, length, size };
+  }
 
   function convertToOnesourceFormat(json) {
     let metadata;
@@ -348,20 +374,6 @@ function UnstructuredService({ __name, constants, logger }) {
     return arr.length - i;
   }
 
-  function getOnesourceType(itemType) {
-    switch (itemType) {
-      case 'Title':
-        return 'heading';
-
-      case 'UncategorizedText':
-      case 'NarrativeText':
-        return 'text';
-
-      default:
-        return 'text';
-    }
-  }
-
   function getSchema_v1() {
     return {
       content: {
@@ -392,16 +404,6 @@ function UnstructuredService({ __name, constants, logger }) {
         },
       }
     };
-  }
-
-  function getTextStats(text) {
-    if (!text) return 0;
-    text = text.trim();
-    if (!text.length) return 0;
-    const wordCount = text.split(/\s+/).length;
-    const length = text.length;
-    const size = new Blob([text]).size;
-    return { wordCount, length, size };
   }
 
 

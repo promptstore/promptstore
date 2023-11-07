@@ -102,6 +102,7 @@ const returnTypeOptions = [
 
 export function FunctionForm() {
 
+  const [backOnSave, setBackOnSave] = useState(false);
   const [existingTags, setExistingTags] = useState([]);
   const [formData, setFormData] = useState(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -292,6 +293,13 @@ export function FunctionForm() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/functions');
+    }
+  }, [functions]);
+
   const handleTest = (index) => {
     setSelectedImplementation(index);
     setIsTestModalOpen(true);
@@ -329,7 +337,7 @@ export function FunctionForm() {
       }));
     }
     updateExistingTags(values.tags || []);
-    navigate('/functions');
+    setBackOnSave(true);
   };
 
   const updateExistingTags = (tags) => {

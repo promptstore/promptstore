@@ -20,7 +20,6 @@ export function ExecutionsService({ logger, rc, services }) {
     modelsService,
     parserService,
     promptSetsService,
-    searchService,
     sqlSourceService,
     tracesService,
     vectorStoreService,
@@ -39,7 +38,6 @@ export function ExecutionsService({ logger, rc, services }) {
       modelsService,
       parserService,
       promptSetsService,
-      searchService,
       sqlSourceService,
       vectorStoreService,
     }

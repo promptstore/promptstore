@@ -158,6 +158,8 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
 
 export function TransformationForm() {
 
+  const [backOnSave, setBackOnSave] = useState(false);
+
   const dataSources = useSelector(selectDataSources);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const destinations = useSelector(selectDestinations);
@@ -299,6 +301,13 @@ export function TransformationForm() {
     }
   }, [indexValue]);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/transformations');
+    }
+  }, [transformations]);
+
   const createNewIndex = (ev) => {
     ev.preventDefault();
     if (newIndex) {
@@ -333,7 +342,7 @@ export function TransformationForm() {
         },
       }));
     }
-    navigate('/transformations');
+    setBackOnSave(true);
   };
 
   const onNewIndexChange = (ev) => {

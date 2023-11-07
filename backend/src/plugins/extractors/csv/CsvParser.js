@@ -1,4 +1,4 @@
-import { Table } from 'tableschema';
+import { infer } from 'tableschema';
 import { parse } from 'csv-parse/sync';
 import uuid from 'uuid';
 
@@ -10,17 +10,90 @@ function CsvParser({ __name, constants, logger }) {
     delimiter: ',',
     quote: '"',
     skip_records_with_error: true,
+    skip_empty_lines: true,
     trim: true,
   };
 
-  async function getSchema({ csv, textNodeProperties }) {
-    const table = await Table.load(csv);
-    table.infer();
-    const descriptor = table.schema.descriptor;
+  async function getChunks(documents, params) {
+    const {
+      textNodeProperties,
+      nodeLabel = 'Chunk',
+      options = defaultOptions,
+    } = params;
+    logger.debug('options:', options);
+    const chunks = [];
+    for (const doc of documents) {
+      // strip last maybe malformed record
+      const index = doc.content.lastIndexOf('\n');
+      const content = doc.content.slice(0, index);
+      const rows = parse(content, options);
+      let schema = params.schema;
+      if (!schema) {
+        schema = await getSchema({
+          rows: [
+            Object.keys(rows[0]),
+            ...rows.map(Object.values)
+          ],
+          textNodeProperties,
+        });
+      }
+      const props = schema.properties.data.properties;
+      const createdDateTime = new Date().toISOString();
+      chunks.push(...rows.map((data, i) => {
+        const text = Object.entries(data)
+          .map(([k, v]) => {
+            if (props[k].type === 'string') {
+              return k + ': ' + v;
+            }
+            return '';
+          })
+          .filter(([k, v]) => v)
+          .join('\n')
+          ;
+        const { wordCount, length, size } = getTextStats(text);
+        return {
+          id: uuid.v4(),
+          nodeLabel,
+          type: 'record',
+          documentId: doc.id,
+          text,
+          imageURI: null,
+          data,
+          metadata: {
+            author: null,
+            mimetype: 'text/csv',
+            objectName: doc.filename,
+            endpoint: null,
+            database: null,
+            subtype: null,
+            parentIds: [],
+            page: null,
+            row: i + 1,
+            wordCount,
+            length,
+            size,
+          },
+          createdDateTime,
+          createdBy: constants.CREATED_BY,
+          startDateTime: createdDateTime,
+          endDateTime: null,
+          version: 1,
+        };
+      }));
+    }
+    return chunks;
+  }
+
+  async function getSchema({ content, options, rows, headers = 1, textNodeProperties }) {
+    if (!rows) {
+      rows = parse(content, { ...options, columns: false });
+    }
+    logger.debug('rows:', rows.slice(0, 3));
+    const schema = await infer(rows, { headers });
+    logger.debug('schema:', schema);
     // logger.debug('textNodeProperties:', textNodeProperties);
-    // logger.debug('descriptor:', descriptor);
-    // return convertSchema_v1(descriptor, vectorField);
-    const props = descriptor.fields.reduce((a, f) => {
+
+    const props = schema.fields.reduce((a, f) => {
       const isTag = (
         f.type === 'string' &&
         textNodeProperties &&
@@ -32,6 +105,7 @@ function CsvParser({ __name, constants, logger }) {
       };
       return a;
     }, {});
+
     return {
       "$id": "https://promptstore.dev/chunk.schema.json",
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -151,72 +225,22 @@ function CsvParser({ __name, constants, logger }) {
     };
   }
 
-  async function getChunks(documents, params) {
-    const {
-      textNodeProperties,
-      nodeLabel = 'Chunk',
-      options = defaultOptions,
-      csv,
-    } = params;
-    const chunks = [];
-    for (const doc of documents) {
-      // strip last maybe malformed record
-      const index = doc.content.lastIndexOf('\n');
-      const content = doc.content.slice(0, index);
-      const rows = parse(content, options);
-      if (!csv) {
-        // sample first 100 rows to infer schema
-        const csv = content.split('\n').slice(0, 100);
-      }
-      const schema = await getSchema({ csv, textNodeProperties });
-      const props = schema.properties.data.properties;
-      const createdDateTime = new Date().toISOString();
-      chunks.push(...rows.map((data, i) => {
-        const text = Object.entries(data)
-          .map(([k, v]) => {
-            if (props[k] === 'string') {
-              return k + ': ' + String(value);
-            }
-            return '';
-          })
-          .filter(([k, v]) => v)
-          .join('\n')
-          ;
-        const { wordCount, length, size } = getTextStats(text);
-        return {
-          id: uuid.v4(),
-          nodeLabel,
-          type: 'record',
-          documentId: doc.id,
-          text,
-          imageURI: null,
-          data,
-          metadata: {
-            author: null,
-            mimetype: 'text/csv',
-            objectName: doc.objectName,
-            endpoint: null,
-            subtype: null,
-            parentIds: [],
-            page: null,
-            row: i + 1,
-            wordCount,
-            length,
-            size,
-          },
-          createdDateTime,
-          createdBy: constants.CREATED_BY,
-          startDateTime: createdDateTime,
-          endDateTime: null,
-          version: 1,
-        };
-      }));
-    }
-    return chunks;
+  function getDefaultOptions() {
+    return defaultOptions;
   }
 
 
   // ----------------------------------------------------------------------
+
+  function getTextStats(text) {
+    if (!text) return 0;
+    text = text.trim();
+    if (!text.length) return 0;
+    const wordCount = text.split(/\s+/).length;
+    const length = text.length;
+    const size = new Blob([text]).size;
+    return { wordCount, length, size };
+  }
 
   const convertSchema_v1 = (descriptor, vectorField) => {
     const props = descriptor.fields.reduce((a, f) => {
@@ -245,9 +269,9 @@ function CsvParser({ __name, constants, logger }) {
 
   return {
     __name,
-    defaultOptions,
     getChunks,
     getSchema,
+    getDefaultOptions,
   };
 }
 

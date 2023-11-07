@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Divider, Form, Input, Radio, Select, Space, Switch } from 'antd';
@@ -153,6 +153,10 @@ const splitterOptions = [
     value: 'delimiter',
   },
   {
+    label: 'Token',
+    value: 'token',
+  },
+  {
     label: 'Chunking Function',
     value: 'chunker',
   },
@@ -197,6 +201,8 @@ const typeOptions = [
 ];
 
 export function DataSourceForm() {
+
+  const [backOnSave, setBackOnSave] = useState(false);
 
   const dataSources = useSelector(selectDataSources);
   const dialects = useSelector(selectDialects);
@@ -274,6 +280,13 @@ export function DataSourceForm() {
     }
   }, [selectedWorkspace]);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/data-sources');
+    }
+  }, [dataSources]);
+
   const onCancel = () => {
     navigate('/data-sources');
   };
@@ -281,7 +294,12 @@ export function DataSourceForm() {
   const onFinish = (values) => {
     if (isNew) {
       dispatch(createDataSourceAsync({
-        values: { ...values, workspaceId: selectedWorkspace.id },
+        values: {
+          ...values,
+          workspaceId: selectedWorkspace.id,
+          chunkSize: +values.chunkSize,
+          chunkOverlap: +values.chunkOverlap,
+        },
       }));
     } else {
       dispatch(updateDataSourceAsync({
@@ -289,10 +307,12 @@ export function DataSourceForm() {
         values: {
           ...dataSource,
           ...values,
+          chunkSize: +values.chunkSize,
+          chunkOverlap: +values.chunkOverlap,
         },
       }));
     }
-    navigate('/data-sources');
+    setBackOnSave(true);
   };
 
   if (!isNew && !loaded) {
@@ -421,14 +441,14 @@ export function DataSourceForm() {
                 Text File Parameters
               </div>
             </Form.Item>
-            <Form.Item
+            {/* <Form.Item
               label="Text Property"
               name="textProperty"
               initialValue="text"
               wrapperCol={{ span: 10 }}
             >
               <Input />
-            </Form.Item>
+            </Form.Item> */}
             <Form.Item
               label="Split by"
               name="splitter"
@@ -462,6 +482,27 @@ export function DataSourceForm() {
                   optionFilterProp="label"
                 />
               </Form.Item>
+              : null
+            }
+            {splitterValue === 'token' ?
+              <>
+                <Form.Item
+                  label="Chunk Size"
+                  name="chunkSize"
+                  initialValue="2048"
+                  wrapperCol={{ span: 5 }}
+                >
+                  <Input type="number" />
+                </Form.Item>
+                <Form.Item
+                  label="Chunk Overlap"
+                  name="chunkOverlap"
+                  initialValue="24"
+                  wrapperCol={{ span: 5 }}
+                >
+                  <Input type="number" />
+                </Form.Item>
+              </>
               : null
             }
           </>

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Radio, Select, Space } from 'antd';
@@ -37,6 +37,8 @@ const typeOptions = [
 ];
 
 export function DestinationForm() {
+
+  const [backOnSave, setBackOnSave] = useState(false);
 
   const destinations = useSelector(selectDestinations);
   const dialects = useSelector(selectDialects);
@@ -79,6 +81,13 @@ export function DestinationForm() {
     }
   }, []);
 
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/destinations');
+    }
+  }, [destinations]);
+
   const onCancel = () => {
     navigate('/destinations');
   };
@@ -97,7 +106,7 @@ export function DestinationForm() {
         },
       }));
     }
-    navigate('/destinations');
+    setBackOnSave(true);
   };
 
   if (!isNew && !loaded) {

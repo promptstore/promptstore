@@ -20,6 +20,7 @@ export class SemanticFunction {
 
   name: string;
   argsSchema: object;
+  returnTypeSchema?: object;
   experiments?: Experiment[];
   implementations: SemanticFunctionImplementation[]
   validator: Validator;
@@ -29,6 +30,7 @@ export class SemanticFunction {
   constructor({
     name,
     argsSchema,
+    returnTypeSchema,
     experiments,
     implementations,
     validator,
@@ -36,6 +38,7 @@ export class SemanticFunction {
   }: SemanticFunctionParams) {
     this.name = name;
     this.argsSchema = argsSchema;
+    this.returnTypeSchema = returnTypeSchema;
     this.experiments = experiments;
     this.implementations = implementations;
     this.validator = validator || validate;
@@ -82,6 +85,7 @@ export class SemanticFunction {
         modelKey,
         modelParams,
         isBatch,
+        returnTypeSchema: this.returnTypeSchema,
         callbacks,
       });
 
@@ -204,7 +208,8 @@ export class SemanticFunction {
 }
 
 interface SemanticFunctionOptions {
-  argsSchema: any;
+  argsSchema?: object;
+  returnTypeSchema?: object;
   experiments: Experiment[];
   callbacks: Callback[];
 }

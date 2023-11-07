@@ -12,6 +12,7 @@ import destinationsReducer from '../features/destinations/destinationsSlice';
 import embeddingReducer from '../features/uploader/embeddingSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
+import graphStoresReducer from '../features/uploader/graphStoresSlice';
 import guardrailsReducer from '../features/functions/guardrailsSlice';
 import hfModelsReducer from '../features/models/hfModelsSlice';
 import indexesReducer from '../features/indexes/indexesSlice';
@@ -42,6 +43,7 @@ export const store = configureStore({
     embedding: embeddingReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
+    graphStores: graphStoresReducer,
     guardrails: guardrailsReducer,
     hfModels: hfModelsReducer,
     indexes: indexesReducer,

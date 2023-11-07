@@ -1,7 +1,7 @@
+import { Blob } from 'buffer';
 import fs from 'fs';
 import mime from 'mime-types';
 import path from 'path';
-import { Blob } from 'buffer';
 
 export function DocumentsService({ constants, mc, logger }) {
 
@@ -52,7 +52,6 @@ export function DocumentsService({ constants, mc, logger }) {
         });
         dataStream.on('end', () => {
           const contents = fs.readFileSync(localFilePath, { encoding: 'utf-8' });
-          // logger.debug('contents: ', contents);
           resolve(contents);
         });
       });

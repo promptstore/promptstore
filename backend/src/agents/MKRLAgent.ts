@@ -34,10 +34,11 @@ const STOP = [
 export default ({ logger, services }) => {
 
   const {
+    indexesService,
     llmService,
     promptSetsService,
-    searchService,
     tool,
+    vectorStoreService,
   } = services;
 
   class MKRLAgent {
@@ -312,7 +313,14 @@ export default ({ logger, services }) => {
       let response: any;
       try {
         if (call.name === 'searchIndex') {
-          const searchResponse = await searchService.search(indexName, args.input);
+          const index = await indexesService.getIndexByName(indexName);
+          if (!index) {
+            throw new Error('Index not found: ' + indexName);
+          }
+          if (!index.vectorStoreProvider) {
+            throw new Error('Only vector stores currently support search');
+          }
+          const searchResponse = await vectorStoreService.search(index.vectorStoreProvider, indexName, args.input);
           response = searchResponse.hits.join(PARA_DELIM);
         } else {
           if (call.name === 'email') {

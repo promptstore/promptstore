@@ -13,6 +13,7 @@ import { IndexModal } from '../uploader/IndexModal';
 import {
   getUploadsAsync,
   indexApiAsync,
+  indexDocumentAsync,
   indexGraphAsync,
   indexStructuredDocumentAsync,
   selectLoaded as selectUploadsLoaded,
@@ -143,16 +144,46 @@ export function DataSourcesList() {
       }));
 
     } else if (dataSource.type === 'document') {
-      dispatch(indexStructuredDocumentAsync({
-        documents: dataSource.documents,
-        params: {
-          indexId: values.indexId,
-          newIndexName: values.newIndexName,
-          embeddingProvider: values.embeddingProvider,
-          vectorStoreProvider: values.vectorStoreProvider,
-        },
-        workspaceId: selectedWorkspace.id,
-      }));
+      if (dataSource.documentType === 'csv') {
+        dispatch(indexDocumentAsync({
+          documents: dataSource.documents,
+          params: {
+            indexId: values.indexId,
+            newIndexName: values.newIndexName,
+            embeddingProvider: values.embeddingProvider,
+            vectorStoreProvider: values.vectorStoreProvider,
+          },
+          workspaceId: selectedWorkspace.id,
+        }));
+      } else if (dataSource.documentType === 'txt') {
+        dispatch(indexDocumentAsync({
+          documents: dataSource.documents,
+          params: {
+            indexId: values.indexId,
+            newIndexName: values.newIndexName,
+            embeddingProvider: values.embeddingProvider,
+            vectorStoreProvider: values.vectorStoreProvider,
+            graphStoreProvider: values.graphStoreProvider,
+            splitter: dataSource.splitter,
+            characters: dataSource.characters,
+            functionId: dataSource.functionId,
+            chunkSize: +dataSource.chunkSize,
+            chunkOverlap: +dataSource.chunkOverlap,
+          },
+          workspaceId: selectedWorkspace.id,
+        }));
+      } else {
+        dispatch(indexStructuredDocumentAsync({
+          documents: dataSource.documents,
+          params: {
+            indexId: values.indexId,
+            newIndexName: values.newIndexName,
+            embeddingProvider: values.embeddingProvider,
+            vectorStoreProvider: values.vectorStoreProvider,
+          },
+          workspaceId: selectedWorkspace.id,
+        }));
+      }
     } else if (dataSource.type === 'graphstore') {
       dispatch(indexGraphAsync({
         params: {
@@ -161,6 +192,7 @@ export function DataSourcesList() {
           graphstore: dataSource.graphstore,
           embeddingProvider: values.embeddingProvider,
           vectorStoreProvider: values.vectorStoreProvider,
+          graphStoreProvider: values.graphStoreProvider,
           nodeLabel: dataSource.nodeLabel,
           embeddingNodeProperty: dataSource.embeddingNodeProperty,
           textNodeProperties: dataSource.textNodeProperties,

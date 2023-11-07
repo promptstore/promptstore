@@ -96,15 +96,6 @@ const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlu
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
-const searchService = SearchService({
-  constants: { SEARCH_API },
-  logger,
-  services: {
-    embeddingService,
-    vectorStoreService,
-  }
-});
-
 const executionsService = ExecutionsService({
   logger,
   services: {
@@ -118,7 +109,6 @@ const executionsService = ExecutionsService({
     modelsService,
     parserService,
     promptSetsService,
-    searchService,
     sqlSourceService,
     tracesService,
     vectorStoreService,

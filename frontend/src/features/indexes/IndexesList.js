@@ -30,7 +30,8 @@ export function IndexesList() {
       key: index.id,
       name: index.name,
       nodeLabel: index.nodeLabel,
-      vectorStoreProvider: index.vectorStoreProvider,
+      storeType: index.vectorStoreProvider ? 'Vector' : 'Graph',
+      store: index.vectorStoreProvider || index.graphStoreProvider,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -99,11 +100,19 @@ export function IndexesList() {
       )
     },
     {
-      title: 'Vector Store',
-      dataIndex: 'vectorStoreProvider',
+      title: 'Store Type',
+      dataIndex: 'storeType',
+      width: '100px',
+      render: (_, { storeType }) => (
+        <div>{storeType}</div>
+      )
+    },
+    {
+      title: 'Store',
+      dataIndex: 'store',
       width: '100%',
-      render: (_, { vectorStoreProvider }) => (
-        <Tag>{vectorStoreProvider}</Tag>
+      render: (_, { store }) => (
+        <Tag>{store}</Tag>
       )
     },
     {
@@ -111,12 +120,15 @@ export function IndexesList() {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
-          <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={() => openSearch(record)}
-          >
-            Search
-          </Button>
+          {record.storeType === 'Vector' ?
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={() => openSearch(record)}
+            >
+              Search
+            </Button>
+            : null
+          }
           <Button type="link"
             style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/indexes/${record.key}`)}
@@ -137,8 +149,7 @@ export function IndexesList() {
   };
 
   const hasSelected = selectedRowKeys.length > 0;
-  // const titleField = selectedIndex.nodeLabel?.toLowerCase() + '___text';
-  const titleField = '__text';
+  const titleField = 'text';
   const index = indexes[selectedIndex.key];
   let indexParams;
   if (index) {

@@ -43,9 +43,29 @@ export function IndexesService({ pg, logger }) {
       SELECT id, workspace_id, name, engine, created, created_by, modified, modified_by, val
       FROM doc_indexes
       WHERE workspace_id = $1
-      AND val->>'key' = $1
+      AND val->>'key' = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, key]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
+  async function getIndexByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return null;
+    }
+    if (name === null || typeof name === 'undefined') {
+      return null;
+    }
+    let q = `
+      SELECT id, workspace_id, name, engine, created, created_by, modified, modified_by, val
+      FROM doc_indexes
+      WHERE workspace_id = $1
+      AND name = $2
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
     if (rows.length === 0) {
       return null;
     }
@@ -113,6 +133,7 @@ export function IndexesService({ pg, logger }) {
   return {
     getIndexes,
     getIndexByKey,
+    getIndexByName,
     getIndex,
     upsertIndex,
     deleteIndexes,

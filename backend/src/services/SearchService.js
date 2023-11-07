@@ -207,7 +207,7 @@ export function SearchService({ constants, logger, services }) {
   async function search(vectorStoreProvider, indexName, query, attrs = {}, params = {}) {
     logger.log('debug', 'searching %s for "%s"', indexName, query);
     const q = query.trim();
-    if (q.length < 3) {
+    if (q.length < 2) {
       return [];
     }
     try {
@@ -227,7 +227,7 @@ export function SearchService({ constants, logger, services }) {
         url += '&' + ps;
       }
       const res = await axios.get(url);
-      logger.debug('search results:', res.data);
+      // logger.debug('search results:', res.data);
       return res.data;
     } catch (err) {
       logger.error(err);

@@ -1,6 +1,6 @@
 export default ({ app, auth, logger, services }) => {
 
-  const { crawlerService, indexesService, searchService } = services;
+  const { crawlerService, indexesService, vectorStoreService } = services;
 
   // TODO de-duplication
 
@@ -70,22 +70,49 @@ export default ({ app, auth, logger, services }) => {
    *         description: Error
    */
   app.post('/api/crawls', async (req, res) => {
+    const { username } = req.user;
     const {
       url,
       spec,
       maxRequestsPerCrawl,
       indexId,
       newIndexName,
+      nodeLabel,
+      embeddingNodeProperty,
       titleField,
       workspaceId,
       vectorField,
-      vectorStoreProvider,
     } = req.body;
     const schema = convertScrapingSpecToIndexSchema(spec, vectorField);
-    logger.debug('schema: ', JSON.stringify(schema, null, 2));
-    let indexName;
+    logger.debug('schema:', schema);
+    let embeddingProvider;
+    let vectorStoreProvider;
+    let index;
     if (indexId === 'new') {
-      const newIndex = await indexesService.upsertIndex({
+      embeddingProvider = params.embeddingProvider;
+      vectorStoreProvider = params.vectorStoreProvider;
+      let existingIndex;
+      if (vectorStoreProvider === 'neo4j') {
+        existingIndex = await vectorStoreService.getIndex(vectorStoreProvider, newIndexName, {
+          nodeLabel,
+          embeddingNodeProperty,
+        });
+      } else if (vectorStoreProvider === 'redis') {
+        existingIndex = await vectorStoreService.getIndex(vectorStoreProvider, newIndexName);
+      } else {
+        logger.error('Unsupported vector store provider:', vectorStoreProvider);
+        return res.sendStatus(400);
+      }
+      if (!existingIndex) {
+        index = await createIndex(workspaceId, username, newIndexName, vectorStoreProvider, schema, {
+          embeddingProvider,
+          nodeLabel,
+          embeddingNodeProperty,
+          similarityMetric,
+          textNodeProperties,
+        });
+      }
+    const newIndex = await indexesService.upsertIndex({
         name: newIndexName,
         schema,
         titleField,
@@ -225,5 +252,41 @@ export default ({ app, auth, logger, services }) => {
       },
     };
   };
+
+  async function createIndex(workspaceId, username, newIndexName, vectorStoreProvider, schema, params) {
+    const {
+      embeddingProvider,
+      nodeLabel,
+      embeddingNodeProperty,
+      similarityMetric,
+      ...otherParams
+    } = params;
+    let embeddingDimension;
+    if (embeddingProvider) {
+      const testEmbedding = await embeddingService.createEmbedding(embeddingProvider, 'foo');
+      embeddingDimension = testEmbedding.length;
+    }
+    const index = await indexesService.upsertIndex({
+      name: newIndexName,
+      schema,
+      workspaceId,
+      vectorStoreProvider,
+      embeddingProvider,
+      embeddingDimension,
+      nodeLabel,
+      embeddingNodeProperty,
+      similarityMetric,
+      ...otherParams
+    }, username);
+    logger.debug(`Created new index '${newIndexName}' [${index.id}]`);
+    logger.debug('Node label:', nodeLabel);
+    await vectorStoreService.createIndex(vectorStoreProvider, newIndexName, schema, {
+      embeddingDimension,
+      nodeLabel,
+      embeddingNodeProperty,
+      similarityMetric,
+    });
+    return index;
+  }
 
 };

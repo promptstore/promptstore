@@ -1,6 +1,6 @@
 # <img src="frontend/src/images/promptstore_logo_colour.png" title="Prompt Store" alt="Prompt Store" style="width: 32px; height: 32px;" /> Prompt Store
 
-<div style="text-align: center;">
+<div style="margin-bottom: 20px; text-align: center;">
     <img src="frontend/public/assets/promptstore_overview.png" title="Overview" alt="Overview" style="width: 500px;" />
 </div>
 
@@ -16,11 +16,11 @@ manage and tune prompts.
 <div style="display: flex;">
     <div style="width: calc(50% - 8px);">
         <img src="frontend/public/assets/home_page.png" title="Home Page" alt="Home Page" />
-        <div style="text-align: center;">Create AI-powered Apps</div>
+        <div style="margin-bottom: 20px; text-align: center;">Create AI-powered Apps</div>
     </div>
     <div style="margin-left: 16px; width: calc(50% - 8px);">
         <img src="frontend/public/assets/prompt_template_list.png" title="Prompt Template List" alt="Prompt Template List" />
-        <div style="text-align: center;">Reusable Prompt Catalog</div>
+        <div style="margin-bottom: 20px; text-align: center;">Reusable Prompt Catalog</div>
     </div>
 </div>
 
@@ -38,22 +38,22 @@ measurement, improvement, and governance.
 <div style="display: flex;">
     <div style="width: calc(50% - 8px);">
         <img src="frontend/public/assets/prompt_template_view.png" title="Prompt Template View" alt="Prompt Template View" />
-        <div style="text-align: center;">Prompt Validation</div>
+        <div style="margin-bottom: 20px; text-align: center;">Prompt Validation</div>
     </div>
     <div style="margin-left: 16px; width: calc(50% - 8px);">
         <img src="frontend/public/assets/model_list.png" title="Model List" alt="Model List" />
-        <div style="text-align: center;">Switch Models. Use Custom/Self-hosted Models.</div>
+        <div style="margin-bottom: 20px; text-align: center;">Switch Models. Use Custom/Self-hosted Models.</div>
     </div>
 </div>
 
 <div style="display: flex; margin-top: 24px;">
     <div style="width: calc(50% - 8px);">
         <img src="frontend/public/assets/composition.png" title="Composition" alt="Composition" />
-        <div style="text-align: center;">Compose Multi-step Chains</div>
+        <div style="margin-bottom: 20px; text-align: center;">Compose Multi-step Chains</div>
     </div>
     <div style="margin-left: 16px; width: calc(50% - 8px);">
         <img src="frontend/public/assets/trace.png" title="Trace" alt="Trace" />
-        <div style="text-align: center;">Model Observability for Safety and Improvement</div>
+        <div style="margin-bottom: 20px; text-align: center;">Model Observability for Safety and Improvement</div>
     </div>
 </div>
 

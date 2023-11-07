@@ -11,6 +11,7 @@ export interface SemanticFunctionImplementationCallParams {
   modelKey: string;
   modelParams: ModelParams;
   isBatch?: boolean;
+  returnTypeSchema?: object;
   callbacks?: Callback[];
 }
 

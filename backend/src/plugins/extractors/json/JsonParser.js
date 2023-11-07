@@ -4,8 +4,68 @@ function JsonParser({ __name, constants, logger }) {
 
   const allowedTypes = ['string', 'number', 'boolean'];
 
-  function getSchema({ apiJsonSchema, textNodeProperties }) {
-    const props = Object.entries(apiJsonSchema.properties).reduce((a, [k, v]) => {
+  function getChunks(documents, {
+    jsonSchema,
+    textNodeProperties,
+    nodeLabel = 'Chunk',
+  }) {
+    const schema = getSchema({ jsonSchema, textNodeProperties });
+    const props = schema.properties.data.properties;
+    const createdDateTime = new Date().toISOString();
+    return documents.map((doc) => {
+      const text = Object.entries(doc.content)
+        .map(([k, v]) => {
+          if (props[k] === 'string') {
+            return k + ': ' + String(value);
+          }
+          return '';
+        })
+        .filter(([k, v]) => v)
+        .join('\n');
+      const scalarValues = Object.entries(doc.content).reduce((a, [k, v]) => {
+        if (allowedTypes.includes(v.type)) {
+          a[k] = v;
+        }
+        return a;
+      }, {});
+      const { wordCount, length, size } = getTextStats(text);
+      return {
+        id: uuid.v4(),
+        nodeLabel,
+        type: 'json',
+        documentId: doc.id,
+        text,
+        imageURI: null,
+        data: scalarValues,
+        metadata: {
+          author: null,
+          mimetype: doc.mimetype,
+          objectName: null,
+          endpoint: doc.endpoint,
+          database: null,
+          subtype: null,
+          parentIds: [],
+          page: null,
+          row: null,
+          row: null,
+          wordCount,
+          length,
+          size,
+        },
+        createdDateTime,
+        createdBy: constants.CREATED_BY,
+        startDateTime: createdDateTime,
+        endDateTime: null,
+        version: 1,
+      };
+    });
+  }
+
+  function getSchema({ jsonSchema, textNodeProperties }) {
+    // logger.debug('textNodeProperties:', textNodeProperties);
+    // logger.debug('jsonSchema:', jsonSchema);
+
+    const props = Object.entries(jsonSchema.properties).reduce((a, [k, v]) => {
       const isTag = (
         v.type === 'string' &&
         textNodeProperties &&
@@ -20,6 +80,7 @@ function JsonParser({ __name, constants, logger }) {
       }
       return a;
     }, {});
+
     return {
       "$id": "https://promptstore.dev/chunk.schema.json",
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -137,62 +198,6 @@ function JsonParser({ __name, constants, logger }) {
         "version"
       ]
     };
-  }
-
-  function getChunks(documents, {
-    apiJsonSchema,
-    textNodeProperties,
-    nodeLabel = 'Chunk',
-  }) {
-    const schema = getSchema({ apiJsonSchema, textNodeProperties });
-    const props = schema.properties.data.properties;
-    const createdDateTime = new Date().toISOString();
-    return documents.map((doc) => {
-      const text = Object.entries(doc.content)
-        .map(([k, v]) => {
-          if (props[k] === 'string') {
-            return k + ': ' + String(value);
-          }
-          return '';
-        })
-        .filter(([k, v]) => v)
-        .join('\n')
-        ;
-      const scalarValues = Object.entries(doc.content).reduce((a, [k, v]) => {
-        if (allowedTypes.includes(v.type)) {
-          a[k] = v;
-        }
-        return a;
-      }, {});
-      const { wordCount, length, size } = getTextStats(text);
-      return {
-        id: uuid.v4(),
-        nodeLabel,
-        type: 'json',
-        documentId: doc.id,
-        text,
-        imageURI: null,
-        data: scalarValues,
-        metadata: {
-          author: null,
-          mimetype: doc.mimetype,
-          objectName: null,
-          endpoint: doc.endpoint,
-          subtype: null,
-          parentIds: [],
-          page: null,
-          row: null,
-          wordCount,
-          length,
-          size,
-        },
-        createdDateTime,
-        createdBy: constants.CREATED_BY,
-        startDateTime: createdDateTime,
-        endDateTime: null,
-        version: 1,
-      };
-    });
   }
 
 

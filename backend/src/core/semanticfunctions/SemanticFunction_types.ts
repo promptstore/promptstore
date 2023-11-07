@@ -42,7 +42,8 @@ export interface Experiment {
 
 export interface SemanticFunctionParams {
   name: string;
-  argsSchema: object;
+  argsSchema?: object;
+  returnTypeSchema?: object;
   experiments?: Experiment[];
   implementations: SemanticFunctionImplementation[];
   validator?: Validator;

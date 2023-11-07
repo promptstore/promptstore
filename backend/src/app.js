@@ -108,6 +108,15 @@ if (ENV === 'dev') {
   apis = ['./routes/*.js'];
 }
 
+process.on('unhandledRejection', (reason, p) => {
+  console.error('Unhandled rejection at:', p, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Caught exception:', error);
+  console.error('Exception origin:', error.stack);
+});
+
 const swaggerOptions = {
   failOnErrors: true,
   definition: {
@@ -161,7 +170,7 @@ const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
 
 const documentsService = DocumentsService({
-  constants: { FILE_BUCKET, ONESOURCE_API_URL },
+  constants: { FILE_BUCKET },
   logger,
   mc,
 });
@@ -349,7 +358,6 @@ const executionsService = ExecutionsService({
     modelsService,
     parserService,
     promptSetsService,
-    searchService,
     sqlSourceService,
     tracesService,
     vectorStoreService,

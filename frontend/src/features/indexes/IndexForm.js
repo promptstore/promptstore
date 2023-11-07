@@ -7,6 +7,11 @@ import JsonInput from '../../components/JsonInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
+  getGraphStores,
+  selectGraphStores,
+  selectLoading as selectGraphStoresLoading,
+} from '../uploader/graphStoresSlice';
+import {
   getVectorStores,
   selectVectorStores,
   selectLoading as selectVectorStoresLoading,
@@ -17,6 +22,7 @@ import {
   createIndexAsync,
   createPhysicalIndexAsync,
   dropDataAsync,
+  dropGraphDataAsync,
   dropPhysicalIndexAsync,
   getIndexAsync,
   updateIndexAsync,
@@ -34,12 +40,15 @@ const layout = {
 
 export function IndexForm() {
 
+  const [backOnSave, setBackOnSave] = useState(false);
   const [error, setError] = useState(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const indexes = useSelector(selectIndexes);
+  const graphStoresLoading = useSelector(selectGraphStoresLoading);
+  const graphStores = useSelector(selectGraphStores);
   const vectorStoresLoading = useSelector(selectVectorStoresLoading);
   const vectorStores = useSelector(selectVectorStores);
 
@@ -65,6 +74,15 @@ export function IndexForm() {
     return list;
   }, [vectorStores]);
 
+  const graphStoreOptions = useMemo(() => {
+    const list = graphStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [graphStores]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -75,7 +93,15 @@ export function IndexForm() {
       dispatch(getIndexAsync(id));
     }
     dispatch(getVectorStores());
+    dispatch(getGraphStores());
   }, []);
+
+  useEffect(() => {
+    if (backOnSave) {
+      setBackOnSave(false);
+      navigate('/indexes');
+    }
+  }, [indexes]);
 
   const onCancel = () => {
     navigate('/indexes');
@@ -104,7 +130,7 @@ export function IndexForm() {
           },
         }));
       }
-      navigate('/indexes');
+      setBackOnSave(true);
     }, 200);
   };
 
@@ -117,6 +143,10 @@ export function IndexForm() {
         nodeLabel: index.nodeLabel,
         embeddingProvider: index.embeddingProvider,
       };
+    } else if (index.vectorStoreProvider === 'redis') {
+      params = {
+        nodeLabel: index.nodeLabel,
+      };
     }
     dispatch(createPhysicalIndexAsync({
       id: index.id,
@@ -128,12 +158,18 @@ export function IndexForm() {
   };
 
   const dropData = () => {
-    dispatch(dropDataAsync({
-      id: index.id,
-      name: index.name,
-      nodeLabel: index.nodeLabel,
-      vectorStoreProvider: index.vectorStoreProvider,
-    }));
+    if (index?.vectorStoreProvider) {
+      dispatch(dropDataAsync({
+        id: index.id,
+        name: index.name,
+        nodeLabel: index.nodeLabel,
+        vectorStoreProvider: index.vectorStoreProvider,
+      }));
+    } else if (index?.graphStoreProvider) {
+      dispatch(dropGraphDataAsync({
+        graphStoreProvider: index.graphStoreProvider,
+      }));
+    }
   };
 
   const dropPhysicalIndex = () => {
@@ -259,7 +295,7 @@ export function IndexForm() {
         open={isSearchModalOpen}
         indexName={index.name}
         theme={isDarkMode ? 'dark' : 'light'}
-        titleField={'__text'}
+        titleField={'text'}
         indexParams={indexParams}
       />
       <div style={{ marginTop: 20 }}>
@@ -280,66 +316,84 @@ export function IndexForm() {
                 message: 'Please enter an index name',
               },
             ]}
+            wrapperCol={{ span: 14 }}
           >
             <Input />
           </Form.Item>
           <Form.Item
             label="Vector Store"
             name="vectorStoreProvider"
-            rules={[
-              {
-                required: true,
-                message: 'Please select the vector store provider',
-              },
-            ]}
             wrapperCol={{ span: 10 }}
           >
             <Select
               allowClear
+              disabled={!!index?.graphStoreProvider}
               loading={vectorStoresLoading}
               options={vectorStoreOptions}
               optionFilterProp="label"
             />
           </Form.Item>
           <Form.Item
+            label="Graph Store"
+            name="graphStoreProvider"
+            wrapperCol={{ span: 10 }}
+          >
+            <Select
+              allowClear
+              disabled={!!index?.vectorStoreProvider}
+              loading={graphStoresLoading}
+              options={graphStoreOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          <Form.Item
             label="Description"
             name="description"
+            wrapperCol={{ span: 14 }}
           >
             <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
           </Form.Item>
-          <Form.Item
-            label="Schema"
-            name="schema"
-          >
-            <JsonInput
-              onError={(err) => { setError(err); }}
-              theme={isDarkMode ? 'dark' : 'light'}
-              height={200}
-            />
-          </Form.Item>
+          {index?.vectorStoreProvider ?
+            <Form.Item
+              label="Schema"
+              name="schema"
+            >
+              <JsonInput
+                onError={(err) => { setError(err); }}
+                theme={isDarkMode ? 'dark' : 'light'}
+                height={200}
+              />
+            </Form.Item>
+            : null
+          }
           <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
             <Space>
               <Button type="default" onClick={onCancel}>Cancel</Button>
               <Button type="primary" htmlType="submit">Save</Button>
-              <Button type="default"
-                disabled={isNew || store}
-                onClick={createPhysicalIndex}
-              >
-                Create Physical Index
-              </Button>
-              <Popconfirm
-                title="Drop the index"
-                description="Are you sure you want to drop this index?"
-                onConfirm={dropPhysicalIndex}
-                okText="Yes"
-                cancelText="No"
-              >
-                <Button type="default"
-                  disabled={isNew || !store}
-                >
-                  Drop Physical Index
-                </Button>
-              </Popconfirm>
+              {index?.vectorStoreProvider ?
+                <>
+                  <Button type="default"
+                    disabled={isNew || store}
+                    onClick={createPhysicalIndex}
+                  >
+                    Create Physical Index
+                  </Button>
+                  <Popconfirm
+                    title="Drop the index"
+                    description="Are you sure you want to drop this index?"
+                    onConfirm={dropPhysicalIndex}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button type="default"
+                      disabled={isNew || !store}
+                    >
+                      Drop Physical Index
+                    </Button>
+                  </Popconfirm>
+                </>
+                : null
+              }
               <Popconfirm
                 title="Drop the data"
                 description="Are you sure you want to drop the data in this index?"
@@ -348,20 +402,26 @@ export function IndexForm() {
                 cancelText="No"
               >
                 <Button type="default"
-                  disabled={isNew || !store}
+                  disabled={isNew || (index?.vectorStoreProvider && !store)}
                 >
                   Drop Data
                 </Button>
               </Popconfirm>
-              <Button type="default"
-                disabled={isNew || !store}
-                onClick={openSearch}
-              >
-                Search
-              </Button>
+              {index?.vectorStoreProvider ?
+                <Button type="default"
+                  disabled={isNew || !store}
+                  onClick={openSearch}
+                >
+                  Search
+                </Button>
+                : null
+              }
             </Space>
           </Form.Item>
-          <PhysicalStoreInfo vectorStoreProvider={index?.vectorStoreProvider} store={store} />
+          {index?.vectorStoreProvider ?
+            <PhysicalStoreInfo vectorStoreProvider={index?.vectorStoreProvider} store={store} />
+            : null
+          }
         </Form>
       </div>
     </>
