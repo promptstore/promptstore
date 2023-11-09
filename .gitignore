@@ -19,6 +19,6 @@ k8s/openaiplatform-virtualservice.yaml
 openaiplatform/
 backend/src/plugins/sqlsources/bigquery/keys/
 scratchpad.md
-neo4j/
+/neo4j/
 mage_data/
 metadata.yaml
