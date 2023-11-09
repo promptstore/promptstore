@@ -51,6 +51,7 @@ export interface JsonSchemaParams {
 
 export interface Neo4jExtractorParams {
   nodeLabel: string;
+  sourceIndexName: string;
   embeddingNodeProperty: string;
   textNodeProperties: string[];
   limit: number;
@@ -100,12 +101,16 @@ export interface ExtractorService {
 
   getSchema(extractor: ExtractorEnum, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
-  extract(extractor: ExtractorEnum, filepath: string, originalname: string, mimetype: string): Promise<any>;
+  matchDocument(extractor: ExtractorEnum, document: ExtendedDocument): boolean;
 
-  getDefaultOptions(extractor: ExtractorEnum): any;
+  extract(extractor: ExtractorEnum, filepath: string, originalname: string, mimetype: string): Promise<any>;
 
   getExtractors(): PluginMetadata[];
 
+}
+
+export interface ExtendedDocument extends Document {
+  ext: string;
 }
 
 export abstract class Extractor {
@@ -122,9 +127,9 @@ export abstract class Extractor {
 
   abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
-  extract?(filepath: string, originalname: string, mimetype: string): Promise<any>;
+  abstract matchDocument(document: ExtendedDocument): boolean;
 
-  getDefaultOptions?(): any;
+  extract?(filepath: string, originalname: string, mimetype: string): Promise<any>;
 
 }
 
@@ -139,8 +144,8 @@ export class CsvExtractor extends Extractor {
     return this.extractorService.getSchema(ExtractorEnum.csv, params);
   }
 
-  getDefaultOptions() {
-    return this.extractorService.getDefaultOptions(ExtractorEnum.csv);
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.csv, document);
   }
 
 }
@@ -156,6 +161,10 @@ export class JsonExtractor extends Extractor {
     return this.extractorService.getSchema(ExtractorEnum.json, params);
   }
 
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.json, document);
+  }
+
 }
 
 export class Neo4jExtractor extends Extractor {
@@ -167,6 +176,10 @@ export class Neo4jExtractor extends Extractor {
 
   getSchema(params: Neo4jSchemaParams) {
     return this.extractorService.getSchema(ExtractorEnum.neo4j, params);
+  }
+
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.neo4j, document);
   }
 
 }
@@ -182,6 +195,10 @@ export class OnesourceExtractor extends Extractor {
     return this.extractorService.getSchema(ExtractorEnum.onesource);
   }
 
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.onesource, document);
+  }
+
   extract(filepath: string, originalname: string, mimetype: string) {
     return this.extractorService.extract(ExtractorEnum.onesource, filepath, originalname, mimetype);
   }
@@ -191,12 +208,16 @@ export class OnesourceExtractor extends Extractor {
 export class TextExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: Partial<TextExtractorParams>) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.json, documents, params);
+    const chunks = await this.extractorService.getChunks(ExtractorEnum.text, documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema() {
-    return this.extractorService.getSchema(ExtractorEnum.json);
+    return this.extractorService.getSchema(ExtractorEnum.text);
+  }
+
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.text, document);
   }
 
 }
@@ -210,6 +231,10 @@ export class UnstructuredExtractor extends Extractor {
 
   getSchema() {
     return this.extractorService.getSchema(ExtractorEnum.unstructured);
+  }
+
+  matchDocument(document: ExtendedDocument) {
+    return this.extractorService.matchDocument(ExtractorEnum.unstructured, document);
   }
 
   extract(filepath: string, originalname: string, mimetype: string) {

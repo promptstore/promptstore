@@ -1,3 +1,6 @@
+import { JSONSchema7 } from 'json-schema';
+
+import { Neo4jSchemaParams } from './Extractor';
 import { Chunk } from './Chunk';
 import { PluginMetadata } from './common_types';
 
@@ -35,11 +38,15 @@ export interface GraphStoreServicesParams {
   graphStoreService: GraphStoreService;
 }
 
+export type SchemaParams = Neo4jSchemaParams;
+
 export interface GraphStoreService {
 
-  addGraph(graphstore: GraphStoreEnum, graph: Graph): void;
+  addGraph(graphstore: GraphStoreEnum, indexName: string, graph: Graph): void;
 
-  dropData(graphstore: GraphStoreEnum): void;
+  dropData(graphstore: GraphStoreEnum, indexName: string): void;
+
+  getSchema(graphstore: GraphStoreEnum, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
   getGraphStores(): PluginMetadata[];
 
@@ -49,18 +56,20 @@ export abstract class GraphStore {
 
   __name: string;
 
+
   protected executionsService: any;
   protected graphStoreService: GraphStoreService;
 
-  constructor({ executionsService, graphStoreService }) {
+  constructor(indexName: string, { executionsService, graphStoreService }) {
+    this.__name = indexName;
     this.executionsService = executionsService;
     this.graphStoreService = graphStoreService;
   }
 
-  static create(graphstore: GraphStoreEnum, services: GraphStoreServicesParams) {
+  static create(graphstore: GraphStoreEnum, indexName: string, services: GraphStoreServicesParams) {
     switch (graphstore) {
       case GraphStoreEnum.neo4j:
-        return new Neo4jGraphStore(services);
+        return new Neo4jGraphStore(indexName, services);
 
       default:
         return null;
@@ -90,7 +99,7 @@ export abstract class GraphStore {
         allowedRels,
       },
       params: {
-        maxTokens: 1024,
+        maxTokens: 4096,
       },
     });
     if (errors) {
@@ -100,23 +109,29 @@ export abstract class GraphStore {
       );
     }
     const graph = response.choices[0].message.function_call.arguments;
-    this.addGraph(graph);
+    this.addGraph(this.__name, graph);
   }
 
-  abstract addGraph(graph: Graph): void;
+  abstract addGraph(indexName: string, graph: Graph): void;
 
-  abstract dropData(): void;
+  abstract dropData(indexName: string): void;
+
+  abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
 }
 
 export class Neo4jGraphStore extends GraphStore {
 
-  addGraph(graph: Graph) {
-    return this.graphStoreService.addGraph(GraphStoreEnum.neo4j, graph);
+  addGraph(indexName: string, graph: Graph) {
+    return this.graphStoreService.addGraph(GraphStoreEnum.neo4j, indexName, graph);
   }
 
-  dropData() {
-    return this.graphStoreService.dropData(GraphStoreEnum.neo4j);
+  dropData(indexName: string) {
+    return this.graphStoreService.dropData(GraphStoreEnum.neo4j, indexName);
+  }
+
+  getSchema(params: Partial<Neo4jSchemaParams>) {
+    return this.graphStoreService.getSchema(GraphStoreEnum.neo4j, params);
   }
 
 }

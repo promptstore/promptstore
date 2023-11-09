@@ -4,6 +4,7 @@ import { PluginMetadata } from './common_types';
 export enum LoaderEnum {
   api = 'api',
   minio = 'minio',
+  wikipedia = 'wikipedia',
 }
 
 export interface ApiLoaderParams {
@@ -16,7 +17,11 @@ export interface MinioLoaderParams {
   maxBytes?: number;
 }
 
-export type LoaderParams = ApiLoaderParams | MinioLoaderParams;
+export interface WikipediaLoaderParams {
+  query: string;
+}
+
+export type LoaderParams = ApiLoaderParams | MinioLoaderParams | WikipediaLoaderParams;
 
 export interface LoaderService {
 
@@ -53,6 +58,15 @@ export class MinioLoader extends Loader {
 
   async load(params: MinioLoaderParams) {
     const docs = await this.loaderService.load(LoaderEnum.minio, params);
+    return docs.map(Document.create);
+  }
+
+}
+
+export class WikipediaLoader extends Loader {
+
+  async load(params: WikipediaLoaderParams) {
+    const docs = await this.loaderService.load(LoaderEnum.wikipedia, params);
     return docs.map(Document.create);
   }
 

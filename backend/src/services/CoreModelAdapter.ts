@@ -27,6 +27,7 @@ import {
   semanticSearchEnrichment,
   functionEnrichment,
   sqlEnrichment,
+  knowledgeGraphEnrichment,
 } from '../core/promptenrichment/PromptEnrichmentPipeline';
 import { message, promptTemplate } from '../core/promptenrichment/PromptTemplate';
 import SemanticCache from '../core/semanticcache/SemanticCache';
@@ -40,6 +41,7 @@ export default ({ logger, rc, services }) => {
     embeddingService,
     featureStoreService,
     functionsService,
+    graphStoreService,
     guardrailsService,
     indexesService,
     llmService,
@@ -158,6 +160,7 @@ export default ({ logger, rc, services }) => {
       indexContentPropertyPath: indexInfo.indexContentPropertyPath,
       indexContextPropertyPath: indexInfo.indexContextPropertyPath,
       allResults: indexInfo.allResults,
+      nodeLabel: index.nodeLabel,
       embeddingProvider: index.embeddingProvider,
       vectorStoreProvider: index.vectorStoreProvider,
     };
@@ -195,6 +198,14 @@ export default ({ logger, rc, services }) => {
     });
   }
 
+  function createKnowledgeGraphEnrichment(graphSourceInfo: any, callbacks: Callback[]) {
+    return knowledgeGraphEnrichment({
+      graphSourceInfo,
+      graphStoreService,
+      callbacks,
+    });
+  }
+
   function createOutputProcessingPipeline(implInfo: any, callbacks: Callback[]) {
     const steps: OutputProcessingStep[] = [];
     if (implInfo.outputGuardrails) {
@@ -217,6 +228,10 @@ export default ({ logger, rc, services }) => {
     if (implInfo.sqlSourceId) {
       const sqlSourceInfo = await dataSourcesService.getDataSource(implInfo.sqlSourceId);
       steps.push(createSqlEnrichment(sqlSourceInfo, callbacks));
+    }
+    if (implInfo.graphSourceId) {
+      const graphSourceInfo = await dataSourcesService.getDataSource(implInfo.graphSourceId);
+      steps.push(createKnowledgeGraphEnrichment(graphSourceInfo, callbacks));
     }
     if (implInfo.indexes) {
       for (const indexInfo of implInfo.indexes) {

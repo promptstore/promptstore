@@ -1,4 +1,5 @@
 import { Callback } from '../callbacks/Callback';
+import { GraphStoreService } from '../indexers/GraphStore';
 import { PromptTemplate } from './PromptTemplate';
 import { Message, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
@@ -85,6 +86,7 @@ export interface FeatureStoreEnrichmentParams {
 }
 
 export interface IndexParams {
+  nodeLabel: string;
   indexContentPropertyPath: string;
   indexContextPropertyPath: string;
   allResults: boolean;
@@ -172,12 +174,10 @@ export interface OnSqlEnrichmentEndParams {
 }
 
 export interface SqlEnrichmentOnStartResponse {
-  // sqlSourceInfo: any;
   args: any;
 }
 
 export interface SqlEnrichmentOnEndResponse {
-  // sqlSourceInfo: any;
   enrichedArgs?: any;
   errors?: any;
 }
@@ -191,5 +191,31 @@ export type SqlEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 export interface SqlEnrichmentParams {
   sqlSourceInfo: any;
   sqlSourceService: any;
+  callbacks?: Callback[];
+}
+
+export interface OnGraphEnrichmentEndParams {
+  enrichedArgs?: any;
+  errors?: any;
+}
+
+export interface GraphEnrichmentOnStartResponse {
+  args: any;
+}
+
+export interface GraphEnrichmentOnEndResponse {
+  enrichedArgs?: any;
+  errors?: any;
+}
+
+export type GraphEnrichmentOnStartCallbackFunction = (params: GraphEnrichmentOnStartResponse) => void;
+
+export type GraphEnrichmentOnEndCallbackFunction = (params: GraphEnrichmentOnEndResponse) => void;
+
+export type GraphEnrichmentOnErrorCallbackFunction = (errors: any) => void;
+
+export interface GraphEnrichmentParams {
+  graphSourceInfo: any;
+  graphStoreService: GraphStoreService;
   callbacks?: Callback[];
 }

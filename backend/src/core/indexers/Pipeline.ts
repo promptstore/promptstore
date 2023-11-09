@@ -1,16 +1,22 @@
 import { JSONSchema7 } from 'json-schema';
 
 import logger from '../../logger';
+import { getExtension } from '../../utils';
 
-import { Chunk } from './Chunk';
 import { Document } from './Document';
 import { EmbeddingProviderEnum, EmbeddingService } from './EmbeddingProvider';
 import {
+  CsvExtractor,
+  ExtendedDocument,
   Extractor,
   ExtractorEnum,
   ExtractorParams,
   ExtractorService,
   JsonExtractor,
+  Neo4jExtractor,
+  OnesourceExtractor,
+  TextExtractor,
+  UnstructuredExtractor,
 } from './Extractor';
 import {
   AddChunksParams,
@@ -30,6 +36,8 @@ import {
   LoaderService,
   MinioLoader,
   MinioLoaderParams,
+  WikipediaLoader,
+  WikipediaLoaderParams,
 } from './Loader';
 import {
   VectorStoreEnum,
@@ -45,12 +53,18 @@ interface GraphStoreIndexParams {
   textNodeProperties: string[];
 }
 
+interface DocumentsParams {
+  documents: Document[];
+}
+
 type RunParams = ApiLoaderParams
   & MinioLoaderParams
+  & WikipediaLoaderParams
   & ExtractorParams
   & IndexParams
   & GraphStoreIndexParams
-  & AddChunksParams;
+  & AddChunksParams
+  & DocumentsParams;
 
 export class Pipeline {
 
@@ -67,7 +81,7 @@ export class Pipeline {
   private _graphStoreProvider: GraphStoreEnum;
 
   private _loader: Loader;
-  private _extractor: Extractor;
+  private _extractors: Extractor[] = [];
 
   constructor({
     embeddingService,
@@ -79,7 +93,7 @@ export class Pipeline {
     vectorStoreService,
   }, {
     loaderProvider,
-    extractorProvider,
+    extractorProviders,
     embeddingProvider,
     vectorStoreProvider,
     graphStoreProvider,
@@ -91,8 +105,8 @@ export class Pipeline {
     this.graphStoreService = graphStoreService;
     this.loaderService = loaderService;
     this.vectorStoreService = vectorStoreService;
-    this.loader = loaderProvider;
-    this.extractor = extractorProvider;
+    this.loaderProvider = loaderProvider;
+    this.extractorProviders = extractorProviders;
     this.embeddingProvider = embeddingProvider;
     this.vectorStoreProvider = vectorStoreProvider;
     this.graphStoreProvider = graphStoreProvider;
@@ -105,8 +119,10 @@ export class Pipeline {
    * @returns 
    */
   async run(params: RunParams) {
+    logger.debug('Run pipeline with params:', params);
+
     // Check preconditions
-    if (!this._extractor) {
+    if (!this._extractors.length) {
       throw new Error('Missing extractor');
     }
 
@@ -130,30 +146,61 @@ export class Pipeline {
     }
 
     // Check Embedding Provider
-    if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
-      if (params.indexId === 'new') {
-        this.embeddingProvider = params.embeddingProvider;
-      } else {
-        if (!index) {
-          index = await this.getExistingIndex(params.indexId);
+    if (!this._graphStoreProvider) {
+      if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
+        if (params.indexId === 'new') {
+          this.embeddingProvider = params.embeddingProvider;
+        } else {
+          if (!index) {
+            index = await this.getExistingIndex(params.indexId);
+          }
+          this.embeddingProvider = index.embeddingProvider;
         }
-        this.embeddingProvider = index.embeddingProvider;
+      }
+      if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
+        throw new Error('Missing embedding provider');
       }
     }
-    if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
-      throw new Error('Missing embedding provider');
-    }
 
-    let documents: Document[];
-    let chunks: Chunk[];
+    let docs: Document[] = params.documents;
+    let documents: ExtendedDocument[];
 
     // Load
-    if (this._loader) {
-      documents = await this._loader.load(params);
+    if (docs?.length || this._loader) {
+      if (this._loader && !docs?.length) {
+        docs = await this._loader.load(params);
+      }
+      documents = docs.map(doc => ({
+        ...doc,
+        ext: getExtension(doc.objectName),
+      }));
+    }
+    logger.debug('documents:', documents);
+
+    if (this._extractors.length === 1) {
+      index = await this.extractAndIndex(documents, params, this._extractors[0], index);
+      return [index];
     }
 
+    const extractorMap: Record<number, Document[]> = {};
+    for (const doc of documents) {
+      const index = this._extractors.findIndex(x => x.matchDocument(doc));
+      if (index !== -1) {
+        if (!extractorMap[index]) {
+          extractorMap[index] = [];
+        }
+        extractorMap[index].push(doc);
+      }
+    }
+    const proms = Object.entries(extractorMap).map(([index, documents], i) =>
+      this.extractAndIndex(documents, params, this._extractors[index], null, String(i))
+    );
+    return await Promise.all(proms);
+  }
+
+  async extractAndIndex(documents: Document[], params: RunParams, extractor: Extractor, index?: any, suffix?: string) {
     // Extract
-    chunks = await this._extractor.getChunks(documents, params);
+    const chunks = await extractor.getChunks(documents, params);
 
     logger.debug('Indexing %d chunks', chunks.length);
 
@@ -162,7 +209,7 @@ export class Pipeline {
     // `schema` required only for new index
     let schema: JSONSchema7;
     if (!params.index && params.indexId === 'new') {
-      schema = await this._extractor.getSchema(params);
+      schema = await extractor.getSchema(params);
     }
 
     if (this._vectorStoreProvider) {
@@ -181,6 +228,7 @@ export class Pipeline {
       } else {
         await indexer.indexChunks(chunks, {
           indexName: index.name,
+          nodeLabel: params.nodeLabel,
           embeddingProvider: this._embeddingProvider,
           vectorStoreProvider: this._vectorStoreProvider,
         });
@@ -190,11 +238,14 @@ export class Pipeline {
       if (!index) {
         if (params.indexId === 'new') {
           const {
-            newIndexName,
             workspaceId,
             textNodeProperties,
             username,
           } = params;
+          let newIndexName = params.newIndexName;
+          if (suffix) {
+            newIndexName += '-' + suffix;
+          }
           index = await this.indexesService.upsertIndex({
             name: newIndexName,
             schema,
@@ -207,7 +258,7 @@ export class Pipeline {
           index = await this.getExistingIndex(params.indexId);
         }
       }
-      const graphStore = GraphStore.create(this._graphStoreProvider, {
+      const graphStore = GraphStore.create(this._graphStoreProvider, index.name, {
         executionsService: this.executionsService,
         graphStoreService: this.graphStoreService,
       });
@@ -224,7 +275,7 @@ export class Pipeline {
     return index;
   }
 
-  public set loader(provider: LoaderEnum) {
+  public set loaderProvider(provider: LoaderEnum) {
     switch (provider) {
       case LoaderEnum.api:
         this._loader = new ApiLoader(this.loaderService);
@@ -232,17 +283,45 @@ export class Pipeline {
 
       case LoaderEnum.minio:
         this._loader = new MinioLoader(this.loaderService);
+        break;
+
+      case LoaderEnum.wikipedia:
+        this._loader = new WikipediaLoader(this.loaderService);
+        break;
 
       default:
     }
   }
 
-  public set extractor(provider: ExtractorEnum) {
-    switch (provider) {
-      case ExtractorEnum.json:
-        this._extractor = new JsonExtractor(this.extractorService);
+  public set extractorProviders(providers: ExtractorEnum[]) {
+    for (const provider of providers) {
+      switch (provider) {
+        case ExtractorEnum.csv:
+          this._extractors.push(new CsvExtractor(this.extractorService));
+          break;
 
-      default:
+        case ExtractorEnum.json:
+          this._extractors.push(new JsonExtractor(this.extractorService));
+          break;
+
+        case ExtractorEnum.neo4j:
+          this._extractors.push(new Neo4jExtractor(this.extractorService));
+          break;
+
+        case ExtractorEnum.onesource:
+          this._extractors.push(new OnesourceExtractor(this.extractorService));
+          break;
+
+        case ExtractorEnum.text:
+          this._extractors.push(new TextExtractor(this.extractorService));
+          break;
+
+        case ExtractorEnum.unstructured:
+          this._extractors.push(new UnstructuredExtractor(this.extractorService));
+          break;
+
+        default:
+      }
     }
   }
 

@@ -20,6 +20,8 @@ import {
   FunctionEnrichmentOnEndResponse,
   SqlEnrichmentOnStartResponse,
   SqlEnrichmentOnEndResponse,
+  GraphEnrichmentOnStartResponse,
+  GraphEnrichmentOnEndResponse,
 } from '../promptenrichment/PromptEnrichmentPipeline_types';
 import {
   PromptTemplateOnStartResponse,
@@ -523,6 +525,49 @@ export class TracingCallback extends Callback {
   }
 
   onSqlEnrichmentError(errors: any) {
+    this.tracer.push({
+      id: uuid.v4(),
+      type: 'error',
+      errors,
+    });
+  }
+
+  onGraphEnrichmentStart({ args }: GraphEnrichmentOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        id: uuid.v4(),
+        type: 'graph-enrichment',
+        args,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onGraphEnrichmentEnd({ enrichedArgs, errors }: GraphEnrichmentOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('enrichedArgs', enrichedArgs)
+        .addProperty('success', true)
+        ;
+    }
+  }
+
+  onGraphEnrichmentError(errors: any) {
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',

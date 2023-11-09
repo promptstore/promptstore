@@ -58,7 +58,7 @@ const { Content, Sider } = Layout;
 
 const TAGS_KEY = 'functionTags';
 
-const hasIndex = (f) => !!f.implementations?.find(m => m.indexes?.length);
+const hasIndex = (f) => !!f.implementations?.find(m => m.indexes?.length || m.sqlSourceId || m.graphSourceId);
 
 export function RagTester() {
 
@@ -97,6 +97,7 @@ export function RagTester() {
   // console.log('featureStoreSource:', featureStoreSource);
   // console.log('sqlSource:', sqlSource);
   // console.log('messages:', messages);
+  // console.log('idxs:', idxs);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -399,7 +400,7 @@ export function RagTester() {
                       <Space direction="vertical">
                         {idxs.map((idx) => (
                           <Space key={'idx-' + idx.id}>
-                            <Tag>{idx.engine}</Tag>
+                            <Tag>{idx.vectorStoreProvider}</Tag>
                             <span>{idx.name}</span>
                           </Space>
                         ))}

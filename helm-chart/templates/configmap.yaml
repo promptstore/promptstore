@@ -35,13 +35,13 @@ data:
   EMBEDDING_PLUGINS: "sentenceencoder|Sentence Encoder|./plugins/embedding/sentenceencoder"
 
   # Extractor plugins
-  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured,csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,neo4j|Neo4j|./plugins/extractors/neo4j"
+  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured,csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,neo4j|Neo4j|./plugins/extractors/neo4j,text|Text Parser|./plugins/extractors/text"
 
   # Feature store plugins
   FEATURE_STORE_PLUGINS: "feast|Feast|./plugins/featurestores/feast,anaml|Anaml|./plugins/featurestores/anaml"
 
   # Graph store plugins
-  GRAPH_STORE_PLUGINS: ""
+  GRAPH_STORE_PLUGINS: "neo4j|Neo4j Graph Store|./plugins/graphstores/neo4j"
 
   # Guardrail plugins
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
@@ -50,7 +50,7 @@ data:
   LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock"
 
   # Loader plugins
-  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio"
+  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia"
 
   # Model Provider plugins
   MODEL_PROVIDER_PLUGINS: "huggingface|Huggingface|./plugins/modelproviders/huggingface"
@@ -85,6 +85,7 @@ data:
 
   # Neo4j
   NEO4J_HOST: "{{ .Values.graph_stores.neo4j.host }}"
+  NEO4J_PORT: "{{ .Values.graph_stores.neo4j.port }}"
 
   ########
 
@@ -171,6 +172,21 @@ data:
 
   # Redis
   SEARCH_API: "{{ .Values.vecsearch.api_url }}"
+
+  NEO4J_AUTH: "neo4j/changeme"
+  NEO4J_server_memory_pagecache_size: "1G"
+  NEO4J_server_memory_heap_initial__size: "1G"
+  NEO4J_server_memory_heap_max__size: "2G"
+  NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+  NEO4J_dbms_security_procedures_unrestricted: "gds.*,apoc.*"
+  NEO4J_dbms_security_procedures_allowlist: "gds.*,apoc.*"
+  NEO4J_dbms_memory_transaction_total_max: "0"
+  NEO4J_apoc_trigger_enabled: "true"
+  NEO4J_dbms_routing_enabled: "true"
+  NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+  NEO4J_apoc_export_file_enabled: "true"
+  NEO4J_apoc_import_file_enabled: "true"
+  NEO4J_server_config_strict__validation_enabled: "false"
 
   ########
 

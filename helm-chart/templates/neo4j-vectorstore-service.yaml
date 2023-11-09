@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-vectorstore
+  namespace: "{{ .Values.namespace }}"
+spec:
+  ports:
+    - name: "7475"
+      port: 7475
+      targetPort: 7474
+    - name: "7688"
+      port: 7688
+      targetPort: 7687
+  selector:
+    app: neo4j-vectorstore

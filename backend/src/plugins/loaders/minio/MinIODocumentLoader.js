@@ -46,7 +46,7 @@ function MinIODocumentLoader({ __name, constants, logger }) {
       });
       proms.push(prom);
     }
-    return proms;
+    return Promise.all(proms);
   }
 
   return {

@@ -4,6 +4,8 @@ import uuid from 'uuid';
 
 function CsvParser({ __name, constants, logger }) {
 
+  const allowedExtensions = ['csv'];
+
   const defaultOptions = {
     bom: true,
     columns: true,
@@ -18,11 +20,17 @@ function CsvParser({ __name, constants, logger }) {
     const {
       textNodeProperties,
       nodeLabel = 'Chunk',
-      options = defaultOptions,
     } = params;
+    const options = {
+      ...defaultOptions,
+      ...params.options,
+    };
     logger.debug('options:', options);
     const chunks = [];
     for (const doc of documents) {
+      if (!allowedExtensions.includes(doc.ext)) {
+        continue;
+      }
       // strip last maybe malformed record
       const index = doc.content.lastIndexOf('\n');
       const content = doc.content.slice(0, index);
@@ -225,53 +233,29 @@ function CsvParser({ __name, constants, logger }) {
     };
   }
 
-  function getDefaultOptions() {
-    return defaultOptions;
+  function matchDocument(doc) {
+    return allowedExtensions.inlcudes(doc.ext);
   }
 
-
-  // ----------------------------------------------------------------------
-
   function getTextStats(text) {
-    if (!text) return 0;
+    if (!text) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     text = text.trim();
-    if (!text.length) return 0;
+    if (!text.length) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     const wordCount = text.split(/\s+/).length;
     const length = text.length;
     const size = new Blob([text]).size;
     return { wordCount, length, size };
   }
 
-  const convertSchema_v1 = (descriptor, vectorField) => {
-    const props = descriptor.fields.reduce((a, f) => {
-      let dataType;
-      if (f.name === vectorField) {
-        dataType = 'Vector';
-      } else {
-        dataType = typeMappings[f.type] || 'String';
-      }
-      a[f.name] = {
-        name: f.name,
-        dataType,
-        mandatory: false,
-      };
-      return a;
-    }, {});
-    return { content: props };
-  };
-
-  const typeMappings = {
-    'string': 'String',
-    'integer': 'Integer',
-    'boolean': 'Boolean',
-  };
-
-
   return {
     __name,
     getChunks,
     getSchema,
-    getDefaultOptions,
+    matchDocument,
   };
 }
 

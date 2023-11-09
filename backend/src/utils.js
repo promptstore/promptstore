@@ -5,6 +5,7 @@ import fs from 'fs';
 import isObject from 'lodash.isobject';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { unflatten } from 'flat';
 
 import logger from './logger';
 
@@ -299,3 +300,59 @@ export const makePromiseFromObject = (obj) => {
 export const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export const formatAlgolia = (requests, rawResult, nodeLabel) => {
+  const documents = rawResult;
+  const nbHits = documents.length;
+  let hits = documents
+    .map((val) => Object.entries(val).reduce((a, [k, v]) => {
+      const key = k.replace(/__/g, '.');
+      a[key] = v;
+      return a;
+    }, {}))
+  hits = hits.map(unflatten);
+  hits = hits.map((val) => {
+    if (val.dist) {
+      return {
+        ...val[nodeLabel],
+        dist: val.dist,
+      };
+    } else {
+      return {
+        ...val[nodeLabel],
+        score: parseFloat(val.score),
+      };
+    }
+  });
+  return {
+    exhaustive: {
+      nbHits: true,
+      typo: true,
+    },
+    exhaustiveNbHits: true,
+    exhaustiveType: true,
+    hits,
+    hitsPerPage: nbHits,
+    nbHits,
+    nbPages: 1,
+    page: 0,
+    params: '',
+    processingTimeMS: 2,
+    processingTimingsMS: {
+      afterFetch: {
+        format: {
+          highlighting: 2,
+          total: 2,
+        },
+        total: 2,
+      },
+      request: {
+        roundTrip: 19,
+      },
+      total: 2,
+    },
+    query: requests[0].params.query,
+    renderingContent: {},
+    serverTimeMS: 3,
+  };
+};

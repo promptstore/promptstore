@@ -52,7 +52,7 @@ export function VectorStoreService({ logger, registry }: PluginServiceParams): V
     return instance.dropData(indexName, params);
   };
 
-  function indexChunks(vectorstore: VectorStoreEnum, chunks: Chunk[], embeddings: number[], params: IndexChunksParams) {
+  function indexChunks(vectorstore: VectorStoreEnum, chunks: Chunk[], embeddings: Array<number[]>, params: IndexChunksParams) {
     logger.debug('index chunks, vectorstore:', vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.indexChunks(chunks, embeddings, params);

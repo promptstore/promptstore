@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Button, Divider, Form, Input, Modal, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
+import { TagsInput } from '../../components/TagsInput';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getFunctionsByTagAsync,
@@ -405,6 +406,25 @@ export function IndexModal({
               wrapperCol={{ span: 5 }}
             >
               <Input />
+            </Form.Item>
+          </>
+          : null
+        }
+        {graphStoreProviderValue ?
+          <>
+            <Form.Item
+              label="Allowed Nodes"
+              name="allowedNodes"
+              wrapperCol={{ span: 10 }}
+            >
+              <TagsInput />
+            </Form.Item>
+            <Form.Item
+              label="Allowed Rels"
+              name="allowedrels"
+              wrapperCol={{ span: 10 }}
+            >
+              <TagsInput />
             </Form.Item>
           </>
           : null

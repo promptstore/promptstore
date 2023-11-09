@@ -11,6 +11,7 @@ import { ExecutionsService } from '../services/ExecutionsService';
 import { EmbeddingService } from '../services/EmbeddingService';
 import { ExtractorService } from '../services/ExtractorService';
 import { FeatureStoreService } from '../services/FeatureStoreService';
+import { GraphStoreService } from '../services/GraphStoreService';
 import { GuardrailsService } from '../services/GuardrailsService';
 import { FunctionsService } from '../services/FunctionsService';
 import { IndexesService } from '../services/IndexesService';
@@ -59,6 +60,9 @@ const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
 const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
 
+const GRAPH_STORE_PLUGINS = process.env.GRAPH_STORE_PLUGINS || '';
+const graphStorePlugins = await getPlugins(basePath, GRAPH_STORE_PLUGINS, logger);
+
 const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
 const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {});
 
@@ -83,6 +87,7 @@ const embeddingService = EmbeddingService({ logger, registry: embeddingPlugins }
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 const functionsService = FunctionsService({ pg, logger });
+const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugins });
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
 const indexesService = IndexesService({ pg, logger });
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
@@ -102,6 +107,7 @@ const executionsService = ExecutionsService({
     dataSourcesService,
     featureStoreService,
     functionsService,
+    graphStoreService,
     guardrailsService,
     indexesService,
     llmService,

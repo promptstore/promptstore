@@ -19,6 +19,8 @@ import {
   FunctionEnrichmentOnEndResponse,
   SqlEnrichmentOnStartResponse,
   SqlEnrichmentOnEndResponse,
+  GraphEnrichmentOnStartResponse,
+  GraphEnrichmentOnEndResponse,
 } from '../promptenrichment/PromptEnrichmentPipeline_types';
 import {
   PromptTemplateOnStartResponse,
@@ -167,6 +169,18 @@ export class Callback {
   }
 
   onSqlEnrichmentError(errors: any) {
+
+  }
+
+  onGraphEnrichmentStart({ args }: GraphEnrichmentOnStartResponse) {
+
+  }
+
+  onGraphEnrichmentEnd({ enrichedArgs, errors }: GraphEnrichmentOnEndResponse) {
+
+  }
+
+  onGraphEnrichmentError(errors: any) {
 
   }
 

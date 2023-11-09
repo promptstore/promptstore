@@ -13,9 +13,11 @@ import { IndexModal } from '../uploader/IndexModal';
 import {
   getUploadsAsync,
   indexApiAsync,
-  indexDocumentAsync,
+  indexCsvAsync,
   indexGraphAsync,
-  indexStructuredDocumentAsync,
+  indexDocumentAsync,
+  indexTextDocumentAsync,
+  indexWikipediaAsync,
   selectLoaded as selectUploadsLoaded,
   selectUploads,
 } from '../uploader/fileUploaderSlice';
@@ -53,6 +55,7 @@ export function DataSourcesList() {
       baseUrl: ds.baseUrl,
       scrapingSpec: ds.scrapingSpec,
       maxRequestsPerCrawl: ds.maxRequestsPerCrawl,
+      indexId: ds.indexId,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -145,7 +148,7 @@ export function DataSourcesList() {
 
     } else if (dataSource.type === 'document') {
       if (dataSource.documentType === 'csv') {
-        dispatch(indexDocumentAsync({
+        dispatch(indexCsvAsync({
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -156,7 +159,7 @@ export function DataSourcesList() {
           workspaceId: selectedWorkspace.id,
         }));
       } else if (dataSource.documentType === 'txt') {
-        dispatch(indexDocumentAsync({
+        dispatch(indexTextDocumentAsync({
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -173,7 +176,7 @@ export function DataSourcesList() {
           workspaceId: selectedWorkspace.id,
         }));
       } else {
-        dispatch(indexStructuredDocumentAsync({
+        dispatch(indexDocumentAsync({
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -196,6 +199,24 @@ export function DataSourcesList() {
           nodeLabel: dataSource.nodeLabel,
           embeddingNodeProperty: dataSource.embeddingNodeProperty,
           textNodeProperties: dataSource.textNodeProperties,
+          sourceIndexId: dataSource.indexId,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+    } else if (dataSource.type === 'wikipedia') {
+      dispatch(indexWikipediaAsync({
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          embeddingProvider: values.embeddingProvider,
+          vectorStoreProvider: values.vectorStoreProvider,
+          graphStoreProvider: values.graphStoreProvider,
+          query: dataSource.query,
+          splitter: dataSource.splitter,
+          characters: dataSource.characters,
+          functionId: dataSource.functionId,
+          chunkSize: +dataSource.chunkSize,
+          chunkOverlap: +dataSource.chunkOverlap,
         },
         workspaceId: selectedWorkspace.id,
       }));
@@ -287,7 +308,7 @@ export function DataSourcesList() {
             </>
             : null
           }
-          {record.type === 'crawler' || record.type === 'api' || record.type === 'graphstore' ?
+          {record.type === 'crawler' || record.type === 'api' || record.type === 'graphstore' || record.type === 'wikipedia' ?
             <Button type="link"
               disabled={false}
               style={{ paddingLeft: 0 }}

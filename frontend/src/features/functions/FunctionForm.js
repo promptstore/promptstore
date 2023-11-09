@@ -255,6 +255,17 @@ export function FunctionForm() {
     return list;
   }, [dataSources]);
 
+  const graphSourceOptions = useMemo(() => {
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'graphstore')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
+
   const formIsReady = (
     loaded &&
     modelsLoaded &&
@@ -765,6 +776,33 @@ export function FunctionForm() {
                             type="link"
                             icon={<LinkOutlined />}
                             onClick={() => navigate(`/data-sources/${implementationsValue?.[index]?.sqlSourceId}`)}
+                            style={{ marginTop: 32, width: 32 }}
+                          />
+                          : null
+                        }
+                      </div>
+                      <div style={{ display: 'flex' }}>
+                        <Form.Item
+                          colon={false}
+                          name={[field.name, 'graphSourceId']}
+                          label="Knowledge Graph Source"
+                          extra="Inject Metadata"
+                          labelCol={{ span: 24 }}
+                          wrapperCol={{ span: 24 }}
+                          style={{ flex: 1 }}
+                        >
+                          <Select allowClear
+                            loading={dataSourcesLoading}
+                            options={graphSourceOptions}
+                            optionFilterProp="label"
+                            placeholder="Select data source"
+                          />
+                        </Form.Item>
+                        {implementationsValue?.[index]?.graphSourceId ?
+                          <Button
+                            type="link"
+                            icon={<LinkOutlined />}
+                            onClick={() => navigate(`/data-sources/${implementationsValue?.[index]?.graphSourceId}`)}
                             style={{ marginTop: 32, width: 32 }}
                           />
                           : null

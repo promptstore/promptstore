@@ -13,6 +13,11 @@ import {
   selectLoading as selectFunctionsLoading,
 } from '../functions/functionsSlice';
 import {
+  getIndexesAsync,
+  selectIndexes,
+  selectLoading as selectIndexesLoading,
+} from '../indexes/indexesSlice';
+import {
   getUploadsAsync,
   selectLoading as selectUploadsLoading,
   selectUploads,
@@ -198,6 +203,10 @@ const typeOptions = [
     label: 'Web Crawler',
     value: 'crawler',
   },
+  {
+    label: 'Wikipedia',
+    value: 'wikipedia',
+  },
 ];
 
 export function DataSourceForm() {
@@ -208,6 +217,8 @@ export function DataSourceForm() {
   const dialects = useSelector(selectDialects);
   const functions = useSelector(selectFunctions);
   const functionsLoading = useSelector(selectFunctionsLoading);
+  const indexes = useSelector(selectIndexes);
+  const indexesLoading = useSelector(selectIndexesLoading);
   const loaded = useSelector(selectLoaded);
   const uploads = useSelector(selectUploads);
   const uploadsLoading = useSelector(selectUploadsLoading);
@@ -260,6 +271,11 @@ export function DataSourceForm() {
     value: func.id,
   })), [functions]);
 
+  const indexOptions = useMemo(() => Object.values(indexes).map((index) => ({
+    label: index.name,
+    value: index.id,
+  })), [indexes]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -276,6 +292,7 @@ export function DataSourceForm() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getFunctionsByTagAsync({ tag: 'chunker', workspaceId }));
+      dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getUploadsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
@@ -363,6 +380,16 @@ export function DataSourceForm() {
         >
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
+        {typeValue === 'wikipedia' ?
+          <Form.Item
+            label="Query"
+            name="query"
+            wrapperCol={{ span: 10 }}
+          >
+            <Input />
+          </Form.Item>
+          : null
+        }
         {typeValue === 'document' ?
           <>
             <Form.Item
@@ -434,11 +461,11 @@ export function DataSourceForm() {
           </>
           : null
         }
-        {documentTypeValue === 'txt' ?
+        {documentTypeValue === 'txt' || typeValue === 'wikipedia' ?
           <>
             <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
               <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Text File Parameters
+                Text Chunking Parameters
               </div>
             </Form.Item>
             {/* <Form.Item
@@ -681,6 +708,17 @@ export function DataSourceForm() {
               wrapperCol={{ span: 10 }}
             >
               <Input />
+            </Form.Item>
+            <Form.Item
+              label="Linked to Index"
+              name="indexId"
+              wrapperCol={{ span: 10 }}
+            >
+              <Select
+                loading={indexesLoading}
+                options={indexOptions}
+                optionFilterProp="label"
+              />
             </Form.Item>
             <Form.Item
               label="Embedding Node Property"

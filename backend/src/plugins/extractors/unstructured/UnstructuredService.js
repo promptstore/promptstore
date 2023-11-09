@@ -5,45 +5,69 @@ import uuid from 'uuid';
 
 function UnstructuredService({ __name, constants, logger }) {
 
-  async function getChunks({
+  const allowedExtensions = [
+    'txt',
+    'text',
+    'epub',
+    'eml',
+    'xlsx',
+    'html',
+    'json',
+    'md',
+    'doc',
+    'docx',
+    'odt',
+    'msg',
+    'pdf',
+    'ppt',
+    'pptx',
+    'rst',
+    'rtf',
+    'tsv',
+    'xml',
+  ];
+
+  async function getChunks(documents, {
     nodeLabel = 'Chunk',
-    filepath,
-    originalname,
-    mimetype,
   }) {
-    const content = await extract(filepath, originalname, mimetype);
-    const createdDateTime = new Date().toISOString();
-    return content.map((el) => {
-      const { wordCount, length, size } = getTextStats(el.text);
-      return {
-        id: el.element_id,
-        nodeLabel,
-        type: el.type,
-        documentId: null,
-        text: el.text,
-        imageURI: null,
-        data: {},
-        metadata: {
-          author: null,
-          mimetype: el.metadata.filetype,
-          filename: el.metadata.filename,
-          endpoint: null,
-          database: null,
-          subtype: null,
-          parentIds: [],  // TODO see `convertToOnesourceFormat`
-          page: el.metadata.page_number,
-          row: null,
-          wordCount,
-          length,
-          size,
-        },
-        createdDateTime,
-        createdBy: constants.CREATED_BY,
-        startDateTime: createdDateTime,
-        endDateTime: null,
-        version: 1,
-      };
-    });
+    const chunks = [];
+    for (const doc of documents) {
+      const content = await extract(doc.filepath, doc.originalname, doc.mimetype);
+      const createdDateTime = new Date().toISOString();
+      const cks = content.map((el) => {
+        const { wordCount, length, size } = getTextStats(el.text);
+        return {
+          id: el.element_id,
+          nodeLabel,
+          type: el.type,
+          documentId: null,
+          text: el.text,
+          imageURI: null,
+          data: {},
+          metadata: {
+            author: null,
+            mimetype: el.metadata.filetype,
+            filename: el.metadata.filename,
+            endpoint: null,
+            database: null,
+            subtype: null,
+            parentIds: [],  // TODO see `convertToOnesourceFormat`
+            page: el.metadata.page_number,
+            row: null,
+            wordCount,
+            length,
+            size,
+          },
+          createdDateTime,
+          createdBy: constants.CREATED_BY,
+          startDateTime: createdDateTime,
+          endDateTime: null,
+          version: 1,
+        };
+      });
+      chunks.push(...cks);
+    }
+    return chunks;
   }
 
   function getSchema() {
@@ -190,8 +214,9 @@ function UnstructuredService({ __name, constants, logger }) {
     };
   }
 
-
-  // ----------------------------------------------------------------------
+  function matchDocument(doc) {
+    return allowedExtensions.inlcudes(doc.ext);
+  }
 
   /**
    * 
@@ -287,9 +312,13 @@ function UnstructuredService({ __name, constants, logger }) {
   }
 
   function getTextStats(text) {
-    if (!text) return 0;
+    if (!text) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     text = text.trim();
-    if (!text.length) return 0;
+    if (!text.length) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     const wordCount = text.split(/\s+/).length;
     const length = text.length;
     const size = new Blob([text]).size;
@@ -368,50 +397,12 @@ function UnstructuredService({ __name, constants, logger }) {
     };
   }
 
-  function findLastIndex(arr, fn) {
-    const a = [...arr].reverse();
-    const i = a.findIndex(fn);
-    return arr.length - i;
-  }
-
-  function getSchema_v1() {
-    return {
-      content: {
-        text: {
-          name: 'text',
-          dataType: 'Vector',
-          mandatory: true,
-        },
-        type: {
-          name: 'type',
-          dataType: 'String',
-          mandatory: true,
-        },
-        subtype: {
-          name: 'subtype',
-          dataType: 'String',
-          mandatory: true,
-        },
-        parent_uids: {
-          name: 'parent_uids',
-          dataType: 'String',
-          mandatory: true,
-        },
-        uid: {
-          name: 'uid',
-          dataType: 'String',
-          mandatory: true,
-        },
-      }
-    };
-  }
-
-
   return {
     __name,
-    extract,
     getChunks,
     getSchema,
+    matchDocument,
+    extract,
   };
 }
 

@@ -3,9 +3,11 @@ import clone from 'lodash.clonedeep';
 import get from 'lodash.get';
 import set from 'lodash.set';  // mutable
 import { default as dayjs } from 'dayjs';
+import { unflatten } from 'flat';
 
-import { SemanticFunctionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
+import { SemanticFunctionError } from '../errors';
+import { GraphStoreService } from '../indexers/GraphStore';
 import {
   PromptEnrichmentPipelineParams,
   PromptEnrichmentStep,
@@ -21,6 +23,8 @@ import {
   OnFunctionEnrichmentEndParams,
   SqlEnrichmentParams,
   OnSqlEnrichmentEndParams,
+  GraphEnrichmentParams,
+  OnGraphEnrichmentEndParams,
 } from './PromptEnrichmentPipeline_types';
 import { PromptTemplate } from './PromptTemplate';
 import { ModelParams } from '../conversions/RosettaStone';
@@ -194,10 +198,30 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     this.onStart({ args });
     try {
       const query = this.getQuery(args);
-      const { embeddingProvider, vectorStoreProvider } = this.indexParams;
+      const { nodeLabel, embeddingProvider, vectorStoreProvider } = this.indexParams;
       const queryEmbedding = await this.embeddingService.createEmbedding(embeddingProvider, query);
       const results = await this.vectorStoreService.search(vectorStoreProvider, this.indexName, query, null, { queryEmbedding });
-      const contextLines = results.map((r: any) => r.text);
+      let hits = results
+        .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
+          const key = k.replace(/__/g, '.');
+          a[key] = v;
+          return a;
+        }, {}))
+      hits = hits.map(unflatten);
+      hits = hits.map((val: any) => {
+        if (val.dist) {
+          return {
+            ...val[nodeLabel],
+            dist: val.dist,
+          };
+        } else {
+          return {
+            ...val[nodeLabel],
+            score: parseFloat(val.score),
+          };
+        }
+      });
+      const contextLines = hits.map((h: any) => h.text);
       const context = contextLines.join('\n\n');
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });
@@ -439,6 +463,89 @@ export class SqlEnrichment implements PromptEnrichmentStep {
 
 }
 
+export class KnowledgeGraphEnrichment implements PromptEnrichmentStep {
+
+  graphSourceInfo: any;
+  graphStoreService: any;
+  callbacks: Callback[];
+  currentCallbacks: Callback[];
+
+  constructor({
+    graphSourceInfo,
+    graphStoreService,
+    callbacks,
+  }: GraphEnrichmentParams) {
+    this.graphSourceInfo = graphSourceInfo;
+    this.graphStoreService = graphStoreService;
+    this.callbacks = callbacks || [];
+  }
+
+  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
+    this.onStart({ args });
+    try {
+      const { graphstore, nodeLabel } = this.graphSourceInfo;
+      const schema = await this.graphStoreService.getSchema(graphstore, { nodeLabel });
+      const context = getSchemaAsText(schema);
+      const enrichedArgs = this.enrich(args, context);
+      this.onEnd({ enrichedArgs });
+      return enrichedArgs;
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors });
+      throw err;
+    }
+  }
+
+  enrich(args: any, context: string) {
+    const contextPath = 'context';
+    const existingContext = get(args, contextPath);
+    if (existingContext) {
+      if (typeof existingContext !== 'string') {
+        this.throwSemanticFunctionError(`existing context found at ${contextPath} is an incompatible type`);
+      }
+      return set(clone(args), contextPath, [existingContext, context].join('\n\n'));
+    }
+    return set(clone(args), contextPath, context);
+  }
+
+  onStart({ args }: PromptEnrichmentCallParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onGraphEnrichmentStart({
+        args,
+      });
+    }
+  }
+
+  onEnd({ enrichedArgs, errors }: OnGraphEnrichmentEndParams) {
+    for (let callback of this.currentCallbacks) {
+      callback.onGraphEnrichmentEnd({
+        enrichedArgs,
+      });
+    }
+  }
+
+  throwSemanticFunctionError(message: string) {
+    const errors = [{ message }];
+    for (let callback of this.currentCallbacks) {
+      callback.onGraphEnrichmentError(errors);
+    }
+    throw new SemanticFunctionError(message);
+  }
+
+}
+
+function getSchemaAsText(schema: any) {
+  return 'Node properties are the following:\n' +
+    JSON.stringify(schema.node_properties, null, 2) + '\n\n' +
+    'Relationship properties are the following:\n' +
+    JSON.stringify(schema.relationship_properties, null, 2) + '\n\n' +
+    'The relationships are the following:\n' +
+    schema.relationships.map((r: any) =>
+      `(:${r.start})-[:${r.type}]-(:${r.end})`
+    ).join('\n')
+}
+
 type PromptEnrichmentComponent = PromptEnrichmentStep | PromptEnrichmentStep[] | PromptTemplate;
 
 interface PromptEnrichmentPipelineOptions {
@@ -507,4 +614,14 @@ interface SqlEnrichmentOptions {
 
 export const sqlEnrichment = (options: SqlEnrichmentOptions) => {
   return new SqlEnrichment(options);
+}
+
+interface KnowledgeGraphEnrichmentOptions {
+  graphSourceInfo: any;
+  graphStoreService: GraphStoreService;
+  callbacks?: Callback[];
+}
+
+export const knowledgeGraphEnrichment = (options: KnowledgeGraphEnrichmentOptions) => {
+  return new KnowledgeGraphEnrichment(options);
 }

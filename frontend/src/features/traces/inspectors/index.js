@@ -94,6 +94,9 @@ export function Inspector({ step }) {
     case 'sql-enrichment':
       return <PromptEnrichment step={step} title="Enrich Context using a SQL Source" />
 
+    case 'graph-enrichment':
+      return <PromptEnrichment step={step} title="Enrich Context using a Knowledge Graph Source" />
+
     case 'select-experiment':
       return <Experiment step={step} title="Select Experiment" />
 

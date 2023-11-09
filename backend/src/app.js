@@ -351,6 +351,7 @@ const executionsService = ExecutionsService({
     embeddingService,
     featureStoreService,
     functionsService,
+    graphStoreService,
     guardrailsService,
     indexesService,
     llmService,

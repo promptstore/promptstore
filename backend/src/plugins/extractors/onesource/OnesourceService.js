@@ -5,6 +5,8 @@ import uuid from 'uuid';
 
 function OnesourceService({ __name, constants, logger }) {
 
+  const allowedExtensions = ['docx', 'pdf'];
+
   async function getChunks(documents, {
     nodeLabel = 'Chunk',
     filepath,
@@ -196,8 +198,9 @@ function OnesourceService({ __name, constants, logger }) {
     };
   }
 
-
-  // ----------------------------------------------------------------------
+  function matchDocument(doc) {
+    return allowedExtensions.inlcudes(doc.ext);
+  }
 
   /**
    * Original output format:
@@ -260,21 +263,25 @@ function OnesourceService({ __name, constants, logger }) {
   }
 
   function getTextStats(text) {
-    if (!text) return 0;
+    if (!text) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     text = text.trim();
-    if (!text.length) return 0;
+    if (!text.length) {
+      return { wordCount: 0, length: 0, size: 0 };
+    }
     const wordCount = text.split(/\s+/).length;
     const length = text.length;
     const size = new Blob([text]).size;
     return { wordCount, length, size };
   }
 
-
   return {
     __name,
-    extract,
     getChunks,
     getSchema,
+    matchDocument,
+    extract,
   };
 }
 

@@ -18,6 +18,8 @@ import {
   FunctionEnrichmentOnEndResponse,
   SqlEnrichmentOnStartResponse,
   SqlEnrichmentOnEndResponse,
+  GraphEnrichmentOnStartResponse,
+  GraphEnrichmentOnEndResponse,
 } from '../promptenrichment/PromptEnrichmentPipeline_types';
 import {
   PromptTemplateOnStartResponse,
@@ -209,6 +211,18 @@ export class DebugCallback extends Callback {
   }
 
   onSqlEnrichmentError(errors: any) {
+    logger.error(errors);
+  }
+
+  onGraphEnrichmentStart({ args }: GraphEnrichmentOnStartResponse) {
+    logger.debug('start enrichment from Knowledge Graph source');
+  }
+
+  onGraphEnrichmentEnd({ enrichedArgs, errors }: GraphEnrichmentOnEndResponse) {
+    logger.debug('end enrichment from Knowledge Graph source');
+  }
+
+  onGraphEnrichmentError(errors: any) {
     logger.error(errors);
   }
 

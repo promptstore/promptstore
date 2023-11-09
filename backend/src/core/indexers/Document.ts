@@ -5,6 +5,7 @@ export interface DocumentParams {
   objectName: string;
   database: string;
   mimetype: string;
+  originalname: string;
   etag: string;
   size: number;
   content: any;
@@ -18,7 +19,9 @@ export class Document {
   endpoint: string;
   objectName: string;
   database: string;
+  query: string;
   mimetype: string;
+  originalname: string;
   etag: string;
   size: number;
   content: any;

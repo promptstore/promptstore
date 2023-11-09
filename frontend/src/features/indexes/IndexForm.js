@@ -168,6 +168,7 @@ export function IndexForm() {
     } else if (index?.graphStoreProvider) {
       dispatch(dropGraphDataAsync({
         graphStoreProvider: index.graphStoreProvider,
+        indexName: index.name,
       }));
     }
   };

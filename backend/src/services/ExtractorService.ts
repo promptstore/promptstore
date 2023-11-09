@@ -1,5 +1,6 @@
 import { Document } from '../core/indexers/Document';
 import {
+  ExtendedDocument,
   Extractor,
   ExtractorEnum,
   ExtractorParams,
@@ -22,17 +23,17 @@ export function ExtractorService({ logger, registry }: PluginServiceParams): Ext
     return instance.getSchema(params);
   };
 
+  function matchDocument(extractor: ExtractorEnum, document: ExtendedDocument) {
+    logger.debug('match extractor to document');
+    const instance = registry[extractor] as Extractor;
+    return instance.matchDocument(document);
+  }
+
   function extract(extractor: ExtractorEnum, filepath: string, originalname: string, mimetype: string) {
     logger.debug('extract raw, extractor:', extractor);
     const instance = registry[extractor] as Extractor;
     return instance.extract(filepath, originalname, mimetype);
   }
-
-  function getDefaultOptions(extractor: ExtractorEnum) {
-    logger.debug('get default options, extractor:', extractor);
-    const instance = registry[extractor] as Extractor;
-    return instance.getDefaultOptions();
-  };
 
   function getExtractors() {
     return Object.entries(registry)
@@ -45,8 +46,8 @@ export function ExtractorService({ logger, registry }: PluginServiceParams): Ext
   return {
     getChunks,
     getSchema,
+    matchDocument,
     extract,
-    getDefaultOptions,
     getExtractors,
   };
 

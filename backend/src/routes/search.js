@@ -1,4 +1,4 @@
-import { unflatten } from 'flat';
+import { formatAlgolia } from '../utils';
 
 export default ({ app, auth, logger, services }) => {
 
@@ -156,66 +156,5 @@ export default ({ app, auth, logger, services }) => {
     const results = [];
     res.status(200).send(results);
   });
-
-  const formatAlgolia = (requests, rawResult, nodeLabel) => {
-    const documents = rawResult;
-    const nbHits = documents.length;
-    let hits = documents
-      .map((val) => Object.entries(val).reduce((a, [k, v]) => {
-        // if (k.startsWith(prefix)) {
-        //   a[k.slice(prefix.length)] = v;
-        // } else {
-        //   a[k] = v;
-        // }
-        const key = k.replace(/__/g, '.');
-        a[key] = v;
-        return a;
-      }, {}))
-    hits = hits.map(unflatten);
-    hits = hits.map((val) => {
-      if (val.dist) {
-        return {
-          ...val[nodeLabel],
-          dist: val.dist,
-        };
-      } else {
-        return {
-          ...val[nodeLabel],
-          score: parseFloat(val.score),
-        };
-      }
-    });
-    return {
-      exhaustive: {
-        nbHits: true,
-        typo: true,
-      },
-      exhaustiveNbHits: true,
-      exhaustiveType: true,
-      hits,
-      hitsPerPage: nbHits,
-      nbHits,
-      nbPages: 1,
-      page: 0,
-      params: '',
-      processingTimeMS: 2,
-      processingTimingsMS: {
-        afterFetch: {
-          format: {
-            highlighting: 2,
-            total: 2,
-          },
-          total: 2,
-        },
-        request: {
-          roundTrip: 19,
-        },
-        total: 2,
-      },
-      query: requests[0].params.query,
-      renderingContent: {},
-      serverTimeMS: 3,
-    };
-  };
 
 };

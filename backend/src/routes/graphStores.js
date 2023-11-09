@@ -9,7 +9,8 @@ export default ({ app, auth, logger, services }) => {
 
   app.delete('/api/graph-stores/:provider', auth, (req, res) => {
     const { provider } = req.params;
-    graphStoreService.dropData(provider);
+    const { indexName } = req.query;
+    graphStoreService.dropData(provider, indexName);
     res.sendStatus(200);
   });
 

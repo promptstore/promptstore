@@ -3,21 +3,28 @@ import {
   GraphStore,
   GraphStoreEnum,
   GraphStoreService,
+  SchemaParams,
 } from '../core/indexers/GraphStore';
 import { PluginServiceParams } from '../core/indexers/Plugin';
 
 export function GraphStoreService({ logger, registry }: PluginServiceParams): GraphStoreService {
 
-  async function addGraph(graphstore: GraphStoreEnum, graph: Graph) {
-    logger.debug('add graph, graphstore:', graphstore);
+  async function addGraph(graphstore: GraphStoreEnum, indexName: string, graph: Graph) {
+    logger.debug("add graph to index '%s', graphstore:", indexName, graphstore);
     const instance = registry[graphstore] as GraphStore;
-    return instance.addGraph(graph);
+    return instance.addGraph(indexName, graph);
   };
 
-  async function dropData(graphstore: GraphStoreEnum) {
-    logger.debug('drop data, graphstore:', graphstore);
+  async function dropData(graphstore: GraphStoreEnum, indexName: string) {
+    logger.debug("drop data from index '%s', graphstore:", indexName, graphstore);
     const instance = registry[graphstore] as GraphStore;
-    return instance.dropData();
+    return instance.dropData(indexName);
+  };
+
+  function getSchema(graphstore: GraphStoreEnum, params: SchemaParams) {
+    logger.debug('get schema, graphstore:', graphstore);
+    const instance = registry[graphstore] as GraphStore;
+    return instance.getSchema(params);
   };
 
   function getGraphStores() {
@@ -31,6 +38,7 @@ export function GraphStoreService({ logger, registry }: PluginServiceParams): Gr
   return {
     addGraph,
     dropData,
+    getSchema,
     getGraphStores,
   }
 

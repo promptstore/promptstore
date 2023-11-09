@@ -177,23 +177,33 @@ export const deleteUploadsAsync = ({ workspaceId, uploads }) => async (dispatch)
 };
 
 export const indexApiAsync = ({ endpoint, schema, params, workspaceId }) => async (dispatch) => {
-  const url = '/api/loader/api';
+  const url = '/api/index/api';
   await http.post(url, { endpoint, schema, params, workspaceId });
 };
 
-export const indexGraphAsync = ({ params, workspaceId }) => async (dispatch) => {
-  const url = '/api/loader/graph';
-  await http.post(url, { params, workspaceId });
-};
-
-export const indexStructuredDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
-  const url = '/api/loader/structureddocument';
+export const indexCsvAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
+  const url = '/api/index/csv';
   await http.post(url, { documents, params, workspaceId });
 };
 
 export const indexDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
-  const url = '/api/loader/document';
+  const url = '/api/index/document';
   await http.post(url, { documents, params, workspaceId });
+};
+
+export const indexGraphAsync = ({ params, workspaceId }) => async (dispatch) => {
+  const url = '/api/index/graph';
+  await http.post(url, { params, workspaceId });
+};
+
+export const indexTextDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
+  const url = '/api/index/text';
+  await http.post(url, { documents, params, workspaceId });
+};
+
+export const indexWikipediaAsync = ({ params, workspaceId }) => async (dispatch) => {
+  const url = '/api/index/wikipedia';
+  await http.post(url, { params, workspaceId });
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;

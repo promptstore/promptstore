@@ -157,8 +157,8 @@ export const dropDataAsync = ({ id, name, nodeLabel, vectorStoreProvider }) => a
   dispatch(setIndexes({ indexes: [index] }));
 };
 
-export const dropGraphDataAsync = ({ graphStoreProvider }) => async () => {
-  const url = `/api/graph-stores/${graphStoreProvider}`;
+export const dropGraphDataAsync = ({ graphStoreProvider, indexName }) => async () => {
+  const url = `/api/graph-stores/${graphStoreProvider}?indexName=${indexName}`;
   await http.delete(url);
 };
 

@@ -44,6 +44,7 @@ export class Indexer {
     const index = params.index || await this.createOrGetIndex(params);
     await this.indexChunks(chunks, {
       indexName: index.name,
+      nodeLabel: params.nodeLabel,
       embeddingProvider: index.embeddingProvider,
       vectorStoreProvider: index.vectorStoreProvider,
     })
@@ -65,7 +66,7 @@ export class Indexer {
     } = params;
     let index: any;
     if (indexId === 'new') {
-      if (!Object.values(EmbeddingProviderEnum).includes(embeddingProvider)) {
+      if (embeddingProvider && !Object.values(EmbeddingProviderEnum).includes(embeddingProvider)) {
         throw new Error('Unsupported embedding provider: ' + embeddingProvider);
       }
 
@@ -145,6 +146,7 @@ export class Indexer {
 
   async indexChunks(chunks: Chunk[], {
     indexName,
+    nodeLabel,
     embeddingProvider,
     vectorStoreProvider,
   }) {
@@ -157,6 +159,7 @@ export class Indexer {
     const vectorStore = VectorStore.create(vectorStoreProvider, this.vectorStoreService);
     await vectorStore.indexChunks(chunks, embeddings, {
       indexName,
+      nodeLabel,
     });
   }
 

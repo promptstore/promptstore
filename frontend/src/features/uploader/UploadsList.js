@@ -28,7 +28,8 @@ import {
   deleteUploadsAsync,
   getUploadContentAsync,
   getUploadsAsync,
-  indexDocumentAsync,
+  indexCsvAsync,
+  indexTextDocumentAsync,
   reloadContentAsync,
   selectLoading,
   selectUploads,
@@ -165,11 +166,19 @@ export function UploadsList({ workspaceId }) {
   };
 
   const onIndexSubmit = (values) => {
-    dispatch(indexDocumentAsync({
-      filepath: selectedRow.name,
-      params: values,
-      workspaceId: selectedWorkspace,
-    }));
+    if (selectedRow.ext === 'csv') {
+      dispatch(indexCsvAsync({
+        filepath: selectedRow.name,
+        params: values,
+        workspaceId: selectedWorkspace,
+      }));
+    } else if (selectedRow.ext === 'txt') {
+      dispatch(indexTextDocumentAsync({
+        filepath: selectedRow.name,
+        params: values,
+        workspaceId: selectedWorkspace,
+      }));
+    }
     setIsIndexModalOpen(false);
     setSelectedRow(null);
   };
