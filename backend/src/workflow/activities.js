@@ -2,6 +2,8 @@ import fs from 'fs';
 import omit from 'lodash.omit';
 import path from 'path';
 
+import { Pipeline } from '../core/indexers/Pipeline';
+
 const supportedMimetypes = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -23,14 +25,19 @@ const supportedMimetypes = [
 
 export const createActivities = ({
   mc,
+  logger,
   dataSourcesService,
   destinationsService,
+  embeddingService,
   executionsService,
   extractorService,
+  indexesService,
   functionsService,
+  graphStoreService,
+  loaderService,
   sqlSourceService,
   uploadsService,
-  logger,
+  vectorStoreService,
 }) => ({
 
   async reload(file, workspaceId, username, uploadId) {
@@ -191,6 +198,28 @@ export const createActivities = ({
       }
     }
     return { status: 'OK' };
+  },
+
+  async index(params, loaderProvider, extractorProviders) {
+    try {
+      const pipeline = new Pipeline({
+        embeddingService,
+        executionsService,
+        extractorService,
+        indexesService,
+        graphStoreService,
+        loaderService,
+        vectorStoreService,
+      }, {
+        loaderProvider,
+        extractorProviders,
+      });
+      const index = await pipeline.run(params);
+      return index;
+    } catch (err) {
+      logger.error(err);
+      throw err;
+    }
   }
 
 });

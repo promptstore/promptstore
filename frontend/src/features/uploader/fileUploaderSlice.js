@@ -14,6 +14,8 @@ export const fileUploaderSlice = createSlice({
     uploading: false,
     reloaded: {},
     reloading: {},
+    indexed: {},
+    indexing: {},
   },
   reducers: {
     removeUploads: (state, action) => {
@@ -53,6 +55,14 @@ export const fileUploaderSlice = createSlice({
       state.reloaded[action.payload.uploadId] = true;
       state.reloading[action.payload.uploadId] = false;
     },
+    startIndex: (state, action) => {
+      state.indexing[action.payload.dataSourceId] = true;
+      state.indexed[action.payload.dataSourceId] = false;
+    },
+    indexed: (state, action) => {
+      state.indexed[action.payload.dataSourceId] = true;
+      state.indexing[action.payload.dataSourceId] = false;
+    },
   }
 });
 
@@ -64,6 +74,8 @@ export const {
   uploaded,
   startReload,
   reloaded,
+  startIndex,
+  indexed,
 } = fileUploaderSlice.actions;
 
 export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState) => {
@@ -196,9 +208,25 @@ export const indexGraphAsync = ({ params, workspaceId }) => async (dispatch) => 
   await http.post(url, { params, workspaceId });
 };
 
-export const indexTextDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
+export const indexTextDocumentAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
   const url = '/api/index/text';
-  await http.post(url, { documents, params, workspaceId });
+  const correlationId = uuidv4();
+  await http.post(url, { correlationId, documents, params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
 export const indexWikipediaAsync = ({ params, workspaceId }) => async (dispatch) => {
@@ -223,5 +251,9 @@ export const selectUploading = (state) => state.fileUploader.uploading;
 export const selectReloaded = (state) => state.fileUploader.reloaded;
 
 export const selectReloading = (state) => state.fileUploader.reloading;
+
+export const selectIndexed = (state) => state.fileUploader.indexed;
+
+export const selectIndexing = (state) => state.fileUploader.indexing;
 
 export default fileUploaderSlice.reducer;

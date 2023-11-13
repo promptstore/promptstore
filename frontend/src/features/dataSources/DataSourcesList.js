@@ -19,7 +19,7 @@ import {
   indexTextDocumentAsync,
   indexWikipediaAsync,
   selectLoaded as selectUploadsLoaded,
-  selectUploads,
+  selectIndexing,
 } from '../uploader/fileUploaderSlice';
 
 import {
@@ -41,8 +41,9 @@ export function DataSourcesList() {
 
   const dataSources = useSelector(selectDataSources);
   const loading = useSelector(selectLoading);
-  const uploads = useSelector(selectUploads);
   const uploadsLoaded = useSelector(selectUploadsLoaded);
+  const indexing = useSelector(selectIndexing);
+
 
   const data = useMemo(() => {
     const list = Object.values(dataSources).map((ds) => ({
@@ -163,6 +164,7 @@ export function DataSourcesList() {
         }));
       } else if (dataSource.documentType === 'txt') {
         dispatch(indexTextDocumentAsync({
+          dataSourceId: dataSource.id,
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -297,6 +299,7 @@ export function DataSourcesList() {
             <>
               <Button type="link"
                 disabled={!uploadsLoaded}
+                loading={indexing[record.key]}
                 style={{ paddingLeft: 0 }}
                 onClick={() => openIndex(record)}
               >

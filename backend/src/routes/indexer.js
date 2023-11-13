@@ -2,7 +2,7 @@ import { ExtractorEnum } from '../core/indexers/Extractor';
 import { LoaderEnum } from '../core/indexers/Loader';
 import { Pipeline } from '../core/indexers/Pipeline';
 
-export default ({ app, auth, logger, services }) => {
+export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const {
     documentsService,
@@ -15,6 +15,20 @@ export default ({ app, auth, logger, services }) => {
     uploadsService,
     vectorStoreService,
   } = services;
+
+  // cache of results to poll
+  const jobs = {};
+
+  app.get('/api/index-status/:correlationId', auth, async (req, res) => {
+    const { correlationId } = req.params;
+    // logger.debug('checking index status for:', correlationId);
+    const result = jobs[correlationId];
+    if (!result) {
+      return res.sendStatus(423);
+    }
+    res.json(result);
+    delete jobs[correlationId];
+  });
 
   app.post('/api/index/api', auth, async (req, res) => {
     const { username } = req.user;
@@ -48,7 +62,7 @@ export default ({ app, auth, logger, services }) => {
         vectorStoreService,
       }, {
         loaderProvider: LoaderEnum.api,
-        extractorProvider: [ExtractorEnum.json],
+        extractorProviders: [ExtractorEnum.json],
       });
 
       const index = await pipeline.run({
@@ -359,7 +373,7 @@ export default ({ app, auth, logger, services }) => {
 
   app.post('/api/index/text', auth, async (req, res) => {
     const { username } = req.user;
-    const { documents, params, workspaceId } = req.body;
+    const { correlationId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -386,20 +400,7 @@ export default ({ app, auth, logger, services }) => {
       objectNames.push(objectName);
     }
 
-    const pipeline = new Pipeline({
-      embeddingService,
-      executionsService,
-      extractorService,
-      indexesService,
-      graphStoreService,
-      loaderService,
-      vectorStoreService,
-    }, {
-      loaderProvider: LoaderEnum.minio,
-      extractorProviders: [ExtractorEnum.text],
-    });
-
-    const index = await pipeline.run({
+    const indexParams = {
       // Loader params
       objectNames,
       maxBytes: 100000,
@@ -427,9 +428,38 @@ export default ({ app, auth, logger, services }) => {
       // Addtl Graph Store params
       allowedNodes,
       allowedRels,
-    });
+    };
 
-    res.json({ indexId: index.id });
+    // const pipeline = new Pipeline({
+    //   embeddingService,
+    //   executionsService,
+    //   extractorService,
+    //   indexesService,
+    //   graphStoreService,
+    //   loaderService,
+    //   vectorStoreService,
+    // }, {
+    //   loaderProvider: LoaderEnum.minio,
+    //   extractorProviders: [ExtractorEnum.text],
+    // });
+    // const index = await pipeline.run(indexParams);
+
+    workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.text], {
+      address: constants.TEMPORAL_URL,
+    })
+      .then((result) => {
+        // logger.debug('index result:', result);
+        if (correlationId) {
+          jobs[correlationId] = result;
+        }
+
+        // allow 10m to poll for results
+        setTimeout(() => {
+          delete jobs[correlationId];
+        }, 10 * 60 * 1000);
+      });
+
+    res.sendStatus(200);
   });
 
   app.post('/api/index/document', auth, async (req, res) => {

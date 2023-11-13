@@ -62,9 +62,7 @@ const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
 const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
-const ONESOURCE_API_URL = process.env.ONESOURCE_API_URL;
 const PORT = process.env.PORT || '5000';
-const SEARCH_API = process.env.SEARCH_API;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
 const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';

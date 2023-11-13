@@ -1,5 +1,4 @@
 import multer from 'multer';
-import os from 'os';
 import path from 'path';
 
 import { getExtension } from '../utils';
@@ -159,8 +158,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         setTimeout(() => {
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
-
       });
+
     res.sendStatus(200);
   });
 
