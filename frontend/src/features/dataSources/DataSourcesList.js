@@ -4,13 +4,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Modal, Space, Table, Tag, message } from 'antd';
 import useLocalStorageState from 'use-local-storage-state';
 
-import { DataSourceContentView } from '../../components/DataSourceContentView';
+// import { DataSourceContentView } from '../../components/DataSourceContentView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { getColor } from '../../utils';
 
 import { IndexModal } from '../uploader/IndexModal';
 import {
+  crawlAsync,
   getUploadsAsync,
   indexApiAsync,
   indexCsvAsync,
@@ -19,22 +20,24 @@ import {
   indexTextDocumentAsync,
   indexWikipediaAsync,
   selectLoaded as selectUploadsLoaded,
+  selectIndexed,
   selectIndexing,
 } from '../uploader/fileUploaderSlice';
 
 import {
-  crawlAsync,
   deleteDataSourcesAsync,
   getDataSourcesAsync,
-  getDataSourceContentAsync,
+  // getDataSourceContentAsync,
   selectDataSources,
   selectLoading,
 } from './dataSourcesSlice';
 
+const indexableTypes = ['api', 'crawler', 'graphstore', 'wikipedia'];
+
 export function DataSourcesList() {
 
+  // const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isIndexModalOpen, setIsIndexModalOpen] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [page, setPage] = useLocalStorageState('data-sources-list-page', { defaultValue: 1 });
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -42,8 +45,8 @@ export function DataSourcesList() {
   const dataSources = useSelector(selectDataSources);
   const loading = useSelector(selectLoading);
   const uploadsLoaded = useSelector(selectUploadsLoaded);
+  const indexed = useSelector(selectIndexed);
   const indexing = useSelector(selectIndexing);
-
 
   const data = useMemo(() => {
     const list = Object.values(dataSources).map((ds) => ({
@@ -82,7 +85,7 @@ export function DataSourcesList() {
   }, []);
 
   useEffect(() => {
-    if (location.state && location.state.message) {
+    if (location.state?.message) {
       messageApi.info({
         content: location.state.message,
         duration: 3,
@@ -97,6 +100,16 @@ export function DataSourcesList() {
       dispatch(getUploadsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
+
+  useEffect(() => {
+    if (selectedId && indexed?.[selectedId]) {
+      messageApi.info({
+        content: 'Finished indexing ' + dataSource.name,
+        duration: 3,
+      });
+      setSelectedId(null);
+    }
+  }, [indexed, selectedId]);
 
   // useEffect(() => {
   //   if (selectedId && selectedWorkspace) {
@@ -119,8 +132,24 @@ export function DataSourcesList() {
   };
 
   const onIndexSubmit = (values) => {
-    if (dataSource.type === 'crawler') {
+    if (dataSource.type === 'api') {
+      dispatch(indexApiAsync({
+        dataSourceId: dataSource.id,
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          embeddingProvider: values.embeddingProvider,
+          vectorStoreProvider: values.vectorStoreProvider,
+          graphStoreProvider: values.graphStoreProvider,
+          endpoint: dataSource.endpoint,
+          schema: dataSource.schema,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+
+    } else if (dataSource.type === 'crawler') {
       dispatch(crawlAsync({
+        dataSourceId: dataSource.id,
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
@@ -136,23 +165,10 @@ export function DataSourcesList() {
         workspaceId: selectedWorkspace.id,
       }));
 
-    } else if (dataSource.type === 'api') {
-      dispatch(indexApiAsync({
-        params: {
-          indexId: values.indexId,
-          newIndexName: values.newIndexName,
-          embeddingProvider: values.embeddingProvider,
-          vectorStoreProvider: values.vectorStoreProvider,
-          graphStoreProvider: values.graphStoreProvider,
-          endpoint: dataSource.endpoint,
-          schema: dataSource.schema,
-        },
-        workspaceId: selectedWorkspace.id,
-      }));
-
     } else if (dataSource.type === 'document') {
       if (dataSource.documentType === 'csv') {
         dispatch(indexCsvAsync({
+          dataSourceId: dataSource.id,
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -182,6 +198,7 @@ export function DataSourcesList() {
         }));
       } else {
         dispatch(indexDocumentAsync({
+          dataSourceId: dataSource.id,
           documents: dataSource.documents,
           params: {
             indexId: values.indexId,
@@ -194,6 +211,7 @@ export function DataSourcesList() {
       }
     } else if (dataSource.type === 'graphstore') {
       dispatch(indexGraphAsync({
+        dataSourceId: dataSource.id,
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
@@ -210,6 +228,7 @@ export function DataSourcesList() {
       }));
     } else if (dataSource.type === 'wikipedia') {
       dispatch(indexWikipediaAsync({
+        dataSourceId: dataSource.id,
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
@@ -227,37 +246,27 @@ export function DataSourcesList() {
       }));
     }
     setIsIndexModalOpen(false);
-    setSelectedId(null);
-  };
-
-  const onPreviewCancel = () => {
-    setIsPreviewModalOpen(false);
-    setSelectedId(null);
   };
 
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  // const openCrawl = (record) => {
-  //   dispatch(crawlAsync({
-  //     url: record.baseUrl,
-  //     spec: record.scrapingSpec,
-  //     maxRequestsPerCrawl: parseInt(record.maxRequestsPerCrawl || '99', 10),
-  //   }));
-  // };
-
   const openIndex = (record) => {
     setSelectedId(record.key);
     setIsIndexModalOpen(true);
   };
 
-  const openPreview = (record) => {
-    // setSelectedId(record.documentId);
-    setSelectedId(record.key);
-    dispatch(getDataSourceContentAsync(record.key, 1000 * 1024)); // preview 1Mb
-    setIsPreviewModalOpen(true);
-  };
+  // const onPreviewCancel = () => {
+  //   setIsPreviewModalOpen(false);
+  //   setSelectedId(null);
+  // };
+
+  // const openPreview = (record) => {
+  //   setSelectedId(record.key);
+  //   dispatch(getDataSourceContentAsync(record.key, 1000 * 1024)); // preview 1Mb
+  //   setIsPreviewModalOpen(true);
+  // };
 
   const columns = [
     {
@@ -314,7 +323,7 @@ export function DataSourcesList() {
             </>
             : null
           }
-          {record.type === 'crawler' || record.type === 'api' || record.type === 'graphstore' || record.type === 'wikipedia' ?
+          {indexableTypes.includes(record.type) ?
             <Button type="link"
               disabled={false}
               style={{ paddingLeft: 0 }}
@@ -342,16 +351,16 @@ export function DataSourcesList() {
   return (
     <>
       {contextHolder}
-      <Modal
+      {/* <Modal
         open={isPreviewModalOpen}
         title="Content Preview"
-        width={'90%'}
+        width={'75%'}
         bodyStyle={{ height: 500, overflowY: 'auto' }}
         onCancel={onPreviewCancel}
         onOk={onPreviewCancel}
       >
         <DataSourceContentView dataSource={dataSource} />
-      </Modal>
+      </Modal> */}
       <IndexModal
         ext={dataSource?.documentType}
         isDataSource={true}
@@ -376,7 +385,7 @@ export function DataSourcesList() {
           loading={loading}
           pagination={{
             current: page,
-            onChange: (page, pageSize) => setPage(page),
+            onChange: (page) => setPage(page),
           }}
         />
       </div>

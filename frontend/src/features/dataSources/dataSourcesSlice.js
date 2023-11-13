@@ -111,10 +111,6 @@ export const deleteDataSourcesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeDataSources({ ids }));
 };
 
-export const crawlAsync = ({ params, workspaceId }) => async (dispatch) => {
-  await http.post('/api/index/crawler', { params, workspaceId });
-};
-
 export const selectLoaded = (state) => state.dataSources.loaded;
 
 export const selectLoading = (state) => state.dataSources.loading;

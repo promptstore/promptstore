@@ -306,7 +306,7 @@ export function UploadsList({ workspaceId }) {
       <Modal
         open={isModalOpen}
         title="Content Preview"
-        width={'90%'}
+        width={'75%'}
         bodyStyle={{ height: 500, overflowY: 'auto' }}
         onCancel={onCancel}
         onOk={onCancel}

@@ -214,7 +214,7 @@ export function TransformationsList() {
       <Modal
         open={isPreviewModalOpen}
         title="Content Preview"
-        width={'90%'}
+        width={'75%'}
         bodyStyle={{ height: 500, overflowY: 'auto' }}
         onCancel={onPreviewCancel}
         onOk={onPreviewCancel}

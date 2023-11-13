@@ -1,23 +1,26 @@
 import { ExtractorEnum } from '../core/indexers/Extractor';
 import { LoaderEnum } from '../core/indexers/Loader';
-import { Pipeline } from '../core/indexers/Pipeline';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const {
     documentsService,
-    embeddingService,
-    executionsService,
-    extractorService,
-    graphStoreService,
     indexesService,
-    loaderService,
     uploadsService,
-    vectorStoreService,
   } = services;
 
   // cache of results to poll
   const jobs = {};
+
+  const setJobResult = (correlationId) => (result) => {
+    // logger.debug('index result:', result);
+    if (correlationId) {
+      jobs[correlationId] = result;
+      setTimeout(() => {  // allow 10m to poll for results
+        delete jobs[correlationId];
+      }, 10 * 60 * 1000);
+    }
+  };
 
   app.get('/api/index-status/:correlationId', auth, async (req, res) => {
     const { correlationId } = req.params;
@@ -32,10 +35,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/api', auth, async (req, res) => {
     const { username } = req.user;
-    const {
-      params,
-      workspaceId,
-    } = req.body;
+    const { correlationId, params, workspaceId } = req.body;
     const {
       textNodeProperties,
       indexId,
@@ -51,46 +51,40 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+
+    const indexParams = {
+      // Loader params
+      endpoint,
+      schema: jsonSchema,
+
+      // Extractor params
+      jsonSchema,
+      textNodeProperties,
+
+      // Indexer params
+      indexId,
+      newIndexName,
+      embeddingProvider,
+      vectorStoreProvider,
+      graphStoreProvider,
+      nodeLabel,
+      embeddingNodeProperty,
+      similarityMetric,
+      workspaceId,
+      username,
+
+      // Addtl Graph Store params
+      allowedNodes,
+      allowedRels,
+    };
+
     try {
-      const pipeline = new Pipeline({
-        embeddingService,
-        executionsService,
-        extractorService,
-        indexesService,
-        graphStoreService,
-        loaderService,
-        vectorStoreService,
-      }, {
-        loaderProvider: LoaderEnum.api,
-        extractorProviders: [ExtractorEnum.json],
-      });
+      workflowClient.index(indexParams, LoaderEnum.api, [ExtractorEnum.json], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
 
-      const index = await pipeline.run({
-        // Loader params
-        endpoint,
-        schema: jsonSchema,
+      res.sendStatus(200);
 
-        // Extractor params
-        jsonSchema,
-        textNodeProperties,
-
-        // Indexer params
-        indexId,
-        newIndexName,
-        embeddingProvider,
-        vectorStoreProvider,
-        graphStoreProvider,
-        nodeLabel,
-        embeddingNodeProperty,
-        similarityMetric,
-        workspaceId,
-        username,
-
-        // Addtl Graph Store params
-        allowedNodes,
-        allowedRels,
-      });
-      res.json({ index: index.id });
     } catch (err) {
       logger.error(err);
       res.sendStatus(500);
@@ -164,10 +158,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    */
   app.post('/api/index/crawler', auth, async (req, res) => {
     const { username } = req.user;
-    const {
-      params,
-      workspaceId
-    } = req.body;
+    const { correlationId, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -185,47 +176,40 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+
+    const indexParams = {
+      // Loader params
+      dataSourceName,
+      url,
+      crawlerSpec,
+      maxRequestsPerCrawl,
+
+      // Extractor params
+      nodeLabel,
+      chunkElement,
+
+      // Indexer params
+      indexId,
+      newIndexName,
+      embeddingNodeProperty,
+      textNodeProperties,
+      similarityMetric,
+      embeddingProvider,
+      vectorStoreProvider,
+      graphStoreProvider,
+
+      // Addtl Graph Store params
+      allowedNodes,
+      allowedRels,
+    };
+
     try {
-      const pipeline = new Pipeline({
-        embeddingService,
-        executionsService,
-        extractorService,
-        indexesService,
-        graphStoreService,
-        loaderService,
-        vectorStoreService,
-      }, {
-        loaderProvider: LoaderEnum.crawler,
-        extractorProviders: [ExtractorEnum.crawler],
-      });
+      workflowClient.index(indexParams, LoaderEnum.crawler, [ExtractorEnum.crawler], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
 
-      const index = await pipeline.run({
-        // Loader params
-        dataSourceName,
-        url,
-        crawlerSpec,
-        maxRequestsPerCrawl,
+      res.sendStatus(200);
 
-        // Extractor params
-        nodeLabel,
-        chunkElement,
-
-        // Indexer params
-        indexId,
-        newIndexName,
-        embeddingNodeProperty,
-        textNodeProperties,
-        similarityMetric,
-        embeddingProvider,
-        vectorStoreProvider,
-        graphStoreProvider,
-
-        // Addtl Graph Store params
-        allowedNodes,
-        allowedRels,
-      });
-
-      res.json({ indexId: index.id });
     } catch (err) {
       logger.error(err);
       res.sendStatus(500);
@@ -234,7 +218,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/graph', auth, async (req, res) => {
     const { username } = req.user;
-    const { params, workspaceId } = req.body;
+    const { correlationId, params, workspaceId } = req.body;
     const {
       nodeLabel,
       embeddingNodeProperty = 'embedding',
@@ -259,21 +243,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
           sourceIndexName = sourceIndex.name;
         }
       }
-      const pipeline = new Pipeline({
-        embeddingService,
-        executionsService,
-        extractorService,
-        indexesService,
-        graphStoreService,
-        loaderService,
-        vectorStoreService,
-      }, {
-        // There are no documents to extract
-        // Chunks are extracted directly from the graphstore
-        extractorProviders: [ExtractorEnum.neo4j],
-      });
 
-      const index = await pipeline.run({
+      const indexParams = {
         // Extractor params
         nodeLabel,
         sourceIndexName,
@@ -294,9 +265,13 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         // Addtl Graph Store params
         allowedNodes,
         allowedRels,
-      });
+      };
 
-      res.json({ indexId: index.id });
+      workflowClient.index(indexParams, null, [ExtractorEnum.neo4j], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
+
+      res.sendStatus(200);
 
     } catch (err) {
       logger.error(err, err.stack);
@@ -306,7 +281,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/csv', auth, async (req, res) => {
     const { username } = req.user;
-    const { documents, params, workspaceId } = req.body;
+    const { correlationId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -321,54 +296,51 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
     } = params;
 
-    const objectNames = [];
-    for (const uploadId of documents) {
-      const upload = await uploadsService.getUpload(uploadId);
-      const objectName = `${workspaceId}/documents/${upload.filename}`;
-      objectNames.push(objectName);
+    try {
+      const objectNames = [];
+      for (const uploadId of documents) {
+        const upload = await uploadsService.getUpload(uploadId);
+        const objectName = `${workspaceId}/documents/${upload.filename}`;
+        objectNames.push(objectName);
+      }
+
+      const indexParams = {
+        // Loader params
+        objectNames,
+        maxBytes: 100000,
+
+        // Extractor params
+        textNodeProperties,
+        nodeLabel,
+        options: csvOptions,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingNodeProperty,
+        textNodeProperties,
+        similarityMetric,
+        embeddingProvider,
+        vectorStoreProvider,
+        graphStoreProvider,
+        workspaceId,
+        username,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
+      workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.csv], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
+
+      res.sendStatus(200);
+
+    } catch (err) {
+      logger.error(err, err.stack);
+      res.sendStatus(500);
     }
-
-    const pipeline = new Pipeline({
-      embeddingService,
-      executionsService,
-      extractorService,
-      indexesService,
-      graphStoreService,
-      loaderService,
-      vectorStoreService,
-    }, {
-      loaderProvider: LoaderEnum.minio,
-      extractorProviders: [ExtractorEnum.csv],
-    });
-
-    const index = await pipeline.run({
-      // Loader params
-      objectNames,
-      maxBytes: 100000,
-
-      // Extractor params
-      textNodeProperties,
-      nodeLabel,
-      options: csvOptions,
-
-      // Indexer params
-      indexId,
-      newIndexName,
-      embeddingNodeProperty,
-      textNodeProperties,
-      similarityMetric,
-      embeddingProvider,
-      vectorStoreProvider,
-      graphStoreProvider,
-      workspaceId,
-      username,
-
-      // Addtl Graph Store params
-      allowedNodes,
-      allowedRels,
-    });
-
-    res.json({ indexId: index.id });
   });
 
   app.post('/api/index/text', auth, async (req, res) => {
@@ -393,17 +365,152 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
     } = params;
 
-    const objectNames = [];
-    for (const uploadId of documents) {
-      const upload = await uploadsService.getUpload(uploadId);
-      const objectName = `${workspaceId}/documents/${upload.filename}`;
-      objectNames.push(objectName);
+    try {
+      const objectNames = [];
+      for (const uploadId of documents) {
+        const upload = await uploadsService.getUpload(uploadId);
+        const objectName = `${workspaceId}/documents/${upload.filename}`;
+        objectNames.push(objectName);
+      }
+
+      const indexParams = {
+        // Loader params
+        objectNames,
+        maxBytes: 100000,
+
+        // Extractor params
+        nodeLabel,
+        splitter,
+        characters,
+        functionId,
+        chunkSize,
+        chunkOverlap,
+        workspaceId,
+        username,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingNodeProperty,
+        textNodeProperties,
+        similarityMetric,
+        embeddingProvider,
+        vectorStoreProvider,
+        graphStoreProvider,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
+      workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.text], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
+
+      res.sendStatus(200);
+
+    } catch (err) {
+      logger.error(err, err.stack);
+      res.sendStatus(500);
     }
+  });
+
+  app.post('/api/index/document', auth, async (req, res) => {
+    const { username } = req.user;
+    const { correlationId, documents, params, workspaceId } = req.body;
+    const {
+      indexId,
+      newIndexName,
+      embeddingProvider,
+      vectorStoreProvider,
+      graphStoreProvider,
+      nodeLabel = 'Chunk',
+      embeddingNodeProperty = 'embedding',
+      similarityMetric = 'cosine',
+      allowedNodes,
+      allowedRels,
+    } = params;
+    try {
+      let docs;
+      for (const uploadId of documents) {
+        const upload = await uploadsService.getUpload(uploadId);
+        if (!upload) {
+          logger.error('Upload not found:', uploadId);
+          // keep processing the other documents
+        }
+        const objectName = `${upload.workspaceId}/documents/${upload.filename}`;
+        logger.debug('Loading', objectName);
+        const file = await documentsService.download(objectName);
+        docs.push({
+          filepath: file.path,
+          objectName,
+          mimetype: file.mimetype,
+          originalname: file.originalname,
+        });
+      }
+
+      const indexParams = {
+        // Extractor params
+        documents: docs,
+        nodeLabel,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingProvider,
+        vectorStoreProvider,
+        graphStoreProvider,
+        nodeLabel,
+        embeddingNodeProperty,
+        similarityMetric,
+        workspaceId,
+        username,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
+      // There are no documents to extract
+      // Chunks are extracted directly from the document processor
+      workflowClient.index(indexParams, null, [ExtractorEnum.unstructured], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
+
+      res.sendStatus(200);
+
+    } catch (err) {
+      logger.error(err, err.stack);
+      res.sendStatus(500);
+    }
+  });
+
+  app.post('/api/index/wikipedia', auth, async (req, res) => {
+    const { username } = req.user;
+    const { correlationId, params, workspaceId } = req.body;
+    const {
+      query,
+      indexId,
+      newIndexName,
+      embeddingProvider,
+      vectorStoreProvider,
+      graphStoreProvider,
+      textNodeProperties,
+      nodeLabel = 'Chunk',
+      splitter,
+      characters,
+      functionId,
+      chunkSize,
+      chunkOverlap,
+      embeddingNodeProperty = 'embedding',
+      similarityMetric = 'cosine',
+      allowedNodes,
+      allowedRels,
+    } = params;
 
     const indexParams = {
       // Loader params
-      objectNames,
-      maxBytes: 100000,
+      query,
 
       // Extractor params
       nodeLabel,
@@ -430,182 +537,15 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
     };
 
-    // const pipeline = new Pipeline({
-    //   embeddingService,
-    //   executionsService,
-    //   extractorService,
-    //   indexesService,
-    //   graphStoreService,
-    //   loaderService,
-    //   vectorStoreService,
-    // }, {
-    //   loaderProvider: LoaderEnum.minio,
-    //   extractorProviders: [ExtractorEnum.text],
-    // });
-    // const index = await pipeline.run(indexParams);
-
-    workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.text], {
-      address: constants.TEMPORAL_URL,
-    })
-      .then((result) => {
-        // logger.debug('index result:', result);
-        if (correlationId) {
-          jobs[correlationId] = result;
-        }
-
-        // allow 10m to poll for results
-        setTimeout(() => {
-          delete jobs[correlationId];
-        }, 10 * 60 * 1000);
-      });
-
-    res.sendStatus(200);
-  });
-
-  app.post('/api/index/document', auth, async (req, res) => {
-    const { username } = req.user;
-    const { documents, params, workspaceId } = req.body;
-    const {
-      indexId,
-      newIndexName,
-      embeddingProvider,
-      vectorStoreProvider,
-      graphStoreProvider,
-      nodeLabel = 'Chunk',
-      embeddingNodeProperty = 'embedding',
-      similarityMetric = 'cosine',
-      allowedNodes,
-      allowedRels,
-    } = params;
-    const pipeline = new Pipeline({
-      embeddingService,
-      executionsService,
-      extractorService,
-      indexesService,
-      graphStoreService,
-      loaderService,
-      vectorStoreService,
-    }, {
-      // There are no documents to extract
-      // Chunks are extracted directly from the document processor
-      extractorProviders: [ExtractorEnum.unstructured],
-    });
-
     try {
-      let docs;
-      for (const uploadId of documents) {
-        const upload = await uploadsService.getUpload(uploadId);
-        if (!upload) {
-          logger.error('Upload not found:', uploadId);
-          // keep processing the other documents
-        }
-        const objectName = `${upload.workspaceId}/documents/${upload.filename}`;
-        logger.debug('Loading', objectName);
-        const file = await documentsService.download(objectName);
-        docs.push({
-          filepath: file.path,
-          objectName,
-          mimetype: file.mimetype,
-          originalname: file.originalname,
-        });
-      }
-
-      const index = await pipeline.run({
-        // Extractor params
-        documents: docs,
-        nodeLabel,
-
-        // Indexer params
-        indexId,
-        newIndexName,
-        embeddingProvider,
-        vectorStoreProvider,
-        graphStoreProvider,
-        nodeLabel,
-        embeddingNodeProperty,
-        similarityMetric,
-        workspaceId,
-        username,
-
-        // Addtl Graph Store params
-        allowedNodes,
-        allowedRels,
-      });
-
-      res.json({ indexId: index.id });
+      workflowClient.index(indexParams, LoaderEnum.wikipedia, [ExtractorEnum.text], {
+        address: constants.TEMPORAL_URL,
+      }).then(setJobResult(correlationId));
 
     } catch (err) {
-      logger.error(err);
+      logger.error(err, err.stack);
       res.sendStatus(500);
     }
-  });
-
-  app.post('/api/index/wikipedia', auth, async (req, res) => {
-    const { username } = req.user;
-    const { params, workspaceId } = req.body;
-    const {
-      query,
-      indexId,
-      newIndexName,
-      embeddingProvider,
-      vectorStoreProvider,
-      graphStoreProvider,
-      textNodeProperties,
-      nodeLabel = 'Chunk',
-      splitter,
-      characters,
-      functionId,
-      chunkSize,
-      chunkOverlap,
-      embeddingNodeProperty = 'embedding',
-      similarityMetric = 'cosine',
-      allowedNodes,
-      allowedRels,
-    } = params;
-
-    const pipeline = new Pipeline({
-      embeddingService,
-      executionsService,
-      extractorService,
-      indexesService,
-      graphStoreService,
-      loaderService,
-      vectorStoreService,
-    }, {
-      loaderProvider: LoaderEnum.wikipedia,
-      extractorProviders: [ExtractorEnum.text],
-    });
-
-    const index = await pipeline.run({
-      // Loader params
-      query,
-
-      // Extractor params
-      nodeLabel,
-      splitter,
-      characters,
-      functionId,
-      chunkSize,
-      chunkOverlap,
-      workspaceId,
-      username,
-
-      // Indexer params
-      indexId,
-      newIndexName,
-      embeddingNodeProperty,
-      textNodeProperties,
-      similarityMetric,
-      embeddingProvider,
-      vectorStoreProvider,
-      graphStoreProvider,
-
-      // Addtl Graph Store params
-      allowedNodes,
-      allowedRels,
-    });
-
-    res.json({ indexId: index.id });
   });
 
 };

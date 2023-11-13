@@ -188,30 +188,114 @@ export const deleteUploadsAsync = ({ workspaceId, uploads }) => async (dispatch)
   dispatch(removeUploads({ workspaceId, uploads }));
 };
 
-export const indexApiAsync = ({ params, workspaceId }) => async (dispatch) => {
+export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
+  await http.post('/api/index/crawler', { params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
+};
+
+export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
   const url = '/api/index/api';
   await http.post(url, { params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
-export const indexCsvAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
+export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
   const url = '/api/index/csv';
   await http.post(url, { documents, params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
-export const indexDocumentAsync = ({ documents, params, workspaceId }) => async (dispatch) => {
+export const indexDocumentAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
   const url = '/api/index/document';
   await http.post(url, { documents, params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
-export const indexGraphAsync = ({ params, workspaceId }) => async (dispatch) => {
+export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
   const url = '/api/index/graph';
   await http.post(url, { params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
 export const indexTextDocumentAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
   dispatch(startIndex({ dataSourceId }));
-  const url = '/api/index/text';
   const correlationId = uuidv4();
+  const url = '/api/index/text';
   await http.post(url, { correlationId, documents, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
@@ -229,9 +313,25 @@ export const indexTextDocumentAsync = ({ dataSourceId, documents, params, worksp
   }, 2000);
 };
 
-export const indexWikipediaAsync = ({ params, workspaceId }) => async (dispatch) => {
+export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
+  dispatch(startIndex({ dataSourceId }));
+  const correlationId = uuidv4();
   const url = '/api/index/wikipedia';
   await http.post(url, { params, workspaceId });
+  const intervalId = setInterval(async () => {
+    let res;
+    try {
+      res = await http.get('/api/index-status/' + correlationId);
+      clearInterval(intervalId);
+      // console.log('index status res:', res);
+      dispatch(indexed({ dataSourceId }));
+    } catch (err) {
+      // 423 - locked ~ not ready
+      if (err.response.status !== 423) {
+        clearInterval(intervalId);
+      }
+    }
+  }, 2000);
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;
