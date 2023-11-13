@@ -19,8 +19,6 @@ export default ({ app, auth, logger, services }) => {
   app.post('/api/index/api', auth, async (req, res) => {
     const { username } = req.user;
     const {
-      endpoint,
-      schema: jsonSchema,
       params,
       workspaceId,
     } = req.body;
@@ -31,6 +29,8 @@ export default ({ app, auth, logger, services }) => {
       embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
+      endpoint,
+      schema: jsonSchema,
       nodeLabel = 'Chunk',
       embeddingNodeProperty = 'embedding',
       similarityMetric = 'cosine',
@@ -77,6 +77,141 @@ export default ({ app, auth, logger, services }) => {
         allowedRels,
       });
       res.json({ index: index.id });
+    } catch (err) {
+      logger.error(err);
+      res.sendStatus(500);
+    }
+  });
+
+  /**
+   * @openapi
+   * components:
+   *   schemas:
+   *     CrawlInput:
+   *       type: object
+   *       required:
+   *         - url
+   *         - spec
+   *         - workspaceId
+   *       properties:
+   *         url:
+   *           type: string
+   *           description: The URL to crawl
+   *         spec:
+   *           type: JSONObject
+   *           description: The Crawling Spec
+   *         maxRequestsPerCrawl:
+   *           type: number
+   *           description: The maximum number of crawl requests. Once the limit is reached, the crawling process is stopped even if there are more links to follow.
+   *         indexId:
+   *           type: integer
+   *           description: The id of an existing index to use for storing the crawled data
+   *         newIndexName:
+   *           type: string
+   *           description: The name of the new index to create for storing the crawled data
+   *         vectorStoreProvider:
+   *           type: string
+   *           description: The key of the vector store to use for the new index
+   *         titleField:
+   *           type: string
+   *           description: The index field to use as a title in search results
+   *         vectorField:
+   *           type: string
+   *           description: The index field to use for computing embeddings
+   *         workspaceId:
+   *           type: integer
+   *           description: The workspace id. All Prompt Store artefacts are scoped to a workspace.
+   */
+  /**
+   * @openapi
+   * tags:
+   *   name: Crawler
+   *   description: The Crawler Management API
+   */
+
+  /**
+   * @openapi
+   * /api/crawls:
+   *   post:
+   *     description: Start a web crawl
+   *     tags: [Crawler]
+   *     requestBody:
+   *       description: The crawl specification
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CrawlInput'
+   *     responses:
+   *       200:
+   *         description: A successful crawl
+   *       500:
+   *         description: Error
+   */
+  app.post('/api/index/crawler', auth, async (req, res) => {
+    const { username } = req.user;
+    const {
+      params,
+      workspaceId
+    } = req.body;
+    const {
+      indexId,
+      newIndexName,
+      embeddingProvider,
+      vectorStoreProvider,
+      graphStoreProvider,
+      dataSourceName,
+      url,
+      crawlerSpec,
+      maxRequestsPerCrawl,
+      chunkElement,
+      nodeLabel = 'Chunk',
+      embeddingNodeProperty = 'embedding',
+      similarityMetric = 'cosine',
+      allowedNodes,
+      allowedRels,
+    } = params;
+    try {
+      const pipeline = new Pipeline({
+        embeddingService,
+        executionsService,
+        extractorService,
+        indexesService,
+        graphStoreService,
+        loaderService,
+        vectorStoreService,
+      }, {
+        loaderProvider: LoaderEnum.crawler,
+        extractorProviders: [ExtractorEnum.crawler],
+      });
+
+      const index = await pipeline.run({
+        // Loader params
+        dataSourceName,
+        url,
+        crawlerSpec,
+        maxRequestsPerCrawl,
+
+        // Extractor params
+        nodeLabel,
+        chunkElement,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingNodeProperty,
+        textNodeProperties,
+        similarityMetric,
+        embeddingProvider,
+        vectorStoreProvider,
+        graphStoreProvider,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      });
+
+      res.json({ indexId: index.id });
     } catch (err) {
       logger.error(err);
       res.sendStatus(500);

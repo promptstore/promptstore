@@ -149,6 +149,13 @@ services:
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/import:/import"
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
 
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    volumes:
+      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/chroma/chroma:/chroma/chroma/"
+    ports:
+      - 8001:8000
+
   # magic:
   #     image: mageai/mageai:latest
   #     command: mage start ${PROJECT_NAME}

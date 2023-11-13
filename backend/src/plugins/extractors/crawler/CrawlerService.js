@@ -1,93 +1,150 @@
-import unescapeJs from 'unescape-js';
+
+import isObject from 'lodash.isobject';
 import uuid from 'uuid';
 
-import { TokenTextSplitter } from '../../../core/splitters/TokenTextSplitter';
-
-function TextParser({ __name, constants, logger }) {
-
-  const allowedExtensions = ['txt', 'text'];
+function CrawlerService({ __name, constants, logger }) {
 
   async function getChunks(documents, params) {
     const {
       nodeLabel = 'Chunk',
-      splitter,
-      characters = '\n\n',
-      functionId,
-      chunkSize,
-      chunkOverlap,
-      workspaceId,
-      username,
+      chunkElement,
     } = params;
     const chunks = [];
+    const createdDateTime = new Date().toISOString();
     for (const doc of documents) {
-      const text = doc.content;
-      let splits;
-      if (splitter === 'delimiter') {
-        // Needing this library to unescape `\\n\\n` back to new-line characters
-        // `unescape` or `decodeURIComponent` is not working
-        splits = text.split(unescapeJs(characters));
-
-      } else if (splitter === 'token') {
-        const textSplitter = new TokenTextSplitter({ chunkSize, chunkOverlap });
-        splits = await textSplitter.splitText(text);
-
-      } else if (splitter === 'chunker') {
-        const func = await functionsService.getFunction(functionId);
-        if (!func) {
-          throw new Error('Chunker function not found');
+      if (chunkElement) {
+        const elements = getElements(chunkElement, doc.content);
+        for (const { text, data } of elements) {
+          const chunk = getChunk(nodeLabel, doc, createdDateTime, text, data);
+          chunks.push(chunk);
         }
-        const { response, errors } = await executionsService.executeFunction({
-          workspaceId,
-          username,
-          semanticFunctionName: func.name,
-          args: { text },
-        });
-        if (errors) {
-          throw new Error(JSON.stringify(errors));
-        }
-        splits = response.chunks;
-
       } else {
-        throw new Error('Unsupported splitter: ' + splitter);
+        const text = getText(doc.content);
+        const chunk = getChunk(nodeLabel, doc, createdDateTime, text, doc.content);
+        chunks.push(chunk);
       }
-
-      const createdDateTime = new Date().toISOString();
-      chunks.push(...splits.map((text, i) => {
-        const { wordCount, length, size } = getTextStats(text);
-        return {
-          id: uuid.v4(),
-          nodeLabel,
-          type: 'text',
-          documentId: doc.id,
-          text,
-          imageURI: null,
-          metadata: {
-            author: null,
-            mimetype: 'text/plain',
-            objectName: doc.objectName,
-            endpoint: null,
-            database: null,
-            subtype: null,
-            parentIds: [],
-            page: null,
-            row: i + 1,
-            wordCount,
-            length,
-            size,
-          },
-          createdDateTime,
-          createdBy: 'promptstore',
-          startDateTime: createdDateTime,
-          endDateTime: null,
-          version: 1,
-        };
-      }));
     }
     return chunks;
   }
 
-  async function getSchema() {
+  function getChunk(nodeLabel, doc, createdDateTime, text, data) {
+    const { wordCount, length, size } = getTextStats(text);
     return {
+      id: uuid.v4(),
+      nodeLabel,
+      type: 'web',
+      documentId: doc.id,
+      text,
+      data,
+      imageURI: null,
+      metadata: {
+        author: null,
+        mimetype: doc.mimetype,
+        objectName: null,
+        endpoint: doc.endpoint,
+        database: null,
+        title: doc.title,
+        subtype: null,
+        parentIds: [],
+        page: null,
+        row: i + 1,
+        wordCount,
+        length,
+        size,
+      },
+      createdDateTime,
+      createdBy: 'promptstore',
+      startDateTime: createdDateTime,
+      endDateTime: null,
+      version: 1,
+    };
+  }
+
+  function getText(content) {
+
+    function inner(_content, inline) {
+      if (_content) {
+        if (Array.isArray(_content)) {
+          const texts = _content.map(c => inner(c, true)).filter(x => x);
+          if (inline) {
+            return `[${texts.join(', ')}]`;
+          }
+          return '- ' + texts.join('\n- ');
+        }
+        if (isObject(_content)) {
+          const texts = [];
+          for (const [el, data] of Object.entries(_content)) {
+            const text = inner(data, true);
+            if (text) {
+              texts.push(`${el}: """${text}"""`);
+            }
+          }
+          if (inline) {
+            return `{ ${texts.join(', ')} }`;
+          }
+          return texts.join('\n');
+        }
+        if (typeof _content === 'string') {
+          return _content;
+        }
+        return '';
+      }
+    }
+
+    return inner(content);
+  }
+
+  function getElements(chunkElement, content) {
+
+    function inner(_content) {
+      if (Array.isArray(_content)) {
+        return _content.map(inner);
+      }
+      if (isObject(_content)) {
+        for (const [el, data] of Object.entries(_content)) {
+          if (el === chunkElement) {
+            const text = getText(data);
+            return [{ text, data }];
+          }
+          const els = inner(data);
+          if (els.length) {
+            return els;
+          }
+        }
+        return [];
+      }
+      return [];
+    }
+
+    return inner(content).flat(Infinity);
+  }
+
+  function getChunkSchema(chunkElement, crawlerSpec) {
+
+    function inner(schema) {
+      if (schema.type === 'array') {
+        return inner(schema.items);
+      }
+      if (schema.type === 'object') {
+        for (const [el, schem] of Object.entries(schema.properties)) {
+          if (el === chunkElement) {
+            return schem;
+          }
+          const s = inner(schem);
+          if (s) {
+            return s;
+          }
+        }
+        return null;
+      }
+      return null;
+    }
+
+    return inner(crawlerSpec);
+  }
+
+  async function getSchema({ chunkElement, crawlerSpec }) {
+    const schema = {
       "$id": "https://promptstore.dev/chunk.schema.json",
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "title": "Chunk",
@@ -131,6 +188,10 @@ function TextParser({ __name, constants, logger }) {
             "endpoint": {
               "type": "string",
               "description": "The API endpoint"
+            },
+            "title": {
+              "type": "string",
+              "description": "The document title"
             },
             "subtype": {
               "type": "string",
@@ -199,10 +260,27 @@ function TextParser({ __name, constants, logger }) {
         "version"
       ]
     };
-  }
-
-  function matchDocument(doc) {
-    return allowedExtensions.inlcudes(doc.ext);
+    let properties;
+    if (chunkElement) {
+      const schem = getChunkSchema(chunkElement, crawlerSpec);
+      if (schem) {
+        properties = schem.properties;
+      } else {
+        logger.warn("schema not found given chunk element: '%s'", chunkElement);
+      }
+    } else if (crawlerSpec.type === 'object') {
+      properties = crawlerSpec.properties;
+    } else if (crawlerSpec.type === 'array' && crawlerSpec.items.type === 'object') {
+      properties = crawlerSpec.items.properties;
+    }
+    if (properties) {
+      schema.properties.data = {
+        "type": {},
+        "description": "Additional data fields that are indexed to support hybrid or faceted search",
+        "properties": properties
+      };
+    }
+    return schema;
   }
 
   function getTextStats(text) {
@@ -223,8 +301,7 @@ function TextParser({ __name, constants, logger }) {
     __name,
     getChunks,
     getSchema,
-    matchDocument,
   };
 }
 
-export default TextParser;
+export default CrawlerService;

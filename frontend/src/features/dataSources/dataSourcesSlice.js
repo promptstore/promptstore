@@ -111,8 +111,8 @@ export const deleteDataSourcesAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeDataSources({ ids }));
 };
 
-export const crawlAsync = ({ url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField }) => async (dispatch) => {
-  await http.post('/api/crawls', { url, spec, maxRequestsPerCrawl, indexId, newIndexName, engine, titleField, vectorField });
+export const crawlAsync = ({ params, workspaceId }) => async (dispatch) => {
+  await http.post('/api/index/crawler', { params, workspaceId });
 };
 
 export const selectLoaded = (state) => state.dataSources.loaded;

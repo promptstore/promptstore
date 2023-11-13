@@ -1,5 +1,8 @@
 import { OpenAIMessage } from './openai_types';
-import { FunctionCall, MessageRole } from '../conversions/RosettaStone';
+import {
+  FunctionCall,
+  MessageRole,
+} from '../conversions/RosettaStone';
 
 export class OpenAIMessageImpl implements OpenAIMessage {
 

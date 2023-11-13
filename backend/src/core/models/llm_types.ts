@@ -6,7 +6,7 @@ import {
 } from '../conversions/RosettaStone';
 import SemanticCache from '../semanticcache/SemanticCache';
 
-export type CompletionService = ({ provider, request }: ProviderRequest) => Promise<ChatResponse>;
+export type CompletionService = ({ provider, request, vision }: ProviderRequest) => Promise<ChatResponse>;
 
 export interface LLMChatModelParams {
   modelType: string;
@@ -20,6 +20,7 @@ export interface LLMChatModelParams {
 
 export interface ModelCallParams {
   request: ChatRequest;
+  vision?: boolean;
   callbacks?: Callback[];
 }
 

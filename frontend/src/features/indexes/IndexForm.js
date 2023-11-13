@@ -264,6 +264,20 @@ export function IndexForm() {
     );
   }
 
+  function ChromaStoreInfo({ store }) {
+
+    return (
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+        <Descriptions title="Physical Index Info" column={2}>
+          <Descriptions.Item label="Embedding dimension">{store.embeddingDimension}</Descriptions.Item>
+          <Descriptions.Item label="Similarity metric">{store.similarityMetric}</Descriptions.Item>
+          <Descriptions.Item label="Node label">{store.nodeLabel}</Descriptions.Item>
+          <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
+        </Descriptions>
+      </Form.Item>
+    );
+  }
+
   function PhysicalStoreInfo({ store, vectorStoreProvider }) {
     if (store) {
       if (vectorStoreProvider === 'redis') {
@@ -274,6 +288,11 @@ export function IndexForm() {
       if (vectorStoreProvider === 'neo4j') {
         return (
           <Neo4jStoreInfo store={store} />
+        );
+      }
+      if (vectorStoreProvider === 'chroma') {
+        return (
+          <ChromaStoreInfo store={store} />
         );
       }
     }

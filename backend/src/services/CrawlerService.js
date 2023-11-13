@@ -6,7 +6,7 @@ export function CrawlerService({ logger }) {
 
     logger.debug('indexName:', indexName);
     logger.debug('url:', url);
-    logger.debug('spec:', JSON.stringify(spec, null, 2));
+    logger.debug('spec:', spec);
     logger.debug('maxRequestsPerCrawl:', maxRequestsPerCrawl);
 
     const dataset = await Dataset.open(indexName);

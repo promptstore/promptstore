@@ -747,6 +747,11 @@ export function DataSourceForm() {
         }
         {typeValue === 'crawler' ?
           <>
+            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
+                Web Crawler Parameters
+              </div>
+            </Form.Item>
             <Form.Item
               label="URL"
               name="baseUrl"
@@ -757,6 +762,13 @@ export function DataSourceForm() {
             <Form.Item
               label="Maximum Requests"
               name="maxRequestsPerCrawl"
+              wrapperCol={{ span: 5 }}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item
+              label="Chunk Element"
+              name="chunkElement"
               wrapperCol={{ span: 5 }}
             >
               <Input />

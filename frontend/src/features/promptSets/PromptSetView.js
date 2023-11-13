@@ -154,7 +154,7 @@ export function PromptSetView() {
     <div style={{ marginTop: 20 }}>
       <Layout>
         <Sider
-          style={{ marginRight: 20 }}
+          style={{ marginRight: 16 }}
           width={250}
           theme="light"
         >
@@ -184,7 +184,7 @@ export function PromptSetView() {
               </div>
             }
             loading={loading}
-            style={{ marginLeft: 40, minWidth: 650, width: '65%' }}
+            style={{ minWidth: 594, width: '65%' }}
           >
             <Descriptions column={1} layout="vertical">
               <Descriptions.Item label="description">

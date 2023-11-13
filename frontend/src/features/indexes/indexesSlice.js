@@ -92,7 +92,32 @@ export const getIndexAsync = (id) => async (dispatch) => {
             nodeLabel,
             numDocs,
           },
-        }
+        };
+      } else if (vectorStoreProvider === 'chroma') {
+        const {
+          id,
+          name,
+          metadata,
+          numDocs,
+        } = res1.data;
+        const {
+          embeddingDimension,
+          embeddingNodeProperty,
+          similarityMetric,
+          nodeLabel,
+        } = metadata;
+        index = {
+          ...res.data,
+          store: {
+            indexId: id,
+            indexName: name,
+            embeddingDimension,
+            embeddingNodeProperty,
+            similarityMetric,
+            nodeLabel,
+            numDocs,
+          },
+        };
       }
     } catch (err) {
       // index probably doesn't exist

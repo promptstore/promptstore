@@ -1,5 +1,6 @@
 import {
   ChatCompletionUsage,
+  ContentObject,
   FunctionCallType,
   FunctionCall,
   Function,
@@ -7,6 +8,17 @@ import {
   Message,
   MessageRole,
 } from '../conversions/RosettaStone';
+
+export interface OpenAIVisionMessage {
+  role: MessageRole;
+  content: ContentObject[];
+  max_tokens: number;
+}
+
+export interface OpenAIVisionChatCompletionRequest {
+  model: string;
+  messages: OpenAIVisionMessage[];
+}
 
 export interface OpenAIMessage extends Message {
   role: MessageRole;  // The role of the message author. 

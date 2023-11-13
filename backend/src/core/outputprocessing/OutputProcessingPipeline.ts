@@ -159,11 +159,12 @@ export class OutputParser implements OutputProcessingStep {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ outputParser: this.outputParser, response });
     try {
-      const res = await this.parserService.parse(this.outputParser, response);
+      const content = this.getContent(response);
+      const res = await this.parserService.parse(this.outputParser, content);
       if (res.error) {
         this.throwParserError(res.error);
       }
-      response = res.text;
+      response = this.updateContent(response, res.text);
       this.onEnd({ response })
       return response;
     } catch (err) {
@@ -171,6 +172,14 @@ export class OutputParser implements OutputProcessingStep {
       this.onEnd({ errors });
       throw err;
     }
+  }
+
+  getContent(response: any) {
+    return response.choices[0].message.content;
+  }
+
+  updateContent(response: any, content: string) {
+    return set(clone(response), 'choices.0.message.content', content);
   }
 
   onStart({ outputParser, response }: OutputParserStartResponse) {

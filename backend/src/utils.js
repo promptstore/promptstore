@@ -304,12 +304,11 @@ export const sleep = (ms) => {
 export const formatAlgolia = (requests, rawResult, nodeLabel) => {
   const documents = rawResult;
   const nbHits = documents.length;
-  let hits = documents
-    .map((val) => Object.entries(val).reduce((a, [k, v]) => {
-      const key = k.replace(/__/g, '.');
-      a[key] = v;
-      return a;
-    }, {}))
+  let hits = documents.map((val) => Object.entries(val).reduce((a, [k, v]) => {
+    const key = k.replace(/__/g, '.');
+    a[key] = v;
+    return a;
+  }, {}));
   hits = hits.map(unflatten);
   hits = hits.map((val) => {
     if (val.dist) {

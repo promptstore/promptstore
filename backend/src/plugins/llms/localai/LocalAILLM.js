@@ -1,25 +1,23 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
 import { delay } from './utils';
 
 function LocalAILLM({ __name, constants, logger }) {
 
-  const configuration = new Configuration({
+  // The LocalAI API is OpenAI compatible
+  const openai = new OpenAI({
     apiKey: constants.OPENAI_API_KEY,
     basePath: constants.LOCALAI_BASE_PATH,
   });
 
-  // The LocalAI API is OpenAI compatible
-  const openai = new OpenAIApi(configuration);
-
   async function createChatCompletion(request, retryCount = 0) {
     let res;
     try {
-      res = await openai.createChatCompletion(request);
-      return res.data;
+      res = await openai.chat.completions.create(request);
+      return res;
     } catch (err) {
       logger.error(err, err.stack);
-      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
@@ -30,8 +28,8 @@ function LocalAILLM({ __name, constants, logger }) {
   }
 
   async function createCompletion(request) {
-    const res = await openai.createCompletion(request);
-    return res.data;
+    const res = await openai.completions.create(request);
+    return res;
   }
 
   function createImage(prompt, n) {

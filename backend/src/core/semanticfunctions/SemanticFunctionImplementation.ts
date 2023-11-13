@@ -19,8 +19,11 @@ import {
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import {
   PARA_DELIM,
+  MultiModalChatRequest,
   Function,
   Message,
+  MessageRole,
+  VisionMessage,
   ChatRequestContext,
   ResponseMetadata,
 } from '../conversions/RosettaStone';
@@ -84,24 +87,73 @@ export class SemanticFunctionImplementation {
       let responseMetadata: ResponseMetadata;
       if (this.model.modelType === 'gpt') {
         let messages: Message[];
+        let visionMessages: VisionMessage[];
         let context: ChatRequestContext;
         let hist: Message[];
         let msgs: Message[];
         let functions: Function[];
-        if (this.promptEnrichmentPipeline) {
-          messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
-          if (!messages.length) {
-            this.throwSemanticFunctionError('no prompt');
+
+        if (args.imageUrl) {
+          if (this.promptEnrichmentPipeline) {
+            messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
+            visionMessages = [
+              ...messages.slice(0, -1)?.map(m => ({
+                role: m.role,
+                content: m.content,
+              })),
+              {
+                role: MessageRole.user,
+                content: [
+                  {
+                    type: 'text',
+                    text: messages.slice(-1)[0].content,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: args.imageUrl,
+                    },
+                  },
+                ],
+              },
+            ];
+          } else {
+            const userMessage = this.getInputAsMessage(args);
+            visionMessages = [
+              {
+                role: MessageRole.user,
+                content: [
+                  {
+                    type: 'text',
+                    text: userMessage.content,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: args.imageUrl,
+                    },
+                  },
+                ],
+              },
+            ];
           }
-          context = this.getContext(messages);
-          if (history) {
-            hist = this.getNonSystemMessageHistory(history);
-          }
-          msgs = this.getNonSystemMessages(messages);
         } else {
-          const userMessage = this.getInputAsMessage(args);
-          msgs = [userMessage];
+          if (this.promptEnrichmentPipeline) {
+            messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
+            if (!messages.length) {
+              this.throwSemanticFunctionError('no prompt');
+            }
+            context = this.getContext(messages);
+            if (history) {
+              hist = this.getNonSystemMessageHistory(history);
+            }
+            msgs = this.getNonSystemMessages(messages);
+          } else {
+            const userMessage = this.getInputAsMessage(args);
+            msgs = [userMessage];
+          }
         }
+
         if (this.inputGuardrails) {
           await this.inputGuardrails.call({ messages });
         }
@@ -113,17 +165,27 @@ export class SemanticFunctionImplementation {
           );
           functions = [outputFormatter.toJSON()];
         }
-        const request = {
-          model: modelKey,
-          model_params: modelParams,
-          functions,
-          prompt: {
-            context,
-            history: hist,
-            messages: msgs,
-          }
-        };
-        response = await this.model.call({ request, callbacks });
+        let request: MultiModalChatRequest;
+        if (args.imageUrl) {
+          request = {
+            model: modelKey,
+            max_tokens: modelParams.max_tokens,
+            messages: visionMessages,
+          };
+          response = await this.model.call({ request, callbacks, vision: true });
+        } else {
+          request = {
+            model: modelKey,
+            model_params: modelParams,
+            functions,
+            prompt: {
+              context,
+              history: hist,
+              messages: msgs,
+            }
+          };
+          response = await this.model.call({ request, callbacks });
+        }
         responseMetadata = {
           prompts: messages,
         };
@@ -139,6 +201,7 @@ export class SemanticFunctionImplementation {
       if (this.outputProcessingPipeline) {
         response = await this.outputProcessingPipeline.call({ response, callbacks });
       }
+      logger.debug('response:', response);
       if (this.returnMappingTemplate) {
         response = await this.mapReturnType(response, this.returnMappingTemplate, isBatch);
       }

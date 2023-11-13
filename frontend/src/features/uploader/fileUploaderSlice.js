@@ -176,9 +176,9 @@ export const deleteUploadsAsync = ({ workspaceId, uploads }) => async (dispatch)
   dispatch(removeUploads({ workspaceId, uploads }));
 };
 
-export const indexApiAsync = ({ endpoint, schema, params, workspaceId }) => async (dispatch) => {
+export const indexApiAsync = ({ params, workspaceId }) => async (dispatch) => {
   const url = '/api/index/api';
-  await http.post(url, { endpoint, schema, params, workspaceId });
+  await http.post(url, { params, workspaceId });
 };
 
 export const indexCsvAsync = ({ documents, params, workspaceId }) => async (dispatch) => {

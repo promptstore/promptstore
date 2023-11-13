@@ -146,6 +146,7 @@ function SortableItem({ field, index, remove }) {
           <Select allowClear
             optionFilterProp="label"
             options={roleOptions}
+            initialValue="user"
             placeholder="Role"
           />
         </Form.Item>

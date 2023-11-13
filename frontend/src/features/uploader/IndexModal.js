@@ -280,7 +280,7 @@ export function IndexModal({
                 optionFilterProp="label"
               />
             </Form.Item>
-            {vectorStoreProviderValue === 'neo4j' ?
+            {vectorStoreProviderValue !== 'redis' ?
               <Form.Item
                 label="Embedding"
                 name="embeddingProvider"

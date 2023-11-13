@@ -306,11 +306,10 @@ function Neo4jService({ __name, constants, logger }) {
     const session = getClient().session();
     try {
       const r = await session.run(q, searchParams);
-      return r.records.map((r, i) => ({
+      return r.records.map(r => ({
         id: r.get('id'),
         text: r.get('text'),
         score: r.get('score'),
-        __position: i + 1,
         ...Object.entries(r.get('metadata')).reduce((a, [k, v]) => {
           if (v !== null && typeof v !== 'undefined') {
             a[k] = v;

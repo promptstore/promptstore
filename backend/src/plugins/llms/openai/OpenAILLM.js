@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -7,11 +7,9 @@ import { delay } from './utils';
 
 function OpenAILLM({ __name, constants, logger }) {
 
-  const configuration = new Configuration({
+  const openai = new OpenAI({
     apiKey: constants.OPENAI_API_KEY,
   });
-
-  const openai = new OpenAIApi(configuration);
 
   /**
    * interface OpenAIChatCompletionRequest {
@@ -39,14 +37,14 @@ function OpenAILLM({ __name, constants, logger }) {
     let res;
     try {
       if (request.stream) {
-        res = await openai.createChatCompletion(request, { responseType: 'stream' });
+        res = await openai.chat.completions.create(request, { responseType: 'stream' });
       } else {
-        res = await openai.createChatCompletion(request);
+        res = await openai.chat.completions.create(request);
       }
-      return res.data;
+      return res;
     } catch (err) {
       logger.error(err, err.stack);
-      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
@@ -82,11 +80,11 @@ function OpenAILLM({ __name, constants, logger }) {
   async function createCompletion(request, retryCount = 0) {
     let res;
     try {
-      res = await openai.createCompletion(request);
-      return res.data;
+      res = await openai.completions.create(request);
+      return res;
     } catch (err) {
       logger.error(err, err.stack);
-      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + String(err), { cause: err });
         }
@@ -97,19 +95,19 @@ function OpenAILLM({ __name, constants, logger }) {
   }
 
   async function createEmbedding(request) {
-    const res = await openai.createEmbedding(request);
-    return res.data;
+    const res = await openai.embeddings.create(request);
+    return res;
   }
 
   async function createImage(prompt, n) {
     prompt = `Generate an image about "${prompt}". Do not include text in the image.`;
-    const resp = await openai.createImage({
+    const res = await openai.images.generate({
       prompt,
       n,
       size: '512x512',
       response_format: 'url',
     });
-    return resp.data.data;
+    return res.data;
   }
 
   async function generateImageVariant(imageUrl, n) {
@@ -118,12 +116,12 @@ function OpenAILLM({ __name, constants, logger }) {
     const dirname = path.dirname(localFilePath);
     await fs.promises.mkdir(dirname, { recursive: true });
     await downloadImage(imageUrl, localFilePath);
-    const resp = await openai.createImageVariation(
+    const res = await openai.images.create_variation(
       fs.createReadStream(localFilePath),
       n,
       "1024x1024"
     );
-    return resp.data.data;
+    return res.data;
   }
 
   async function downloadImage(url, filepath) {

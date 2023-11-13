@@ -4,6 +4,7 @@ import { Chunk } from './Chunk';
 import { PluginMetadata } from './common_types';
 
 export enum VectorStoreEnum {
+  chroma = 'chroma',
   neo4j = 'neo4j',
   redis = 'redis',
 }
@@ -83,6 +84,9 @@ export abstract class VectorStore {
 
   static create(vectorstore: VectorStoreEnum, vectorStoreService: VectorStoreService) {
     switch (vectorstore) {
+      case VectorStoreEnum.chroma:
+        return new ChromaVectorStore(vectorStoreService);
+
       case VectorStoreEnum.neo4j:
         return new Neo4jVectorStore(vectorStoreService);
 
@@ -113,6 +117,50 @@ export abstract class VectorStore {
   abstract deleteChunk(id: string, params?: DeleteChunksParams): void;
 
   abstract search(indexName: string, query: string, attrs: any, params?: SearchParams): Promise<any>
+
+}
+
+export class ChromaVectorStore extends VectorStore {
+
+  getIndexes() {
+    return this.vectorStoreService.getIndexes(VectorStoreEnum.chroma);
+  }
+
+  getIndex(indexName: string) {
+    return this.vectorStoreService.getIndex(VectorStoreEnum.chroma, indexName);
+  }
+
+  createIndex(indexName: string, schema: JSONSchema7, params: Partial<CreateIndexParams>) {
+    return this.vectorStoreService.createIndex(VectorStoreEnum.chroma, indexName, schema, params);
+  }
+
+  dropIndex(indexName: string) {
+    return this.vectorStoreService.dropIndex(VectorStoreEnum.chroma, indexName);
+  }
+
+  getNumberChunks(indexName: string) {
+    return this.vectorStoreService.getNumberChunks(VectorStoreEnum.chroma, indexName);
+  }
+
+  dropData(indexName: string) {
+    return this.vectorStoreService.dropData(VectorStoreEnum.redis, indexName);
+  }
+
+  indexChunks(chunks: Chunk[], embeddings: Array<number[]>, params: Partial<IndexChunksParams>) {
+    return this.vectorStoreService.indexChunks(VectorStoreEnum.chroma, chunks, embeddings, params);
+  }
+
+  deleteChunks(ids: string[], params: DeleteChunksParams) {
+    return this.vectorStoreService.deleteChunks(VectorStoreEnum.chroma, ids, params);
+  }
+
+  deleteChunk(id: string, params: DeleteChunksParams) {
+    return this.vectorStoreService.deleteChunk(VectorStoreEnum.chroma, id, params);
+  }
+
+  search(indexName: string, query: string, attrs: any) {
+    return this.vectorStoreService.search(VectorStoreEnum.chroma, indexName, query, attrs);
+  }
 
 }
 

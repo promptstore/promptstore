@@ -4,27 +4,27 @@ export default ({ app, auth, logger, services }) => {
 
   const { embeddingService, searchService, vectorStoreService } = services;
 
-  app.post('/api/workspaces/:workspaceId/index', auth, async (req, res, next) => {
-    const { workspaceId } = req.params;
-    const schema = {
-      content: {
-        text: {
-          name: 'text',
-          dataType: 'String',
-          mandatory: true,
-        },
-      }
-    };
-    const indexName = 'workspace-' + workspaceId;
-    const searchSchema = searchService.getSearchSchema(schema);
-    await searchService.createIndex(indexName, searchSchema);
-    res.send('OK');
-  });
+  // app.post('/api/workspaces/:workspaceId/index', auth, async (req, res, next) => {
+  //   const { workspaceId } = req.params;
+  //   const schema = {
+  //     content: {
+  //       text: {
+  //         name: 'text',
+  //         dataType: 'String',
+  //         mandatory: true,
+  //       },
+  //     }
+  //   };
+  //   const indexName = 'workspace-' + workspaceId;
+  //   const searchSchema = searchService.getSearchSchema(schema);
+  //   await searchService.createIndex(indexName, searchSchema);
+  //   res.send('OK');
+  // });
 
-  app.get('/api/index', auth, async (req, res, next) => {
-    const indexes = await searchService.getIndexes();
-    res.send(indexes);
-  });
+  // app.get('/api/index', auth, async (req, res, next) => {
+  //   const indexes = await searchService.getIndexes();
+  //   res.send(indexes);
+  // });
 
   app.get('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
     const { name, vectorStoreProvider } = req.params;
@@ -87,63 +87,71 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
-  app.post('/api/documents', auth, async (req, res, next) => {
-    const { documents = [], indexName } = req.body;
-    logger.debug('documents: ', JSON.stringify(documents, null, 2));
-    logger.debug('indexName: ', indexName);
-    const promises = documents.map((doc) => searchService.indexDocument(indexName, doc));
-    await Promise.all(promises);
-    res.send({ status: 'OK' });
-  });
+  // app.post('/api/documents', auth, async (req, res, next) => {
+  //   const { documents = [], indexName } = req.body;
+  //   logger.debug('documents: ', JSON.stringify(documents, null, 2));
+  //   logger.debug('indexName: ', indexName);
+  //   const promises = documents.map((doc) => searchService.indexDocument(indexName, doc));
+  //   await Promise.all(promises);
+  //   res.send({ status: 'OK' });
+  // });
 
-  app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
-    const { indexName, uid } = req.params;
-    try {
-      await searchService.deleteDocument(uid, { indexName });
-      res.sendStatus(200);
-    } catch (e) {
-      logger.log('error', '%s\n%s', e, e.stack);
-      res.status(500).json({
-        error: { message: String(e) },
-      });
-    }
-  });
+  // app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
+  //   const { indexName, uid } = req.params;
+  //   try {
+  //     await searchService.deleteDocument(uid, { indexName });
+  //     res.sendStatus(200);
+  //   } catch (e) {
+  //     logger.log('error', '%s\n%s', e, e.stack);
+  //     res.status(500).json({
+  //       error: { message: String(e) },
+  //     });
+  //   }
+  // });
 
-  app.post('/api/bulk-delete', async (req, res) => {
-    const { indexName, uids } = req.body;
-    try {
-      const resp = await searchService.deleteDocuments(uids, { indexName });
-      res.send(resp);
-    } catch (err) {
-      logger.error(String(err));
-      res.sendStatus(400);
-    }
-  });
+  // app.post('/api/bulk-delete', async (req, res) => {
+  //   const { indexName, uids } = req.body;
+  //   try {
+  //     const resp = await searchService.deleteDocuments(uids, { indexName });
+  //     res.send(resp);
+  //   } catch (err) {
+  //     logger.error(String(err));
+  //     res.sendStatus(400);
+  //   }
+  // });
 
-  app.delete('/api/delete-matching', async (req, res) => {
-    const { indexName, q, ...rest } = req.query;
-    try {
-      await searchService.deleteDocumentsMatching(indexName, q, rest);
-      res.sendStatus(200);
-    } catch (e) {
-      logger.log('error', '%s\n%s', e, e.stack);
-      res.status(500).json({
-        error: { message: String(e) },
-      });
-    }
-  });
+  // app.delete('/api/delete-matching', async (req, res) => {
+  //   const { indexName, q, ...rest } = req.query;
+  //   try {
+  //     await searchService.deleteDocumentsMatching(indexName, q, rest);
+  //     res.sendStatus(200);
+  //   } catch (e) {
+  //     logger.log('error', '%s\n%s', e, e.stack);
+  //     res.status(500).json({
+  //       error: { message: String(e) },
+  //     });
+  //   }
+  // });
 
   app.post('/api/search', auth, async (req, res, next) => {
     const { requests, attrs, indexParams } = req.body;
     const { indexName, params: { query } } = requests[0];
+    const q = query.trim();
+    if (q.length < 2) {
+      return [];
+    }
+    // logger.debug('query:', q);
     const {
       nodeLabel,
       embeddingProvider,
       vectorStoreProvider,
     } = indexParams;
-    const rawResults = await searchService.search(vectorStoreProvider, indexName, query, attrs, {
-      embeddingProvider,
-      nodeLabel,
+    let queryEmbedding;
+    if (vectorStoreProvider !== 'redis') {
+      queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, q);
+    }
+    const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, {
+      queryEmbedding,
     });
     // logger.debug('rawResults:', rawResults);
     const result = formatAlgolia(requests, rawResults, nodeLabel);

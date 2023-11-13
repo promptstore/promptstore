@@ -24,6 +24,7 @@ export class Document {
   originalname: string;
   etag: string;
   size: number;
+  title: string;
   content: any;
   imageURI: string;
 

@@ -64,7 +64,7 @@ export class LLMChatModel implements Model {
     this.callbacks = callbacks || [];
   }
 
-  async call({ request, callbacks = [] }: ModelCallParams) {
+  async call({ request, vision, callbacks = [] }: ModelCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     const model = request.model || this.model;
     let prompt: string;
@@ -81,14 +81,21 @@ export class LLMChatModel implements Model {
       ...defaultLLMChatModelParams,
       ...request.model_params,
     };
-    request = {
-      ...request,
-      model,
-      model_params: modelParamsWithDefaults,
-    };
+    if (vision) {
+      request = {
+        ...request,
+        model,
+      };
+    } else {
+      request = {
+        ...request,
+        model,
+        model_params: modelParamsWithDefaults,
+      };
+    }
     this.onStart({ request });
     try {
-      const response = await this.completionService({ provider: this.provider, request });
+      const response = await this.completionService({ provider: this.provider, request, vision: true });
       if (this.semanticCache && this.semanticCacheEnabled) {
         for (const choice of response.choices) {
           let content = choice.message.content;

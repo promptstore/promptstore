@@ -19,10 +19,12 @@ export function LLMService({ logger, registry, services }) {
 
   const { parserService } = services;
 
-  async function createChatCompletion({ provider, request }) {
+  async function createChatCompletion({ provider, request, vision }) {
     const instance = registry[provider || 'openai'];
     let providerRequest;
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+    if (vision) {
+      providerRequest = request;
+    } else if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAIChatRequest(request);
     } else if (provider === 'bedrock') {
       providerRequest = toAnthropicChatRequest(request);

@@ -11,31 +11,33 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     } catch (err) {
       // keep trying
     }
+    // logger.debug('text:', text);
     // if (isTruncated(text)) {
     const { jsonStr, fixed } = fixTruncatedJson(text);
+    // logger.debug('jsonStr:', jsonStr);
     // if (fixed) {
     try {
-      return JSON.parse(jsonStr);
+      return { text: jsonStr };
     } catch (err) {
       return {
         error: String(err),
-        jsonStr,
+        text: jsonStr,
       };
     }
     // }
     // return {
     //   error: 'Invalid JSON',
-    //   jsonStr,
+    //   text: jsonStr,
     // };
     // }
-    try {
-      return JSON.parse(text);
-    } catch (err) {
-      return {
-        error: String(err),
-        jsonStr: text,
-      };
-    }
+    // try {
+    //   return text;
+    // } catch (err) {
+    //   return {
+    //     error: String(err),
+    //     text,
+    //   };
+    // }
   }
 
   /**

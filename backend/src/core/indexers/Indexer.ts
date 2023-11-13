@@ -151,7 +151,7 @@ export class Indexer {
     vectorStoreProvider,
   }) {
     let embeddings: Array<number[]>;
-    if (vectorStoreProvider === VectorStoreEnum.neo4j) {
+    if (vectorStoreProvider !== VectorStoreEnum.redis) {
       const embedder = EmbeddingProvider.create(embeddingProvider, this.embeddingService);
       const proms = chunks.map((chunk: Chunk) => embedder.createEmbedding(chunk.text));
       embeddings = await Promise.all(proms);

@@ -120,28 +120,31 @@ export function DataSourcesList() {
   const onIndexSubmit = (values) => {
     if (dataSource.type === 'crawler') {
       dispatch(crawlAsync({
-        url: dataSource.baseUrl,
-        spec: dataSource.scrapingSpec,
-        maxRequestsPerCrawl: parseInt(dataSource.maxRequestsPerCrawl || '99', 10),
-        indexId: values.indexId,
-        newIndexName: values.newIndexName,
-        embeddingProvider: values.embeddingProvider,
-        vectorStoreProvider: values.vectorStoreProvider,
-        titleField: values.titleField,
-        vectorField: values.vectorField,
-        workspaceId: selectedWorkspace.id,
-      }));
-
-    } else if (dataSource.type === 'api') {
-      dispatch(indexApiAsync({
-        endpoint: dataSource.endpoint,
-        schema: dataSource.schema,
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
           embeddingProvider: values.embeddingProvider,
           vectorStoreProvider: values.vectorStoreProvider,
-          vectorField: values.vectorField,
+          graphStoreProvider: values.graphStoreProvider,
+          dataSourceName: dataSource.name,
+          url: dataSource.baseUrl,
+          crawlerSpec: dataSource.scrapingSpec,
+          maxRequestsPerCrawl: parseInt(dataSource.maxRequestsPerCrawl || '99', 10),
+          chunkElement: dataSource.chunkElement,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+
+    } else if (dataSource.type === 'api') {
+      dispatch(indexApiAsync({
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          embeddingProvider: values.embeddingProvider,
+          vectorStoreProvider: values.vectorStoreProvider,
+          graphStoreProvider: values.graphStoreProvider,
+          endpoint: dataSource.endpoint,
+          schema: dataSource.schema,
         },
         workspaceId: selectedWorkspace.id,
       }));
