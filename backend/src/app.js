@@ -23,8 +23,6 @@ import { AgentsService } from './services/AgentsService';
 import { AppsService } from './services/AppsService';
 import { ChatSessionsService } from './services/ChatSessionsService';
 import { CompositionsService } from './services/CompositionsService';
-import { ContentService } from './services/ContentService';
-import { CrawlerService } from './services/CrawlerService';
 import { DataSourcesService } from './services/DataSourcesService';
 import { DestinationsService } from './services/DestinationsService';
 import { DocumentsService } from './services/DocumentsService';
@@ -43,7 +41,6 @@ import { ModelProviderService } from './services/ModelProviderService';
 import { ModelsService } from './services/ModelsService';
 import { ParserService } from './services/ParserService';
 import { PromptSetsService } from './services/PromptSetsService';
-import { SearchService } from './services/SearchService';
 import { SettingsService } from './services/SettingsService';
 import { SqlSourceService } from './services/SqlSourceService';
 import { Tool } from './services/Tool';
@@ -161,10 +158,6 @@ const chatSessionsService = ChatSessionsService({ pg, logger });
 
 const compositionsService = CompositionsService({ pg, logger });
 
-const contentService = ContentService({ pg, logger });
-
-const crawlerService = CrawlerService({ logger });
-
 const dataSourcesService = DataSourcesService({ pg, logger });
 
 const destinationsService = DestinationsService({ pg, logger });
@@ -224,15 +217,6 @@ const usersService = UsersService({ pg });
 const workspacesService = WorkspacesService({ pg, logger });
 
 const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
-
-const searchService = SearchService({
-  constants: { SEARCH_API },
-  logger,
-  services: {
-    embeddingService,
-    vectorStoreService,
-  }
-});
 
 const RedisStore = connectRedis(session);
 const sess = {
@@ -385,8 +369,6 @@ const options = {
     appsService,
     chatSessionsService,
     compositionsService,
-    contentService,
-    crawlerService,
     dataSourcesService,
     destinationsService,
     documentsService,
@@ -405,7 +387,6 @@ const options = {
     modelsService,
     parserService,
     promptSetsService,
-    searchService,
     settingsService,
     sqlSourceService,
     tool,

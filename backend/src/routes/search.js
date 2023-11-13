@@ -4,28 +4,6 @@ export default ({ app, auth, logger, services }) => {
 
   const { embeddingService, searchService, vectorStoreService } = services;
 
-  // app.post('/api/workspaces/:workspaceId/index', auth, async (req, res, next) => {
-  //   const { workspaceId } = req.params;
-  //   const schema = {
-  //     content: {
-  //       text: {
-  //         name: 'text',
-  //         dataType: 'String',
-  //         mandatory: true,
-  //       },
-  //     }
-  //   };
-  //   const indexName = 'workspace-' + workspaceId;
-  //   const searchSchema = searchService.getSearchSchema(schema);
-  //   await searchService.createIndex(indexName, searchSchema);
-  //   res.send('OK');
-  // });
-
-  // app.get('/api/index', auth, async (req, res, next) => {
-  //   const indexes = await searchService.getIndexes();
-  //   res.send(indexes);
-  // });
-
   app.get('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
     const { name, vectorStoreProvider } = req.params;
     const { nodeLabel } = req.query;
@@ -86,15 +64,6 @@ export default ({ app, auth, logger, services }) => {
       res.sendStatus(400);
     }
   });
-
-  // app.post('/api/documents', auth, async (req, res, next) => {
-  //   const { documents = [], indexName } = req.body;
-  //   logger.debug('documents: ', JSON.stringify(documents, null, 2));
-  //   logger.debug('indexName: ', indexName);
-  //   const promises = documents.map((doc) => searchService.indexDocument(indexName, doc));
-  //   await Promise.all(promises);
-  //   res.send({ status: 'OK' });
-  // });
 
   // app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
   //   const { indexName, uid } = req.params;
