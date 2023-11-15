@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, Tag, message } from 'antd';
+import { RedoOutlined } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 import * as dayjs from 'dayjs';
 
@@ -20,7 +21,6 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 export function TracesList() {
 
   const [page, setPage] = useLocalStorageState('traces-list-page', { defaultValue: 1 });
-  const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const traces = useSelector(selectTraces);
@@ -56,8 +56,7 @@ export function TracesList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      const workspaceId = selectedWorkspace.id;
-      dispatch(getTracesAsync({ workspaceId }));
+      onRefresh();
     }
   }, [selectedWorkspace]);
 
@@ -73,6 +72,11 @@ export function TracesList() {
   const onDelete = () => {
     dispatch(deleteTracesAsync({ ids: selectedRowKeys }));
     setSelectedRowKeys([]);
+  };
+
+  const onRefresh = () => {
+    const workspaceId = selectedWorkspace.id;
+    dispatch(getTracesAsync({ workspaceId }));
   };
 
   const onSelectChange = (newSelectedRowKeys) => {
@@ -134,14 +138,17 @@ export function TracesList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ marginBottom: 16 }}>
-          <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
-            Delete
-          </Button>
-          <span style={{ marginLeft: 8 }}>
-            {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-          </span>
-        </div>
+        <Space style={{ marginBottom: 16 }}>
+          <div>
+            <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
+              Delete
+            </Button>
+            <span style={{ marginLeft: 8 }}>
+              {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
+            </span>
+          </div>
+          <Button type="default" onClick={onRefresh} icon={<RedoOutlined />} />
+        </Space>
         <Table
           rowSelection={rowSelection}
           columns={columns}
@@ -149,7 +156,7 @@ export function TracesList() {
           loading={loading}
           pagination={{
             current: page,
-            onChange: (page, pageSize) => setPage(page),
+            onChange: (page) => setPage(page),
           }}
         />
       </div>

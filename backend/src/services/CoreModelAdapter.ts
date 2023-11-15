@@ -1,3 +1,5 @@
+import isEmpty from 'lodash.isempty';
+
 import { Model } from '../core/common_types';
 import { Callback } from '../core/callbacks/Callback';
 import {
@@ -91,10 +93,10 @@ export default ({ logger, rc, services }) => {
 
   function createSemanticCache(provider: string) {
     if (!cacheSingleton) {
-      const embeddingSvc = {
+      const service = {
         createEmbedding: (content: string) => embeddingService.createEmbedding(provider, content),
       };
-      cacheSingleton = new SemanticCache(embeddingSvc, rc, logger);
+      cacheSingleton = new SemanticCache(service, rc, logger);
     }
     return cacheSingleton;
   }
@@ -284,7 +286,7 @@ export default ({ logger, rc, services }) => {
           callbacks
         });
       }
-      if (implInfo.outputGuardrails || implInfo.outputParser) {
+      if (!isEmpty(implInfo.outputGuardrails) || implInfo.outputParser) {
         outputProcessingPipeline = createOutputProcessingPipeline(implInfo, callbacks);
       }
       let argsMappingTemplate: string, returnMappingTemplate: string;

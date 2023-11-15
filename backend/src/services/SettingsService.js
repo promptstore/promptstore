@@ -46,7 +46,6 @@ export function SettingsService({ pg, logger }) {
     if (rows.length === 0) {
       return null;
     }
-    logger.debug('rows: ', rows);
     return mapRow(rows[0]);
   }
 

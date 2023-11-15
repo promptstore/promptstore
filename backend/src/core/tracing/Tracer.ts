@@ -1,4 +1,4 @@
-export type Trace = object[];
+export type Trace = any[];
 
 export class Tracer {
 
@@ -24,7 +24,8 @@ export class Tracer {
     return trace[trace.length - 1];
   }
 
-  push(step: object) {
+  push(step: any) {
+    // console.log('!! push:', step.type);
     this.currentTrace().push(step);
     return this;
   }
@@ -42,12 +43,16 @@ export class Tracer {
   down() {
     const children = [];
     this.currentStep()['children'] = children;
+    // console.log('!! down:', this.currentStep()?.type || '?', this.stack.length);
     this.stack.push(children);
+    // console.log('!! :', this.stack.length);
     return this;
   }
 
   up() {
+    // console.log('!! up:', this.currentStep()?.type || '?');
     this.stack.pop();
+    // console.log('!! :', this.currentStep()?.type || '?', this.stack.length);
     return this;
   }
 

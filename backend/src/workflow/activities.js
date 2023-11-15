@@ -147,7 +147,7 @@ export const createActivities = ({
     logger.info('username:', username);
     const source = await dataSourcesService.getDataSource(transformation.dataSourceId);
     const rows = await sqlSourceService.getData(source, 25);
-    logger.debug('rows:', rows);
+    // logger.debug('rows:', rows);
     const res = [];
     const features = transformation.features || [];
     for (const row of rows) {

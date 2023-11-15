@@ -96,7 +96,7 @@ function CsvParser({ __name, constants, logger }) {
     if (!rows) {
       rows = parse(content, { ...options, columns: false });
     }
-    logger.debug('rows:', rows.slice(0, 3));
+    // logger.debug('rows:', rows.slice(0, 3));
     const schema = await infer(rows, { headers });
     logger.debug('schema:', schema);
     // logger.debug('textNodeProperties:', textNodeProperties);

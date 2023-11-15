@@ -35,9 +35,9 @@ export function LLMService({ logger, registry, services }) {
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
-    logger.debug('provider request:', providerRequest);
+    // logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
-    logger.debug('provider response:', response);
+    // logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return fromOpenAIChatResponse(response);
     }

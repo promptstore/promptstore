@@ -99,16 +99,56 @@ export function Messages({ step }) {
   const messages = step.messages || step.prompt?.messages || [];
   return (
     <div>
-      {messages.map((message, i) => (
-        <div key={hashStr(message.content)}>
-          <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
-            {message.content}
-          </Typography.Paragraph>
-          <Typography.Text type="secondary">
-            role: {message.role}
-          </Typography.Text>
+      {messages.map((message, i) =>
+        <div key={'msg-' + i}>
+          {Array.isArray(message.content) ?
+            <>
+              {message.content.map((c, j) =>
+                <div key={`mc-${i}-${j}`} style={{ marginLeft: 16 }}>
+                  {c.type === 'text' ?
+                    <>
+                      <div className="ant-descriptions-item-label">Text</div>
+                      <Typography.Paragraph
+                        className="first"
+                        style={{ whiteSpace: 'pre-wrap' }}
+                      >
+                        {c.text}
+                      </Typography.Paragraph>
+                    </>
+                    : c.type === 'image_url' ?
+                      <>
+                        <div className="ant-descriptions-item-label">Image</div>
+                        <Typography.Paragraph
+                          className="first"
+                          style={{ whiteSpace: 'pre-wrap' }}
+                        >
+                          {c.image_url.url}
+                        </Typography.Paragraph>
+                      </>
+                      :
+                      <ReactJson src={c} />
+                  }
+                </div>
+              )}
+              <Typography.Text type="secondary">
+                role: {message.role}
+              </Typography.Text>
+            </>
+            :
+            <>
+              <Typography.Paragraph
+                className={i === 0 ? 'first' : ''}
+                style={{ whiteSpace: 'pre-wrap' }}
+              >
+                {message.content}
+              </Typography.Paragraph>
+              <Typography.Text type="secondary">
+                role: {message.role}
+              </Typography.Text>
+            </>
+          }
         </div>
-      ))}
+      )}
     </div>
   );
 }

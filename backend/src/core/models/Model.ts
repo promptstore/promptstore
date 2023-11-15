@@ -64,7 +64,7 @@ export class LLMChatModel implements Model {
     this.callbacks = callbacks || [];
   }
 
-  async call({ request, vision, callbacks = [] }: ModelCallParams) {
+  async call({ request, callbacks = [] }: ModelCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     const model = request.model || this.model;
     let prompt: string;
@@ -81,6 +81,7 @@ export class LLMChatModel implements Model {
       ...defaultLLMChatModelParams,
       ...request.model_params,
     };
+    const vision = request.model === 'gpt-4-vision-preview';
     if (vision) {
       request = {
         ...request,
@@ -95,7 +96,7 @@ export class LLMChatModel implements Model {
     }
     this.onStart({ request });
     try {
-      const response = await this.completionService({ provider: this.provider, request, vision: true });
+      const response = await this.completionService({ provider: this.provider, request, vision });
       if (this.semanticCache && this.semanticCacheEnabled) {
         for (const choice of response.choices) {
           let content = choice.message.content;

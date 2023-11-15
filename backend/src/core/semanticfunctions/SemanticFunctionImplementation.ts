@@ -201,7 +201,6 @@ export class SemanticFunctionImplementation {
       if (this.outputProcessingPipeline) {
         response = await this.outputProcessingPipeline.call({ response, callbacks });
       }
-      logger.debug('response:', response);
       if (this.returnMappingTemplate) {
         response = await this.mapReturnType(response, this.returnMappingTemplate, isBatch);
       }

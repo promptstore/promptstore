@@ -8,7 +8,7 @@ export interface EmbeddingService {
 
   createEmbedding(provider: EmbeddingProviderEnum, content: string): Promise<number[]>
 
-  getEmbeddingProviders(): PluginMetadata[];
+  getEmbeddingProviders?(): PluginMetadata[];
 
 }
 

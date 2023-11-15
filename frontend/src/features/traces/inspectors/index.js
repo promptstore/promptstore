@@ -15,6 +15,9 @@ import { FunctionCall } from './FunctionCall';
 import { Mapping } from './Mapping';
 import { ModelCall } from './ModelCall';
 import { Observation } from './Observation';
+import { OutputGuardrail } from './OutputGuardrail';
+import { OutputParser } from './OutputParser';
+import { OutputProcessing } from './OutputProcessing';
 import { PlanExecution } from './PlanExecution';
 import { PlanModelCall } from './PlanModelCall';
 import { PlanParse } from './PlanParse';
@@ -25,6 +28,7 @@ import { Validation } from './Validation';
 export function Inspector({ step }) {
   switch (step.type) {
     case 'call-function':
+      console.log('step:', step)
       return <ExecutionUnit step={step} title="Call Function" />
 
     case 'call-implementation':
@@ -52,7 +56,12 @@ export function Inspector({ step }) {
       return <PromptTemplate step={step} title="Call Prompt Template" />
 
     case 'call-model':
-      const messages = createOpenAIMessages(step.prompt);
+      let messages;
+      if (step.model === 'gpt-4-vision-preview') {
+        messages = step.messages;
+      } else {
+        messages = createOpenAIMessages(step.prompt);
+      }
       return <ModelCall messages={messages} step={step} title="Call GPT Model" />
 
     case 'call-custom-model':
@@ -102,6 +111,15 @@ export function Inspector({ step }) {
 
     case 'parse-plan':
       return <PlanParse step={step} title="Parse Plan" />
+
+    case 'output-processing-pipeline':
+      return <OutputProcessing step={step} title="Process Output" />
+
+    case 'output-parser':
+      return <OutputParser step={step} title="Parse Output" />
+
+    case 'output-guardrail':
+      return <OutputGuardrail step={step} title="Apply Output Guardrail" />
 
     default:
       return <ReactJson src={step} />

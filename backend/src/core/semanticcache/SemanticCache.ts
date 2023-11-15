@@ -3,6 +3,8 @@ declare const Buffer;
 import { SchemaFieldTypes, VectorAlgorithms } from 'redis';
 import uuid from 'uuid';
 
+import { EmbeddingProviderEnum, EmbeddingService } from '../indexers/EmbeddingProvider';
+
 const INDEX_NAME = 'idx:cache';
 const PREFIX = 'vs:cache';
 const SIMILARITY_DISTANCE_RANGE_THRESHOLD = 0.5;
@@ -14,11 +16,11 @@ const float32Buffer = (arr: number[]) => {
 
 export default class SemanticCache {
 
-  embeddingService: any;
+  embeddingService: EmbeddingService;
   redisClient: any;
   logger: any;
 
-  constructor(embeddingService: any, redisClient: any, logger: any) {
+  constructor(embeddingService: EmbeddingService, redisClient: any, logger: any) {
     this.embeddingService = embeddingService;
     this.redisClient = redisClient;
     this.logger = logger;
@@ -62,7 +64,7 @@ export default class SemanticCache {
 
   async get(prompt: string, n: number = 1) {
     try {
-      const embedding = await this.embeddingService.createEmbedding('sentenceencoder', prompt);
+      const embedding = await this.embeddingService.createEmbedding(EmbeddingProviderEnum.sentenceencoder, prompt);
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {
         PARAMS: {
@@ -80,7 +82,7 @@ export default class SemanticCache {
         RETURN: ['content', 'dist'],
       });
       const hits = result.documents.map((d: any) => d.value);
-      this.logger.debug('hits:', hits);
+      // this.logger.debug('hits:', hits);
       return { embedding, hits };
     } catch (err) {
       this.logger.error('%s\n%s', err, err.stack);
@@ -90,7 +92,7 @@ export default class SemanticCache {
 
   async set(prompt: string, content: string, embedding?: number[]) {
     try {
-      embedding = embedding || await this.embeddingService.createEmbedding('sentenceencoder', prompt);
+      embedding = embedding || await this.embeddingService.createEmbedding(EmbeddingProviderEnum.sentenceencoder, prompt);
       const uid = uuid.v4();
       const doc = {
         __uid: uid,

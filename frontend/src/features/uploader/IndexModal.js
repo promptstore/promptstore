@@ -421,7 +421,7 @@ export function IndexModal({
             </Form.Item>
             <Form.Item
               label="Allowed Rels"
-              name="allowedrels"
+              name="allowedRels"
               wrapperCol={{ span: 10 }}
             >
               <TagsInput />

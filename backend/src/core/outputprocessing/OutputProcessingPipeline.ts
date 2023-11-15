@@ -39,6 +39,7 @@ export class OutputProcessingPipeline {
       for (const step of this.steps) {
         response = await step.call({ response, callbacks });
       }
+      this.onEnd({ response });
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];

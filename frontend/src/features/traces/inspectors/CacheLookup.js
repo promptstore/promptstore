@@ -9,7 +9,9 @@ export function CacheLookup({ step, title }) {
       <Descriptions.Item span={3} label="input">
         <Prompt step={step} />
       </Descriptions.Item>
-      <Output step={step} />
+      <Descriptions.Item span={3} label="output">
+        <Output step={step} />
+      </Descriptions.Item>
       <Descriptions.Item label="model" span={2}>
         {step.model}
       </Descriptions.Item>

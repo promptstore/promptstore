@@ -21,6 +21,7 @@ export default memo(({ id, data, isConnectable }) => {
         value: f.id,
       }));
       options.unshift({ label: 'Select', value: null });
+      options.sort((a, b) => a.label < b.label ? -1 : 1);
       return options;
     }
   }, [functions]);
