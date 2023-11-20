@@ -14,7 +14,7 @@ import {
   Table,
   Tag,
 } from 'antd';
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import { CloseOutlined, DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   DndContext,
   DragOverlay,
@@ -35,7 +35,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { v4 as uuidv4 } from 'uuid';
 import omit from 'lodash.omit';
 import * as dayjs from 'dayjs';
+import snakeCase from 'lodash.snakecase';
 
+import Download from '../../components/Download';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -668,9 +670,12 @@ export function PromptSetForm() {
               initialValues={promptSet}
             >
               <Form.Item wrapperCol={{ span: 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
                   {!isNew ?
                     <>
+                      <Download filename={snakeCase(promptSet.name) + '.json'} payload={promptSet}>
+                        <Button type="text" icon={<DownloadOutlined />} />
+                      </Download>
                       <Link to={`/design/${id}`}>Design</Link>
                       <Link to={`/prompt-sets/${id}`}>View</Link>
                     </>

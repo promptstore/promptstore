@@ -32,6 +32,26 @@ export function ModelsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getModelsByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (name === null || typeof name === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM models
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND name LIKE $2 || '%'
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getModelByKey(workspaceId, key) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return null;
@@ -132,6 +152,7 @@ export function ModelsService({ pg, logger }) {
 
   return {
     getModels,
+    getModelsByName,
     getModelByKey,
     getModelByName,
     getModel,

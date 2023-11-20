@@ -1,6 +1,16 @@
 import neo4j from 'neo4j-driver';
 
-function CypherTool({ __key, __name, constants, logger }) {
+const relsQuery = `
+  CALL apoc.meta.data()
+  YIELD label, other, elementType, type, property
+  WHERE type = "RELATIONSHIP" AND elementType = "node"
+  UNWIND other AS other_node
+  RETURN {start: label, type: property, end: toString(other_node)} AS output
+`;
+
+function CypherTool({ __key, __name, constants, logger, services }) {
+
+  const { executionsService } = services;
 
   let _client;
 
@@ -19,7 +29,42 @@ function CypherTool({ __key, __name, constants, logger }) {
     return _client;
   }
 
+  async function getRelationships() {
+    const session = getClient().session();
+    try {
+      const res = await session.run(relsQuery);
+      return res.records.map(r => r.get('output'));
+    } catch (err) {
+      logger.error(err);
+      throw err;
+    } finally {
+      await session.close();
+    }
+  }
+
   async function call({ input }) {
+    const session = getClient().session();
+    try {
+      const { response, errors } = await executionsService.executeFunction('generate_cypher', { content: input });
+      if (errors) {
+        logger.error(errors);
+        return "I don't know how to answer that";
+      }
+      const query = response.choices[0].message.content;
+      const relationships = await getRelationships();
+      const schemas = relationships.map(rel => [rel.start, rel.type, rel.end]);
+      const queryCorrector = createCypherQueryCorrector(schemas);
+      const correctedQuery = queryCorrector.call(query);
+      const r = await session.run(correctedQuery);
+      const records = r.records;
+      logger.debug('records:', records);
+      return records;
+    } catch (err) {
+      logger.error(err);
+      throw err;
+    } finally {
+      await session.close();
+    }
   }
 
   function getOpenAIMetadata() {

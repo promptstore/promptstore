@@ -1,11 +1,14 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { Card, Descriptions, Divider, Layout, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Descriptions, Divider, Layout, Space, Table, Tag, Typography } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import * as dayjs from 'dayjs';
+import snakeCase from 'lodash.snakecase';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 
 import {
@@ -177,10 +180,13 @@ export function PromptSetView() {
         <Content>
           <Card title={ps.name}
             extra={
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <Link to={`/prompt-sets`}>List</Link>
                 <Link to={`/prompt-sets/${id}/edit`}>Edit</Link>
                 <Link to={`/design/${id}`}>Design</Link>
+                <Download filename={snakeCase(ps.name) + '.json'} payload={ps}>
+                  <Button type="text" icon={<DownloadOutlined />} />
+                </Download>
               </div>
             }
             loading={loading}

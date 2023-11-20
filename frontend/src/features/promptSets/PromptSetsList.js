@@ -12,14 +12,26 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd';
-import { AppstoreOutlined, CheckOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  CheckOutlined,
+  DownloadOutlined,
+  UnorderedListOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  objectUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
 import {
   deletePromptSetsAsync,
   getPromptSetsAsync,
@@ -54,6 +66,7 @@ export function PromptSetsList() {
   const promptSets = useSelector(selectPromptSets);
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
+  const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
     const list =
@@ -230,6 +243,21 @@ export function PromptSetsList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
+  const selectedPromptSets = selectedRowKeys.map(id => promptSets[id]);
+
+  const onUpload = (info) => {
+    if (info.file.status === 'uploading') {
+      return;
+    }
+    if (info.file.status === 'done') {
+      dispatch(objectUploadAsync({
+        file: info.file,
+        type: 'promptSet',
+        workspaceId: selectedWorkspace.id,
+      }));
+    }
+  };
+
   return (
     <>
       {contextHolder}
@@ -238,9 +266,17 @@ export function PromptSetsList() {
           <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
             Delete
           </Button>
-          <div style={{ marginLeft: 8 }}>
-            {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-          </div>
+          {hasSelected ?
+            <>
+              <div style={{ marginLeft: 8 }}>
+                Selected {selectedRowKeys.length} items
+              </div>
+              <Download filename={'prompt_sets.json'} payload={selectedPromptSets}>
+                <Button type="text" icon={<DownloadOutlined />} />
+              </Download>
+            </>
+            : null
+          }
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
@@ -267,6 +303,17 @@ export function PromptSetsList() {
             style={{ marginLeft: 8 }}
           />
           <div style={{ marginLeft: 8 }}>Public</div>
+          <div style={{ marginLeft: 16 }}>
+            <Upload
+              name="upload"
+              showUploadList={false}
+              customRequest={dummyRequest}
+              beforeUpload={beforeUpload}
+              onChange={onUpload}
+            >
+              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
+            </Upload>
+          </div>
           <div style={{ flex: 1 }}></div>
           <Radio.Group
             buttonStyle="solid"
@@ -326,4 +373,29 @@ export function PromptSetsList() {
       </div>
     </>
   );
+};
+
+const beforeUpload = (file) => {
+  // console.log('file:', file);
+
+  const isJSON = file.type === 'application/json';
+
+  if (!isJSON) {
+    message.error('You may only upload a JSON file.');
+  }
+
+  const isLt2M = file.size / 1024 / 1024 < 100;
+
+  if (!isLt2M) {
+    message.error('File must smaller than 100MB.');
+  }
+
+  return isJSON && isLt2M;
+};
+
+// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
+const dummyRequest = ({ file, onSuccess }) => {
+  setTimeout(() => {
+    onSuccess('ok');
+  }, 20);
 };

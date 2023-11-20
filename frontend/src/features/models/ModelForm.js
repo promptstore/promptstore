@@ -1,9 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Select, Space, Switch } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
+import snakeCase from 'lodash.snakecase';
 
+import Download from '../../components/Download';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import UserContext from '../../contexts/UserContext';
@@ -31,7 +34,7 @@ const { TextArea } = Input;
 
 const layout = {
   labelCol: { span: 4 },
-  wrapperCol: { span: 20 },
+  wrapperCol: { span: 16 },
 };
 
 const returnTypeOptions = [
@@ -93,7 +96,7 @@ export function ModelForm() {
   const typesDefinedValue = Form.useWatch('isTypesDefined', form);
   const returnTypeValue = Form.useWatch('returnType', form);
 
-  const id = location.pathname.match(/\/models\/(.*)/)[1];
+  const id = location.pathname.match(/\/models\/(.*?)\/edit/)[1];
   const model = models[id];
   const isNew = id === 'new';
 
@@ -176,6 +179,20 @@ export function ModelForm() {
         onFinish={onFinish}
         initialValues={model}
       >
+        <Form.Item wrapperCol={{ span: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
+            {!isNew ?
+              <>
+                <Download filename={snakeCase(model.name) + '.json'} payload={model}>
+                  <Button type="text" icon={<DownloadOutlined />} />
+                </Download>
+                <Link to={`/models/${id}`}>View</Link>
+              </>
+              : null
+            }
+            <Link to={`/models`}>List</Link>
+          </div>
+        </Form.Item>
         <Form.Item
           label="Name"
           name="name"

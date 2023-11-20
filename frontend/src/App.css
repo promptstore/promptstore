@@ -760,6 +760,10 @@ article.collapsible .panel.closed {
   margin-bottom: 0;
 }
 
+.model-view .prompttext p {
+  margin-bottom: 8px;
+}
+
 .prompttext .promptindent {
   padding-left: 24px;
 }
@@ -780,4 +784,27 @@ article.collapsible .panel.closed {
 
 .prompttext code.highlightedvar {
   background-color: gold;
+}
+
+fieldset {
+  border: 1px solid #d9d9d9;
+  padding: 0 16px;
+}
+
+fieldset legend {
+  border: none;
+  font-weight: 600;
+  padding: 3px 8px 0;
+  margin-bottom: 0;
+  margin-left: 16px;
+  width: unset;
+}
+
+.funcstep>div {
+  text-align: center;
+}
+
+.funcstep>div:first-child {
+  color: rgba(0, 0, 0, 0.45);
+  text-align: left;
 }

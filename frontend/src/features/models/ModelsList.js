@@ -11,14 +11,26 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd';
-import { AppstoreOutlined, CheckOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  CheckOutlined,
+  DownloadOutlined,
+  UnorderedListOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  objectUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
 import {
   deleteModelsAsync,
   getModelsAsync,
@@ -38,6 +50,7 @@ export function ModelsList() {
 
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
+  const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
     const list = Object.values(models)
@@ -68,7 +81,7 @@ export function ModelsList() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      createLink: '/models/new',
+      createLink: '/models/new/edit',
       title: 'Models',
     }));
   }, []);
@@ -412,6 +425,12 @@ export function ModelsList() {
             style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/models/${record.key}`)}
           >
+            View
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/models/${record.key}/edit`)}
+          >
             Edit
           </Button>
         </Space>
@@ -428,6 +447,21 @@ export function ModelsList() {
   };
 
   const hasSelected = selectedRowKeys.length > 0;
+
+  const selectedModels = selectedRowKeys.map(id => models[id]);
+
+  const onUpload = (info) => {
+    if (info.file.status === 'uploading') {
+      return;
+    }
+    if (info.file.status === 'done') {
+      dispatch(objectUploadAsync({
+        file: info.file,
+        type: 'model',
+        workspaceId: selectedWorkspace.id,
+      }));
+    }
+  };
 
   function CardTitle({ provider, title }) {
     return (
@@ -446,9 +480,17 @@ export function ModelsList() {
           <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
             Delete
           </Button>
-          <div style={{ marginLeft: 8 }}>
-            {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-          </div>
+          {hasSelected ?
+            <>
+              <div style={{ marginLeft: 8 }}>
+                Selected {selectedRowKeys.length} items
+              </div>
+              <Download filename={'models.json'} payload={selectedModels}>
+                <Button type="text" icon={<DownloadOutlined />} />
+              </Download>
+            </>
+            : null
+          }
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
@@ -459,7 +501,18 @@ export function ModelsList() {
             onChange={setFilterPublic}
             style={{ marginLeft: 8 }}
           />
-          <div style={{ marginLeft: 8 }}>Public models</div>
+          <div style={{ marginLeft: 8 }}>Public</div>
+          <div style={{ marginLeft: 16 }}>
+            <Upload
+              name="upload"
+              showUploadList={false}
+              customRequest={dummyRequest}
+              beforeUpload={beforeUpload}
+              onChange={onUpload}
+            >
+              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
+            </Upload>
+          </div>
           <div style={{ flex: 1 }}></div>
           <Radio.Group
             buttonStyle="solid"
@@ -494,8 +547,9 @@ export function ModelsList() {
                   <div>
                     <Tag>{m.type}</Tag>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto' }}>
-                    <Link to={`/models/${m.key}`}>Edit</Link>
+                  <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>
+                    <Link to={`/models/${m.key}/edit`}>Edit</Link>
+                    <Link to={`/models/${m.key}`}>View</Link>
                   </div>
                 </div>
               </Card>
@@ -517,4 +571,29 @@ export function ModelsList() {
       </div>
     </>
   );
+};
+
+const beforeUpload = (file) => {
+  // console.log('file:', file);
+
+  const isJSON = file.type === 'application/json';
+
+  if (!isJSON) {
+    message.error('You may only upload a JSON file.');
+  }
+
+  const isLt2M = file.size / 1024 / 1024 < 100;
+
+  if (!isLt2M) {
+    message.error('File must smaller than 100MB.');
+  }
+
+  return isJSON && isLt2M;
+};
+
+// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
+const dummyRequest = ({ file, onSuccess }) => {
+  setTimeout(() => {
+    onSuccess('ok');
+  }, 20);
 };

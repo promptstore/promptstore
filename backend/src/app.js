@@ -89,7 +89,6 @@ const loaderPlugins = await getPlugins(basePath, LOADER_PLUGINS, logger);
 const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
 const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
 const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
-const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger);
 const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
 const app = express();
@@ -199,8 +198,6 @@ const promptSetsService = PromptSetsService({ pg, logger });
 const settingsService = SettingsService({ pg, logger });
 
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
-
-const tool = Tool({ logger, registry: toolPlugins });
 
 const tracesService = TracesService({ pg, logger });
 
@@ -346,6 +343,12 @@ const executionsService = ExecutionsService({
     vectorStoreService,
   },
 });
+
+const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, { services: {
+  executionsService,
+}});
+
+const tool = Tool({ logger, registry: toolPlugins });
 
 const options = {
   app,

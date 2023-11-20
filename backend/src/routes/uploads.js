@@ -1,3 +1,4 @@
+import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 
@@ -5,7 +6,13 @@ import { getExtension } from '../utils';
 
 export default ({ app, auth, constants, logger, mc, services, workflowClient }) => {
 
-  const { documentsService, uploadsService } = services;
+  const {
+    documentsService,
+    functionsService,
+    modelsService,
+    promptSetsService,
+    uploadsService,
+  } = services;
 
   const upload = multer({ dest: '/var/data' });
 
@@ -100,6 +107,118 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       res.status(500).json({
         error: { message: String(err) },
       });
+    }
+  });
+
+  async function importObject(workspaceId, username, type, obj) {
+    let r;
+    if (type === 'function') {
+      delete obj.id;
+      const name = obj.name.trim();
+      const functions = await functionsService.getFunctionsByName(workspaceId, name);
+      logger.debug('existing functions found:', functions.length);
+      if (functions.length) {
+        let version = 0;
+        let exactMatch = false;
+        for (const func of functions) {
+          const match = func.name.match(/(.*?)(\d+)$/);
+          if (match && match[1].trim() === name) {
+            const ver = parseInt(match[2], 10);
+            version = Math.max(version, ver);
+          } else if (func.name.trim() === name) {
+            exactMatch = true;
+          }
+        }
+        if (version > 0 || exactMatch) {
+          obj = { ...obj, name: name + ' ' + (version + 1) };
+        } else {
+          obj = { ...obj, name };
+        }
+      } else {
+        obj = { ...obj, name };
+      }
+      logger.debug('obj:', obj);
+      r = await functionsService.upsertFunction(obj, username);
+    } else if (type === 'model') {
+      delete obj.id;
+      const name = obj.name.trim();
+      const models = await modelsService.getModelsByName(workspaceId, name);
+      logger.debug('existing models found:', models.length);
+      if (models.length) {
+        let version = 0;
+        let exactMatch = false;
+        for (const model of models) {
+          const match = model.name.match(/(.*?)(\d+)$/);
+          if (match && match[1].trim() === name) {
+            const ver = parseInt(match[2], 10);
+            version = Math.max(version, ver);
+          } else if (model.name.trim() === name) {
+            exactMatch = true;
+          }
+        }
+        if (version > 0 || exactMatch) {
+          obj = { ...obj, name: name + ' ' + (version + 1) };
+        } else {
+          obj = { ...obj, name };
+        }
+      } else {
+        obj = { ...obj, name };
+      }
+      logger.debug('obj:', obj);
+      r = await modelsService.upsertModel(obj, username);
+    } else if (type === 'promptSet') {
+      delete obj.id;
+      const name = obj.name.trim();
+      const sets = await promptSetsService.getPromptSetsByName(workspaceId, name);
+      logger.debug('existing prompt sets found:', sets.length);
+      if (sets.length) {
+        let version = 0;
+        let exactMatch = false;
+        for (const set of sets) {
+          const match = set.name.match(/(.*?)(\d+)$/);
+          if (match && match[1].trim() === name) {
+            const ver = parseInt(match[2], 10);
+            version = Math.max(version, ver);
+          } else if (set.name.trim() === name) {
+            exactMatch = true;
+          }
+        }
+        if (version > 0 || exactMatch) {
+          obj = { ...obj, name: name + ' ' + (version + 1) };
+        } else {
+          obj = { ...obj, name };
+        }
+      } else {
+        obj = { ...obj, name };
+      }
+      logger.debug('obj:', obj);
+      r = await promptSetsService.upsertPromptSet(obj, username);
+    }
+    logger.debug('r:', r);
+    return r;
+  }
+
+  app.post('/api/object-uploads', upload.single('file'), auth, async (req, res) => {
+    logger.debug('body:', req.body);
+    const { username } = req.user;
+    try {
+      const { type, workspaceId } = req.body;
+      const str = fs.readFileSync(req.file.path);
+      let obj = JSON.parse(str);
+      const results = [];
+      if (Array.isArray(obj)) {
+        for (const o of obj) {
+          const r = await importObject(workspaceId, username, type, o);
+          results.push(r);
+        }
+      } else {
+        const r = await importObject(workspaceId, username, type, obj);
+        results.push(r);
+      }
+      res.json(results);
+    } catch (err) {
+      logger.error(err.message, err.stack);
+      res.sendStatus(500);
     }
   });
 

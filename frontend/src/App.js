@@ -55,11 +55,13 @@ import { DestinationForm } from './features/destinations/DestinationForm';
 import { DestinationsList } from './features/destinations/DestinationsList';
 import { FileUploader } from './features/uploader/FileUploader';
 import { FunctionForm } from './features/functions/FunctionForm';
+import { FunctionView } from './features/functions/FunctionView';
 import { FunctionsList } from './features/functions/FunctionsList';
 import { Home } from './features/home/Home';
 import { IndexForm } from './features/indexes/IndexForm';
 import { IndexesList } from './features/indexes/IndexesList';
 import { ModelForm } from './features/models/ModelForm';
+import { ModelView } from './features/models/ModelView';
 import { ModelsList } from './features/models/ModelsList';
 import { ProfileView } from './features/profile/ProfileView';
 import { WorkspaceForm } from './features/workspaces/WorkspaceForm';
@@ -644,12 +646,14 @@ function App() {
                     <Route path="/design" element={<Designer />} />
                     <Route path="/destinations/:id" element={<DestinationForm />} />
                     <Route path="/destinations" element={<DestinationsList />} />
-                    <Route path="/functions/:id" element={<FunctionForm />} />
+                    <Route path="/functions/:id/edit" element={<FunctionForm />} />
+                    <Route path="/functions/:id" element={<FunctionView />} />
                     <Route path="/functions" element={<FunctionsList />} />
                     <Route path="/home" element={<Home />} />
                     <Route path="/indexes/:id" element={<IndexForm />} />
                     <Route path="/indexes" element={<IndexesList />} />
-                    <Route path="/models/:id" element={<ModelForm />} />
+                    <Route path="/models/:id/edit" element={<ModelForm />} />
+                    <Route path="/models/:id" element={<ModelView />} />
                     <Route path="/models" element={<ModelsList />} />
                     {/* <Route path="/profile" element={<ProfileView />} /> */}
                     <Route path="/prompt-sets/:id/edit" element={<PromptSetForm />} />

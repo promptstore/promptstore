@@ -32,6 +32,26 @@ export function FunctionsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getFunctionsByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (name === null || typeof name === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM functions
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND name LIKE $2 || '%'
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getFunctionsByTag(workspaceId, tag) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -132,6 +152,7 @@ export function FunctionsService({ pg, logger }) {
 
   return {
     getFunctions,
+    getFunctionsByName,
     getFunctionsByTag,
     getFunctionByName,
     getFunction,

@@ -13,7 +13,7 @@ import {
 } from './fileUploaderSlice';
 
 const beforeUpload = (file) => {
-  console.log('file:', file);
+  // console.log('file:', file);
 
   const isCSV = file.type === 'text/csv';
 

@@ -1,13 +1,37 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Input, Select, Space, Switch, Table, Tag, message } from 'antd';
-import { CheckOutlined } from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Input,
+  Radio,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+  message,
+} from 'antd';
+import {
+  AppstoreOutlined,
+  CheckOutlined,
+  DownloadOutlined,
+  UnorderedListOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  objectUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
 import { getColor } from '../../utils';
 
 import {
@@ -40,6 +64,7 @@ const intersects = (arr1 = [], arr2 = []) => {
 export function FunctionsList() {
 
   const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', { defaultValue: false });
+  const [layout, setLayout] = useLocalStorageState('functions-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -53,6 +78,7 @@ export function FunctionsList() {
   const modelsLoading = useSelector(selectModelsLoading);
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
+  const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
     const list = Object.values(functions)
@@ -106,7 +132,7 @@ export function FunctionsList() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      createLink: '/functions/new',
+      createLink: '/functions/new/edit',
       title: 'Semantic Functions',
     }));
   }, []);
@@ -199,6 +225,12 @@ export function FunctionsList() {
             style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/functions/${record.key}`)}
           >
+            View
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/functions/${record.key}/edit`)}
+          >
             Edit
           </Button>
         </Space>
@@ -216,17 +248,40 @@ export function FunctionsList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
+  const selectedFunctions = selectedRowKeys.map(id => functions[id]);
+
+  const onUpload = (info) => {
+    if (info.file.status === 'uploading') {
+      return;
+    }
+    if (info.file.status === 'done') {
+      dispatch(objectUploadAsync({
+        file: info.file,
+        type: 'function',
+        workspaceId: selectedWorkspace.id,
+      }));
+    }
+  };
+
   return (
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
           <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
             Delete
           </Button>
-          <span style={{ marginLeft: 8 }}>
-            {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-          </span>
+          {hasSelected ?
+            <>
+              <span style={{ marginLeft: 8 }}>
+                Selected {selectedRowKeys.length} items
+              </span>
+              <Download filename={'functions.json'} payload={selectedFunctions}>
+                <Button type="text" icon={<DownloadOutlined />} />
+              </Download>
+            </>
+            : null
+          }
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
@@ -255,20 +310,110 @@ export function FunctionsList() {
             onChange={setFilterSystem}
             style={{ marginLeft: 8 }}
           />
-          <span style={{ marginLeft: 8 }}>Public functions</span>
+          <div style={{ marginLeft: 8 }}>Public</div>
+          <div style={{ marginLeft: 16 }}>
+            <Upload
+              name="upload"
+              showUploadList={false}
+              customRequest={dummyRequest}
+              beforeUpload={beforeUpload}
+              onChange={onUpload}
+            >
+              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
+            </Upload>
+          </div>
+          <div style={{ flex: 1 }}></div>
+          <Radio.Group
+            buttonStyle="solid"
+            onChange={(ev) => setLayout(ev.target.value)}
+            optionType="button"
+            options={[
+              {
+                label: <UnorderedListOutlined />,
+                value: 'list'
+              },
+              {
+                label: <AppstoreOutlined />,
+                value: 'grid'
+              },
+            ]}
+            value={layout}
+          />
         </div>
-        <Table
-          rowSelection={rowSelection}
-          columns={columns}
-          dataSource={data}
-          loading={loading}
-          pagination={{
-            current: page,
-            onChange: (page, pageSize) => setPage(page),
-          }}
-          rowClassName="function-list-row"
-        />
+        {layout === 'grid' ?
+          <Space wrap size="large">
+            {data.map(f =>
+              <Card key={f.key} title={f.name} style={{ width: 350, height: 200 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
+                  <div style={{ height: 30 }}>
+                    <span style={{ marginRight: 8 }}>Implementations:</span>
+                    <Space size={[0, 8]} wrap>
+                      {f.implementations?.map((impl) => (
+                        impl.modelId && modelsLoaded && models[impl.modelId] ?
+                          <Tag key={impl.modelId}
+                            color={getColor(models[impl.modelId].type, isDarkMode)}
+                          >
+                            {models[impl.modelId].key}
+                          </Tag>
+                          : null
+                      ))}
+                    </Space>
+                  </div>
+                  <div style={{ height: 30 }}>
+                    <Typography.Text ellipsis>
+                      {f.description}
+                    </Typography.Text>
+                  </div>
+                  <Space wrap size="small">
+                    {(f.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
+                  </Space>
+                  <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
+                    <Link to={`/functions/${f.key}/edit`}>Edit</Link>
+                    <Link to={`/functions/${f.key}`}>View</Link>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </Space>
+          :
+          <Table
+            rowSelection={rowSelection}
+            columns={columns}
+            dataSource={data}
+            loading={loading}
+            pagination={{
+              current: page,
+              onChange: (page, pageSize) => setPage(page),
+            }}
+            rowClassName="function-list-row"
+          />
+        }
       </div>
     </>
   );
+};
+
+const beforeUpload = (file) => {
+  // console.log('file:', file);
+
+  const isJSON = file.type === 'application/json';
+
+  if (!isJSON) {
+    message.error('You may only upload a JSON file.');
+  }
+
+  const isLt2M = file.size / 1024 / 1024 < 100;
+
+  if (!isLt2M) {
+    message.error('File must smaller than 100MB.');
+  }
+
+  return isJSON && isLt2M;
+};
+
+// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
+const dummyRequest = ({ file, onSuccess }) => {
+  setTimeout(() => {
+    onSuccess('ok');
+  }, 20);
 };

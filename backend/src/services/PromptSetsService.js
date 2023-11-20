@@ -33,6 +33,26 @@ export function PromptSetsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getPromptSetsByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (name === null || typeof name === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      FROM prompt_sets
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      AND val->>'name' LIKE $2 || '%'
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getPromptSetsBySkill(workspaceId, skill) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -142,6 +162,7 @@ export function PromptSetsService({ pg, logger }) {
   return {
     getFirstPromptSetBySkillAsMessages,
     getPromptSets,
+    getPromptSetsByName,
     getPromptSetsBySkill,
     getPromptSetTemplates,
     getPromptSet,

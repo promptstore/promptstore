@@ -44,6 +44,10 @@ const agentTypeOptions = [
     label: 'ReAct Zero-shot Learning',
     value: 'react',
   },
+  {
+    label: 'Simple',
+    value: 'simple',
+  },
 ];
 
 const layout = {

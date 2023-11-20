@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
@@ -13,13 +13,15 @@ import {
   Space,
   Switch,
 } from 'antd';
-import { CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
+import { CloseOutlined, DownloadOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 import * as dayjs from 'dayjs';
+import snakeCase from 'lodash.snakecase';
 
+import Download from '../../components/Download';
 import { ExperimentsModalInput } from '../../components/ExperimentsModalInput';
 import { MappingModalInput } from '../../components/MappingModalInput';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
@@ -142,7 +144,7 @@ export function FunctionForm() {
   const returnTypeValue = Form.useWatch('returnType', form);
   const functionReturnTypeSchema = Form.useWatch('returnTypeSchema', form);
 
-  const id = location.pathname.match(/\/functions\/(.*)/)[1];
+  const id = location.pathname.match(/\/functions\/(.*?)\/edit/)[1];
   const func = functions[id];
   const isNew = id === 'new';
 
@@ -481,6 +483,20 @@ export function FunctionForm() {
           onFinish={onFinish}
           initialValues={func}
         >
+          <Form.Item wrapperCol={{ span: 23 }}>
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
+              {!isNew ?
+                <>
+                  <Download filename={snakeCase(func.name) + '.json'} payload={func}>
+                    <Button type="text" icon={<DownloadOutlined />} />
+                  </Download>
+                  <Link to={`/functions/${id}`}>View</Link>
+                </>
+                : null
+              }
+              <Link to={`/functions`}>List</Link>
+            </div>
+          </Form.Item>
           <Form.Item
             label="Name"
             name="name"

@@ -3,6 +3,9 @@ import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
+import { setFunctions } from '../functions/functionsSlice';
+import { setModels } from '../models/modelsSlice';
+import { setPromptSets } from '../promptSets/promptSetsSlice';
 
 export const fileUploaderSlice = createSlice({
   name: 'fileUploader',
@@ -109,6 +112,23 @@ export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState)
       }
     }
   }, 2000);
+};
+
+export const objectUploadAsync = ({ file, type, workspaceId }) => async (dispatch) => {
+  dispatch(startUpload());
+  const form = new FormData();
+  form.append('type', type);
+  form.append('workspaceId', workspaceId);
+  form.append('file', file.originFileObj);
+  const res = await http.post('/api/object-uploads', form);
+  if (type === 'promptSet') {
+    dispatch(setPromptSets({ promptSets: res.data }));
+  } else if (type === 'function') {
+    dispatch(setFunctions({ functions: res.data }));
+  } else if (type === 'model') {
+    dispatch(setModels({ models: res.data }));
+  }
+  dispatch(uploaded());
 };
 
 export const reloadContentAsync = ({ workspaceId, uploadId, filepath }) => async (dispatch, getState) => {

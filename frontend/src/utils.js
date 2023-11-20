@@ -225,3 +225,8 @@ export const getExtension = (filepath) => {
   const index = filepath.lastIndexOf('.');
   return filepath.slice(index + 1);
 };
+
+export const getBaseURL = (endpoint) => {
+  const url = new URL(endpoint);
+  return `${url.protocol}//${url.hostname}`;
+};
