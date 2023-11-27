@@ -1,9 +1,10 @@
+import { Tool } from '../../agents/Agent_types';
 import { DataMapper } from '../common_types';
 import { Callback } from '../callbacks/Callback';
 import { ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
-interface INode {
+export interface INode {
   id: string;
   type: string;
 }
@@ -14,6 +15,10 @@ export interface IRequestNode extends INode {
 
 export interface IFunctionNode extends INode {
   func: SemanticFunction;
+}
+
+export interface IToolNode extends INode {
+  tool: Tool;
 }
 
 export interface IMapperNode extends INode {

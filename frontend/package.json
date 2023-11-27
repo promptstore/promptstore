@@ -48,6 +48,7 @@
     "lodash.snakecase": "^4.1.1",
     "lodash.trim": "^4.5.1",
     "monaco-editor": "^0.38.0",
+    "parse5": "^7.1.2",
     "qs": "^6.11.0",
     "react": "^18.0.0",
     "react-copy-to-clipboard": "^5.1.0",

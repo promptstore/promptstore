@@ -6,9 +6,9 @@ class AnamlFeatureStore {
     logger.debug('Construct Anaml Feature Store');
     this.logger = logger;
     this.connectionParameters = {
-      baseUrl: url,
-      apiKey,
-      apiSecret,
+      baseUrl: url || constants.ANAML_API_URL,
+      apiKey: apiKey || constants.ANAML_API_KEY,
+      apiSecret: apiSecret || constants.ANAML_API_SECRET,
     };
     // logger.debug('connection parameters:', this.connectionParameters);
     this.tokenCache = {};

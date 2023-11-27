@@ -1,10 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
-import { Col, Descriptions, Row, Tree } from 'antd';
-import { DownOutlined } from '@ant-design/icons';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button, Col, Descriptions, Row, Tree } from 'antd';
+import { DownloadOutlined, DownOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
+import snakeCase from 'lodash.snakecase';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 
 import { Governance } from './Governance';
@@ -20,6 +22,7 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 export function TraceView() {
 
+  const [top, setTop] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState([]);
 
   const traces = useSelector(selectTraces);
@@ -29,6 +32,7 @@ export function TraceView() {
 
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const id = location.pathname.match(/\/traces\/(.*)/)[1];
   const trace = traces[id];
@@ -102,7 +106,20 @@ export function TraceView() {
 
   useEffect(() => {
     dispatch(getTraceAsync(id));
+
+    return () => {
+      setTop(false);
+    };
   }, []);
+
+  useEffect(() => {
+    if (top && traces) {
+      const latest = Object.values(traces).find(t => t.latest);
+      if (latest) {
+        navigate(`/traces/${latest.id}`);
+      }
+    }
+  }, [traces]);
 
   useEffect(() => {
     if (trace) {
@@ -117,6 +134,11 @@ export function TraceView() {
       setSelectedKeys([trace.trace[0].id]);
     }
   }, [trace]);
+
+  const navigateTop = () => {
+    dispatch(getTraceAsync('latest'));
+    setTop(true);
+  };
 
   const onSelect = (selectedKeys, info) => {
     console.log('info:', info);
@@ -149,6 +171,13 @@ export function TraceView() {
           </Descriptions>
         </Col>
         <Col span={14}>
+          <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
+            <Download filename={snakeCase(trace.name) + '.json'} payload={trace}>
+              <Button type="text" icon={<DownloadOutlined />} />
+            </Download>
+            <Link onClick={navigateTop}>Top</Link>
+            <Link to={`/traces`}>List</Link>
+          </div>
           {step ?
             <Inspector step={step} />
             :

@@ -10,7 +10,6 @@ import {
   createAgentAsync,
   deleteAgentsAsync,
   getAgentsAsync,
-  getToolsAsync,
   resetAgentOutput,
   runAgentAsync,
   selectAgents,
@@ -18,9 +17,12 @@ import {
   selectLoaded,
   selectLoading,
   selectRunning,
-  selectTools,
   updateAgentAsync,
 } from './agentsSlice';
+import {
+  getToolsAsync,
+  selectTools,
+} from './toolsSlice';
 import {
   getIndexesAsync,
   selectLoading as selectIndexesLoading,

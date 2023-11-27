@@ -157,7 +157,7 @@ export function PromptSetView() {
     <div style={{ marginTop: 20 }}>
       <Layout>
         <Sider
-          style={{ marginRight: 16 }}
+          style={{ border: '1px solid #f0f0f0', marginRight: 16 }}
           width={250}
           theme="light"
         >
@@ -216,6 +216,7 @@ export function PromptSetView() {
         <Sider
           theme="light"
           width={350}
+          style={{ border: '1px solid #f0f0f0' }}
         >
           <div style={{ margin: '24px 8px 16px' }}>
             {loaded && ps.arguments ?

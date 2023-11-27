@@ -43,6 +43,7 @@ export interface Experiment {
 export interface SemanticFunctionParams {
   name: string;
   argsSchema?: object;
+  returnType: string;
   returnTypeSchema?: object;
   experiments?: Experiment[];
   implementations: SemanticFunctionImplementation[];

@@ -43,7 +43,7 @@ import { ParserService } from './services/ParserService';
 import { PromptSetsService } from './services/PromptSetsService';
 import { SettingsService } from './services/SettingsService';
 import { SqlSourceService } from './services/SqlSourceService';
-import { Tool } from './services/Tool';
+import { ToolService } from './services/ToolService';
 import { TracesService } from './services/TracesService';
 import { TrainingService } from './services/TrainingService';
 import { TransformationsService } from './services/TransformationsService';
@@ -348,7 +348,9 @@ const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, { services:
   executionsService,
 }});
 
-const tool = Tool({ logger, registry: toolPlugins });
+const toolService = ToolService({ logger, registry: toolPlugins });
+
+executionsService.addServices({ toolService });
 
 const options = {
   app,
@@ -390,7 +392,7 @@ const options = {
     promptSetsService,
     settingsService,
     sqlSourceService,
-    tool,
+    toolService,
     tracesService,
     trainingService,
     transformationsService,

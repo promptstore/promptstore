@@ -33,11 +33,13 @@ import {
   updateCompositionAsync,
 } from '../composer/compositionsSlice';
 
+import CompositionNode from './CompositionNode';
 import FunctionNode from './FunctionNode';
 import JoinerNode from './JoinerNode';
 import MapperNode from './MapperNode';
 import OutputNode from './OutputNode';
 import RequestNode from './RequestNode';
+import ToolNode from './ToolNode';
 
 import 'reactflow/dist/style.css';
 
@@ -57,11 +59,13 @@ const minimapStyle = {
 };
 
 const nodeTypes = {
+  compositionNode: CompositionNode,
   functionNode: FunctionNode,
   joinerNode: JoinerNode,
   mapperNode: MapperNode,
   outputNode: OutputNode,
   requestNode: RequestNode,
+  toolNode: ToolNode,
 };
 
 const proOptions = { hideAttribution: true };
@@ -216,6 +220,20 @@ export function Composer() {
     return position;
   }
 
+  const addCompositionNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'compositionNode',
+      data: {
+        parentCompositionId: composition.id,
+      },
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
   const addFunctionNode = () => {
     const id = getId();
     const newNode = {
@@ -257,6 +275,18 @@ export function Composer() {
     const newNode = {
       id,
       type: 'outputNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addToolNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'toolNode',
       data: {},
       position: getNewPosition(),
       zIndex: 1001,
@@ -458,6 +488,12 @@ export function Composer() {
       <Space>
         <Button onClick={addFunctionNode}>
           Add Semantic Function
+        </Button>
+        <Button onClick={addCompositionNode}>
+          Add Sub-composition
+        </Button>
+        <Button onClick={addToolNode}>
+          Add Tool
         </Button>
         <Button onClick={addMapperNode}>
           Add Mapper

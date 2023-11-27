@@ -3,9 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Divider, Form, Input, Layout, Select, Table } from 'antd';
 import { LinkOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import isEmpty from 'lodash.isempty';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
+import isEmpty from 'lodash.isempty';
 import { v4 as uuidv4 } from 'uuid';
 import useLocalStorageState from 'use-local-storage-state';
 

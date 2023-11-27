@@ -20,6 +20,7 @@ export class SemanticFunction {
 
   name: string;
   argsSchema: object;
+  returnType: string;
   returnTypeSchema?: object;
   experiments?: Experiment[];
   implementations: SemanticFunctionImplementation[]
@@ -30,6 +31,7 @@ export class SemanticFunction {
   constructor({
     name,
     argsSchema,
+    returnType,
     returnTypeSchema,
     experiments,
     implementations,
@@ -38,6 +40,7 @@ export class SemanticFunction {
   }: SemanticFunctionParams) {
     this.name = name;
     this.argsSchema = argsSchema;
+    this.returnType = returnType;
     this.returnTypeSchema = returnTypeSchema;
     this.experiments = experiments;
     this.implementations = implementations;
@@ -209,6 +212,7 @@ export class SemanticFunction {
 
 interface SemanticFunctionOptions {
   argsSchema?: object;
+  returnType: string;
   returnTypeSchema?: object;
   experiments: Experiment[];
   callbacks: Callback[];

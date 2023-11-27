@@ -10,7 +10,12 @@ export default ({ app, auth, logger, services }) => {
 
   app.get('/api/traces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
-    const trace = await tracesService.getTrace(id);
+    let trace;
+    if (id === 'latest') {
+      trace = await tracesService.getLatestTrace();
+    } else {
+      trace = await tracesService.getTrace(id);
+    }
     // logger.debug('trace:', trace);
     res.json(trace);
   });

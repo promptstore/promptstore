@@ -130,12 +130,12 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           }
         }
         if (version > 0 || exactMatch) {
-          obj = { ...obj, name: name + ' ' + (version + 1) };
+          obj = { ...obj, name: name + ' ' + (version + 1), workspaceId };
         } else {
-          obj = { ...obj, name };
+          obj = { ...obj, name, workspaceId };
         }
       } else {
-        obj = { ...obj, name };
+        obj = { ...obj, name, workspaceId };
       }
       logger.debug('obj:', obj);
       r = await functionsService.upsertFunction(obj, username);
@@ -157,12 +157,12 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           }
         }
         if (version > 0 || exactMatch) {
-          obj = { ...obj, name: name + ' ' + (version + 1) };
+          obj = { ...obj, name: name + ' ' + (version + 1), workspaceId };
         } else {
-          obj = { ...obj, name };
+          obj = { ...obj, name, workspaceId };
         }
       } else {
-        obj = { ...obj, name };
+        obj = { ...obj, name, workspaceId };
       }
       logger.debug('obj:', obj);
       r = await modelsService.upsertModel(obj, username);
@@ -184,12 +184,12 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           }
         }
         if (version > 0 || exactMatch) {
-          obj = { ...obj, name: name + ' ' + (version + 1) };
+          obj = { ...obj, name: name + ' ' + (version + 1), workspaceId };
         } else {
-          obj = { ...obj, name };
+          obj = { ...obj, name, workspaceId };
         }
       } else {
-        obj = { ...obj, name };
+        obj = { ...obj, name, workspaceId };
       }
       logger.debug('obj:', obj);
       r = await promptSetsService.upsertPromptSet(obj, username);
@@ -199,7 +199,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   }
 
   app.post('/api/object-uploads', upload.single('file'), auth, async (req, res) => {
-    logger.debug('body:', req.body);
+    // logger.debug('body:', req.body);
     const { username } = req.user;
     try {
       const { type, workspaceId } = req.body;

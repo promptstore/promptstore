@@ -3,6 +3,9 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import merge from 'lodash.merge';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
+import logger from '../../logger';
+
+import { Tool } from '../../agents/Agent_types';
 import { DataMapper, Source } from '../common_types';
 import { CompositionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
@@ -10,9 +13,11 @@ import {
   CompositionCallParams,
   CompositionOnEndParams,
   CompositionParams,
+  INode,
   IEdge,
   IRequestNode,
   IFunctionNode,
+  IToolNode,
   IMapperNode,
   IJoinerNode,
   IOutputNode,
@@ -61,6 +66,7 @@ export class Composition {
           throw new CompositionError(`Source node (${sourceId}) not found.`);
         }
         let myargs = await inner(sourceNode);
+        logger.debug(node.type, 'myargs:', myargs);
         if (node.type === 'functionNode') {
           let functionNode = node as IFunctionNode;
           let func = functionNode.func;
@@ -69,7 +75,40 @@ export class Composition {
             modelKey,
             modelParams,
           });
+          const message = response.choices[0].message;
+          logger.debug(node.type, 'message:', message);
+          if (func.returnType === 'application/json') {
+            let json: any;
+            try {
+              if (func.returnTypeSchema && message.function_call) {
+                json = JSON.parse(message.function_call.arguments);
+              } else {
+                json = JSON.parse(message.content);
+              }
+            } catch (err) {
+              logger.error('error parsing json response:', err);
+              json = {};
+            }
+            logger.debug(node.type, 'previous result:', res);
+            logger.debug(node.type, 'json:', json);
+            res = merge(res, json);
+          } else {
+            res = merge(res, { content: message.content });
+          }
+        } else if (node.type === 'compositionNode') {
+          let compositionNode = node as ICompositionNode;
+          let composition = compositionNode.composition;
+          let { response } = await composition.call({
+            args: myargs,
+            modelKey,
+            modelParams,
+          });
           res = merge(res, response);
+        } else if (node.type === 'toolNode') {
+          let toolNode = node as IToolNode;
+          let tool = toolNode.tool;
+          let response = await tool.call(myargs);
+          res = merge(res, { response });
         } else if (node.type === 'mapperNode') {
           let mapperNode = node as IMapperNode;
           let mappingTemplate = mapperNode.mappingTemplate;
@@ -84,6 +123,7 @@ export class Composition {
         } else {
           res = merge(res, myargs);
         }
+        logger.debug(node.type, 'res:', res);
       }
       return res;
     }
@@ -172,6 +212,10 @@ export class Composition {
 
 }
 
+export interface ICompositionNode extends INode {
+  composition: Composition;
+}
+
 export const composition = (name: string, nodes: Node[], edges: IEdge[], callbacks: Callback[]) => {
   return new Composition({
     name,
@@ -205,6 +249,34 @@ class FunctionNode implements IFunctionNode {
     this.id = id;
     this.type = 'functionNode';
     this.func = func;
+  }
+
+}
+
+class CompositionNode implements ICompositionNode {
+
+  id: string;
+  type: string;
+  composition: Composition;
+
+  constructor(id: string, composition: Composition) {
+    this.id = id;
+    this.type = 'compositionNode';
+    this.composition = composition;
+  }
+
+}
+
+class ToolNode implements IToolNode {
+
+  id: string;
+  type: string;
+  tool: Tool;
+
+  constructor(id: string, tool: Tool) {
+    this.id = id;
+    this.type = 'toolNode';
+    this.tool = tool;
   }
 
 }
@@ -267,6 +339,14 @@ export const requestNode = (id: string, argsSchema: object) => {
 
 export const functionNode = (id: string, func: SemanticFunction) => {
   return new FunctionNode(id, func);
+};
+
+export const compositionNode = (id: string, composition: Composition) => {
+  return new CompositionNode(id, composition);
+};
+
+export const toolNode = (id: string, tool: Tool) => {
+  return new ToolNode(id, tool);
 };
 
 export const mapperNode = (id: string, mappingTemplate: string) => {

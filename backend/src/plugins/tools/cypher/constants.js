@@ -1,5 +1,5 @@
 export default {
-  CYPHER_DESCRIPTION: 'a query tool to find answers from a knowledge graph.',
+  CYPHER_DESCRIPTION: 'A query tool to find answers from a knowledge graph. If using the tool, provide the original user question as input.',
   NEO4J_HOST: process.env.NEO4J_HOST,
   NEO4J_PORT: process.env.NEO4J_PORT,
   NEO4J_USERNAME: process.env.NEO4J_USERNAME,

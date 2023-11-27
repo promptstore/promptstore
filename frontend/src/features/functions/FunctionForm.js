@@ -234,14 +234,16 @@ export function FunctionForm() {
     const promptSetId = implementationsValue[index].promptSetId;
     if (promptSetId) {
       const promptSet = promptSets[promptSetId];
-      const versions = promptSet.versions || [];
-      const list = versions.map((v) => ({
-        label: v.title,
-        value: v.id,
-        created: v.created,
-      }));
-      list.sort((a, b) => a.label < b.label ? -1 : 1);
-      return list;
+      if (promptSet) {
+        const versions = promptSet.versions || [];
+        const list = versions.map((v) => ({
+          label: v.title,
+          value: v.id,
+          created: v.created,
+        }));
+        list.sort((a, b) => a.label < b.label ? -1 : 1);
+        return list;
+      }
     }
     return [];
   };
@@ -442,7 +444,7 @@ export function FunctionForm() {
             overflowY: 'auto',
           }}
         >
-          <div style={{ width: 720 }}>
+          <div>
             <div style={{ float: 'right' }}>
               <Button type="default"
                 disabled={isEmpty(formData)}

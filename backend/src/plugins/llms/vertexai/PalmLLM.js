@@ -114,11 +114,11 @@ function PalmLLM({ __name, constants, logger }) {
     return res.data;
   }
 
-  function createImage(prompt, n) {
+  function createImage(prompt, options) {
     throw new Error('Not implemented');
   }
 
-  function generateImageVariant(imageUrl, n) {
+  function generateImageVariant(imageUrl, options) {
     throw new Error('Not implemented');
   }
 

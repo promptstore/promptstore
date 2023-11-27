@@ -26,11 +26,11 @@ function Gpt4AllLLM({ __name, constants, logger }) {
     return response.map((c) => ({ prompt: input, text: c.generation }));
   }
 
-  function createImage(prompt, n) {
+  function createImage(prompt, options) {
     throw new Error('Not implemented');
   }
 
-  function generateImageVariant(imageUrl, n) {
+  function generateImageVariant(imageUrl, options) {
     throw new Error('Not implemented');
   }
 

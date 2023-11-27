@@ -144,11 +144,11 @@ function SortableItem({ field, index, remove }) {
       <div style={{ width: 100, marginLeft: 16 }}>
         <Form.Item
           name={[field.name, 'role']}
+          initialValue="user"
         >
           <Select allowClear
             optionFilterProp="label"
             options={roleOptions}
-            initialValue="user"
             placeholder="Role"
           />
         </Form.Item>
@@ -255,6 +255,9 @@ export function PromptSetForm() {
       setTempForm(values);
     }
     const ver = promptSet.versions.find((v) => v.id === id);
+    // not sure why this line is needed
+    // otherwise nested properties in `arguments` are not updated
+    form.setFieldValue('arguments', null);
     form.setFieldsValue(ver.promptSet);
     setSelectedVersion(id);
   };
@@ -384,6 +387,7 @@ export function PromptSetForm() {
       const previousVersion = versions[versions.length - 1];
       const aWords = (previousVersion.promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
       const bWords = (promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
+      // TODO get the words in `bWords` that are different
       diff = wordsDiff(aWords, bWords, 5);
     } else {
       diff = ['Initial', 'version'];

@@ -42,11 +42,19 @@ export const getTracesAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(setTraces({ traces: res.data }));
 };
 
-export const getTraceAsync = (id) => async (dispatch) => {
+export const getTraceAsync = (id) => async (dispatch, getState) => {
   dispatch(startLoad());
   const url = `/api/traces/${id}`;
   const res = await http.get(url);
-  dispatch(setTraces({ traces: [res.data] }));
+  let traces;
+  if (id === 'latest') {
+    const existing = Object.values(getState().traces.traces)
+      .map(t => ({ ...t, latest: undefined }));
+    traces = [...existing, { ...res.data, latest: true }];
+  } else {
+    traces = [res.data];
+  }
+  dispatch(setTraces({ traces }));
 };
 
 export const createTraceAsync = ({ values }) => async (dispatch) => {

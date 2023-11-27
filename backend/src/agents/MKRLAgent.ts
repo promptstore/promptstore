@@ -37,7 +37,7 @@ export default ({ logger, services }) => {
     indexesService,
     llmService,
     promptSetsService,
-    tool,
+    toolService,
     vectorStoreService,
   } = services;
 
@@ -116,8 +116,8 @@ export default ({ logger, services }) => {
         agent_scratchpad: '',  // TODO variables should be optional by default
 
         // deprecated - using universal model calling instead
-        tools: tool.getToolsList(allowedTools),
-        tool_names: tool.getToolNames(allowedTools),
+        tools: toolService.getToolsList(allowedTools),
+        tool_names: toolService.getToolNames(allowedTools),
       };
       try {
         let messages = await this._getSetupPrompts(args);
@@ -196,7 +196,7 @@ export default ({ logger, services }) => {
     }
 
     _getFunctions(allowedTools: string[]) {
-      let functions = tool.getAllMetadata(allowedTools);
+      let functions = toolService.getAllMetadata(allowedTools);
       if (allowedTools.includes('searchIndex')) {
         functions.push({
           id: uuid.v4(),
@@ -327,7 +327,7 @@ export default ({ logger, services }) => {
             args.agentName = this.name;
             args.email = email;
           }
-          response = await tool.call(call.name, args);
+          response = await toolService.call(call.name, args);
         }
       } catch (err) {
         console.log('Error calling tool:', call.name);

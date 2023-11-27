@@ -99,18 +99,21 @@ function OpenAILLM({ __name, constants, logger }) {
     return res;
   }
 
-  async function createImage(prompt, n) {
-    prompt = `Generate an image about "${prompt}". Do not include text in the image.`;
+  // DALL-E 3 is a significant improvement over DALL-E 2
+  async function createImage(prompt, { n = 1, quality = 'standard' }) {
     const res = await openai.images.generate({
       prompt,
       n,
-      size: '512x512',
+      model: 'dall-e-3',
+      size: '1024x1024',
+      quality,
       response_format: 'url',
     });
     return res.data;
   }
 
-  async function generateImageVariant(imageUrl, n) {
+  // DALL-E 2 only
+  async function generateImageVariant(imageUrl, { n = 1 }) {
     const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
     const localFilePath = '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);

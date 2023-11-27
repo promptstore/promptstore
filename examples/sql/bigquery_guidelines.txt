@@ -1,0 +1,1 @@
+Use `SAFE_CAST` instead of `CAST` where appropriate.

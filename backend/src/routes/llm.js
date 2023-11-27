@@ -8,7 +8,8 @@ import { Tracer } from '../core/tracing/Tracer';
 import { downloadImage, fillTemplate, getMessages } from '../utils';
 import chatSessions from './chatSessions';
 
-const COPY_GENERATION_SKILL = 'copy_generation';
+const DEFAULT_COPY_GENERATION_SKILL = 'copy_generation';
+const DEFAULT_IMAGE_GENERATION_SKILL = 'image_generation';
 const QA_SKILL = 'qa';
 const LAST_SESSION_NAME = 'last session';
 
@@ -436,12 +437,32 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.json(embedding);
   });
 
-
-  // NOT CURRENTLY IN SCOPE
-
-  app.post('/api/image-request', auth, async (req, res, next) => {
-    const { n = 1, prompt, sourceId } = req.body;
-    const response = await llmService.createImage('openai', prompt, n);
+  app.post('/api/image-request', auth, async (req, res) => {
+    logger.debug('body:', req.body);
+    const {
+      n,
+      prompt,
+      quality,
+      sourceId,
+      template,
+      engine = 'es6',
+      skill = DEFAULT_IMAGE_GENERATION_SKILL,
+    } = req.body;
+    let p;
+    if (template) {
+      p = fillTemplate(template, { content: prompt }, engine);
+    } else {
+      const messages = await promptSetsService.getFirstPromptSetBySkillAsMessages(sourceId, skill);
+      if (messages) {
+        const t = messages.map(m => m.content).join('\n\n');
+        logger.debug('t:', t);
+        p = fillTemplate(t, { content: prompt }, engine);
+      } else {
+        logger.error('image generation skill not provided and default skill not found');
+        return res.sendStatus(500);
+      }
+    }
+    const response = await llmService.createImage('openai', p, { n, quality });
     const dirname = path.join('/var/data/images/', String(sourceId));
     await fs.promises.mkdir(dirname, { recursive: true });
     const promises = [];
@@ -472,19 +493,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
+        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, imageUrl) => {
           if (err) {
             logger.error(err);
             return reject(err);
           }
-          logger.debug('presignedUrl:', presignedUrl);
-          let imageUrl;
-          if (constants.ENV === 'dev') {
-            const u = new URL(presignedUrl);
-            imageUrl = '/api/dev/images' + u.pathname + u.search;
-          } else {
-            imageUrl = presignedUrl;
-          }
+          logger.debug('presigned url:', imageUrl);
           resolve({ imageUrl, objectName });
         });
       });
@@ -492,9 +506,8 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   };
 
   app.post('/api/gen-image-variant', auth, async (req, res, next) => {
-    const { imageUrl, n = 1 } = req.body;
-    // logger.debug('imageUrl:', imageUrl);
-    const response = await llmService.generateImageVariant('openai', imageUrl, n);
+    const { imageUrl, n } = req.body;
+    const response = await llmService.generateImageVariant('openai', imageUrl, { n });
     res.json(response);
   });
 
@@ -530,9 +543,9 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       }
       return promptSet;
     }
-    const promptSets = promptSetsService.getPromptSetsBySkill(workspaceId, COPY_GENERATION_SKILL);
+    const promptSets = promptSetsService.getPromptSetsBySkill(workspaceId, DEFAULT_COPY_GENERATION_SKILL);
     if (!promptSets.length) {
-      throw new Error(`PromptSet (${COPY_GENERATION_SKILL}) not found`);
+      throw new Error(`PromptSet (${DEFAULT_COPY_GENERATION_SKILL}) not found`);
     }
     // return first by skill
     return promptSets[0];

@@ -22,6 +22,7 @@ import { ModelsService } from '../services/ModelsService';
 import { ParserService } from '../services/ParserService';
 import { PromptSetsService } from '../services/PromptSetsService';
 import { SqlSourceService } from '../services/SqlSourceService';
+import { ToolService } from '../services/ToolService';
 import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
 import { VectorStoreService } from '../services/VectorStoreService';
@@ -81,6 +82,8 @@ const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, lo
 const SQL_SOURCE_PLUGINS = process.env.SQL_SOURCE_PLUGINS || '';
 const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
 
+const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
+
 const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
@@ -124,6 +127,16 @@ const executionsService = ExecutionsService({
     vectorStoreService,
   },
 });
+
+const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
+  services: {
+    executionsService,
+  }
+});
+
+const toolService = ToolService({ logger, registry: toolPlugins });
+
+executionsService.addServices({ toolService });
 
 // async function runUploadsWorker() {
 //   const connectionOptions = {

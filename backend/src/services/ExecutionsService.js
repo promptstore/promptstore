@@ -7,6 +7,8 @@ import CoreModelAdapter from './CoreModelAdapter.ts'
 
 export function ExecutionsService({ logger, rc, services }) {
 
+  let _services = services;
+
   const {
     compositionsService,
     dataSourcesService,
@@ -26,24 +28,37 @@ export function ExecutionsService({ logger, rc, services }) {
     vectorStoreService,
   } = services;
 
-  const adapter = CoreModelAdapter({
-    logger, rc, services: {
-      dataSourcesService,
-      embeddingService,
-      featureStoreService,
-      functionsService,
-      graphStoreService,
-      guardrailsService,
-      indexesService,
-      llmService,
-      modelProviderService,
-      modelsService,
-      parserService,
-      promptSetsService,
-      sqlSourceService,
-      vectorStoreService,
+  const addServices = (services) => {
+    _services = { ..._services, ...services };
+  }
+
+  let _adapter;
+
+  const getAdapter = () => {
+    if (!_adapter) {
+      _adapter = CoreModelAdapter({
+        logger, rc, services: {
+          compositionsService,
+          dataSourcesService,
+          embeddingService,
+          featureStoreService,
+          functionsService,
+          graphStoreService,
+          guardrailsService,
+          indexesService,
+          llmService,
+          modelProviderService,
+          modelsService,
+          parserService,
+          promptSetsService,
+          sqlSourceService,
+          toolService: _services.toolService,
+          vectorStoreService,
+        }
+      });
     }
-  });
+    return _adapter;
+  }
 
   const executeFunction = async ({
     workspaceId,
@@ -52,7 +67,7 @@ export function ExecutionsService({ logger, rc, services }) {
     func,
     args,
     history,
-    params,
+    params = {},
     functions,
     batch = false,
     debug = false,
@@ -71,6 +86,7 @@ export function ExecutionsService({ logger, rc, services }) {
     if (debug) {
       callbacks.push(new DebugCallback());
     }
+    const adapter = getAdapter();
     const semanticFunction = await adapter.createSemanticFunction(workspaceId, semanticFunctionInfo, callbacks);
 
     const executor = new LocalExecutor();
@@ -134,6 +150,7 @@ export function ExecutionsService({ logger, rc, services }) {
     if (debug) {
       callbacks.push(new DebugCallback());
     }
+    const adapter = getAdapter();
     const composition = await adapter.createComposition(workspaceId, compositionInfo, callbacks);
 
     const executor = new LocalExecutor();
@@ -174,6 +191,7 @@ export function ExecutionsService({ logger, rc, services }) {
   return {
     executeComposition,
     executeFunction,
+    addServices,
   };
 
 }

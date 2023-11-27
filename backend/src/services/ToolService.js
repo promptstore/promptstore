@@ -1,4 +1,4 @@
-export function Tool({ logger, registry }) {
+export function ToolService({ logger, registry }) {
 
   logger.log('debug', 'Tool registry includes', getToolsList());
 
@@ -6,13 +6,13 @@ export function Tool({ logger, registry }) {
     return registry[key];
   }
 
-  function call(key, args) {
-    logger.log('debug', 'Calling "%s" with args:', key, args);
+  function call(key, args, raw) {
+    logger.debug('Calling "%s" with args:', key, args);
     const tool = registry[key];
     if (!tool) {
       return 'Invalid tool call';
     }
-    return tool.call(args);
+    return tool.call(args, raw);
   }
 
   function getOpenAIMetadata(key) {
@@ -21,14 +21,14 @@ export function Tool({ logger, registry }) {
 
   function getAllMetadata(keys) {
     return Object.entries(registry)
-      .filter(([key, tool]) => !keys || keys.includes(key))
-      .map(([key, tool]) => tool.getOpenAIMetadata())
+      .filter(([key, _]) => !keys || keys.includes(key))
+      .map(([_, tool]) => tool.getOpenAIMetadata())
       ;
   }
 
   function getToolsList(keys) {
     return Object.entries(registry)
-      .filter(([key, tool]) => !keys || keys.includes(key))
+      .filter(([key, _]) => !keys || keys.includes(key))
       .map(([key, tool]) => {
         return `${key}: ${tool.__description}`;
       })
@@ -36,8 +36,9 @@ export function Tool({ logger, registry }) {
   }
 
   function getToolNames(keys) {
-    return Object.keys(registry)
-      .filter(([key, tool]) => !keys || keys.includes(key))
+    return Object.entries(registry)
+      .filter(([key, _]) => !keys || keys.includes(key))
+      .map(([_, tool]) => tool.__name)
       .join(', ');
   }
 
@@ -57,5 +58,5 @@ export function Tool({ logger, registry }) {
     getToolsList,
     getTool,
     getTools,
-  }
+  };
 }

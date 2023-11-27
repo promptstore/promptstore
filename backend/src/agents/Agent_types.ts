@@ -88,3 +88,20 @@ export interface EventEmitterCallbackParams {
   username: string;
   emitter: EventEmitter;
 }
+
+interface ToolParameters {
+  properties: any;
+}
+
+interface ToolMetadata {
+  name: string;
+  description: string;
+  parameters: ToolParameters;
+}
+
+export interface Tool {
+  __name: string;
+  __description: string;
+  call: (args: any) => Promise<string>;
+  getOpenAIMetadata: () => ToolMetadata;
+}

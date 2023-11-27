@@ -49,6 +49,20 @@ export function TracesService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
+  async function getLatestTrace() {
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM traces
+      ORDER BY id DESC
+      LIMIT 1
+      `;
+    const { rows } = await pg.query(q);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
   async function upsertTrace(trace, username) {
     if (trace === null || typeof trace === 'undefined') {
       return null;
@@ -92,6 +106,7 @@ export function TracesService({ pg, logger }) {
   }
 
   return {
+    getLatestTrace,
     getTraces,
     getTrace,
     upsertTrace,

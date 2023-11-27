@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Button, Descriptions, Layout, Select, Space, Table, Tag } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import SchemaForm from '@rjsf/antd';
+import validator from '@rjsf/validator-ajv8';
+import isEmpty from 'lodash.isempty';
 import { v4 as uuidv4 } from 'uuid';
 import useLocalStorageState from 'use-local-storage-state';
 
@@ -60,8 +63,16 @@ const TAGS_KEY = 'functionTags';
 
 const hasIndex = (f) => !!f.implementations?.find(m => m.indexes?.length || m.sqlSourceId || m.graphSourceId);
 
+const uiSchema = {
+  'ui:title': 'Additional expected inputs',
+  'ui:submitButtonOptions': {
+    'norender': true,
+  },
+};
+
 export function RagTester() {
 
+  const [argsFormData, setArgsFormData] = useState(null);
   const [createdUuid, setCreatedUuid] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState(null);
@@ -104,6 +115,18 @@ export function RagTester() {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const [contentVar, varsSchema] = useMemo(() => {
+    if (func && func.arguments) {
+      const schema = func.arguments;
+      if (schema.type === 'object') {
+        const contentVar = getInputProp(schema.properties);
+        const newSchema = excludeProps([contentVar], schema);
+        return [contentVar, newSchema];
+      }
+    }
+    return [null, null];
+  }, [func]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -210,9 +233,13 @@ export function RagTester() {
     const content = messages[messages.length - 1].content;
     const model = models[impl.modelId];
     // console.log('model:', model);
+    let args = { content };
+    if (varsSchema) {
+      args = { ...args, ...argsFormData };
+    }
     dispatch(getChatResponseAsync({
       functionName: func.name,
-      args: { content },
+      args,
       history: messages.slice(0, messages.length - 1),
       params: { model: model.key },
       workspaceId: selectedWorkspace.id,
@@ -423,6 +450,32 @@ export function RagTester() {
               onSave={onSave}
               placeholder="Enter a query"
             />
+            {varsSchema ?
+              <div style={{ marginTop: 24, width: 868 }}>
+                <div style={{ float: 'right' }}>
+                  <Button type="default" size="small"
+                    disabled={isEmpty(argsFormData)}
+                    onClick={() => { setArgsFormData(null); }}
+                  >
+                    Reset vars
+                  </Button>
+                </div>
+                <div style={{ width: '50%' }}>
+                  <SchemaForm
+                    schema={varsSchema}
+                    uiSchema={uiSchema}
+                    validator={validator}
+                    formData={argsFormData}
+                    onChange={(e) => setArgsFormData(e.formData)}
+                    submitter={false}
+                  />
+                </div>
+                <div style={{ marginBottom: 24 }}>
+                  The message will be assigned to the `content` variable if using a Prompt Template.
+                </div>
+              </div>
+              : null
+            }
           </Content>
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
@@ -438,3 +491,36 @@ export function RagTester() {
     </>
   );
 }
+
+const inputTerms = ['input', 'text', 'content', 'query', 'question'];
+
+const getInputProp = (props) => {
+  return inputTerms.find(t => t in props);
+};
+
+const excludeProps = (props, schema) => {
+  const schemaProps = { ...schema.properties };
+  let required;
+  if (schema.required) {
+    required = [...schema.required];
+  }
+  for (const prop of props) {
+    if (prop) {
+      delete schemaProps[prop];
+      if (required) {
+        const index = required.indexOf(prop);
+        if (index > -1) {
+          required.splice(index, 1);
+        }
+      }
+    }
+  }
+  if (Object.keys(schemaProps).length) {
+    return {
+      ...schema,
+      properties: schemaProps,
+      required,
+    };
+  }
+  return null;
+};

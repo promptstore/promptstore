@@ -28,7 +28,6 @@ import { Validation } from './Validation';
 export function Inspector({ step }) {
   switch (step.type) {
     case 'call-function':
-      console.log('step:', step)
       return <ExecutionUnit step={step} title="Call Function" />
 
     case 'call-implementation':

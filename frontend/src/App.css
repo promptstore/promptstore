@@ -293,11 +293,13 @@ li img {
 }
 
 
+.react-flow__node-compositionNode,
 .react-flow__node-functionNode,
 .react-flow__node-joinerNode,
 .react-flow__node-mapperNode,
 .react-flow__node-outputNode,
-.react-flow__node-requestNode {
+.react-flow__node-requestNode,
+.react-flow__node-toolNode {
   font-size: 10px;
   width: 180px;
   background: #f5f5f6;
@@ -306,11 +308,13 @@ li img {
   border-radius: 2px;
 }
 
+.react-flow__node-compositionNode .react-flow__handle,
 .react-flow__node-functionNode .react-flow__handle,
 .react-flow__node-joinerNode .react-flow__handle,
 .react-flow__node-mapperNode .react-flow__handle,
 .react-flow__node-outputNode .react-flow__handle,
-.react-flow__node-requestNode .react-flow__handle {
+.react-flow__node-requestNode .react-flow__handle,
+.react-flow__node-toolNode .react-flow__handle {
   width: 5px;
   height: 8px;
   border: none;
@@ -327,7 +331,9 @@ li img {
   left: -15px;
 } */
 
-.react-flow__node-functionNode .react-flow__handle-left {
+.react-flow__node-compositionNode .react-flow__handle-left,
+.react-flow__node-functionNode .react-flow__handle-left,
+.react-flow__node-toolNode .react-flow__handle-left {
   left: -15px;
 }
 
@@ -337,8 +343,11 @@ li img {
   right: -15px;
 } */
 
+
+.react-flow__node-compositionNode .react-flow__handle-right,
 .react-flow__node-functionNode .react-flow__handle-right,
-.react-flow__node-requestNode .react-flow__handle-right {
+.react-flow__node-requestNode .react-flow__handle-right,
+.react-flow__node-toolNode .react-flow__handle-right {
   right: -15px;
 }
 
@@ -660,6 +669,14 @@ article.collapsible .panel.closed {
   fill: #52c41a;
 }
 
+.failure .anticon svg {
+  fill: #f5222d;
+}
+
+.success .anticon svg {
+  fill: #52c41a;
+}
+
 .trace-status {
   background-color: #d8d8d9;
   border-radius: 6px;
@@ -786,12 +803,19 @@ article.collapsible .panel.closed {
   background-color: gold;
 }
 
-fieldset {
-  border: 1px solid #d9d9d9;
-  padding: 0 16px;
+.prompttext p {
+  margin-top: 14px;
 }
 
-fieldset legend {
+.prompttext p:first-child {
+  margin-top: 0;
+}
+
+.ant-descriptions-item-content fieldset {
+  border: 1px solid #d9d9d9;
+}
+
+.ant-descriptions-item-content fieldset legend {
   border: none;
   font-weight: 600;
   padding: 3px 8px 0;

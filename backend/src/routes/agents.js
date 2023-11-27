@@ -6,7 +6,7 @@ import { AgentTracingCallback } from '../agents/AgentTracingCallback';
 
 export default ({ agents, app, auth, logger, services }) => {
 
-  const { agentsService, tool, tracesService } = services;
+  const { agentsService, toolService, tracesService } = services;
 
   let clients = [];
   let events = [];
@@ -368,7 +368,7 @@ export default ({ agents, app, auth, logger, services }) => {
    *         description: Error
    */
   app.get('/api/tools', (req, res, next) => {
-    const tools = tool.getTools();
+    const tools = toolService.getTools();
     res.json(tools);
   });
 

@@ -150,20 +150,24 @@ function BigQuerySource({ __name, constants, logger }) {
       let [rows] = await query(client, 'tables', { dataset });
 
       // TODO
-      if (source.tableName) {
-        rows = rows.filter((row) => row.table_name === source.tableName);
+      if (source.tables) {
+        const tables = source.tables
+          .split(',')
+          .map(table => table.trim())
+          .filter(table => table);
+        rows = rows.filter((row) => tables.includes(row.table_name));
       }
 
       const meta = {};
       for (const { table_name, ddl } of rows) {
         const proms = [];
         for (const type of types) {
-          proms.push(query(client, type, { table_name }));
+          proms.push(query(client, type, { dataset, table_name }));
         }
         const resolved = await Promise.all(proms);
         meta[table_name] = resolved.reduce((a, v, i) => {
-          a[types[i]] = v.rows.map((row) => {
-            return row.reduce((b, [k, v]) => {
+          a[types[i]] = v[0].map((row) => {
+            return Object.entries(row).reduce((b, [k, v]) => {
               if (k === 'data_type') {
                 let found;
                 found = v.match(/ARRAY<(.*)>/);
@@ -242,6 +246,7 @@ function BigQuerySource({ __name, constants, logger }) {
   };
 
   function query(client, type, vars, params) {
+    logger.debug('vars:', vars);
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     const filepath = `${__dirname}/sql/${type}.sql`;
     const template = fs.readFileSync(filepath).toString();

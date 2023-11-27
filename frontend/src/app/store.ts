@@ -22,6 +22,7 @@ import outputParsersReducer from '../features/functions/outputParsersSlice';
 import promptSetsReducer from '../features/promptSets/promptSetsSlice';
 import settingsReducer from '../features/promptSets/settingsSlice';
 import templatesReducer from '../features/promptSets/templatesSlice';
+import toolsReducer from '../features/agents/toolsSlice';
 import tracesReducer from '../features/traces/tracesSlice';
 import trainingReducer from '../features/training/trainingSlice';
 import transformationsReducer from '../features/transformations/transformationsSlice';
@@ -53,6 +54,7 @@ export const store = configureStore({
     promptSets: promptSetsReducer,
     settings: settingsReducer,
     templates: templatesReducer,
+    tools: toolsReducer,
     traces: tracesReducer,
     training: trainingReducer,
     transformations: transformationsReducer,

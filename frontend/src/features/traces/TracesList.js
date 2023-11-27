@@ -2,10 +2,17 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, Tag, message } from 'antd';
-import { RedoOutlined } from '@ant-design/icons';
+import {
+  CheckCircleFilled,
+  ClockCircleOutlined,
+  CloseCircleFilled,
+  DownloadOutlined,
+  RedoOutlined,
+} from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 import * as dayjs from 'dayjs';
 
+import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
@@ -32,6 +39,9 @@ export function TracesList() {
       name: trace.name,
       traceType: trace.traceType,
       created: trace.created,
+      success: trace.trace[0].success,
+      latency: trace.trace[0].elapsedMillis,
+      tokens: trace.trace[0].response?.usage?.total_tokens,
     }));
     list.sort((a, b) => a.created > b.created ? -1 : 1);
     return list;
@@ -94,7 +104,7 @@ export function TracesList() {
       )
     },
     {
-      title: 'Trace Type',
+      title: 'Type',
       dataIndex: 'traceType',
       render: (_, { traceType }) => (
         <Tag>{traceType}</Tag>
@@ -103,9 +113,49 @@ export function TracesList() {
     {
       title: 'Run',
       dataIndex: 'runDatetime',
-      // width: '100%',
       render: (_, { created }) => (
         <span>{dayjs(created).format(TIME_FORMAT)}</span>
+      )
+    },
+    {
+      title: 'Success',
+      dataIndex: 'success',
+      render: (_, { success }) =>
+        success ? (
+          <div className="success">
+            <CheckCircleFilled />
+          </div>
+        ) : (
+          <div className="failure">
+            <CloseCircleFilled />
+          </div>
+        )
+    },
+    {
+      title: 'Latency',
+      dataIndex: 'latency',
+      render: (_, { latency }) => {
+        if (latency && latency > 0) {
+          const secs = latency / 1000;
+          const color = secs > 5 ? 'red' : 'green';
+          return (
+            <Tag
+              icon={<ClockCircleOutlined />}
+              color={color}
+              style={{ display: 'inline-flex', alignItems: 'center' }}
+            >
+              {secs.toLocaleString('en-US')}s
+            </Tag>
+          );
+        }
+        return null;
+      }
+    },
+    {
+      title: 'Tokens',
+      dataIndex: 'tokens',
+      render: (_, { tokens }) => (
+        <span>{tokens?.toLocaleString('en-US')}</span>
       )
     },
     {
@@ -134,6 +184,8 @@ export function TracesList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
+  const selectedTraces = selectedRowKeys.map(id => traces[id]);
+
   return (
     <>
       {contextHolder}
@@ -147,7 +199,10 @@ export function TracesList() {
               {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
             </span>
           </div>
-          <Button type="default" onClick={onRefresh} icon={<RedoOutlined />} />
+          <Button type="text" onClick={onRefresh} icon={<RedoOutlined />} />
+          <Download filename={'traces.json'} payload={selectedTraces}>
+            <Button type="text" icon={<DownloadOutlined />} />
+          </Download>
         </Space>
         <Table
           rowSelection={rowSelection}

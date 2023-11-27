@@ -4,7 +4,7 @@ function CodeParser({ __name, __metadata, constants, logger }) {
     // logger.debug('Parsing:', text);
     try {
       if (text.includes('```')) {
-        text = text.split(/```(?:json)?/)[1].trim();
+        text = text.split(/```(?:\w+)?/)[1].trim();
       }
     } catch (err) {
       logger.error('Error parsing text:', err);

@@ -4,49 +4,49 @@ import { Handle, Position, useReactFlow, useStoreApi } from 'reactflow';
 
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  getFunctionsAsync,
-  selectFunctions,
-  selectLoaded as selectFunctionsLoaded,
-} from '../functions/functionsSlice';
+  getToolsAsync,
+  selectTools,
+  selectLoaded as selectToolsLoaded,
+} from '../agents/toolsSlice';
 
 export default memo(({ id, data, isConnectable }) => {
 
-  const functions = useSelector(selectFunctions);
-  const functionsLoaded = useSelector(selectFunctionsLoaded);
+  const tools = useSelector(selectTools);
+  const toolsLoaded = useSelector(selectToolsLoaded);
 
-  const functionOptions = useMemo(() => {
-    if (functions) {
-      const options = Object.values(functions).map((f) => ({
-        label: f.name,
-        value: f.id,
+  const toolOptions = useMemo(() => {
+    if (tools) {
+      const options = Object.values(tools).map((t) => ({
+        label: t.name,
+        value: t.key,
       }));
       options.sort((a, b) => a.label < b.label ? -1 : 1);
       options.unshift({ label: 'Select', value: -1 });
       return options;
     }
-  }, [functions]);
+  }, [tools]);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (selectedWorkspace && !functionsLoaded) {
+    if (selectedWorkspace && !toolsLoaded) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getToolsAsync({ workspaceId }));
     }
-  }, [selectedWorkspace, functionsLoaded]);
+  }, [selectedWorkspace, toolsLoaded]);
 
   return (
     <>
       <div className="custom-node__header">
-        Semantic Function
+        Tool
       </div>
       <div className="custom-node__body">
         <Select
-          options={functionOptions}
+          options={toolOptions}
           nodeId={id}
           isConnectable={isConnectable}
-          value={data.functionId}
+          value={data.toolId}
         />
       </div>
     </>
@@ -62,13 +62,13 @@ function Select({ options, value, nodeId, isConnectable }) {
     setNodes(
       Array.from(nodeInternals.values()).map((node) => {
         if (node.id === nodeId) {
-          const functionId = evt.target.value;
-          const opt = options.find(opt => opt.value == functionId);
-          let functionName = opt.label;
+          const toolId = evt.target.value;
+          const opt = options.find(opt => opt.value == toolId);
+          let toolName = opt.label;
           node.data = {
             ...node.data,
-            functionId,
-            functionName,
+            toolId,
+            toolName,
           };
         }
         return node;

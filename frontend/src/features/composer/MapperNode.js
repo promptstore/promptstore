@@ -191,6 +191,9 @@ function SetMapper({ data, functions, functionsLoaded, models, modelsLoaded, nod
     if (!model) {
       return null;
     }
+    if (model.type === 'gpt') {
+      return func.returnTypeSchema;
+    }
 
     return model.returnTypeSchema;
   };

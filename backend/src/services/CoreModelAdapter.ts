@@ -6,6 +6,8 @@ import {
   composition,
   edge,
   functionNode,
+  compositionNode,
+  toolNode,
   joinerNode,
   mapperNode,
   requestNode,
@@ -39,6 +41,7 @@ import { SemanticFunctionImplementation, semanticFunctionImplementation } from '
 export default ({ logger, rc, services }) => {
 
   const {
+    compositionsService,
     dataSourcesService,
     embeddingService,
     featureStoreService,
@@ -52,6 +55,7 @@ export default ({ logger, rc, services }) => {
     parserService,
     promptSetsService,
     sqlSourceService,
+    toolService,
     vectorStoreService,
   } = services;
 
@@ -306,6 +310,7 @@ export default ({ logger, rc, services }) => {
     }
     const options = {
       argsSchema: semanticFunctionInfo.arguments,
+      returnType: semanticFunctionInfo.returnType,
       returnTypeSchema: semanticFunctionInfo.returnTypeSchema,
       callbacks,
       experiments: semanticFunctionInfo.experiments,
@@ -326,6 +331,19 @@ export default ({ logger, rc, services }) => {
           let functionInfo = await functionsService.getFunction(functionId);
           let func = await createSemanticFunction(workspaceId, functionInfo, callbacks);
           nodes.push(functionNode(nodeInfo.id, func));
+          break;
+
+        case 'compositionNode':
+          let compositionId = nodeInfo.data.compositionId;
+          let compositionInfo = await compositionsService.getComposition(compositionId);
+          let composition = await createComposition(workspaceId, compositionInfo, callbacks);
+          nodes.push(compositionNode(nodeInfo.id, composition));
+          break;
+
+        case 'toolNode':
+          let toolKey = nodeInfo.data.toolId;
+          let tool = await toolService.getTool(toolKey);
+          nodes.push(toolNode(nodeInfo.id, tool));
           break;
 
         case 'mapperNode':

@@ -4,49 +4,51 @@ import { Handle, Position, useReactFlow, useStoreApi } from 'reactflow';
 
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  getFunctionsAsync,
-  selectFunctions,
-  selectLoaded as selectFunctionsLoaded,
-} from '../functions/functionsSlice';
+  getCompositionsAsync,
+  selectCompositions,
+  selectLoaded as selectCompositionsLoaded,
+} from '../composer/compositionsSlice';
 
 export default memo(({ id, data, isConnectable }) => {
 
-  const functions = useSelector(selectFunctions);
-  const functionsLoaded = useSelector(selectFunctionsLoaded);
+  const compositions = useSelector(selectCompositions);
+  const compositionsLoaded = useSelector(selectCompositionsLoaded);
 
-  const functionOptions = useMemo(() => {
-    if (functions) {
-      const options = Object.values(functions).map((f) => ({
-        label: f.name,
-        value: f.id,
-      }));
+  const compositionOptions = useMemo(() => {
+    if (compositions) {
+      const options = Object.values(compositions)
+        .filter((c) => c.id !== data.parentCompositionId)
+        .map((c) => ({
+          label: c.name,
+          value: c.id,
+        }));
       options.sort((a, b) => a.label < b.label ? -1 : 1);
       options.unshift({ label: 'Select', value: -1 });
       return options;
     }
-  }, [functions]);
+  }, [compositions]);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (selectedWorkspace && !functionsLoaded) {
+    if (selectedWorkspace && !compositionsLoaded) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getCompositionsAsync({ workspaceId }));
     }
-  }, [selectedWorkspace, functionsLoaded]);
+  }, [selectedWorkspace, compositionsLoaded]);
 
   return (
     <>
       <div className="custom-node__header">
-        Semantic Function
+        Sub-composition
       </div>
       <div className="custom-node__body">
         <Select
-          options={functionOptions}
+          options={compositionOptions}
           nodeId={id}
           isConnectable={isConnectable}
-          value={data.functionId}
+          value={data.compositionId}
         />
       </div>
     </>
@@ -62,13 +64,13 @@ function Select({ options, value, nodeId, isConnectable }) {
     setNodes(
       Array.from(nodeInternals.values()).map((node) => {
         if (node.id === nodeId) {
-          const functionId = evt.target.value;
-          const opt = options.find(opt => opt.value == functionId);
-          let functionName = opt.label;
+          const compositionId = evt.target.value;
+          const opt = options.find(opt => opt.value == compositionId);
+          let compositionName = opt.label;
           node.data = {
             ...node.data,
-            functionId,
-            functionName,
+            compositionId,
+            compositionName,
           };
         }
         return node;

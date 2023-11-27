@@ -22,3 +22,4 @@ scratchpad.md
 /neo4j/
 mage_data/
 metadata.yaml
+backend/src/plugins/tools/bigquery/keys/

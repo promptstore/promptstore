@@ -37,7 +37,7 @@ export default ({ logger, services }) => {
     llmService,
     parserService,
     promptSetsService,
-    tool,
+    toolService,
     vectorStoreService,
   } = services;
 
@@ -113,6 +113,7 @@ export default ({ logger, services }) => {
         };
         for (const step of plan) {
           const content = this._getReturnContent(goal, previousSteps, step);
+          console.log('\n!!!!! STEP:\n', step, '\n', content, '\n!!!!!\n');
           const message = new UserMessage(content);
           const request = {
             model: this.model,
@@ -120,7 +121,7 @@ export default ({ logger, services }) => {
             functions,
             prompt: { history: [...this.history], messages: [message] },
           };
-          // this.history.push(message);
+          this.history.push(message);
           for (let callback of this.currentCallbacks) {
             callback.onEvaluateStepStart({
               step,
@@ -133,16 +134,18 @@ export default ({ logger, services }) => {
               provider: this.provider,
               request,
             });
+            console.log('\n!!!!! NEXT STEP RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
           } else {
             response = await llmService.createCompletion({
               provider: this.provider,
               request,
             });
           }
-          // this.history.push(response.choices[0].message);
+          this.history.push(response.choices[0].message);
           const call = response.choices[0].message.function_call;
 
           if (call) {
+            console.log('\n!!!!! IS_CALL\n!!!!!\n');
             response = await this._makeObservation(
               step,
               call,
@@ -154,13 +157,14 @@ export default ({ logger, services }) => {
               step,
               selfEvaluate
             );
+            console.log('\n!!!!! OBSERVATION:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
             for (let callback of this.currentCallbacks) {
               callback.onObserveModelEnd({
                 model: this.model,
                 response: { ...response },
               });
             }
-            // this.history.push(response.choices[0].message);
+            this.history.push(response.choices[0].message);
           }
 
           for (let callback of this.currentCallbacks) {
@@ -212,7 +216,7 @@ export default ({ logger, services }) => {
         });
       }
       const content = response.choices[0].message.content;
-      // this.history.push(new AssistantMessage(content));
+      this.history.push(new AssistantMessage(content));
 
       const plan = await this._parsePlanOutput(content);
 
@@ -252,7 +256,7 @@ export default ({ logger, services }) => {
     }
 
     _getFunctions(allowedTools: string[]) {
-      let functions = tool.getAllMetadata(allowedTools);
+      let functions = toolService.getAllMetadata(allowedTools);
       if (allowedTools.includes('searchIndex')) {
         functions.push({
           id: uuid.v4(),
@@ -341,7 +345,8 @@ export default ({ logger, services }) => {
         functions,
         prompt: { history: [...this.history], messages: [message] },
       };
-      // this.history.push(message);
+      console.log('\n!!!!! OBSERVATION REQUEST:\n', JSON.stringify(request, null, 2), '\n!!!!!\n');
+      this.history.push(message);
       for (let callback of this.currentCallbacks) {
         callback.onObserveModelStart({ request });
       }
@@ -351,6 +356,7 @@ export default ({ logger, services }) => {
           provider: this.provider,
           request,
         });
+        console.log('\n!!!!! OBSERVATION RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
       } else {
         response = await llmService.createCompletion({
           provider: this.provider,
@@ -407,10 +413,10 @@ export default ({ logger, services }) => {
             args.agentName = this.name;
             args.email = email;
           }
-          response = await tool.call(call.name, args);
+          response = await toolService.call(call.name, args);
         }
       } catch (err) {
-        logger.debug('Error calling tool:', call.name);
+        logger.debug('Error calling tool:', call.name, err);
         response = 'Invalid tool call';
       }
       for (let callback of this.currentCallbacks) {

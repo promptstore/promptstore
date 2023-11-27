@@ -114,14 +114,14 @@ export function LLMService({ logger, registry, services }) {
     throw new Error('should not be able to get here');
   }
 
-  async function createImage(provider, prompt, n) {
-    const instance = registry[provider || 'openai'];
-    return await instance.createImage(prompt, n);
+  async function createImage(provider, prompt, options) {
+    const instance = registry[provider];
+    return await instance.createImage(prompt, options);
   }
 
-  async function generateImageVariant(imageUrl, n) {
-    const instance = registry[provider || 'openai'];
-    return await instance.generateImageVariant(imageUrl, n);
+  async function generateImageVariant(provider, imageUrl, options) {
+    const instance = registry[provider];
+    return await instance.generateImageVariant(imageUrl, options);
   }
 
   function getChatProviders() {

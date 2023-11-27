@@ -164,62 +164,66 @@ export function FunctionView() {
           let j = 1;
           for (const { indexId } of impl.indexes) {
             const ix = indexes[indexId];
-            const id = `ix${i}-${j}`;
+            if (ix) {
+              const id = `ix${i}-${j}`;
+              nds.push({
+                id,
+                data: {
+                  label: (
+                    <div className="funcstep">
+                      <div>semantic index:</div>
+                      <div>{ix.name}</div>
+                    </div>
+                  ),
+                  type: 'indexes',
+                  id: indexId,
+                },
+                position: { x, y },
+                type: 'input',
+                ...nodeProps,
+              });
+              sources.push(id);
+              x += 220;
+              j += 1;
+            }
+          }
+        }
+        x = 0;
+        if (impl.promptSetId) {
+          const ps = promptSets[impl.promptSetId];
+          if (ps) {
+            if (sources.length) {
+              y += 100;
+            }
+            const id = 'ps' + i;
             nds.push({
               id,
               data: {
                 label: (
                   <div className="funcstep">
-                    <div>semantic index:</div>
-                    <div>{ix.name}</div>
+                    <div>prompt template:</div>
+                    <div>{ps.name} [{ps.versions?.[impl.promptSetVersion]?.title || 'latest'}]</div>
                   </div>
                 ),
-                type: 'indexes',
-                id: indexId,
+                type: 'prompt-sets',
+                id: impl.promptSetId,
               },
               position: { x, y },
-              type: 'input',
+              type: sources.length ? 'default' : 'input',
               ...nodeProps,
             });
-            sources.push(id);
-            x += 220;
-            j += 1;
-          }
-        }
-        x = 0;
-        if (impl.promptSetId) {
-          if (sources.length) {
-            y += 100;
-          }
-          const ps = promptSets[impl.promptSetId];
-          const id = 'ps' + i;
-          nds.push({
-            id,
-            data: {
-              label: (
-                <div className="funcstep">
-                  <div>prompt template:</div>
-                  <div>{ps.name} [{ps.versions?.[impl.promptSetVersion]?.title || 'latest'}]</div>
-                </div>
-              ),
-              type: 'prompt-sets',
-              id: impl.promptSetId,
-            },
-            position: { x, y },
-            type: sources.length ? 'default' : 'input',
-            ...nodeProps,
-          });
-          if (sources.length) {
-            for (const source of sources) {
-              eds.push({
-                id: `${source}-${id}`,
-                source,
-                target: id,
-              });
+            if (sources.length) {
+              for (const source of sources) {
+                eds.push({
+                  id: `${source}-${id}`,
+                  source,
+                  target: id,
+                });
+              }
             }
+            sources.length = 0;
+            sources.push(id);
           }
-          sources.length = 0;
-          sources.push(id);
         }
         if (impl.inputGuardrails?.length) {
           if (sources.length) {
@@ -501,7 +505,7 @@ export function FunctionView() {
               </div>
             }
             loading={loading}
-            style={{ minWidth: 952, width: '65%' }}
+            style={{ marginRight: 16, minWidth: 952 }}
           >
             <Descriptions column={1} layout="vertical">
               <Descriptions.Item label="description">
@@ -555,6 +559,7 @@ export function FunctionView() {
         <Sider
           theme="light"
           width={350}
+          style={{ border: '1px solid #f0f0f0' }}
         >
           <div style={{ margin: '24px 8px 16px' }}>
             {loaded && Object.keys(func.arguments?.properties || {}).length ?

@@ -2,7 +2,7 @@ import React from 'react';
 import { Space, Typography } from 'antd';
 import ReactJson from 'react-json-view';
 
-import { getInputString, hashStr } from '../../../utils';
+import { decodeEntities, getInputString, hashStr } from '../../../utils';
 
 function Choices({ step }) {
   return (
@@ -112,7 +112,7 @@ export function Messages({ step }) {
                         className="first"
                         style={{ whiteSpace: 'pre-wrap' }}
                       >
-                        {c.text}
+                        {decodeEntities(c.text)}
                       </Typography.Paragraph>
                     </>
                     : c.type === 'image_url' ?
@@ -140,7 +140,7 @@ export function Messages({ step }) {
                 className={i === 0 ? 'first' : ''}
                 style={{ whiteSpace: 'pre-wrap' }}
               >
-                {message.content}
+                {decodeEntities(message.content)}
               </Typography.Paragraph>
               <Typography.Text type="secondary">
                 role: {message.role}
