@@ -6,7 +6,7 @@ import { AgentTracingCallback } from '../agents/AgentTracingCallback';
 
 export default ({ agents, app, auth, logger, services }) => {
 
-  const { agentsService, toolService, tracesService } = services;
+  const { agentsService, functionsService, toolService, tracesService } = services;
 
   let clients = [];
   let events = [];
@@ -273,6 +273,7 @@ export default ({ agents, app, auth, logger, services }) => {
    *         description: Error
    */
   app.post('/api/agent-executions', auth, async (req, res) => {
+    logger.debug('body:', req.body);
     let {
       agentType,
       allowedTools,
@@ -284,6 +285,7 @@ export default ({ agents, app, auth, logger, services }) => {
       provider,
       selfEvaluate,
       useFunctions,
+      functionId,
     } = req.body.agent;
     const workspaceId = req.body.workspaceId;
     const { email, username } = (req.user || {});
@@ -295,6 +297,10 @@ export default ({ agents, app, auth, logger, services }) => {
       new AgentDebugCallback({ workspaceId, username }),
       new AgentEventEmitterCallback({ workspaceId, username, emitter }),
     ];
+    let semanticFunction;
+    if (allowedTools?.includes('semanticFunction') && functionId) {
+      semanticFunction = await functionsService.getFunction(functionId);
+    }
     const options = {
       name,
       isChat,
@@ -305,6 +311,7 @@ export default ({ agents, app, auth, logger, services }) => {
       username,
       callbacks,
       useFunctions,
+      semanticFunction,
     };
     let agent;
     if (agentType === 'plan') {

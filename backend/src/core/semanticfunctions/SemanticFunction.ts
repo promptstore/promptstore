@@ -19,6 +19,7 @@ dayjs.extend(relativeTime);
 export class SemanticFunction {
 
   name: string;
+  description: string;
   argsSchema: object;
   returnType: string;
   returnTypeSchema?: object;
@@ -30,6 +31,7 @@ export class SemanticFunction {
 
   constructor({
     name,
+    description,
     argsSchema,
     returnType,
     returnTypeSchema,
@@ -39,6 +41,7 @@ export class SemanticFunction {
     callbacks,
   }: SemanticFunctionParams) {
     this.name = name;
+    this.description = description;
     this.argsSchema = argsSchema;
     this.returnType = returnType;
     this.returnTypeSchema = returnTypeSchema;
@@ -218,12 +221,13 @@ interface SemanticFunctionOptions {
   callbacks: Callback[];
 }
 
-export const semanticFunction = (name: string, options: SemanticFunctionOptions) => (
+export const semanticFunction = (name: string, description: string, options: SemanticFunctionOptions) => (
   implementations: SemanticFunctionImplementation | SemanticFunctionImplementation[]
 ) => {
   return new SemanticFunction({
     ...options,
     name,
+    description,
     implementations: Array.isArray(implementations) ? implementations : [implementations],
   });
 }

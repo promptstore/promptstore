@@ -2,4 +2,4 @@ apiVersion: v1
 appVersion: "0.6"
 description: "A Helm chart for Prompt Store"
 name: "promptstore"
-version: "0.6.26"
+version: "0.6.27"

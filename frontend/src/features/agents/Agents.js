@@ -7,6 +7,21 @@ import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
 import {
+  getFunctionsAsync,
+  selectLoading as selectFunctionsLoading,
+  selectFunctions,
+} from '../functions/functionsSlice';
+import {
+  getIndexesAsync,
+  selectLoading as selectIndexesLoading,
+  selectIndexes,
+} from '../indexes/indexesSlice';
+import {
+  getModelsAsync,
+  selectLoading as selectModelsLoading,
+  selectModels,
+} from '../models/modelsSlice';
+import {
   createAgentAsync,
   deleteAgentsAsync,
   getAgentsAsync,
@@ -23,16 +38,6 @@ import {
   getToolsAsync,
   selectTools,
 } from './toolsSlice';
-import {
-  getIndexesAsync,
-  selectLoading as selectIndexesLoading,
-  selectIndexes,
-} from '../indexes/indexesSlice';
-import {
-  getModelsAsync,
-  selectLoading as selectModelsLoading,
-  selectModels,
-} from '../models/modelsSlice';
 
 const { Content, Sider } = Layout;
 const { TextArea } = Input;
@@ -69,10 +74,21 @@ export function Agents() {
   const agentOutput = useSelector(selectAgentOutput);
   const running = useSelector(selectRunning);
   const tools = useSelector(selectTools);
+  const functions = useSelector(selectFunctions);
+  const functionsLoading = useSelector(selectFunctionsLoading);
   const indexes = useSelector(selectIndexes);
   const indexesLoading = useSelector(selectIndexesLoading);
   const models = useSelector(selectModels);
   const modelsLoading = useSelector(selectModelsLoading);
+
+  const functionOptions = useMemo(() => {
+    const list = Object.values(functions).map((f) => ({
+      label: f.name,
+      value: f.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [functions]);
 
   const indexOptions = useMemo(() => {
     const list = Object.values(indexes).map((t) => ({
@@ -104,6 +120,10 @@ export function Agents() {
       label: 'Search Index',
       value: 'searchIndex',
     });
+    list.push({
+      label: 'Semantic Function',
+      value: 'semanticFunction',
+    });
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [tools]);
@@ -115,6 +135,8 @@ export function Agents() {
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
+
+  // console.log('agents:', agents);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -130,6 +152,7 @@ export function Agents() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
+      dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getAgentsAsync({ workspaceId }));
@@ -227,6 +250,7 @@ export function Agents() {
 
   function Text({ label, text }) {
     return text.split('\n').map((line, i) => (
+      // <div key={label + '-' + i} dangerouslySetInnerHTML={{ __html: line }} />
       <div key={label + '-' + i}>{line}</div>
     ));
   }
@@ -307,7 +331,7 @@ export function Agents() {
                     message: 'Please select the type of agent',
                   },
                 ]}
-                style={{ display: 'inline-block', width: 'calc(25% - 5px)' }}
+                style={{ display: 'inline-block', width: 'calc(25% - 8px)' }}
                 wrapperCol={{ span: 24 }}
               >
                 <Select
@@ -318,7 +342,7 @@ export function Agents() {
               <Form.Item
                 label="Tools"
                 name="allowedTools"
-                style={{ display: 'inline-block', width: 'calc(50% - 5px)', marginLeft: 8 }}
+                style={{ display: 'inline-block', width: 'calc(75% - 8px)', marginLeft: 16 }}
                 wrapperCol={{ span: 24 }}
               >
                 <Select
@@ -332,7 +356,7 @@ export function Agents() {
                 <Form.Item
                   label="Index"
                   name="indexName"
-                  style={{ display: 'inline-block', width: 'calc(25% - 6px)', marginLeft: 8 }}
+                  style={{ display: 'inline-block', width: 'calc(25% - 8px)', marginRight: 16 }}
                   wrapperCol={{ span: 24 }}
                 >
                   <Select
@@ -344,11 +368,27 @@ export function Agents() {
                 </Form.Item>
                 : null
               }
+              {toolsValue?.includes('semanticFunction') ?
+                <Form.Item
+                  label="Function"
+                  name="functionId"
+                  style={{ display: 'inline-block', width: 'calc(25% - 8px)' }}
+                  wrapperCol={{ span: 24 }}
+                >
+                  <Select
+                    allowClear
+                    loading={functionsLoading}
+                    options={functionOptions}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+                : null
+              }
               <div>
                 <Form.Item
                   label="Model"
                   name="modelId"
-                  style={{ display: 'inline-block', width: 'calc(25% - 5px)' }}
+                  style={{ display: 'inline-block', width: 'calc(25% - 8px)' }}
                   wrapperCol={{ span: 24 }}
                 >
                   <Select
@@ -359,7 +399,7 @@ export function Agents() {
                   />
                 </Form.Item>
               </div>
-              <div>
+              <div style={{ margin: '16px 0' }}>
                 <Form.Item
                   name="useFunctions"
                   valuePropName="checked"
@@ -431,7 +471,7 @@ export function Agents() {
           </Content>
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
-            width={250}
+            width={350}
           >
             <Typography.Paragraph>
               Agents are a work in progress. Current tool selection is small.

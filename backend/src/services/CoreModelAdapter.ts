@@ -315,7 +315,7 @@ export default ({ logger, rc, services }) => {
       callbacks,
       experiments: semanticFunctionInfo.experiments,
     };
-    return semanticFunction(semanticFunctionInfo.name, options)(implementations);
+    return semanticFunction(semanticFunctionInfo.name, semanticFunctionInfo.description, options)(implementations);
   }
 
   async function createComposition(workspaceId: number, compositionInfo: any, callbacks: Callback[]) {

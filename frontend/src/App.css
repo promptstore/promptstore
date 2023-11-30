@@ -832,3 +832,7 @@ article.collapsible .panel.closed {
   color: rgba(0, 0, 0, 0.45);
   text-align: left;
 }
+
+#user-uploads-table a {
+  color: rgba(0, 0, 0, 0.88);
+}

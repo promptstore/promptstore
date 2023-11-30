@@ -43,7 +43,9 @@ import WorkspaceContext from './contexts/WorkspaceContext';
 import UserContext from './contexts/UserContext';
 import { About } from './features/about/About';
 import { Agents } from './features/agents/Agents';
+import { AppChat } from './features/apps/AppChat';
 import { AppForm } from './features/apps/AppForm';
+import { AppFormNew } from './features/apps/AppFormNew';
 import { AppView } from './features/apps/AppView';
 import { AppsList } from './features/apps/AppsList';
 import { Composer } from './features/composer/Composer';
@@ -635,7 +637,8 @@ function App() {
                     <Route exact path="/profile" element={<Profile />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/agents" element={<Agents />} />
-                    <Route path="/apps-edit/:id" element={<AppForm />} />
+                    <Route path="/apps-edit/:id" element={<AppFormNew />} />
+                    <Route path="/apps/:id/chat" element={<AppChat />} />
                     <Route path="/apps/:id" element={<AppView />} />
                     <Route path="/apps" element={<AppsList />} />
                     <Route path="/compositions/:id" element={<Composer />} />

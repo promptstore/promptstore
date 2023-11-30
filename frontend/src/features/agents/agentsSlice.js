@@ -117,9 +117,11 @@ export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
       throw err;
     });
   events = new EventSource('/api/agent-events');
+  const imgR = /https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)(\?[^\s]*)/gmi;
   events.onmessage = (event) => {
     const parsedData = JSON.parse(event.data);
-    const output = trim(parsedData, '"');
+    let output = trim(parsedData, '"');
+    // output = output.replace(imgR, '$1 <img src="$1" style="height:48px; width:48px;" />');
     dispatch(addAgentOutput({ output: { key: Date.now(), output } }));
   }
 };

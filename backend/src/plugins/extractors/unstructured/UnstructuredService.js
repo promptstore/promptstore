@@ -1,7 +1,6 @@
 import FormData from 'form-data';
 import axios from 'axios';
 import fs from 'fs';
-import uuid from 'uuid';
 
 function UnstructuredService({ __name, constants, logger }) {
 
@@ -278,7 +277,7 @@ function UnstructuredService({ __name, constants, logger }) {
         filename: originalname,
         contentType: mimetype,
       });
-      form.append('strategy', "hi_res");
+      form.append('strategy', "fast");  // Must be one of ['fast', 'hi_res', 'auto', 'ocr_only']
       form.append('pdf_infer_table_structure', "true");
       const res = await axios.post(constants.UNSTRUCTURED_API_URL, form, {
         headers: {
@@ -297,20 +296,6 @@ function UnstructuredService({ __name, constants, logger }) {
     }
   }
 
-  function getOnesourceType(itemType) {
-    switch (itemType) {
-      case 'Title':
-        return 'heading';
-
-      case 'UncategorizedText':
-      case 'NarrativeText':
-        return 'text';
-
-      default:
-        return 'text';
-    }
-  }
-
   function getTextStats(text) {
     if (!text) {
       return { wordCount: 0, length: 0, size: 0 };
@@ -323,78 +308,6 @@ function UnstructuredService({ __name, constants, logger }) {
     const length = text.length;
     const size = new Blob([text]).size;
     return { wordCount, length, size };
-  }
-
-  function convertToOnesourceFormat(json) {
-    let metadata;
-    const stack = [];
-    const documents = [];
-    const text = [];
-    const structured_content = [];
-    let i = 0;
-    for (const item of json) {
-      if (i === 0) {
-        metadata = {
-          ...item.metadata,
-          doc_type: item.metadata.filetype,
-          record_id: item.metadata.filename.slice(0, item.metadata.filename.lastIndexOf('.')),
-          created_date: new Date().toISOString(),
-          last_mod_date: new Date().toISOString(),
-          author: '',
-          word_count: -1,
-        };
-      }
-      text.push(item.text);
-      const type = getOnesourceType(item.type);
-      const content = {
-        ...item,
-        uid: uuid.v4(),
-        type,
-        subtype: item.type,
-        text: item.text,
-        element_id: item.element_id,
-      };
-      const n = stack.length;
-      if (n && type === 'heading' && stack[n - 1].type === 'text') {
-        const uid = uuid.v4();
-        stack.forEach(it => {
-          if (!it.parent_uids) {
-            it.parent_uids = [];
-          }
-          it.parent_uids.push(uid);
-        });
-        documents.push({
-          uid,
-          items: stack.map(it => it.uid),
-        });
-        // const i = findLastIndex(stack, c => c.type === 'heading');
-        // stack.splice(i);
-        stack.length = 0;
-      }
-      stack.push(content);
-      structured_content.push(content);
-    }
-    if (stack.length) {
-      const uid = uuid.v4();
-      stack.forEach(it => {
-        if (!it.parent_uids) {
-          it.parent_uids = [];
-        }
-        it.parent_uids.push(uid);
-      });
-      documents.push({
-        uid,
-        items: stack.map(it => it.uid),
-      });
-    }
-    return {
-      metadata,
-      documents,
-      data: {
-        text,
-        structured_content,
-      }
-    };
   }
 
   return {

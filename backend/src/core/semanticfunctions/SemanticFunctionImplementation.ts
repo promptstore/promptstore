@@ -155,7 +155,7 @@ export class SemanticFunctionImplementation {
         }
 
         if (this.inputGuardrails) {
-          await this.inputGuardrails.call({ messages });
+          await this.inputGuardrails.call({ messages, callbacks });
         }
         if (returnTypeSchema) {
           const outputFormatter = new Func(

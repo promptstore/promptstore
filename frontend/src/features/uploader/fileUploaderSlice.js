@@ -23,7 +23,7 @@ export const fileUploaderSlice = createSlice({
   reducers: {
     removeUploads: (state, action) => {
       const { workspaceId, uploads } = action.payload;
-      state.uploads[workspaceId] = state.uploads[workspaceId].filter((u) => {
+      state.uploads[workspaceId] = (state.uploads[workspaceId] || []).filter((u) => {
         for (const upload of uploads) {
           if (u.etag === upload.etag) {
             return false;
@@ -71,6 +71,7 @@ export const fileUploaderSlice = createSlice({
 
 export const {
   removeUploads,
+  setAppUploads,
   setUploads,
   startLoad,
   startUpload,
@@ -107,7 +108,7 @@ export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState)
       dispatch(uploaded());
     } catch (err) {
       // 423 - locked ~ not ready
-      if (err.response.status !== 423) {
+      if (err.response?.status !== 423) {
         clearInterval(intervalId);
       }
     }
@@ -193,6 +194,7 @@ export const getUploadContentAsync = (workspaceId, id, maxBytes) => async (dispa
   }
   const res = await http.get(url);
   const content = res.data || { data: { structured_content: [{ type: 'text', text: 'None' }] } };
+  // console.log('content:', content);
   let newUploads = getNewUploads(uploads[workspaceId], id, content);
   if (!newUploads) {
     const sourceUploads = await fetchUploads(workspaceId);

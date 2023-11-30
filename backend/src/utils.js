@@ -162,7 +162,7 @@ export const fillTemplate = (templateString, templateVars, engine = 'es6') => {
 
   // logger.debug('templateVars:', templateVars);
   templateVars = replaceUndefinedAndNullValues(templateVars, '');
-  logger.debug('templateVars:', templateVars);
+  // logger.debug('templateVars:', templateVars);
 
   if (engine === 'handlebars') {
     const template = Handlebars.compile(templateString);

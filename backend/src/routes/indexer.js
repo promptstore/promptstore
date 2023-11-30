@@ -431,7 +431,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
     } = params;
     try {
-      let docs;
+      const docs = [];
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
         if (!upload) {

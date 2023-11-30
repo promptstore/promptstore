@@ -12,8 +12,8 @@ export async function reloads(file, workspaceId, username, uploadId) {
   return await reload(file, workspaceId, username, uploadId);
 }
 
-export async function uploads(file, workspaceId, username, constants) {
-  return await upload(file, workspaceId, username, constants);
+export async function uploads(file, workspaceId, appId, username, constants) {
+  return await upload(file, workspaceId, appId, username, constants);
 }
 
 export async function transforms(transformation, workspaceId, username) {

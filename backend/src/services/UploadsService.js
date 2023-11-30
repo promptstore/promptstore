@@ -16,6 +16,25 @@ export function UploadsService({ pg, logger }) {
     };
   }
 
+  async function getAppUploads(workspaceId, appId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (appId === null || typeof appId === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, user_id, filename, created, created_by, modified, modified_by, val
+      FROM file_uploads
+      WHERE workspace_id = $1 AND val->>'appId' = $2
+      `;
+    const { rows } = await pg.query(q, [workspaceId, appId]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getUploads(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -23,7 +42,7 @@ export function UploadsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, user_id, filename, created, created_by, modified, modified_by, val
       FROM file_uploads
-      WHERE workspace_id = $1
+      WHERE workspace_id = $1 AND (val->>'private')::boolean IS NOT TRUE
       `;
     const { rows } = await pg.query(q, [workspaceId]);
     if (rows.length === 0) {
@@ -104,6 +123,7 @@ export function UploadsService({ pg, logger }) {
   }
 
   return {
+    getAppUploads,
     getUploads,
     getUpload,
     upsertUpload,

@@ -1,12 +1,14 @@
 import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
+import uuid from 'uuid';
 
 import { getExtension } from '../utils';
 
 export default ({ app, auth, constants, logger, mc, services, workflowClient }) => {
 
   const {
+    appsService,
     documentsService,
     functionsService,
     modelsService,
@@ -28,6 +30,47 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     }
     res.json(result);
     delete jobs[correlationId];
+  });
+
+  app.get('/api/apps/:appId/uploads', auth, async (req, res) => {
+    const { appId } = req.params;
+    try {
+      const app = await appsService.getApp(appId);
+      logger.debug('app:', app);
+      const uploads = await uploadsService.getAppUploads(app.workspaceId, appId);
+      const data = [];
+      const prefix = path.join(String(app.workspaceId), constants.DOCUMENTS_PREFIX, 'apps', appId);
+
+      const stream = mc.listObjects(constants.FILE_BUCKET, prefix, true);
+
+      stream.on('data', (obj) => {
+        data.push(obj);
+      });
+
+      stream.on('end', () => {
+        const result = [];
+        for (const upload of uploads) {
+          const obj = data.find((x) => x.name === path.join(prefix, upload.filename));
+          if (obj) {
+            result.push({ ...upload, ...obj });
+          }
+        }
+        res.json(result);
+      });
+
+      stream.on('error', (err) => {
+        logger.error('Error listing objects:', err);
+        res.status(500).json({
+          error: String(err),
+        });
+      });
+
+    } catch (err) {
+      logger.error('Error getting uploads:', err);
+      res.status(500).json({
+        error: String(err),
+      });
+    }
   });
 
   app.get('/api/workspaces/:workspaceId/uploads', auth, async (req, res) => {
@@ -69,14 +112,102 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     }
   });
 
+  function getOnesourceType(itemType) {
+    switch (itemType) {
+      case 'Title':
+        return 'heading';
+
+      case 'UncategorizedText':
+      case 'NarrativeText':
+        return 'text';
+
+      default:
+        return 'text';
+    }
+  }
+
+  function convertToOnesourceFormat(json) {
+    let metadata;
+    const stack = [];
+    const documents = [];
+    const text = [];
+    const structured_content = [];
+    let i = 0;
+    for (const item of json) {
+      if (i === 0) {
+        metadata = {
+          ...item.metadata,
+          doc_type: item.metadata.filetype,
+          record_id: item.metadata.filename.slice(0, item.metadata.filename.lastIndexOf('.')),
+          created_date: new Date().toISOString(),
+          last_mod_date: new Date().toISOString(),
+          author: '',
+          word_count: -1,
+        };
+      }
+      text.push(item.text);
+      const type = getOnesourceType(item.type);
+      const content = {
+        ...item,
+        uid: uuid.v4(),
+        type,
+        subtype: item.type,
+        text: item.text,
+        element_id: item.element_id,
+      };
+      const n = stack.length;
+      if (n && type === 'heading' && stack[n - 1].type === 'text') {
+        const uid = uuid.v4();
+        stack.forEach(it => {
+          if (!it.parent_uids) {
+            it.parent_uids = [];
+          }
+          it.parent_uids.push(uid);
+        });
+        documents.push({
+          uid,
+          items: stack.map(it => it.uid),
+        });
+        // const i = findLastIndex(stack, c => c.type === 'heading');
+        // stack.splice(i);
+        stack.length = 0;
+      }
+      stack.push(content);
+      structured_content.push(content);
+    }
+    if (stack.length) {
+      const uid = uuid.v4();
+      stack.forEach(it => {
+        if (!it.parent_uids) {
+          it.parent_uids = [];
+        }
+        it.parent_uids.push(uid);
+      });
+      documents.push({
+        uid,
+        items: stack.map(it => it.uid),
+      });
+    }
+    return {
+      metadata,
+      documents,
+      data: {
+        text,
+        structured_content,
+      }
+    };
+  }
+
   app.get('/api/uploads/:id/content', auth, async (req, res) => {
     let mb = +req.query.maxbytes;
     if (isNaN(mb)) mb = 1000 * 1024;
     try {
       const upload = await uploadsService.getUpload(req.params.id);
       const ext = getExtension(upload.filename);
+      // logger.debug('upload:', upload, ext);
       if (!(ext === 'csv' || ext === 'txt')) {
-        return res.json(upload.data);
+        const formatted = convertToOnesourceFormat(upload.data);
+        return res.json(formatted);
       }
 
       const objectName = path.join(String(upload.workspaceId), constants.DOCUMENTS_PREFIX, upload.filename);
@@ -223,7 +354,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   });
 
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
-    let { correlationId, workspaceId } = req.body;
+    let { correlationId, workspaceId, appId } = req.body;
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
@@ -231,8 +362,18 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         error: { message: 'Invalid workspace' },
       });
     }
+    if (appId) {
+      appId = parseInt(appId, 10);
+      if (isNaN(appId)) {
+        return res.status(400).send({
+          error: { message: 'Invalid app' },
+        });
+      }
+    }
+    logger.debug('workspaceId:', workspaceId);
+    logger.debug('appId:', appId);
     workflowClient
-      .upload(req.file, workspaceId, username, {
+      .upload(req.file, workspaceId, appId, username, {
         DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
         FILE_BUCKET: constants.FILE_BUCKET,
       }, {

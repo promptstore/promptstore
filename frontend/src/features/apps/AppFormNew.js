@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Select, Space } from 'antd';
+import { Button, Form, Input, Select, Space, Switch } from 'antd';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
@@ -14,25 +14,10 @@ import {
   updateAppAsync,
 } from './appsSlice';
 import {
-  getDataSourcesAsync,
-  selectLoading as selectDataSourcesLoading,
-  selectDataSources,
-} from '../dataSources/dataSourcesSlice';
-import {
   getFunctionsAsync,
   selectLoading as selectFunctionsLoading,
   selectFunctions,
 } from '../functions/functionsSlice';
-import {
-  getIndexesAsync,
-  selectLoading as selectIndexesLoading,
-  selectIndexes,
-} from '../indexes/indexesSlice';
-import {
-  getPromptSetsAsync,
-  selectLoading as selectPromptSetsLoading,
-  selectPromptSets,
-} from '../promptSets/promptSetsSlice';
 
 const { TextArea } = Input;
 
@@ -41,29 +26,23 @@ const layout = {
   wrapperCol: { span: 16 },
 };
 
-export function AppForm() {
+const appTypeOptions = [
+  {
+    value: 'chat',
+    label: 'Chat',
+  },
+];
+
+export function AppFormNew() {
 
   const [form] = Form.useForm();
 
   const apps = useSelector(selectApps);
   const loaded = useSelector(selectLoaded);
-  const dataSources = useSelector(selectDataSources);
-  const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const functions = useSelector(selectFunctions);
   const functionsLoading = useSelector(selectFunctionsLoading);
-  const indexes = useSelector(selectIndexes);
-  const indexesLoading = useSelector(selectIndexesLoading);
-  const promptSets = useSelector(selectPromptSets);
-  const promptSetsLoading = useSelector(selectPromptSetsLoading);
 
-  const dataSourceOptions = useMemo(() => {
-    const list = Object.values(dataSources).map((f) => ({
-      value: f.id,
-      label: f.name,
-    }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [dataSources]);
+  const allowUploadValue = Form.useWatch('allowUpload', form);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions).map((f) => ({
@@ -73,24 +52,6 @@ export function AppForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [functions]);
-
-  const indexOptions = useMemo(() => {
-    const list = Object.values(indexes).map((f) => ({
-      value: f.id,
-      label: f.name,
-    }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [indexes]);
-
-  const promptSetOptions = useMemo(() => {
-    const list = Object.values(promptSets).map((f) => ({
-      value: f.id,
-      label: f.name,
-    }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [promptSets]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -117,10 +78,7 @@ export function AppForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getIndexesAsync({ workspaceId }));
-      dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
-      dispatch(getPromptSetsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -189,52 +147,49 @@ export function AppForm() {
               />
             </Form.Item>
             <Form.Item
-              label="Prompt Templates"
-              name="promptSets"
+              label="App Type"
+              name="appType"
+              initialValue="chat"
             >
               <Select
                 allowClear
-                options={promptSetOptions}
+                options={appTypeOptions}
                 optionFilterProp="label"
-                loading={promptSetsLoading}
-                mode="multiple"
               />
             </Form.Item>
             <Form.Item
-              label="Semantic Functions"
-              name="functions"
+              label="Semantic Function"
+              name="function"
             >
               <Select
                 allowClear
                 options={functionOptions}
                 optionFilterProp="label"
                 loading={functionsLoading}
-                mode="multiple"
               />
             </Form.Item>
             <Form.Item
-              label="Data Sources"
-              name="dataSources"
+              label="Allow Upload"
             >
-              <Select
-                allowClear
-                options={dataSourceOptions}
-                optionFilterProp="label"
-                loading={dataSourcesLoading}
-                mode="multiple"
-              />
-            </Form.Item>
-            <Form.Item
-              label="Semantic Indexes"
-              name="indexes"
-            >
-              <Select
-                allowClear
-                options={indexOptions}
-                optionFilterProp="label"
-                loading={indexesLoading}
-                mode="multiple"
-              />
+              <Form.Item
+                name="allowUpload"
+                valuePropName="checked"
+                style={{ display: 'inline-block', margin: 0 }}
+              >
+                <Switch />
+              </Form.Item>
+              {allowUploadValue ?
+                <Form.Item
+                  label="as new index"
+                  name="uploadAsNewIndex"
+                  style={{ display: 'inline-block', margin: '0 0 0 16px' }}
+                  initialValue={true}
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+                : null
+              }
             </Form.Item>
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>

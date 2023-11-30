@@ -16,6 +16,9 @@ import {
   OpenAIMessageImpl,
   UserMessage,
 } from '../core/models/openai';
+import {
+  SemanticFunction,
+} from '../core/semanticfunctions/SemanticFunction';
 import * as utils from '../utils';
 
 import { Step } from './Action_types';
@@ -33,6 +36,7 @@ const PROMPTSET_TEMPLATE_ENGINE = 'es6';
 export default ({ logger, services }) => {
 
   const {
+    executionsService,
     indexesService,
     llmService,
     parserService,
@@ -54,8 +58,9 @@ export default ({ logger, services }) => {
     callbacks: AgentCallback[];
     currentCallbacks: AgentCallback[];
     useFunctions: boolean;
+    semanticFunction: any;
 
-    constructor({ name, isChat, model, modelParams, provider, workspaceId, username, callbacks, useFunctions }) {
+    constructor({ name, isChat, model, modelParams, provider, workspaceId, username, callbacks, useFunctions, semanticFunction }) {
       this.name = name;
       this.isChat = isChat;
       this.model = model || 'gpt-3.5-turbo';
@@ -70,6 +75,7 @@ export default ({ logger, services }) => {
       this.history = [];
       this.callbacks = callbacks || [];
       this.useFunctions = useFunctions;
+      this.semanticFunction = semanticFunction;
     }
 
     reset() {
@@ -274,6 +280,15 @@ export default ({ logger, services }) => {
           },
         });
       }
+      if (allowedTools.includes('semanticFunction')) {
+        logger.debug('semanticFunction:', this.semanticFunction);
+        functions.push({
+          id: uuid.v4(),
+          name: this.semanticFunction.name,
+          description: this.semanticFunction.description,
+          parameters: this.semanticFunction.arguments,
+        });
+      }
       if (functions.length === 0) {
         functions = undefined;
       }
@@ -408,6 +423,15 @@ export default ({ logger, services }) => {
           }
           const searchResponse = await vectorStoreService.search(index.vectorStoreProvider, indexName, args.input);
           response = searchResponse.hits.join(PARA_DELIM);
+        } if (call.name === this.semanticFunction.name) {
+          const functionResponse = await executionsService.executeFunction({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            func: this.semanticFunction,
+            args,
+            params: { maxTokens: 1024 },
+          });
+          response = functionResponse.response.choices[0].message.content;
         } else {
           if (call.name === 'email') {
             args.agentName = this.name;

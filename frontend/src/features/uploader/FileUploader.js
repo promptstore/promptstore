@@ -12,39 +12,6 @@ import {
   selectUploading,
 } from './fileUploaderSlice';
 
-const beforeUpload = (file) => {
-  // console.log('file:', file);
-
-  const isCSV = file.type === 'text/csv';
-
-  const isText = file.type === 'text/plain';
-
-  const isZip = file.type === 'application/zip';
-
-  const isPdf = file.type === 'application/pdf';
-
-  const isWord = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-  if (!(isCSV || isText || isZip || isPdf || isWord)) {
-    message.error('You may only upload a CSV, Text or Zip file.');
-  }
-
-  const isLt2M = file.size / 1024 / 1024 < 1000;
-
-  if (!isLt2M) {
-    message.error('File must smaller than 1GB.');
-  }
-
-  return (isCSV || isText || isZip || isPdf || isWord) && isLt2M;
-};
-
-// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
-const dummyRequest = ({ file, onSuccess }) => {
-  setTimeout(() => {
-    onSuccess('ok');
-  }, 20);
-};
-
 export function FileUploader() {
 
   const uploading = useSelector(selectUploading);
@@ -79,6 +46,7 @@ export function FileUploader() {
       </div>
     </div>
   );
+
   return (
     <>
       <UploadsList workspaceId={selectedWorkspace.id} />
@@ -98,3 +66,36 @@ export function FileUploader() {
     </>
   );
 }
+
+const beforeUpload = (file) => {
+  // console.log('file:', file);
+
+  const isCSV = file.type === 'text/csv';
+
+  const isText = file.type === 'text/plain';
+
+  const isZip = file.type === 'application/zip';
+
+  const isPdf = file.type === 'application/pdf';
+
+  const isWord = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  if (!(isCSV || isText || isZip || isPdf || isWord)) {
+    message.error('You may only upload a CSV, Text or Zip file.');
+  }
+
+  const isLt2M = file.size / 1024 / 1024 < 1000;
+
+  if (!isLt2M) {
+    message.error('File must smaller than 1GB.');
+  }
+
+  return (isCSV || isText || isZip || isPdf || isWord) && isLt2M;
+};
+
+// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
+const dummyRequest = ({ file, onSuccess }) => {
+  setTimeout(() => {
+    onSuccess('ok');
+  }, 20);
+};

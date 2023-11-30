@@ -68,7 +68,7 @@ export default ({ app, auth, logger, services }) => {
   });
 
   const getSummaryLabel = async (workspaceId, username, prompts) => {
-    logger.debug('getSummaryLabel');
+    logger.debug('get summary label');
     if (isEmpty(prompts)) return prompts;
     const content = prompts
       .map((m) => m.prompt)

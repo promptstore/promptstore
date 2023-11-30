@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 import agentsReducer from '../features/agents/agentsSlice';
+import appUploaderReducer from '../features/apps/appUploaderSlice';
 import appsReducer from '../features/apps/appsSlice';
 import authReducer from '../authSlice';
 import chatReducer from '../features/designer/chatSlice';
@@ -33,6 +34,7 @@ import vectorStoresReducer from '../features/uploader/vectorStoresSlice';
 export const store = configureStore({
   reducer: {
     agents: agentsReducer,
+    appUploader: appUploaderReducer,
     apps: appsReducer,
     auth: authReducer,
     chat: chatReducer,

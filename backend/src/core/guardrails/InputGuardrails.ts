@@ -23,7 +23,8 @@ export class InputGuardrails {
     this.callbacks = callbacks;
   }
 
-  async call({ messages }: InputGuardrailsCallParams) {
+  async call({ messages, callbacks }: InputGuardrailsCallParams) {
+    this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ messages });
     try {
       const contents = messages.map(m => m.content);

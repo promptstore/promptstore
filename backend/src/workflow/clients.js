@@ -30,7 +30,7 @@ export async function reload(file, workspaceId, username, uploadId, connectionOp
   return handle.result();
 }
 
-export async function upload(file, workspaceId, username, constants, connectionOptions) {
+export async function upload(file, workspaceId, appId, username, constants, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
   const connection = await Connection.connect(connectionOptions);
   // In production, pass options to configure TLS and other settings:
@@ -49,7 +49,7 @@ export async function upload(file, workspaceId, username, constants, connectionO
 
   const handle = await client.workflow.start(uploads, {
     // type inference works! args: [name: string]
-    args: [file, workspaceId, username, constants],
+    args: [file, workspaceId, appId, username, constants],
     // taskQueue: 'uploads',
     taskQueue: 'worker',
     workflowId: 'workflow-' + Date.now(),

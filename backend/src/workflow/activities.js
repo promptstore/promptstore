@@ -71,20 +71,32 @@ export const createActivities = ({
     }
   },
 
-  upload(file, workspaceId, username, constants) {
+  upload(file, workspaceId, appId, username, constants) {
     logger.info('file:', file);
     logger.info('workspaceId:', workspaceId);
+    logger.info('appId:', appId);
     logger.info('username:', username);
     logger.info('constants:', constants);
     const metadata = {
       filename: file.originalname,
       'Content-Type': file.mimetype,
     };
-    const objectName = path.join(
-      String(workspaceId),
-      constants.DOCUMENTS_PREFIX,
-      file.originalname
-    );
+    let objectName;
+    if (appId) {
+      objectName = path.join(
+        String(workspaceId),
+        constants.DOCUMENTS_PREFIX,
+        'apps',
+        String(appId),
+        file.originalname
+      );
+    } else {
+      objectName = path.join(
+        String(workspaceId),
+        constants.DOCUMENTS_PREFIX,
+        file.originalname
+      );
+    }
     logger.debug('objectName:', objectName);
     if (!fs.existsSync(file.path)) {
       return Promise.reject(new Error('File no longer on path: ' + file.path));
@@ -114,6 +126,8 @@ export const createActivities = ({
             workspaceId,
             filename: file.originalname,
             data,
+            appId,
+            private: !!appId,
           };
           const uploaded = await uploadsService.upsertUpload(uploadRecord, username);
           logger.info('Inserted', uploaded);
