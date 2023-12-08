@@ -3,7 +3,7 @@ declare const Buffer;
 import { SchemaFieldTypes, VectorAlgorithms } from 'redis';
 import uuid from 'uuid';
 
-import { EmbeddingProviderEnum, EmbeddingService } from '../indexers/EmbeddingProvider';
+import { EmbeddingService } from '../indexers/EmbeddingProvider';
 
 const INDEX_NAME = 'idx:cache';
 const PREFIX = 'vs:cache';
@@ -64,7 +64,8 @@ export default class SemanticCache {
 
   async get(prompt: string, n: number = 1) {
     try {
-      const embedding = await this.embeddingService.createEmbedding(EmbeddingProviderEnum.sentenceencoder, prompt);
+      const { embedding } =
+        await this.embeddingService.createEmbedding('sentenceencoder', { input: prompt });
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {
         PARAMS: {
@@ -92,7 +93,10 @@ export default class SemanticCache {
 
   async set(prompt: string, content: string, embedding?: number[]) {
     try {
-      embedding = embedding || await this.embeddingService.createEmbedding(EmbeddingProviderEnum.sentenceencoder, prompt);
+      if (!embedding) {
+        const response = await this.embeddingService.createEmbedding('sentenceencoder', { input: prompt });
+        embedding = response.embedding;
+      }
       const uid = uuid.v4();
       const doc = {
         __uid: uid,

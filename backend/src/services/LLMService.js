@@ -13,6 +13,8 @@ import {
   toLlamaApiChatRequest,
   fromAnthropicChatResponse,
   toAnthropicChatRequest,
+  fromCohereChatResponse,
+  toCohereChatRequest,
 } from '../core/conversions/RosettaStone';
 
 export function LLMService({ logger, registry, services }) {
@@ -20,6 +22,7 @@ export function LLMService({ logger, registry, services }) {
   const { parserService } = services;
 
   async function createChatCompletion({ provider, request, vision }) {
+    logger.debug('!!!!!!!!!!!!!!!!! vision:', vision);
     const instance = registry[provider || 'openai'];
     let providerRequest;
     if (vision) {
@@ -27,7 +30,13 @@ export function LLMService({ logger, registry, services }) {
     } else if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAIChatRequest(request);
     } else if (provider === 'bedrock') {
-      providerRequest = toAnthropicChatRequest(request);
+      if (request.model.startsWith('anthropic')) {
+        providerRequest = toAnthropicChatRequest(request);
+      } else if (request.model.startsWith('cohere')) {
+        providerRequest = toCohereChatRequest(request);
+      } else {
+        throw new Error('unknown model:', request.model);
+      }
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
     } else if (provider === 'vertexai') {
@@ -42,11 +51,21 @@ export function LLMService({ logger, registry, services }) {
       return fromOpenAIChatResponse(response);
     }
     if (provider === 'bedrock') {
-      const universalResponse = await fromAnthropicChatResponse(response, parserService);
-      return {
-        ...universalResponse,
-        model: request.model,
-      };
+      if (request.model.startsWith('anthropic')) {
+        const universalResponse = await fromAnthropicChatResponse(response, parserService);
+        return {
+          ...universalResponse,
+          model: request.model,
+        };
+      } else if (request.model.startsWith('cohere')) {
+        const universalResponse = await fromCohereChatResponse(response, parserService);
+        return {
+          ...universalResponse,
+          model: request.model,
+        };
+      } else {
+        throw new Error('unknown model:', request.model);
+      }
     }
     if (provider === 'llamaapi') {
       return fromLlamaApiChatResponse(response);
@@ -102,9 +121,9 @@ export function LLMService({ logger, registry, services }) {
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
-    logger.debug('provider request:', providerRequest);
-    const response = await await instance.createEmbedding(providerRequest);
-    logger.debug('provider response:', response);
+    // logger.debug('provider request:', providerRequest);
+    const response = await instance.createEmbedding(providerRequest);
+    // logger.debug('provider response:', response);
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return response;
     }

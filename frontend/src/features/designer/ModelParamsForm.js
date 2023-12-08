@@ -106,13 +106,15 @@ export function ModelParamsForm({
 
   const modelOptions = useMemo(() => {
     if (models) {
-      return Object.values(models)
+      const list = Object.values(models)
         .filter((m) => m.type === 'gpt' && !m.disabled)
         .map((m) => ({
           key: m.id,
           label: m.name,
           value: m.id,
         }));
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      return list;
     }
     return [];
   }, [models]);

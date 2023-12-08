@@ -1,4 +1,5 @@
 import { ChromaClient } from 'chromadb'
+import { flatten } from 'flat';
 import isEmpty from 'lodash.isempty';
 import omit from 'lodash.omit';
 
@@ -98,7 +99,7 @@ function ChromaService({ __name, constants, logger }) {
     try {
       const ids = chunks.map(c => c.id);
       const documents = chunks.map(c => c.text);
-      const metadatas = chunks.map(c => omit(c, ['id', 'text']));
+      const metadatas = chunks.map(c => flatten(omit(c, ['id', 'text'])));
       const collection = await getCollection(indexName);
       logger.debug('documents length:', documents.length);
       logger.debug('embeddings length:', embeddings.length);

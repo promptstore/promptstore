@@ -151,7 +151,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/destinations:
+   * /api/workspaces/{workspaceId}/destinations:
    *   get:
    *     description: List all the destinations in the given workspace.
    *     tags: [Destinations]
@@ -204,7 +204,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/destinations/:id:
+   * /api/destinations/{id}:
    *   get:
    *     description: Lookup a destination by id.
    *     tags: [Destinations]
@@ -264,7 +264,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/destinations/:id:
+   * /api/destinations/{id}:
    *   put:
    *     description: Update a destination.
    *     tags: [Destinations]
@@ -301,7 +301,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/destinations/:id:
+   * /api/destinations/{id}:
    *   delete:
    *     description: Delete a destination.
    *     tags: [Destinations]

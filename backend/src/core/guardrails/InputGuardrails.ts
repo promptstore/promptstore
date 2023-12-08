@@ -1,3 +1,5 @@
+import logger from '../../logger';
+
 import { GuardrailError } from '../errors';
 import { Callback } from '../callbacks/Callback';
 import {
@@ -29,18 +31,25 @@ export class InputGuardrails {
     try {
       const contents = messages.map(m => m.content);
       const text = contents.join('\n\n');
+      let valid: boolean;
       for (let key of this.guardrails) {
         let res = await this.guardrailsService.scan(key, text);
         if (res.error) {
           this.throwGuardrailError(res.error)
         }
-        return true;
+        valid = true;
       }
+      this.onEnd({ valid });
+      return valid;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ valid: false, errors });
       throw err;
     }
+  }
+
+  get length() {
+    return this.guardrails.length;
   }
 
   onStart({ messages }: InputGuardrailsCallParams) {

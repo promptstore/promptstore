@@ -1,7 +1,7 @@
 import React from 'react';
 import { Space, Typography } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { decodeEntities, getInputString, hashStr } from '../../../utils';
 
 function Choices({ step }) {
@@ -10,8 +10,13 @@ function Choices({ step }) {
       {step.response?.choices?.map((choice, i) => (
         choice.message.function_call ?
           <div key={'output-' + i}>
-            <div>name: {choice.message.function_call.name}</div>
-            <div>arguments: <ReactJson collapsed src={JSON.parse(choice.message.function_call.arguments)} /></div>
+            <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+              <div>name: {choice.message.function_call.name}</div>
+              <div>arguments: <JsonView src={choice.message.function_call.arguments} /></div>
+            </Typography.Paragraph>
+            <Typography.Text type="secondary">
+              function call
+            </Typography.Text>
           </div>
           :
           <div key={'output-' + i}>
@@ -48,7 +53,12 @@ function Errors({ step }) {
 }
 
 export function Input({ step }) {
-  const input = getInputString(step.args);
+  let input;
+  if (step.args) {
+    input = getInputString(step.args);
+  } else if (step.messages) {
+    input = step.messages[step.messages.length - 1].content;
+  }
   return (
     <Space direction="vertical" size="middle">
       {input ?
@@ -57,7 +67,10 @@ export function Input({ step }) {
         </Typography.Paragraph>
         : null
       }
-      <ReactJson collapsed src={step.args} />
+      {step.args ?
+        <JsonView src={step.args} />
+        : null
+      }
     </Space>
   )
 }
@@ -69,7 +82,7 @@ export function Output({ step }) {
       step.response?.choices ?
         <Choices step={step} />
         :
-        <ReactJson src={step.response} />
+        <JsonView src={step.response} />
     )
 }
 
@@ -77,9 +90,9 @@ export function OutputMultiple({ step }) {
   return step.errors ?
     <Errors step={step} />
     : (
-      <div>
+      <Space wrap size="large">
         {step.response?.map(r => (
-          <Space direction="vertical" style={{ marginBottom: 24 }}>
+          <Space key={r.model} direction="vertical" style={{ marginBottom: 24 }}>
             <div>
               <Typography.Paragraph className="first" style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>
                 {r.model}
@@ -91,7 +104,7 @@ export function OutputMultiple({ step }) {
             <Choices step={{ response: r }} />
           </Space>
         ))}
-      </div>
+      </Space>
     )
 }
 
@@ -126,7 +139,7 @@ export function Messages({ step }) {
                         </Typography.Paragraph>
                       </>
                       :
-                      <ReactJson src={c} />
+                      <JsonView src={c} />
                   }
                 </div>
               )}

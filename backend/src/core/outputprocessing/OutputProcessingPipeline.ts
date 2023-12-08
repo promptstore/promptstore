@@ -48,6 +48,10 @@ export class OutputProcessingPipeline {
     }
   }
 
+  get length() {
+    return this.steps.length;
+  }
+
   onStart({ response }: OutputProcessingCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onOutputProcessingStart({

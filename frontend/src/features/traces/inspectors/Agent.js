@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { Output, Tools } from './common';
 
 export function Agent({ step, title }) {
@@ -20,7 +20,7 @@ export function Agent({ step, title }) {
         <Tools step={step} />
       </Descriptions.Item>
       <Descriptions.Item label="extra function params" span={2}>
-        <ReactJson collapsed src={step.extraFunctionCallParams} />
+        <JsonView src={step.extraFunctionCallParams} />
       </Descriptions.Item>
     </Descriptions>
   );

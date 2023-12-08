@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { Messages, Output } from './common';
 
 export function AgentStepEvaluation({ step, title }) {
@@ -20,7 +20,7 @@ export function AgentStepEvaluation({ step, title }) {
         {step.model}
       </Descriptions.Item>
       <Descriptions.Item label="params" span={2}>
-        <ReactJson collapsed src={step.modelParams} />
+        <JsonView src={step.modelParams} />
       </Descriptions.Item>
     </Descriptions>
   );

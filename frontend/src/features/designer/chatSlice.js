@@ -127,27 +127,27 @@ const cleanHistory = (history) => {
   }));
 };
 
-export const getFunctionResponseAsync = ({ functionName, args, history, params, workspaceId }) => async (dispatch) => {
+export const getFunctionResponseAsync = ({ functionName, args, history, params, workspaceId, extraIndexes }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/executions/${functionName}`;
-  const res = await http.post(url, { args, history: cleanHistory(history), params, workspaceId });
+  const res = await http.post(url, { args, history: cleanHistory(history), params, workspaceId, extraIndexes });
   const { choices, model, usage } = res.data.response;
   const messages = choices.map(({ message }) => ({
     key: uuidv4(),
     role: message.role,
     content: [
       {
-        // key: uuidv4(),
+        key: uuidv4(),
         content: message.content,
         model,
       },
     ],
   }));
-  const message = { role: 'user', content: args.content };
+  // add unique key for react
+  const message = { role: 'user', content: args.content, key: uuidv4() };
   dispatch(setMessages({
     messages: [
       ...history,
-      // formatMessage({ message }),
       message,
       ...messages,
     ]

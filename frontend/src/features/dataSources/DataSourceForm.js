@@ -581,7 +581,7 @@ export function DataSourceForm() {
                 label="Key"
                 name="appId"
                 colon={false}
-                style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
+                style={{ display: 'inline-block', width: 'calc(50% - 16px)' }}
               >
                 <Input />
               </Form.Item>
@@ -589,7 +589,7 @@ export function DataSourceForm() {
                 label="Secret"
                 name="appSecret"
                 colon={false}
-                style={{ display: 'inline-block', width: 'calc(50% - 8px)', marginLeft: 16 }}
+                style={{ display: 'inline-block', width: 'calc(50%)', marginLeft: 16 }}
               >
                 <Input type="password" />
               </Form.Item>

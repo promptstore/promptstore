@@ -136,7 +136,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/apps:
+   * /api/workspaces/{workspaceId}/apps:
    *   get:
    *     description: List all the apps in the given workspace.
    *     tags: [Apps]
@@ -179,7 +179,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/apps/:id:
+   * /api/apps/{id}:
    *   get:
    *     description: Lookup an app by id.
    *     tags: [Apps]
@@ -239,7 +239,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/apps/:id:
+   * /api/apps/{id}:
    *   put:
    *     description: Update an app.
    *     tags: [Apps]
@@ -276,7 +276,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/apps/:id:
+   * /api/apps/{id}:
    *   delete:
    *     description: Delete an app.
    *     tags: [Apps]

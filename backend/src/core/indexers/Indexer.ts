@@ -5,7 +5,6 @@ import logger from '../../logger';
 import { Chunk } from './Chunk';
 import {
   EmbeddingProvider,
-  EmbeddingProviderEnum,
   EmbeddingService,
 } from './EmbeddingProvider';
 import {
@@ -22,7 +21,7 @@ export interface IndexParams {
   nodeLabel: string;
   embeddingNodeProperty: string;
   similarityMetric: string;
-  embeddingProvider: EmbeddingProviderEnum;
+  embeddingProvider: string;
   vectorStoreProvider: VectorStoreEnum;
   workspaceId: number;
   username: string;
@@ -66,7 +65,9 @@ export class Indexer {
     } = params;
     let index: any;
     if (indexId === 'new') {
-      if (embeddingProvider && !Object.values(EmbeddingProviderEnum).includes(embeddingProvider)) {
+      const providers =
+        this.embeddingService.getEmbeddingProviders().map(p => p.key);
+      if (embeddingProvider && !providers.includes(embeddingProvider)) {
         throw new Error('Unsupported embedding provider: ' + embeddingProvider);
       }
 
@@ -110,8 +111,8 @@ export class Indexer {
     let embeddingDimension: number;
     if (embeddingProvider) {
       const embedder = EmbeddingProvider.create(embeddingProvider, this.embeddingService);
-      const testEmbedding = await embedder.createEmbedding('foo');
-      embeddingDimension = testEmbedding.length;
+      const testEmbedding = await embedder.createEmbedding({ input: 'foo' });
+      embeddingDimension = testEmbedding.embedding.length;
     }
     let index = await this.indexesService.getIndexByName(workspaceId, name);
     if (!index) {
@@ -153,8 +154,9 @@ export class Indexer {
     let embeddings: Array<number[]>;
     if (vectorStoreProvider !== VectorStoreEnum.redis) {
       const embedder = EmbeddingProvider.create(embeddingProvider, this.embeddingService);
-      const proms = chunks.map((chunk: Chunk) => embedder.createEmbedding(chunk.text));
-      embeddings = await Promise.all(proms);
+      const proms = chunks.map((chunk: Chunk) => embedder.createEmbedding({ input: chunk.text }));
+      const responses = await Promise.all(proms);
+      embeddings = responses.map(r => r.embedding);
     }  // TODO - the Redis Vector Store calculates embeddings at the service end
     const vectorStore = VectorStore.create(vectorStoreProvider, this.vectorStoreService);
     await vectorStore.indexChunks(chunks, embeddings, {

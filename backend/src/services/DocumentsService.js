@@ -6,14 +6,24 @@ import path from 'path';
 export function DocumentsService({ constants, mc, logger }) {
 
   function download(filepath) {
+    const bucket = constants.FILE_BUCKET;
+    logger.debug('Downloading %s from bucket %s', filepath, bucket);
     return new Promise((resolve, reject) => {
       const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
-      mc.statObject(constants.FILE_BUCKET, filepath, (err, stat) => {
+      mc.statObject(bucket, filepath, (err, stat) => {
         if (err) {
           logger.error(err);
-          reject(err);
+          return reject(err);
+        }
+        if (!stat) {
+          err = new Error(
+            'Failed to get metadata of ' + filepath +
+            ' in bucket ' + bucket
+          );
+          logger.error(err.message);
+          return reject(err);
         }
         mc.fGetObject(constants.FILE_BUCKET, filepath, localFilePath, (err) => {
           if (err) {
@@ -27,7 +37,6 @@ export function DocumentsService({ constants, mc, logger }) {
           file.originalname = filename;
           file.mimetype = mimetype;
           file.path = localFilePath;
-          // file.size = stat.size;
           file.lastModified = stat.lastModified;
           file.etag = stat.etag;
           resolve(file);

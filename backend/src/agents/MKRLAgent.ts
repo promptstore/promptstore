@@ -34,6 +34,7 @@ const STOP = [
 export default ({ logger, services }) => {
 
   const {
+    executionsService,
     indexesService,
     llmService,
     promptSetsService,
@@ -57,6 +58,7 @@ export default ({ logger, services }) => {
     currentCallbacks: AgentCallback[];
     useFunctions: boolean;
     promptSetSkill: string;
+    semanticFunction: any;
 
     constructor({
       isChat = false,
@@ -68,12 +70,13 @@ export default ({ logger, services }) => {
       username,
       callbacks,
       useFunctions = false,
+      semanticFunction,
     }) {
       this.name = name;
       this.isChat = isChat;
       this.model = model || (isChat ? 'gpt-3.5-turbo' : 'text-davinci-003');
       this.modelParams = {
-        max_tokens: 255,
+        max_tokens: 1024,
         ...(modelParams || {}),
         n: 1,
         stop: STOP,
@@ -86,6 +89,7 @@ export default ({ logger, services }) => {
       this.maxIterations = 6;
       this.maxExecutionTime = 30000;
       this.useFunctions = useFunctions;
+      this.semanticFunction = semanticFunction;
 
       // TODO
       this.promptSetSkill = useFunctions ? 'react_plan' : 'react_plan';
@@ -214,6 +218,14 @@ export default ({ logger, services }) => {
           },
         });
       }
+      if (allowedTools.includes('semanticFunction')) {
+        functions.push({
+          id: uuid.v4(),
+          name: this.semanticFunction.name,
+          description: this.semanticFunction.description,
+          parameters: this.semanticFunction.arguments,
+        });
+      }
       if (functions.length === 0) {
         functions = undefined;
       }
@@ -322,6 +334,20 @@ export default ({ logger, services }) => {
           }
           const searchResponse = await vectorStoreService.search(index.vectorStoreProvider, indexName, args.input);
           response = searchResponse.hits.join(PARA_DELIM);
+        } else if (call.name === this.semanticFunction?.name) {
+          const functionResponse = await executionsService.executeFunction({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            func: this.semanticFunction,
+            args,
+            params: { maxTokens: 1024 },
+          });
+          const message = functionResponse.response.choices[0].message;
+          if (message.function_call) {
+            response = message.function_call.arguments;
+          } else {
+            response = message.content;
+          }
         } else {
           if (call.name === 'email') {
             args.agentName = this.name;

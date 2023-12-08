@@ -290,10 +290,9 @@ export function DataSourcesList() {
     {
       title: 'Name',
       dataIndex: 'name',
+      width: '100%',
       render: (_, { key, name }) => (
-        <div style={{ minWidth: 250 }}>
-          <Link to={`/data-sources/${key}`}>{name}</Link>
-        </div>
+        <Link to={`/data-sources/${key}`}>{name}</Link>
       )
     },
     {
@@ -306,7 +305,6 @@ export function DataSourcesList() {
     {
       title: 'Instance Type',
       dataIndex: 'instance',
-      width: '100%',
       render: (_, { instance }) => (
         <Tag color={getColor(instance)}>{instance}</Tag>
       )

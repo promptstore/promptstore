@@ -8,8 +8,8 @@ import {
   Pagination,
   SearchBox,
 } from 'react-instantsearch-dom';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../components/JsonView';
 import { searchClient } from '../apps/Playground/contentSlice';
 
 export function SearchModal({
@@ -39,8 +39,8 @@ export function SearchModal({
         </div>
         <div className={'panel' + (isHitOpen[hit.id] ? '' : ' closed')}>
           <Divider />
-          <ReactJson src={hit}
-            theme={theme === 'dark' ? 'shapeshifter' : 'rjv-default'}
+          <JsonView src={hit}
+            theme={theme === 'dark' ? 'grayscale' : 'grayscale:inverted'}
           />
         </div>
       </article>

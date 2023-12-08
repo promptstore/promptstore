@@ -39,6 +39,7 @@ function OpenAILLM({ __name, constants, logger }) {
       if (request.stream) {
         res = await openai.chat.completions.create(request, { responseType: 'stream' });
       } else {
+        logger.debug('request:', request);
         res = await openai.chat.completions.create(request);
       }
       return res;
@@ -95,11 +96,11 @@ function OpenAILLM({ __name, constants, logger }) {
   }
 
   async function createEmbedding(request) {
-    const res = await openai.embeddings.create(request);
-    return res;
+    logger.debug('embedding request:', request);
+    const res = await openai.embeddings.create({ ...request, model: 'text-embedding-ada-002' });
+    return res.data[0];
   }
 
-  // DALL-E 3 is a significant improvement over DALL-E 2
   async function createImage(prompt, { n = 1, quality = 'standard' }) {
     const res = await openai.images.generate({
       prompt,

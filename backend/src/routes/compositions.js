@@ -358,7 +358,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/compositions:
+   * /api/workspaces/{workspaceId}/compositions:
    *   get:
    *     description: List all the compositions in the given workspace.
    *     tags: [Compositions]
@@ -400,7 +400,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/compositions/:id:
+   * /api/compositions/{id}:
    *   get:
    *     description: Lookup a composition by id.
    *     tags: [Compositions]
@@ -460,7 +460,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/compositions/:id:
+   * /api/compositions/{id}:
    *   put:
    *     description: Update a composition.
    *     tags: [Compositions]
@@ -497,7 +497,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/compositions/:id:
+   * /api/compositions/{id}:
    *   delete:
    *     description: Delete a composition.
    *     tags: [Compositions]

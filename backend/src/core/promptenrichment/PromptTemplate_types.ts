@@ -36,5 +36,8 @@ export interface PromptTemplateParams {
 
 export interface PromptTemplateCallParams {
   args: any;
+  contextWindow: number;
+  maxTokens: number;
+  modelKey: string;
   callbacks?: Callback[];
 }

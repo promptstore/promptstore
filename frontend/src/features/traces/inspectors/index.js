@@ -1,6 +1,6 @@
 import React from 'react';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { createOpenAIMessages } from '../../../utils/formats';
 
 import { Agent } from './Agent';
@@ -121,6 +121,6 @@ export function Inspector({ step }) {
       return <OutputGuardrail step={step} title="Apply Output Guardrail" />
 
     default:
-      return <ReactJson src={step} />
+      return <JsonView src={step} />
   }
 }

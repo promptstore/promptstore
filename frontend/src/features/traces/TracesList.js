@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Space, Table, Tag, message } from 'antd';
 import {
+  BarChartOutlined,
   CheckCircleFilled,
   ClockCircleOutlined,
   CloseCircleFilled,
@@ -33,6 +34,8 @@ export function TracesList() {
   const traces = useSelector(selectTraces);
   const loading = useSelector(selectLoading);
 
+  // console.log('traces:', traces);
+
   const data = useMemo(() => {
     const list = Object.values(traces).map((trace) => ({
       key: trace.id,
@@ -42,6 +45,7 @@ export function TracesList() {
       success: trace.trace[0].success,
       latency: trace.trace[0].elapsedMillis,
       tokens: trace.trace[0].response?.usage?.total_tokens,
+      username: trace.createdBy,
     }));
     list.sort((a, b) => a.created > b.created ? -1 : 1);
     return list;
@@ -159,6 +163,13 @@ export function TracesList() {
       )
     },
     {
+      title: 'Username',
+      dataIndex: 'username',
+      render: (_, { username }) => (
+        <span>{username}</span>
+      )
+    },
+    {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
@@ -190,7 +201,7 @@ export function TracesList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <Space style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <div>
             <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
               Delete
@@ -203,7 +214,14 @@ export function TracesList() {
           <Download filename={'traces.json'} payload={selectedTraces}>
             <Button type="text" icon={<DownloadOutlined />} />
           </Download>
-        </Space>
+          <div style={{ flex: 1 }}></div>
+          <Button type="default"
+            icon={<BarChartOutlined />}
+            onClick={() => navigate('/traces-dash')}
+          >
+            Dashboard
+          </Button>
+        </div>
         <Table
           rowSelection={rowSelection}
           columns={columns}

@@ -24,6 +24,7 @@ export function ExecutionsService({ logger, rc, services }) {
     parserService,
     promptSetsService,
     sqlSourceService,
+    toolService,
     tracesService,
     vectorStoreService,
   } = services;
@@ -52,8 +53,9 @@ export function ExecutionsService({ logger, rc, services }) {
           parserService,
           promptSetsService,
           sqlSourceService,
-          toolService: _services.toolService,
+          toolService,
           vectorStoreService,
+          ..._services,
         }
       });
     }
@@ -69,6 +71,7 @@ export function ExecutionsService({ logger, rc, services }) {
     history,
     params = {},
     functions,
+    extraIndexes,
     batch = false,
     debug = false,
   }) => {
@@ -87,7 +90,7 @@ export function ExecutionsService({ logger, rc, services }) {
       callbacks.push(new DebugCallback());
     }
     const adapter = getAdapter();
-    const semanticFunction = await adapter.createSemanticFunction(workspaceId, semanticFunctionInfo, callbacks);
+    const semanticFunction = await adapter.createSemanticFunction(workspaceId, semanticFunctionInfo, callbacks, extraIndexes);
 
     const executor = new LocalExecutor();
     const userContent = args.content;

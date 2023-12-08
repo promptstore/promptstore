@@ -41,9 +41,9 @@ import 'reactflow/dist/style.css';
 
 const { Content, Sider } = Layout;
 
-const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
-
 const nodeProps = { style: { width: 200 } };
+
+const proOptions = { hideAttribution: true };
 
 const reactFlowProps = {
   panOnDrag: false,
@@ -546,6 +546,7 @@ export function FunctionView() {
                             nodes={g.nodes}
                             edges={g.edges}
                             onNodeClick={handleNodeClick}
+                            proOptions={proOptions}
                           />
                         </ReactFlowProvider>
                       </div>

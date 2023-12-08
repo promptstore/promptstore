@@ -147,13 +147,15 @@ export default ({ agents, app, auth, logger, services }) => {
    *           type: boolean
    *           description: A flag to tell the agent to evaluate its own output using a model.
    *         created:
-   *           type: date
+   *           type: string
+   *           format: date-time
    *           description: The date-time the agent was created.
    *         createdBy:
    *           type: string
    *           description: The username of the user who created the workspace.
    *         modified:
-   *           type: date
+   *           type: string
+   *           format: date-time
    *           description: The date-time the agent was last modified.
    *         modifiedBy:
    *           type: string
@@ -273,7 +275,10 @@ export default ({ agents, app, auth, logger, services }) => {
    *         description: Error
    */
   app.post('/api/agent-executions', auth, async (req, res) => {
-    logger.debug('body:', req.body);
+
+    // TODO
+    events = [];
+
     let {
       agentType,
       allowedTools,
@@ -290,7 +295,7 @@ export default ({ agents, app, auth, logger, services }) => {
     const workspaceId = req.body.workspaceId;
     const { email, username } = (req.user || {});
     model = model || 'gpt-3.5-turbo';
-    const modelParams = { max_tokens: 255 };
+    const modelParams = { max_tokens: 1024 };
     const emitter = new EventEmitter();
     const callbacks = [
       new AgentTracingCallback({ workspaceId, username, tracesService }),
@@ -323,7 +328,7 @@ export default ({ agents, app, auth, logger, services }) => {
       return res.sendStatus(400);
     }
     const extraFunctionCallParams = {
-      email,
+      email: process.env.EMAIL_OVERRIDE || email,
       indexName,
     };
     let done = false;
@@ -381,7 +386,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/agents:
+   * /api/workspaces/{workspaceId}/agents:
    *   get:
    *     description: List all the agents available to the given user in the given workspace.
    *     tags: [Agents]
@@ -418,7 +423,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/agents/:id:
+   * /api/agents/{id}:
    *   get:
    *     description: Lookup an agent by id.
    *     tags: [Workspaces]
@@ -478,7 +483,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/agents/:id:
+   * /api/agents/{id}:
    *   put:
    *     description: Update an agent.
    *     tags: [Agents]
@@ -515,7 +520,7 @@ export default ({ agents, app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/agents/:id:
+   * /api/agents/{id}:
    *   delete:
    *     description: Delete an agent.
    *     tags: [Agents]

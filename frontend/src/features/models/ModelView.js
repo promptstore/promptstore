@@ -138,10 +138,20 @@ export function ModelView() {
                       {model.provider}
                     </Descriptions.Item>
                     :
-                    <Descriptions.Item span={3}></Descriptions.Item>
+                    <Descriptions.Item span={3} />
                   }
                 </Descriptions>
               </Descriptions.Item>
+              {model.type === 'gpt' || model.type === 'completion' ?
+                <Descriptions.Item>
+                  <Descriptions column={6}>
+                    <Descriptions.Item label="context window" span={3}>
+                      {String(model.contextWindow)} tokens
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Descriptions.Item>
+                : null
+              }
               {model.isPublic || model.disabled || model.tags?.length ?
                 <Descriptions.Item>
                   <Descriptions column={6}>

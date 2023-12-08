@@ -71,6 +71,7 @@ export class TracingCallback extends Callback {
   workspaceId: number;
   username: string;
   tracesService: any;
+  callDepth: number;
 
   constructor({ workspaceId, username, tracesService }: TraceCallbackParams) {
     super();
@@ -78,15 +79,19 @@ export class TracingCallback extends Callback {
     this.username = username;
     this.tracesService = tracesService;
     this.startTime = [];
+    this.callDepth = 0;
   }
 
   onCompositionStart({ name, args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
     // logger.debug('!! onCompositionStart');
     const startTime = new Date();
     this.startTime.push(startTime);
-    const traceName = [name, startTime.toISOString()].join(' - ');
-    this.tracer = new Tracer(traceName, 'composition');
+    if (!this.tracer) {
+      const traceName = [name, startTime.toISOString()].join(' - ');
+      this.tracer = new Tracer(traceName, 'composition');
+    }
     this.isComposition = true;
+    this.callDepth += 1;
     this.tracer
       .push({
         id: uuid.v4(),
@@ -124,8 +129,11 @@ export class TracingCallback extends Callback {
         .addProperty('success', true)
         ;
     }
-    const traceRecord = this.tracer.close();
-    this.tracesService.upsertTrace({ ...traceRecord, workspaceId: this.workspaceId }, this.username);
+    this.callDepth -= 1;
+    if (this.callDepth === 0) {
+      const traceRecord = this.tracer.close();
+      this.tracesService.upsertTrace({ ...traceRecord, workspaceId: this.workspaceId }, this.username);
+    }
   }
 
   onCompositionError(errors: any) {
@@ -140,10 +148,11 @@ export class TracingCallback extends Callback {
     // logger.debug('!! onSemanticFunctionStart');
     const startTime = new Date();
     this.startTime.push(startTime);
-    if (!this.isComposition) {
+    if (!this.tracer && !this.isComposition) {
       const traceName = [name, startTime.toISOString()].join(' - ');
       this.tracer = new Tracer(traceName);
     }
+    this.callDepth += 1;
     this.tracer
       .push({
         id: uuid.v4(),
@@ -182,7 +191,8 @@ export class TracingCallback extends Callback {
         .addProperty('success', true)
         ;
     }
-    if (!this.isComposition) {
+    this.callDepth -= 1;
+    if (this.callDepth === 0 && !this.isComposition) {
       const traceRecord = this.tracer.close();
       this.tracesService.upsertTrace({ ...traceRecord, workspaceId: this.workspaceId }, this.username);
     }

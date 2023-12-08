@@ -24,7 +24,7 @@ function EmailService({ __key, __name, constants, logger }) {
    * @returns 
    */
   async function call({ agentName, email, message }) {
-    logger.log('debug', 'sending email with the following parameters:', { agentName, email, message });
+    logger.debug('Sending email using the following parameters:', { agentName, email, message });
     const res = await client.send({
       from: sender,
       to: [{ email }],

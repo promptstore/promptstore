@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Button, Form, Input, Layout, Select, Space, Switch, Table, Typography } from 'antd';
 
+import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
@@ -248,13 +249,6 @@ export function Agents() {
     );
   }
 
-  function Text({ label, text }) {
-    return text.split('\n').map((line, i) => (
-      // <div key={label + '-' + i} dangerouslySetInnerHTML={{ __html: line }} />
-      <div key={label + '-' + i}>{line}</div>
-    ));
-  }
-
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
@@ -459,9 +453,7 @@ export function Agents() {
                     padding: '4px 11px',
                   }}>
                     {agentOutput.map((o) => (
-                      <Typography.Paragraph key={o.key}>
-                        <Text label={o.key} text={o.output} />
-                      </Typography.Paragraph>
+                      <Output label={o.key} text={o.output} />
                     ))}
                   </div>
                 </>
@@ -484,4 +476,103 @@ export function Agents() {
       </div >
     </>
   );
+}
+
+function Output({ label, text }) {
+  let x;
+  x = extractJsonObject(text);
+  if (!x) {
+    x = extractJsonArray(text);
+  }
+  const img = extractImageUrl(text);
+  let imgEl;
+  if (img) {
+    imgEl = (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
+        <img src={img[0]} style={{ height: 156, width: 156 }} />
+      </div>
+    );
+  }
+  if (x) {
+    return (
+      <div key={label}>
+        <Text label={label + '-0'} text={text.substring(0, x[1])} />
+        <JsonView src={x[0]} />
+        <Text label={label + '-1'} text={text.substring(x[2])} />
+        {imgEl}
+      </div>
+    );
+  }
+  return (
+    <div key={label}>
+      <Text label={label} text={text} />
+      {imgEl}
+    </div>
+  )
+}
+
+function Text({ label, text }) {
+  return text.split('\n').map((line, i) => (
+    <Typography.Paragraph key={label + '-' + i}>
+      {line}
+    </Typography.Paragraph>
+  ));
+}
+
+function extractImageUrl(str) {
+  const imgR = /https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)(\?[^\s"]*)/gmi;
+  const match = imgR.exec(str);
+  if (match) {
+    const open = str.indexOf(match[0]);
+    return [match[0], open, open + match[0].length];
+  }
+  return null;
+}
+
+function extractJsonObject(str) {
+  let open, close, candidate;
+  open = str.indexOf('{');
+  do {
+    close = str.lastIndexOf('}');
+    if (close <= open) {
+      return null;
+    }
+    do {
+      candidate = str.substring(open, close + 1);
+      try {
+        const json = JSON.parse(candidate);
+        return [json, open, close + 1];
+      } catch (err) {
+        console.log(err);
+        console.log('Failed candidate:', candidate);
+        // keep trying
+      }
+      close = str.substring(open, close).lastIndexOf('}');
+    } while (close > open);
+    open = str.indexOf('{', open + 1);
+  } while (open !== -1);
+  return null;
+}
+
+function extractJsonArray(str) {
+  let open, close, candidate;
+  open = str.indexOf('[');
+  do {
+    close = str.lastIndexOf(']');
+    if (close <= open) {
+      return null;
+    }
+    do {
+      candidate = str.substring(open, close + 1);
+      try {
+        const json = JSON.parse(candidate);
+        return [json, open, close + 1];
+      } catch (err) {
+        // keep trying
+      }
+      close = str.substring(open, close).lastIndexOf(']');
+    } while (close > open);
+    open = str.indexOf(';', open + 1);
+  } while (open !== -1);
+  return null;
 }

@@ -23,6 +23,7 @@ import {
 import {
   CompletionService,
   LLMChatModelParams,
+  LLMModel,
   ModelCallParams,
   ModelOnEndParams,
 } from './llm_types';
@@ -35,11 +36,12 @@ const defaultLLMChatModelParams = {
   temperature: 0.5,
 };
 
-export class LLMChatModel implements Model {
+export class LLMChatModel implements LLMModel {
 
   modelType: string;
   model: string;
   provider: string;
+  contextWindow: number;
   completionService: CompletionService;
   semanticCache?: SemanticCache;
   semanticCacheEnabled: boolean;
@@ -50,6 +52,7 @@ export class LLMChatModel implements Model {
     modelType,
     model,
     provider,
+    contextWindow,
     completionService,
     semanticCache,
     semanticCacheEnabled,
@@ -58,6 +61,7 @@ export class LLMChatModel implements Model {
     this.modelType = modelType;
     this.model = model;
     this.provider = provider;
+    this.contextWindow = contextWindow;
     this.completionService = completionService;
     this.semanticCache = semanticCache;
     this.semanticCacheEnabled = semanticCacheEnabled;
@@ -156,11 +160,12 @@ export class LLMChatModel implements Model {
 
 }
 
-export class LLMCompletionModel implements Model {
+export class LLMCompletionModel implements LLMModel {
 
   modelType: string;
   model: string;
   provider: string;
+  contextWindow: number;
   completionService: CompletionService;
   callbacks: Callback[];
   currentCallbacks: Callback[];
@@ -169,12 +174,14 @@ export class LLMCompletionModel implements Model {
     modelType,
     model,
     provider,
+    contextWindow,
     completionService,
     callbacks,
   }: LLMChatModelParams) {
     this.modelType = modelType;
     this.model = model;
     this.provider = provider;
+    this.contextWindow = contextWindow;
     this.completionService = completionService;
     this.callbacks = callbacks || [];
   }
@@ -360,6 +367,7 @@ export class HuggingfaceModel implements Model {
 interface LLMModelOptions {
   model: string;
   provider: string;
+  contextWindow: number;
   completionService: CompletionService;
   semanticCache: SemanticCache;
   semanticCacheEnabled: boolean;
@@ -376,6 +384,7 @@ export const llmModel = (options: LLMModelOptions) => {
 interface LLMCompletionModelOptions {
   model: string;
   provider: string;
+  contextWindow: number;
   completionService: CompletionService;
   semanticCache: SemanticCache;
   semanticCacheEnabled: boolean;

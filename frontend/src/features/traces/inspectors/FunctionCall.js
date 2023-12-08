@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions, Space, Typography } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { getInputString } from '../../../utils';
 
 export function FunctionCall({ step, title }) {
@@ -20,7 +20,7 @@ export function FunctionCall({ step, title }) {
             </Typography.Paragraph>
             : null
           }
-          <ReactJson collapsed src={args} />
+          <JsonView src={args} />
         </Space>
       </Descriptions.Item>
       <Descriptions.Item span={3} label="output">

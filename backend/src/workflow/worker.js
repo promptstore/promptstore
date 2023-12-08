@@ -65,7 +65,6 @@ const GRAPH_STORE_PLUGINS = process.env.GRAPH_STORE_PLUGINS || '';
 const graphStorePlugins = await getPlugins(basePath, GRAPH_STORE_PLUGINS, logger);
 
 const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
-const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {});
 
 const LLM_PLUGINS = process.env.LLM_PLUGINS || '';
 const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
@@ -89,12 +88,16 @@ const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logg
 
 const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
-const embeddingService = EmbeddingService({ logger, registry: embeddingPlugins });
+const embeddingService = EmbeddingService({
+  logger, registry: {
+    ...embeddingPlugins,
+    ...llmPlugins,
+  }
+});
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 const functionsService = FunctionsService({ pg, logger });
 const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugins });
-const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
 const indexesService = IndexesService({ pg, logger });
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
@@ -115,7 +118,6 @@ const executionsService = ExecutionsService({
     featureStoreService,
     functionsService,
     graphStoreService,
-    guardrailsService,
     indexesService,
     llmService,
     modelProviderService,
@@ -128,6 +130,14 @@ const executionsService = ExecutionsService({
   },
 });
 
+const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
+  services: {
+    executionsService,
+  }
+});
+
+const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
+
 const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
   services: {
     executionsService,
@@ -136,7 +146,7 @@ const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
 
 const toolService = ToolService({ logger, registry: toolPlugins });
 
-executionsService.addServices({ toolService });
+executionsService.addServices({ guardrailsService, toolService });
 
 // async function runUploadsWorker() {
 //   const connectionOptions = {

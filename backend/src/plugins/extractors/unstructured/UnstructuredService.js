@@ -1,6 +1,7 @@
 import FormData from 'form-data';
 import axios from 'axios';
 import fs from 'fs';
+import uuid from 'uuid';
 
 function UnstructuredService({ __name, constants, logger }) {
 
@@ -30,42 +31,50 @@ function UnstructuredService({ __name, constants, logger }) {
     nodeLabel = 'Chunk',
   }) {
     const chunks = [];
+    let elementIdCache = {};
     for (const doc of documents) {
       const content = await extract(doc.filepath, doc.originalname, doc.mimetype);
       const createdDateTime = new Date().toISOString();
-      const cks = content.map((el) => {
-        const { wordCount, length, size } = getTextStats(el.text);
-        return {
-          id: el.element_id,
-          nodeLabel,
-          type: el.type,
-          documentId: null,
-          text: el.text,
-          imageURI: null,
-          data: {},
-          metadata: {
-            author: null,
-            mimetype: el.metadata.filetype,
-            filename: el.metadata.filename,
-            endpoint: null,
-            database: null,
-            subtype: null,
-            parentIds: [],  // TODO see `convertToOnesourceFormat`
-            page: el.metadata.page_number,
-            row: null,
-            wordCount,
-            length,
-            size,
-          },
-          createdDateTime,
-          createdBy: constants.CREATED_BY,
-          startDateTime: createdDateTime,
-          endDateTime: null,
-          version: 1,
-        };
-      });
-      chunks.push(...cks);
+      for (const el of content) {
+        const text = el.text.trim();
+        // `element_id` is not unique, it is a SHA256 hash id
+        // if `text` is the same then `element_id` is the same
+        if (text && !elementIdCache[el.element_id]) {
+          const { wordCount, length, size } = getTextStats(el.text);
+          const chunk = {
+            id: uuid.v4(),
+            nodeLabel,
+            type: el.type,
+            documentId: null,
+            text: el.text,
+            imageURI: null,
+            data: {},
+            metadata: {
+              author: null,
+              mimetype: el.metadata.filetype,
+              filename: el.metadata.filename,
+              endpoint: null,
+              database: null,
+              subtype: null,
+              parentIds: [],  // TODO see `convertToOnesourceFormat`
+              page: el.metadata.page_number,
+              row: null,
+              wordCount,
+              length,
+              size,
+            },
+            createdDateTime,
+            createdBy: constants.CREATED_BY,
+            startDateTime: createdDateTime,
+            endDateTime: null,
+            version: 1,
+          };
+          chunks.push(chunk);
+          elementIdCache[el.element_id] = 1;
+        }
+      }
     }
+    elementIdCache = null;
     return chunks;
   }
 
@@ -289,7 +298,6 @@ function UnstructuredService({ __name, constants, logger }) {
         maxBodyLength: Infinity,
       });
       logger.debug('File uploaded to document service successfully.');
-      // return convertToOnesourceFormat(res.data);
       return res.data;
     } catch (err) {
       logger.log('error', String(err), err.stack);

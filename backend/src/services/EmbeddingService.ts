@@ -1,24 +1,26 @@
+import { EmbeddingRequest } from '../core/conversions/RosettaStone';
 import {
   EmbeddingProvider,
-  EmbeddingProviderEnum,
   EmbeddingService,
 } from '../core/indexers/EmbeddingProvider';
 import { PluginServiceParams } from '../core/indexers/Plugin';
 
 export function EmbeddingService({ logger, registry }: PluginServiceParams): EmbeddingService {
 
-  async function createEmbedding(provider: EmbeddingProviderEnum, content: string) {
+  async function createEmbedding(provider: string, request: EmbeddingRequest) {
     logger.debug('create embedding, provider:', provider);
     const instance = registry[provider] as EmbeddingProvider;
-    return instance.createEmbedding(content);
+    return instance.createEmbedding(request);
   };
 
   function getEmbeddingProviders() {
     return Object.entries(registry)
-      .map(([key, p]) => ({
-        key,
-        name: p.__name,
-      }));
+      .map(([key, p]) => {
+        return {
+          key,
+          name: p.__name,
+        };
+      });
   }
 
   return {

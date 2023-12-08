@@ -13,6 +13,7 @@ import {
   requestNode,
   outputNode,
 } from '../core/compositions/Composition';
+import { EmbeddingRequest } from '../core/conversions/RosettaStone';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
 import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
@@ -35,8 +36,17 @@ import {
 } from '../core/promptenrichment/PromptEnrichmentPipeline';
 import { message, promptTemplate } from '../core/promptenrichment/PromptTemplate';
 import SemanticCache from '../core/semanticcache/SemanticCache';
-import { semanticFunction } from '../core/semanticfunctions/SemanticFunction';
-import { SemanticFunctionImplementation, semanticFunctionImplementation } from '../core/semanticfunctions/SemanticFunctionImplementation';
+import {
+  SemanticFunction,
+  semanticFunction,
+} from '../core/semanticfunctions/SemanticFunction';
+import {
+  SemanticFunctionImplementation,
+  semanticFunctionImplementation,
+} from '../core/semanticfunctions/SemanticFunctionImplementation';
+
+const QUERY_REWRITE_FUNCTION = 'rewrite_query';
+const SUMMARIZE_FUNCTION = 'summarize';
 
 export default ({ logger, rc, services }) => {
 
@@ -86,6 +96,7 @@ export default ({ logger, rc, services }) => {
     return llmModel({
       model: modelInfo.key,
       provider: modelInfo.provider,
+      contextWindow: modelInfo.contextWindow,
       completionService,
       semanticCache,
       semanticCacheEnabled,
@@ -97,10 +108,7 @@ export default ({ logger, rc, services }) => {
 
   function createSemanticCache(provider: string) {
     if (!cacheSingleton) {
-      const service = {
-        createEmbedding: (content: string) => embeddingService.createEmbedding(provider, content),
-      };
-      cacheSingleton = new SemanticCache(service, rc, logger);
+      cacheSingleton = new SemanticCache(embeddingService, rc, logger);
     }
     return cacheSingleton;
   }
@@ -118,6 +126,7 @@ export default ({ logger, rc, services }) => {
     return completionModel({
       model: modelInfo.key,
       provider: modelInfo.provider,
+      contextWindow: modelInfo.contextWindow,
       completionService,
       semanticCache,
       semanticCacheEnabled,
@@ -180,7 +189,7 @@ export default ({ logger, rc, services }) => {
   }
 
   async function createFunctionEnrichment(workspaceId: number, indexInfo: any, callbacks: Callback[]) {
-    const semanticFunctionInfo = await functionsService.getFunctionByName(workspaceId, 'summarize');
+    const semanticFunctionInfo = await functionsService.getFunctionByName(workspaceId, SUMMARIZE_FUNCTION);
     const semanticFunction = await createSemanticFunction(workspaceId, semanticFunctionInfo, callbacks);
     const modelParams = {
       max_tokens: 64,
@@ -225,7 +234,7 @@ export default ({ logger, rc, services }) => {
     return outputProcessingPipeline({ callbacks })(steps);
   }
 
-  async function createPromptEnrichmentPipeline(workspaceId: number, implInfo: any, callbacks: Callback[]) {
+  async function createPromptEnrichmentPipeline(workspaceId: number, implInfo: any, callbacks: Callback[], extraIndexes?: number[]) {
     const steps: PromptEnrichmentStep[] = [];
     if (implInfo.dataSourceId) {
       const featureStoreInfo = await dataSourcesService.getDataSource(implInfo.dataSourceId);
@@ -239,8 +248,13 @@ export default ({ logger, rc, services }) => {
       const graphSourceInfo = await dataSourcesService.getDataSource(implInfo.graphSourceId);
       steps.push(createKnowledgeGraphEnrichment(graphSourceInfo, callbacks));
     }
+    const paths = {
+      indexContentPropertyPath: implInfo.indexContentPropertyPath || 'content',
+      indexContextPropertyPath: implInfo.indexContextPropertyPath || 'context',
+    };
     if (implInfo.indexes) {
-      for (const indexInfo of implInfo.indexes) {
+      for (let indexInfo of implInfo.indexes) {
+        indexInfo = { ...indexInfo, ...paths };
         const index = await indexesService.getIndex(indexInfo.indexId);
         steps.push(createSemanticSearchEnrichment(indexInfo, index, callbacks));
         if (indexInfo.summarizeResults) {
@@ -249,12 +263,22 @@ export default ({ logger, rc, services }) => {
         }
       }
     }
+    if (extraIndexes) {
+      for (const indexId of extraIndexes) {
+        const indexInfo = {
+          ...paths,
+          allResults: false,
+        };
+        const index = await indexesService.getIndex(indexId);
+        steps.push(createSemanticSearchEnrichment(indexInfo, index, callbacks));
+      }
+    }
     const promptTemplateInfo = await promptSetsService.getPromptSet(implInfo.promptSetId);
     const promptTemplate = createPromptTemplate(promptTemplateInfo, callbacks);
     return promptEnrichmentPipeline({ callbacks })(steps, promptTemplate);
   }
 
-  async function createSemanticFunction(workspaceId: number, semanticFunctionInfo: any, callbacks: Callback[]) {
+  async function createSemanticFunction(workspaceId: number, semanticFunctionInfo: any, callbacks: Callback[], extraIndexes?: number[]) {
     const implementations: SemanticFunctionImplementation[] = [];
     for (const implInfo of semanticFunctionInfo.implementations) {
       logger.debug('implInfo:', implInfo);
@@ -269,12 +293,12 @@ export default ({ logger, rc, services }) => {
       if (modelInfo.type === 'gpt') {
         model = createChatModel(modelInfo, implInfo.cache, llmService.createChatCompletion, callbacks);
         if (implInfo.promptSetId) {
-          promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
+          promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks, extraIndexes);
         }
       } else if (modelInfo.type === 'completion') {
         model = createCompletionModel(modelInfo, implInfo.cache, llmService.createCompletion, callbacks);
         if (implInfo.promptSetId) {
-          promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks);
+          promptEnrichmentPipeline = await createPromptEnrichmentPipeline(workspaceId, implInfo, callbacks, extraIndexes);
         }
       } else if (modelInfo.type === 'api') {
         model = createCustomModel(modelInfo, callbacks);
@@ -283,7 +307,7 @@ export default ({ logger, rc, services }) => {
       } else {
         throw new Error(`model type ${modelInfo.type} not supported`);
       }
-      if (implInfo.inputGuardrails) {
+      if (!isEmpty(implInfo.inputGuardrails)) {
         inputGuardrails = new InputGuardrails({
           guardrails: implInfo.inputGuardrails,
           guardrailsService,
@@ -300,10 +324,20 @@ export default ({ logger, rc, services }) => {
       if (typeof implInfo.returnMappingData === 'string') {
         returnMappingTemplate = implInfo.returnMappingData.trim();
       }
+      let queryRewriteFunction: SemanticFunction;
+      if (implInfo.rewriteQuery) {
+        const queryRewriteFunctionInfo = await functionsService.getFunctionByName(workspaceId, QUERY_REWRITE_FUNCTION);
+        queryRewriteFunction = await createSemanticFunction(workspaceId, queryRewriteFunctionInfo, callbacks);
+      }
       const impl = semanticFunctionImplementation({
+        isDefault: implInfo.isDefault,
         argsMappingTemplate,
         returnMappingTemplate,
-        isDefault: implInfo.isDefault,
+        indexContentPropertyPath: implInfo.indexContentPropertyPath,
+        indexContextPropertyPath: implInfo.indexContextPropertyPath,
+        rewriteQuery: implInfo.rewriteQuery,
+        summarizeResults: implInfo.summarizeResults,
+        queryRewriteFunction,
         callbacks,
       })(model, promptEnrichmentPipeline, inputGuardrails, outputProcessingPipeline);
       implementations.push(impl);

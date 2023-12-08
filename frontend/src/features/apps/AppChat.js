@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
-import { Layout, Upload, message } from 'antd';
-import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Button, Drawer, Layout, Space, Upload, message } from 'antd';
+import { FileTextOutlined, LoadingOutlined, PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import snakeCase from 'lodash.snakecase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,6 +26,7 @@ import {
 } from '../designer/chatSlice';
 import {
   indexDocumentAsync,
+  selectIndexed,
   selectIndexing,
 } from '../uploader/fileUploaderSlice';
 import {
@@ -48,7 +49,7 @@ const { Content, Sider } = Layout;
 export function AppChat() {
 
   const [correlationId, setCorrelationId] = useState({});
-  const [uploadId, setUploadId] = useState(null);
+  const [open, setOpen] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState(null);
 
   const apps = useSelector(selectApps);
@@ -58,6 +59,7 @@ export function AppChat() {
   const messages = useSelector(selectMessages);
   const uploading = useSelector(selectUploading);
   const uploads = useSelector(selectUploads);
+  const indexed = useSelector(selectIndexed);
   const indexing = useSelector(selectIndexing);
 
   const { setNavbarState } = useContext(NavbarContext);
@@ -66,8 +68,10 @@ export function AppChat() {
 
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const id = location.pathname.match(/\/apps\/(.*)\/chat/)[1];
+  // const id = location.pathname.match(/\/apps\/(.*)\/chat/)[1];
+  const id = location.pathname.match(/\/apps\/(.*)/)[1];
   const app = apps[id];
   const func = functions[app?.function];
   const sourceUploads = uploads[id] || [];
@@ -75,7 +79,7 @@ export function AppChat() {
 
   // console.log('app:', app);
   // console.log('sourceUploads:', sourceUploads);
-  console.log('dataSources:', dataSources);
+  // console.log('dataSources:', dataSources);
 
   useEffect(() => {
     dispatch(getAppAsync(id));
@@ -93,7 +97,12 @@ export function AppChat() {
   }, [app]);
 
   useEffect(() => {
-    // console.log('uploadedFilename:', uploadedFilename);
+    if (indexed) {
+      dispatch(getAppAsync(id));
+    }
+  }, [indexed]);
+
+  useEffect(() => {
     const upload = sourceUploads.find(u => u.filename === uploadedFilename);
     if (upload) {
       const { filename, id } = upload;
@@ -103,13 +112,13 @@ export function AppChat() {
   }, [sourceUploads]);
 
   useEffect(() => {
-    console.log('correlationId:', correlationId);
     for (const source of Object.values(dataSources)) {
       const entry = Object.entries(correlationId)
         .find(([_, correlationId]) => correlationId === source.correlationId);
       if (entry) {
         const uploadId = entry[0];
         dispatch(indexDocumentAsync({
+          appId: id,
           dataSourceId: source.id,
           documents: source.documents,
           params: {
@@ -147,7 +156,12 @@ export function AppChat() {
       workspaceId: selectedWorkspace.id,
     };
     const correlationId = uuidv4();
-    dispatch(createDataSourceAsync({ correlationId, values }));
+    dispatch(createDataSourceAsync({
+      correlationId,
+      appId: app.id,
+      uploadId: id,
+      values,
+    }));
     setCorrelationId((curr) => ({
       ...curr,
       [id]: correlationId,
@@ -164,6 +178,7 @@ export function AppChat() {
       history: messages.slice(0, messages.length - 1),
       params: {},
       workspaceId: selectedWorkspace.id,
+      extraIndexes: app.indexes,
     }));
   };
 
@@ -172,10 +187,14 @@ export function AppChat() {
       return;
     }
     if (info.file.status === 'done') {
-      console.log('info.file:', info.file);
+      // console.log('info.file:', info.file);
       dispatch(fileUploadAsync(selectedWorkspace.id, app.id, info.file));
       setUploadedFilename(info.file.name);
     }
+  };
+
+  const openSettings = () => {
+    navigate(`/apps-edit/${id}`);
   };
 
   const uploadButton = (
@@ -199,29 +218,49 @@ export function AppChat() {
               placeholder="Ask away..."
             />
           </Content>
+          {app?.allowUpload ?
+            <Drawer
+              title="Documents"
+              placement="right"
+              closable={true}
+              onClose={() => setOpen(false)}
+              open={open}
+              width={700}
+            >
+              <UserUploadsList
+                loading={isIndexing}
+                workspaceId={selectedWorkspace.id}
+                appId={id}
+              />
+              <div style={{ marginTop: 20, textAlign: 'center' }}>
+                <Upload
+                  name="upload"
+                  listType="picture-card"
+                  className="avatar-uploader"
+                  showUploadList={false}
+                  customRequest={dummyRequest}
+                  beforeUpload={beforeUpload}
+                  onChange={handleChange}
+                >
+                  {uploadButton}
+                </Upload>
+              </div>
+            </Drawer>
+            : null
+          }
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
-            width={700}
           >
-            {app?.allowUpload ?
-              <>
-                <UserUploadsList loading={isIndexing} workspaceId={selectedWorkspace.id} appId={id} />
-                <div style={{ marginTop: 20, textAlign: 'center' }}>
-                  <Upload
-                    name="upload"
-                    listType="picture-card"
-                    className="avatar-uploader"
-                    showUploadList={false}
-                    customRequest={dummyRequest}
-                    beforeUpload={beforeUpload}
-                    onChange={handleChange}
-                  >
-                    {uploadButton}
-                  </Upload>
-                </div>
-              </>
-              : null
-            }
+            <Space>
+              <Button
+                icon={<FileTextOutlined />}
+                onClick={() => setOpen(true)}
+              >Open</Button>
+              <Button
+                icon={<SettingOutlined />}
+                onClick={openSettings}
+              >Settings</Button>
+            </Space>
           </Sider>
         </Layout>
       </div>

@@ -5,6 +5,7 @@ import set from 'lodash.set';  // mutable
 import { default as dayjs } from 'dayjs';
 import { unflatten } from 'flat';
 
+import logger from '../../logger';
 import { Callback } from '../callbacks/Callback';
 import { SemanticFunctionError } from '../errors';
 import { GraphStoreService } from '../indexers/GraphStore';
@@ -49,14 +50,14 @@ export class PromptEnrichmentPipeline {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, contextWindow, modelKey });
     try {
       for (const step of this.steps) {
         args = await step.call({ args, callbacks });
       }
-      const messages = this.promptTemplate.call({ args, callbacks });
+      const messages = this.promptTemplate.call({ args, contextWindow, maxTokens, modelKey, callbacks });
       this.onEnd({ messages });
       return messages;
     } catch (err) {
@@ -199,8 +200,15 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     try {
       const query = this.getQuery(args);
       const { nodeLabel, embeddingProvider, vectorStoreProvider } = this.indexParams;
-      const queryEmbedding = await this.embeddingService.createEmbedding(embeddingProvider, query);
-      const results = await this.vectorStoreService.search(vectorStoreProvider, this.indexName, query, null, { queryEmbedding });
+      const { embedding: queryEmbedding } =
+        await this.embeddingService.createEmbedding(embeddingProvider, { input: query });
+      const results = await this.vectorStoreService.search(
+        vectorStoreProvider,
+        this.indexName,
+        query,
+        null,
+        { k: 5, queryEmbedding }
+      );
       let hits = results
         .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
           const key = k.replace(/__/g, '.');
@@ -221,7 +229,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
           };
         }
       });
-      const contextLines = hits.map((h: any) => h.text);
+      const contextLines = hits.map(this.getHitText);
       const context = contextLines.join('\n\n');
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });
@@ -231,6 +239,13 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       this.onEnd({ errors });
       throw err;
     }
+  }
+
+  getHitText({ metadata, text }) {
+    if (metadata?.filename) {
+      text += `\nCitation: ${metadata.filename}, page: ${metadata.page}`;
+    }
+    return text;
   }
 
   enrich(args: any, context: string) {

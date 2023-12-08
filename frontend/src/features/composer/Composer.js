@@ -15,9 +15,9 @@ import ReactFlow, {
 import { v4 as uuidv4 } from 'uuid';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
-import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 
+import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
@@ -446,7 +446,7 @@ export function Composer() {
             <div style={{ marginBottom: 20, marginTop: 16, width: 720 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Result:</div>
               {composition.returnType === 'application/json' ?
-                <ReactJson src={testResult} />
+                <JsonView src={testResult} />
                 :
                 <div>{String(testResult.content)}</div>
               }

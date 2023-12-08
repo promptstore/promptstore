@@ -1,4 +1,5 @@
 import fs from 'fs';
+import isEmpty from 'lodash.isempty';
 import multer from 'multer';
 import path from 'path';
 import uuid from 'uuid';
@@ -9,11 +10,15 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
   const {
     appsService,
+    dataSourcesService,
     documentsService,
     functionsService,
+    graphStoreService,
+    indexesService,
     modelsService,
     promptSetsService,
     uploadsService,
+    vectorStoreService,
   } = services;
 
   const upload = multer({ dest: '/var/data' });
@@ -423,7 +428,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     res.sendStatus(200);
   });
 
-  app.delete('/api/uploads', auth, (req, res, next) => {
+  app.delete('/api/uploads', auth, async (req, res, next) => {
     const names = req.query.names.split(',');
     const workspaceId = parseInt(req.query.workspace, 10);
     if (isNaN(workspaceId)) {
@@ -439,8 +444,36 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       }
       const filenames = names.map(n => n.split('/').pop());
       try {
-        await uploadsService.deleteWorkspaceFiles(workspaceId, filenames);
-        res.json(names);
+        const uploadIds = await uploadsService.deleteWorkspaceFiles(workspaceId, filenames);
+        const appId = parseInt(req.query.app, 10);
+        if (!isNaN(appId)) {
+          const { documents, indexes } = await appsService.getApp(appId);
+          const newDocuments = { ...documents };
+          let newIndexes = [...indexes];
+          if (!isEmpty(documents)) {
+            for (const uploadId of uploadIds) {
+              const doc = documents[uploadId];
+              if (doc) {
+                if (doc.index) {
+                  await deletePhysicalIndexAndData(doc.index);
+                  await indexesService.deleteIndexes([doc.index]);
+                }
+                if (doc.dataSource) {
+                  await dataSourcesService.deleteDataSources([doc.dataSource]);
+                }
+                delete newDocuments[uploadId];
+              }
+              newIndexes = newIndexes.filter(x => x !== doc.index);
+            }
+          }
+          const app = await appsService.upsertApp({
+            id: appId,
+            documents: newDocuments,
+            indexes: newIndexes,
+          });
+          return res.json(app);
+        }
+        res.json(uploadIds);
       } catch (e) {
         logger.error('Error deleting documents:', e);
         res.status(500).json({
@@ -449,5 +482,25 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       }
     });
   });
+
+  async function deletePhysicalIndexAndData(indexId) {
+    const { name, nodeLabel, vectorStoreProvider, graphStoreProvider } = await indexesService.getIndex(indexId);
+    if (vectorStoreProvider) {
+      try {
+        await vectorStoreService.dropData(vectorStoreProvider, name, { nodeLabel });
+        await vectorStoreService.dropIndex(vectorStoreProvider, name);
+      } catch (err) {
+        logger.error(`Error dropping index %s:%s:`, vectorStoreProvider, name, err);
+        // maybe no such index
+      }
+    } else if (graphStoreProvider) {
+      try {
+        await graphStoreService.dropData(graphStoreProvider);
+      } catch (err) {
+        logger.error(`Error dropping data from %s:%s:`, graphStoreProvider, name, err);
+        // maybe no such store
+      }
+    }
+  }
 
 };

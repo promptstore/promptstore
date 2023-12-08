@@ -15,7 +15,7 @@ export function TracesService({ pg, logger }) {
     };
   }
 
-  async function getTraces(workspaceId) {
+  async function getTraces(workspaceId, limit) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
     }
@@ -24,9 +24,9 @@ export function TracesService({ pg, logger }) {
       FROM traces
       WHERE workspace_id = $1
       ORDER BY created DESC
-      LIMIT 20
+      LIMIT $2
       `;
-    const { rows } = await pg.query(q, [workspaceId]);
+    const { rows } = await pg.query(q, [workspaceId, limit]);
     if (rows.length === 0) {
       return [];
     }

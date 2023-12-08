@@ -137,12 +137,15 @@ export function UploadsList({ workspaceId }) {
   }, [selectedId]);
 
   useEffect(() => {
-    const source = Object.values(dataSources)
-      .find(s => s.correlationId === correlationId[s.id]);
-    if (source) {
-      setCorrelationId((curr) => ({ ...curr, [source.id]: null }));
+    for (const source of Object.values(dataSources)) {
+      const entry = Object.entries(correlationId)
+        .find(([_, correlationId]) => correlationId === source.correlationId);
+      if (entry) {
+        const uploadId = entry[0];
+        setCorrelationId((curr) => ({ ...curr, [uploadId]: null }));
+      }
     }
-  }, [correlationId, dataSources]);
+  }, [dataSources]);
 
   const onCancel = () => {
     setIsModalOpen(false);

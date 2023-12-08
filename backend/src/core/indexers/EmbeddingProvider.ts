@@ -1,12 +1,9 @@
 import { PluginMetadata } from './common_types';
-
-export enum EmbeddingProviderEnum {
-  sentenceencoder = 'sentenceencoder',
-}
+import { EmbeddingRequest, EmbeddingResponse } from '../conversions/RosettaStone';
 
 export interface EmbeddingService {
 
-  createEmbedding(provider: EmbeddingProviderEnum, content: string): Promise<number[]>
+  createEmbedding(provider: string, request: EmbeddingRequest): Promise<EmbeddingResponse>
 
   getEmbeddingProviders?(): PluginMetadata[];
 
@@ -22,24 +19,14 @@ export abstract class EmbeddingProvider {
     this.embeddingService = embeddingService;
   }
 
-  static create(provider: EmbeddingProviderEnum, embeddingService: EmbeddingService) {
-    switch (provider) {
-      case EmbeddingProviderEnum.sentenceencoder:
-        return new SentenceEncoder(embeddingService);
-
-      default:
-        return null;
-    }
+  static create(provider: string, embeddingService: EmbeddingService) {
+    return new class extends EmbeddingProvider {
+      createEmbedding(request: EmbeddingRequest) {
+        return this.embeddingService.createEmbedding(provider, request);
+      }
+    }(embeddingService);
   }
 
-  abstract createEmbedding(content: string): Promise<number[]>
-
-}
-
-export class SentenceEncoder extends EmbeddingProvider {
-
-  createEmbedding(content: string) {
-    return this.embeddingService.createEmbedding(EmbeddingProviderEnum.sentenceencoder, content);
-  }
+  abstract createEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse>
 
 }

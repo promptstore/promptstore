@@ -176,7 +176,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/chat-sessions:
+   * /api/workspaces/{workspaceId}/chat-sessions:
    *   get:
    *     description: List all the chat sessions in the given workspace.
    *     tags: [ChatSessions]
@@ -220,7 +220,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/chat-sessions/:id:
+   * /api/chat-sessions/{id}:
    *   get:
    *     description: Lookup a session by id.
    *     tags: [ChatSessions]
@@ -292,6 +292,7 @@ export default ({ app, auth, logger, services }) => {
         semanticFunctionName: 'create_summary_label',
         args,
         params: {},
+        extraIndexes: values.extraIndexes,
       });
       if (errors) {
         return res.status(500).send({ errors });
@@ -310,7 +311,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/chat-sessions/:id:
+   * /api/chat-sessions/{id}:
    *   put:
    *     description: Update a session.
    *     tags: [ChatSessions]
@@ -362,6 +363,7 @@ export default ({ app, auth, logger, services }) => {
           semanticFunctionName: 'create_summary_label',
           args,
           params: {},
+          extraIndexes: values.extraIndexes,
         });
         if (errors) {
           res.status(500).send({ errors });
@@ -381,7 +383,7 @@ export default ({ app, auth, logger, services }) => {
 
   /**
    * @openapi
-   * /api/chat-sessions/:id:
+   * /api/chat-sessions/{id}:
    *   delete:
    *     description: Delete an chat session.
    *     tags: [ChatSessions]

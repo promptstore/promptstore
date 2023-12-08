@@ -91,7 +91,7 @@ export class AgentEventEmitterCallback extends AgentCallback {
   }
 
   onEvaluateTurnStart({ index }: EvaluateTurnOnStartResponse) {
-    this.emitter.emit('event', `Turn ${index}`);
+    this.emitter.emit('event', `Turn ${index + 1}`);
   }
 
   onEvaluateTurnEnd(params: EvaluateTurnOnEndResponse) {

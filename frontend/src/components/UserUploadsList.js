@@ -14,7 +14,6 @@ import hr from '@tsmx/human-readable';
 
 import { ContentView } from './ContentView';
 import {
-  selectDataSources,
   selectLoading as selectDataSourcesLoading,
 } from '../features/dataSources/dataSourcesSlice';
 import { getExtension, getHumanFriendlyDelta } from '../utils';
@@ -29,12 +28,10 @@ import {
 
 export function UserUploadsList({ loading, workspaceId, appId }) {
 
-  const [correlationId, setCorrelationId] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
-  const dataSources = useSelector(selectDataSources);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const uploadsLoading = useSelector(selectLoading);
   const uploads = useSelector(selectUploads);
@@ -42,8 +39,6 @@ export function UserUploadsList({ loading, workspaceId, appId }) {
   const tableLoading = loading || uploadsLoading;
 
   const sourceUploads = uploads[appId] || [];
-
-  // console.log('sourceUploads:', sourceUploads);
 
   const data = useMemo(() => {
     const list = sourceUploads.map((doc) => ({
@@ -75,14 +70,6 @@ export function UserUploadsList({ loading, workspaceId, appId }) {
       dispatch(getUploadContentAsync(appId, selectedId, 1000 * 1024));
     }
   }, [selectedId]);
-
-  useEffect(() => {
-    const source = Object.values(dataSources)
-      .find(s => s.correlationId === correlationId[s.id]);
-    if (source) {
-      setCorrelationId((curr) => ({ ...curr, [source.id]: null }));
-    }
-  }, [correlationId, dataSources]);
 
   const onCancel = () => {
     setIsModalOpen(false);

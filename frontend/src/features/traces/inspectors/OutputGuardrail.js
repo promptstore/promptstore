@@ -1,6 +1,7 @@
 import React from 'react';
 import { Descriptions, Typography } from 'antd';
-import ReactJson from 'react-json-view';
+
+import { JsonView } from '../../../components/JsonView';
 
 export function OutputGuardrail({ step, title }) {
   return (
@@ -12,7 +13,7 @@ export function OutputGuardrail({ step, title }) {
       </Descriptions.Item>
       <Descriptions.Item span={3} label="output">
         {step.outputParser === 'json' ?
-          <ReactJson src={JSON.parse(step.output?.choices[0].message.content)} />
+          <JsonView src={step.output?.choices[0].message.content} />
           :
           <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
             {step.output?.choices[0].message.content}

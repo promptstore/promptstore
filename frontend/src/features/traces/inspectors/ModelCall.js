@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { Boolean, Messages, Output } from './common';
 
 export function ModelCall({ messages, step, title }) {
@@ -17,7 +17,7 @@ export function ModelCall({ messages, step, title }) {
         {step.model}
       </Descriptions.Item>
       <Descriptions.Item label="params" span={2}>
-        <ReactJson collapsed src={step.modelParams} />
+        <JsonView src={step.modelParams} />
       </Descriptions.Item>
       <Descriptions.Item label="batch" span={1}>
         <Boolean step={step.isBatch} />

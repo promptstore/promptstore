@@ -16,9 +16,6 @@ import {
   OpenAIMessageImpl,
   UserMessage,
 } from '../core/models/openai';
-import {
-  SemanticFunction,
-} from '../core/semanticfunctions/SemanticFunction';
 import * as utils from '../utils';
 
 import { Step } from './Action_types';
@@ -60,12 +57,23 @@ export default ({ logger, services }) => {
     useFunctions: boolean;
     semanticFunction: any;
 
-    constructor({ name, isChat, model, modelParams, provider, workspaceId, username, callbacks, useFunctions, semanticFunction }) {
+    constructor({
+      name,
+      isChat = false,
+      model,
+      modelParams,
+      provider,
+      workspaceId,
+      username,
+      callbacks,
+      useFunctions,
+      semanticFunction,
+    }) {
       this.name = name;
       this.isChat = isChat;
-      this.model = model || 'gpt-3.5-turbo';
+      this.model = model || (isChat ? 'gpt-3.5-turbo' : 'text-davinci-003');
       this.modelParams = {
-        max_tokens: 255,
+        max_tokens: 1024,
         ...(modelParams || {}),
         n: 1,
       };
@@ -163,14 +171,14 @@ export default ({ logger, services }) => {
               step,
               selfEvaluate
             );
-            console.log('\n!!!!! OBSERVATION:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
-            for (let callback of this.currentCallbacks) {
-              callback.onObserveModelEnd({
-                model: this.model,
-                response: { ...response },
-              });
-            }
-            this.history.push(response.choices[0].message);
+            // console.log('\n!!!!! OBSERVATION:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
+            // for (let callback of this.currentCallbacks) {
+            //   callback.onObserveModelEnd({
+            //     model: this.model,
+            //     response: { ...response },
+            //   });
+            // }
+            // this.history.push(response.choices[0].message);
           }
 
           for (let callback of this.currentCallbacks) {
@@ -281,7 +289,6 @@ export default ({ logger, services }) => {
         });
       }
       if (allowedTools.includes('semanticFunction')) {
-        logger.debug('semanticFunction:', this.semanticFunction);
         functions.push({
           id: uuid.v4(),
           name: this.semanticFunction.name,
@@ -354,60 +361,86 @@ export default ({ logger, services }) => {
         content = this._getReturnContent(goal, previousSteps, currentStep, call, functionOutput);
       }
       const message = new FunctionMessage(content, call.name);
-      const request = {
-        model: this.model,
-        model_params: this.modelParams,
-        functions,
-        prompt: { history: [...this.history], messages: [message] },
-      };
-      console.log('\n!!!!! OBSERVATION REQUEST:\n', JSON.stringify(request, null, 2), '\n!!!!!\n');
       this.history.push(message);
-      for (let callback of this.currentCallbacks) {
-        callback.onObserveModelStart({ request });
-      }
-      let response: ChatResponse;
-      if (this.isChat) {
-        response = await llmService.createChatCompletion({
-          provider: this.provider,
-          request,
-        });
-        console.log('\n!!!!! OBSERVATION RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
-      } else {
-        response = await llmService.createCompletion({
-          provider: this.provider,
-          request,
-        });
-      }
 
-      if (selfEvaluate) {
-        // validate response
-        const valid = await this._evaluateResponse(step, response.choices[0].message.content);
-        const retry = retryCount < 2;
-        for (let callback of this.currentCallbacks) {
-          callback.onEvaluateResponseEnd({ valid, retry });
-        }
-        if (!valid && retry) {
-          response = await this._makeObservation(
-            step,
-            call,
-            extraFunctionCallParams,
-            modelParams,
-            functions,
-            goal,
-            previousSteps,
-            currentStep,
-            selfEvaluate,
-            retryCount + 1
-          );
-        }
-      }
+      // TODO why do I need another call to comment on the tool result
 
-      return response;
+      // const request = {
+      //   model: this.model,
+      //   model_params: this.modelParams,
+      //   functions,
+      //   prompt: { history: [...this.history], messages: [message] },
+      // };
+      // console.log('\n!!!!! OBSERVATION REQUEST:\n', JSON.stringify(request, null, 2), '\n!!!!!\n');
+
+      // for (let callback of this.currentCallbacks) {
+      //   callback.onObserveModelStart({ request });
+      // }
+      // let response: ChatResponse;
+      // if (this.isChat) {
+      //   response = await llmService.createChatCompletion({
+      //     provider: this.provider,
+      //     request,
+      //   });
+      //   console.log('\n!!!!! OBSERVATION RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
+      // } else {
+      //   response = await llmService.createCompletion({
+      //     provider: this.provider,
+      //     request,
+      //   });
+      // }
+
+      // if (selfEvaluate) {
+      //   // validate response
+      //   const valid = await this._evaluateResponse(step, response.choices[0].message.content);
+      //   const retry = retryCount < 2;
+      //   for (let callback of this.currentCallbacks) {
+      //     callback.onEvaluateResponseEnd({ valid, retry });
+      //   }
+      //   if (!valid && retry) {
+      //     response = await this._makeObservation(
+      //       step,
+      //       call,
+      //       extraFunctionCallParams,
+      //       modelParams,
+      //       functions,
+      //       goal,
+      //       previousSteps,
+      //       currentStep,
+      //       selfEvaluate,
+      //       retryCount + 1
+      //     );
+      //   }
+      // }
+
+      // return response;
+
+      // TODO the main loop expects a response format
+      return {
+        id: uuid.v4(),
+        created: new Date(),
+        choices: [
+          {
+            index: 0,
+            message: {
+              content,
+              role: MessageRole.assistant,
+            },
+          },
+        ],
+        n: 1,
+      };
     }
 
     async _callFunction(call: FunctionCall, extraFunctionCallParams: any) {
       const { email, indexName } = extraFunctionCallParams;
-      let args = JSON.parse(call.arguments);
+      let args: any;
+      try {
+        args = JSON.parse(call.arguments);
+      } catch (err) {
+        logger.error('Error parsing call arguments:', String(err), call.arguments);
+        return "I don't know how to answer that";
+      }
       for (let callback of this.currentCallbacks) {
         callback.onFunctionCallStart({ call, args });
       }
@@ -423,7 +456,7 @@ export default ({ logger, services }) => {
           }
           const searchResponse = await vectorStoreService.search(index.vectorStoreProvider, indexName, args.input);
           response = searchResponse.hits.join(PARA_DELIM);
-        } if (call.name === this.semanticFunction.name) {
+        } else if (call.name === this.semanticFunction?.name) {
           const functionResponse = await executionsService.executeFunction({
             workspaceId: this.workspaceId,
             username: this.username,
@@ -431,7 +464,12 @@ export default ({ logger, services }) => {
             args,
             params: { maxTokens: 1024 },
           });
-          response = functionResponse.response.choices[0].message.content;
+          const message = functionResponse.response.choices[0].message;
+          if (message.function_call) {
+            response = message.function_call.arguments;
+          } else {
+            response = message.content;
+          }
         } else {
           if (call.name === 'email') {
             args.agentName = this.name;
@@ -440,7 +478,7 @@ export default ({ logger, services }) => {
           response = await toolService.call(call.name, args);
         }
       } catch (err) {
-        logger.debug('Error calling tool:', call.name, err);
+        logger.debug('Error calling tool:', call.name, String(err), err.stack);
         response = 'Invalid tool call';
       }
       for (let callback of this.currentCallbacks) {

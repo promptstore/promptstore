@@ -2,7 +2,7 @@ import path from 'path';
 
 export default ({ app, auth, constants, logger, pg, services }) => {
 
-  const { dataSourcesService, documentsService, sqlSourceService } = services;
+  const { appsService, dataSourcesService, documentsService, sqlSourceService } = services;
 
   /**
    * @openapi
@@ -453,7 +453,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/data-sources:
+   * /api/workspaces/{workspaceId}/data-sources:
    *   get:
    *     description: List all the data sources in the given workspace.
    *     tags: [DataSources]
@@ -506,7 +506,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/data-sources/:id:
+   * /api/data-sources/{id}:
    *   get:
    *     description: Lookup a data source by id.
    *     tags: [DataSources]
@@ -536,7 +536,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/data-sources/:id/content:
+   * /api/data-sources/{id}/content:
    *   get:
    *     description: Return the data of a data source. The data may be the text content or a sample of rows from a database.
    *     tags: [DataSources]
@@ -667,14 +667,25 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    */
   app.post('/api/data-sources', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
+    const { appId, uploadId, values } = req.body;
     const dataSource = await dataSourcesService.upsertDataSource(values, username);
+    if (appId) {
+      const app = appsService.getApp(appId);
+      await appsService.upsertApp({
+        id: appId,
+        documents: {
+          [uploadId]: {
+            dataSource: dataSource.id,
+          },
+        },
+      });
+    }
     res.json(dataSource);
   });
 
   /**
    * @openapi
-   * /api/data-sources/:id:
+   * /api/data-sources/{id}:
    *   put:
    *     description: Update a data source.
    *     tags: [DataSources]
@@ -711,7 +722,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
 
   /**
    * @openapi
-   * /api/data-sources/:id:
+   * /api/data-sources/{id}:
    *   delete:
    *     description: Delete a data source.
    *     tags: [DataSources]

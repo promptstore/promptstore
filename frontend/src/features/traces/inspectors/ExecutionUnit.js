@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { Boolean, Input, Output } from './common';
 
 export function ExecutionUnit({ step, title }) {
@@ -19,7 +19,7 @@ export function ExecutionUnit({ step, title }) {
             {step.implementation.model}
           </Descriptions.Item>
           <Descriptions.Item label="params" span={2}>
-            <ReactJson collapsed src={step.implementation.modelParams} />
+            <JsonView src={step.implementation.modelParams} />
           </Descriptions.Item>
         </>
         : null

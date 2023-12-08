@@ -116,10 +116,11 @@ export function UploadsService({ pg, logger }) {
     if (!Array.isArray(filenames) || filenames.length === 0) {
       return [];
     }
-    await pg.query(`
+    const { rows } = await pg.query(`
       DELETE FROM file_uploads WHERE workspace_id = $1 AND filename = ANY($2::VARCHAR[])
+      RETURNING id
       `, [workspaceId, filenames]);
-    return filenames;
+    return rows.map(r => r.id);
   }
 
   return {

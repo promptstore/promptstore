@@ -93,9 +93,9 @@ export const getDialectsAsync = () => async (dispatch) => {
   dispatch(setDialects({ dialects: res.data }));
 };
 
-export const createDataSourceAsync = ({ correlationId, values }) => async (dispatch) => {
+export const createDataSourceAsync = ({ correlationId, appId, uploadId, values }) => async (dispatch) => {
   const url = '/api/data-sources';
-  const res = await http.post(url, values);
+  const res = await http.post(url, { appId, uploadId, values });
   dispatch(setDataSources({ dataSources: [{ ...res.data, correlationId }] }));
 };
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Input } from 'antd';
-import ReactJson from 'react-json-view';
+
+import { JsonView } from './JsonView';
 
 const { TextArea } = Input;
 
@@ -69,9 +70,9 @@ function JsonInput({ value, onChange, onError, theme, height = 320 }) {
         padding: '4px 11px',
         overflowY: 'auto',
       }}>
-        <ReactJson src={value}
+        <JsonView src={value}
           style={{ height: height - 10 }}
-          theme={theme === 'dark' ? 'shapeshifter' : 'rjv-default'}
+          theme={theme === 'dark' ? 'grayscale' : 'grayscale:inverted'}
         />
       </div>
       <Button size="small" type="default"

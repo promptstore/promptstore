@@ -107,7 +107,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/chat', auth, async (req, res) => {
-    logger.debug('body:', req.body);
+    // logger.debug('body:', req.body);
     const { username } = req.user;
     let {
       args,
@@ -226,7 +226,8 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         const { embeddingProvider, vectorStoreProvider } = index;
         const searchParams = {};
         if (vectorStoreProvider === 'neo4j') {
-          const queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, content);
+          const { embedding: queryEmbedding } =
+            await embeddingService.createEmbedding(embeddingProvider, { input: content });
           searchParams['queryEmbedding'] = queryEmbedding;
         }
         const hits = await vectorStoreService.search(vectorStoreProvider, indexName, content, null, searchParams);
@@ -430,15 +431,15 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const { input, model, provider } = req.body;
     let embedding;
     if (provider === 'sentenceencoder') {
-      embedding = await embeddingService.createEmbedding(provider, input);
+      embedding = await embeddingService.createEmbedding(provider, { input });
     } else {
       embedding = await llmService.createEmbedding(provider, { model, input });
     }
-    res.json(embedding);
+    res.json(embedding.embedding);
   });
 
   app.post('/api/image-request', auth, async (req, res) => {
-    logger.debug('body:', req.body);
+    // logger.debug('body:', req.body);
     const {
       n,
       prompt,

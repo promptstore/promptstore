@@ -1,7 +1,10 @@
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { default as dayjs } from 'dayjs';
 import { ValidatorResult, validate } from 'jsonschema';
+import type * as tiktoken from 'js-tiktoken';
+import { encodingForModel, getEncoding } from 'js-tiktoken';
 
+import logger from '../../logger';
 import { fillTemplate } from '../../utils';
 
 import { Validator } from '../common_types';
@@ -44,12 +47,17 @@ export class PromptTemplate {
     this.callbacks = callbacks || [];
   }
 
-  call({ args, callbacks = [] }: PromptTemplateCallParams) {
+  call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, contextWindow, maxTokens, modelKey });
     try {
       if (this.schema) {
         this.validate(args, this.schema);
+      }
+      if (args.context) {
+        // check if context length will fit within the model's context window
+        args = this.checkContextLength(args, contextWindow, maxTokens, modelKey);
+        // logger.debug('new args:', args);
       }
       const messages = this.messages.map((message) => ({
         role: message.role,
@@ -62,6 +70,39 @@ export class PromptTemplate {
       this.onEnd({ errors });
       throw err;
     }
+  }
+
+  checkContextLength(args: any, contextWindow: number, maxTokens: number, modelKey: string) {
+    logger.debug('checking context length');
+    // logger.debug('model: %s, context window: %d, args:', modelKey, contextWindow, args);
+    const model = modelKey as tiktoken.TiktokenModel;
+    let encoding: tiktoken.Tiktoken;
+    try {
+      encoding = encodingForModel(model);
+    } catch (err) {
+      encoding = getEncoding('gpt2');
+    }
+    const preContextArgs = { ...args, context: '' };
+    const preContextText = this.messages
+      .map(m => this.templateFiller(m.content, preContextArgs))
+      .join('\n\n');
+    const preContextTokens = encoding.encode(preContextText);
+    const preContextLength = preContextTokens.length;
+    // logger.debug('pre context length:', preContextLength);
+    const available = contextWindow - preContextLength - maxTokens;
+    // logger.debug('available length:', available);
+    const contextTokens = encoding.encode(args.context);
+    const contextLength = contextTokens.length;
+    // logger.debug('context length:', contextLength);
+    let context: string;
+    if (contextLength > available) {
+      logger.debug('context length > available', contextLength, available);
+      logger.debug('culling...');
+      context = args.context.slice(0, available);
+    } else {
+      context = args.context;
+    }
+    return { ...args, context };
   }
 
   validate(instance: object, schema: object) {

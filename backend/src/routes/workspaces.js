@@ -229,7 +229,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:id:
+   * /api/workspaces/{id}:
    *   get:
    *     description: Lookup a workspace by id.
    *     tags: [Workspaces]
@@ -259,7 +259,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/keys:
+   * /api/workspaces/{workspaceId}/keys:
    *   post:
    *     description: Create a new API key for a given user in a given workspace.
    *     tags: [Workspaces]
@@ -311,7 +311,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:workspaceId/keys:
+   * /api/workspaces/{workspaceId}/keys:
    *   delete:
    *     description: Delete one or more api keys belonging to a user.
    *     tags: [Workspaces]
@@ -385,7 +385,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:id:
+   * /api/workspaces/{id}:
    *   put:
    *     description: Update a workspace.
    *     tags: [Workspaces]
@@ -422,7 +422,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   /**
    * @openapi
-   * /api/workspaces/:id:
+   * /api/workspaces/{id}:
    *   delete:
    *     description: Delete a workspace.
    *     tags: [Workspaces]

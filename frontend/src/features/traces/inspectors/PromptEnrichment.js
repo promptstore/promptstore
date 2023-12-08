@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions, Space, Typography } from 'antd';
-import ReactJson from 'react-json-view';
 
+import { JsonView } from '../../../components/JsonView';
 import { Input } from './common';
 
 export function PromptEnrichment({ step, title }) {
@@ -18,7 +18,7 @@ export function PromptEnrichment({ step, title }) {
             </Typography.Paragraph>
             : null
           }
-          <ReactJson collapsed src={step.enrichedArgs} />
+          <JsonView src={step.enrichedArgs} />
         </Space>
       </Descriptions.Item>
     </Descriptions>

@@ -60,7 +60,7 @@ export function AppsService({ pg, logger }) {
         WHERE id = $5
         RETURNING *
         `,
-        [app.name, val, username, modified, app.id]
+        [app.name, app, username, modified, app.id]
       );
       return mapRow(rows[0]);
     } else {

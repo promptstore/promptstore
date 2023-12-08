@@ -7,6 +7,9 @@ import {
   AnthropicChatCompletionResponse
 } from '../models/anthropic_types';
 import {
+  CohereChatCompletionResponse,
+} from '../models/cohere_types';
+import {
   OpenAIMessageImpl,
   UserMessage,
   AssistantMessage,
@@ -188,10 +191,10 @@ export interface SafetyRating {
 }
 
 export interface LogProbs {
-  text_offset: number[];
+  text_offset?: number[];
   token_logprobs: number[];
   tokens: string[];
-  top_logprobs: Record<string, number>[];
+  top_logprobs?: Record<string, number>[];
 }
 
 interface ChatCompletionChoice {
@@ -240,7 +243,7 @@ export interface ResponseMetadata {
 }
 
 export interface EmbeddingRequest {
-  model: string;  // ID of the model to use. 
+  model?: string;  // ID of the model to use. 
   input: string | string[];  // Input text to embed, encoded as a string or array of tokens. To embed multiple inputs in a single request, pass an array of strings or array of token arrays. Each input must not exceed the max input tokens for the model (8191 tokens for text-embedding-ada-002).
   user?: string;  // A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
 }
@@ -961,6 +964,112 @@ function convertContentTypeToString(content: ContentType) {
     return content;
   }
   return '';
+}
+
+/*** ************/
+
+/*** translate to cohere ************/
+
+export function toCohereChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+  } = request;
+  const {
+    n,
+    temperature,
+    top_k,
+    top_p = 0.75,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  const prompt = messages.map(m => m.content).join(PARA_DELIM);
+  return {
+    modelId: model,
+    body: {
+      prompt,
+      // model,
+      num_generations: n,
+      stream,
+      max_tokens,
+      temperature,
+      stop_sequences: stop?.length ? stop : undefined,
+      k: top_k,
+      p: Math.max(top_p, 0.99),
+
+      // doesn't appear supported in Bedrock API - "ValidationException: Malformed input request: extraneous key [presence_penalty]"
+      // frequency_penalty,
+      // presence_penalty,
+
+      logit_bias,
+    }
+  };
+}
+
+export async function fromCohereChatResponse(response: CohereChatCompletionResponse, parserService) {
+  const {
+    id,
+    prompt,
+    generations,
+    meta,
+  } = response;
+  const content = generations[0].text;
+  let choices: ChatCompletionChoice[];
+  const { action, action_input } = await parserService.parse('json', content);
+  if (action) {
+    if (action === 'Final Answer') {
+      choices = [
+        {
+          index: 0,
+          message: {
+            role: MessageRole.assistant,
+            content: action_input,
+            final: true,
+          },
+        }
+      ];
+    } else {
+      const args = { input: action_input };
+      choices = [
+        {
+          index: 0,
+          message: {
+            role: MessageRole.function,
+            content: null,
+            function_call: {
+              name: action,
+              arguments: JSON.stringify(args),
+            },
+          },
+        }
+      ];
+    }
+  } else {
+    choices = generations.map(g => ({
+      index: g.index,
+      message: {
+        role: MessageRole.assistant,
+        content: g.text,
+        finish_reason: g.finish_reason,
+      },
+      logprobs: {
+        tokens: g.token_likelihoods?.map(t => t.token),
+        token_logprobs: g.token_likelihoods?.map(t => t.likelihood),
+      },
+    }));
+  }
+  return {
+    id,
+    created: new Date(),
+    model: meta?.api_version?.version,
+    n: generations.length,
+    choices,
+  };
 }
 
 /*** ************/

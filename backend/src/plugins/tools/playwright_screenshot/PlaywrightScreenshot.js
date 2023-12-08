@@ -15,14 +15,14 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
   let _browser;
 
   async function getBrowser() {
-    if (!_browser) {
+    if (!_browser || !_browser.isConnected()) {
       _browser = await chromium.launch();
     }
     return _browser;
   }
 
-  async function call({ input }) {
-    logger.debug('evaluating input:', input);
+  async function call({ input }, raw) {
+    logger.debug('evaluating input:', input, { raw });
     let browser;
     try {
       browser = await getBrowser();
@@ -35,8 +35,12 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
           .replace(/(\.|%[A-Fa-f0-9]{2})/g, '_') + '.png';
       const localFilePath = '/var/data/images/' + filename;
       await page.screenshot({ path: localFilePath });
-      const { imageUrl, object } = await saveImage(localFilePath);
-      return 'Image URL: ' + imageUrl;
+      const { imageUrl, objectName } = await saveImage(localFilePath);
+      if (raw) {
+        return { imageUrl, objectName };
+      }
+      // return 'Image URL: ' + imageUrl;
+      return JSON.stringify({ imageUrl });
     } catch (err) {
       logger.error(`error evaluating url input "${input}":`, err);
       return "I don't know how to do that.";

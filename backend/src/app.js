@@ -127,7 +127,21 @@ const swaggerOptions = {
         name: 'Europa Labs Pty. Ltd.',
         url: 'https://promptstore.dev',
       },
-    }
+    },
+    components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'apikey',
+        },
+      },
+    },
+    security: [
+      {
+        ApiKeyAuth: [],
+      },
+    ],
   },
   apis,
 };
@@ -173,7 +187,12 @@ const emailService = EmailService({
   logger,
 });
 
-const embeddingService = EmbeddingService({ logger, registry: embeddingPlugins });
+const embeddingService = EmbeddingService({
+  logger, registry: {
+    ...embeddingPlugins,
+    ...llmPlugins,
+  }
+});
 
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 
@@ -315,10 +334,6 @@ const VerifyToken = async (req, res, next) => {
 
 const auth = VerifyToken;
 
-const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, { app, auth });
-
-const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
-
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
 const executionsService = ExecutionsService({
@@ -331,7 +346,6 @@ const executionsService = ExecutionsService({
     featureStoreService,
     functionsService,
     graphStoreService,
-    guardrailsService,
     indexesService,
     llmService,
     modelProviderService,
@@ -344,13 +358,23 @@ const executionsService = ExecutionsService({
   },
 });
 
-const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, { services: {
-  executionsService,
-}});
+const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
+  app, auth, services: {
+    executionsService,
+  }
+});
+
+const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
+
+const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
+  services: {
+    executionsService,
+  }
+});
 
 const toolService = ToolService({ logger, registry: toolPlugins });
 
-executionsService.addServices({ toolService });
+executionsService.addServices({ guardrailsService, toolService });
 
 const options = {
   app,

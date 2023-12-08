@@ -213,7 +213,7 @@ export const deleteUploadsAsync = ({ workspaceId, uploads }) => async (dispatch)
 export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
-  await http.post('/api/index/crawler', { params, workspaceId });
+  await http.post('/api/index/crawler', { correlationId, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -234,7 +234,7 @@ export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (d
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/api';
-  await http.post(url, { params, workspaceId });
+  await http.post(url, { correlationId, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -255,7 +255,7 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/csv';
-  await http.post(url, { documents, params, workspaceId });
+  await http.post(url, { correlationId, documents, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -272,11 +272,11 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
   }, 2000);
 };
 
-export const indexDocumentAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
+export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/document';
-  await http.post(url, { documents, params, workspaceId });
+  await http.post(url, { appId, correlationId, documents, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -297,7 +297,7 @@ export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async 
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/graph';
-  await http.post(url, { params, workspaceId });
+  await http.post(url, { correlationId, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -339,7 +339,7 @@ export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => as
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/wikipedia';
-  await http.post(url, { params, workspaceId });
+  await http.post(url, { correlationId, params, workspaceId });
   const intervalId = setInterval(async () => {
     let res;
     try {

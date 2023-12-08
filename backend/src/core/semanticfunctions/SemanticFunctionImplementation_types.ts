@@ -4,6 +4,7 @@ import { InputGuardrails } from '../guardrails/InputGuardrails';
 import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPipeline';
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import { ChatResponse, Message, ModelParams } from '../conversions/RosettaStone';
+import { SemanticFunction } from './SemanticFunction';
 
 export interface SemanticFunctionImplementationCallParams {
   args: any;
@@ -38,12 +39,17 @@ export type SemanticFunctionImplementationOnErrorCallbackFunction = (errors: any
 
 export interface SemanticFunctionImplementationParams {
   model: Model;
+  isDefault: boolean;
   argsMappingTemplate?: string;
   returnMappingTemplate?: string;
-  isDefault: boolean;
+  indexContentPropertyPath?: string;
+  indexContextPropertyPath?: string;
+  rewriteQuery?: boolean;
+  summarizeResults?: boolean;
   promptEnrichmentPipeline?: PromptEnrichmentPipeline;
   inputGuardrails?: InputGuardrails;
   outputProcessingPipeline?: OutputProcessingPipeline;
+  queryRewriteFunction?: SemanticFunction;
   dataMapper?: DataMapper;
   callbacks?: Callback[];
 }

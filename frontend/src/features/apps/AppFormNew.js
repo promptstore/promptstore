@@ -28,6 +28,10 @@ const layout = {
 
 const appTypeOptions = [
   {
+    value: 'analyst',
+    label: 'Analyst',
+  },
+  {
     value: 'chat',
     label: 'Chat',
   },

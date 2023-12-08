@@ -45,7 +45,12 @@ function BigQueryTool({ __key, __name, constants, logger, services }) {
       });
       logger.debug('recs:', recs);
       if (raw) {
-        return recs;
+        return {
+          content,
+          query,
+          ambiguities,
+          records: recs,
+        };
       }
       return getResultAsText(recs, ambiguities, content);
     } catch (err) {

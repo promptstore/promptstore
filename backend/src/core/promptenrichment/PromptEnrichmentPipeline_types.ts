@@ -6,6 +6,9 @@ import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 export interface PromptEnrichmentCallParams {
   args: any;
+  contextWindow?: number;
+  maxTokens?: number;
+  modelKey?: string;
   callbacks?: Callback[];
 }
 

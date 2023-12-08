@@ -16,13 +16,13 @@ import {
 import { CloseOutlined, DownloadOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
-import ReactJson from 'react-json-view';
 import isEmpty from 'lodash.isempty';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
 
 import Download from '../../components/Download';
 import { ExperimentsModalInput } from '../../components/ExperimentsModalInput';
+import { JsonView } from '../../components/JsonView';
 import { MappingModalInput } from '../../components/MappingModalInput';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
@@ -203,6 +203,7 @@ export function FunctionForm() {
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
+      .filter(m => m.type !== 'embedding')
       .map((m) => ({
         label: m.name,
         value: m.id,
@@ -436,7 +437,7 @@ export function FunctionForm() {
           onCancel={handleClose}
           onOk={handleClose}
           open={isTestModalOpen}
-          title={'Test ' + func?.name}
+          title={'Test ' + func.name}
           okText={'Done'}
           width={800}
           bodyStyle={{
@@ -454,7 +455,7 @@ export function FunctionForm() {
               </Button>
             </div>
             <SchemaForm
-              schema={func?.arguments}
+              schema={func.arguments}
               uiSchema={uiSchema}
               validator={validator}
               formData={formData}
@@ -466,7 +467,7 @@ export function FunctionForm() {
             <div style={{ marginBottom: 20, marginTop: 16, width: 720 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Result:</div>
               {func.returnType === 'application/json' ?
-                <ReactJson src={testResult} />
+                <JsonView src={testResult} />
                 :
                 <div>{String(testResult.choices[0].message.content)}</div>
               }
@@ -880,7 +881,7 @@ export function FunctionForm() {
                                   </div>
                                   {implementationsValue?.[index]?.indexes?.[idx]?.indexId ?
                                     <>
-                                      <Form.Item
+                                      {/* <Form.Item
                                         extra="Content path"
                                         initialValue="content"
                                         name={[field.name, 'indexContentPropertyPath']}
@@ -899,9 +900,9 @@ export function FunctionForm() {
                                         wrapperCol={{ span: 24 }}
                                       >
                                         <Input />
-                                      </Form.Item>
+                                      </Form.Item> */}
                                       <Form.Item
-                                        extra="All"
+                                        extra="Return All"
                                         name={[field.name, 'allResults']}
                                         valuePropName="checked"
                                         style={{ display: 'inline-block', width: 'calc(50% - 4px)' }}
@@ -938,6 +939,49 @@ export function FunctionForm() {
                           </>
                         )}
                       </Form.List>
+                      {implementationsValue?.[index]?.indexes?.length ?
+                        <>
+                          <Form.Item
+                            extra="Content path"
+                            initialValue="content"
+                            name={[field.name, 'indexContentPropertyPath']}
+                            placeholder="Content path"
+                            style={{ display: 'inline-block', width: 'calc(50% - 4px)' }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            extra="Context path"
+                            initialValue="context"
+                            name={[field.name, 'indexContextPropertyPath']}
+                            placeholder="Context path"
+                            style={{ display: 'inline-block', width: 'calc(50% - 4px)', marginLeft: 8 }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            extra="Rewrite Query"
+                            name={[field.name, 'rewriteQuery']}
+                            valuePropName="checked"
+                            style={{ display: 'inline-block', width: 'calc(50% - 4px)' }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Switch />
+                          </Form.Item>
+                          <Form.Item
+                            extra="Summarize"
+                            name={[field.name, 'summarizeResults']}
+                            valuePropName="checked"
+                            style={{ display: 'inline-block', width: 'calc(50% - 4px)', marginLeft: 8 }}
+                            wrapperCol={{ span: 24 }}
+                          >
+                            <Switch />
+                          </Form.Item>
+                        </>
+                        : null
+                      }
                     </Col>
                     <Col span={6} style={{
                       border: '1px solid #d9d9d9',
@@ -1021,7 +1065,10 @@ export function FunctionForm() {
                         {!isNew ?
                           <>
                             <div style={{ flex: 1 }}></div>
-                            <Button type="primary" onClick={() => { handleTest(index); }}>Test</Button>
+                            <Button type="primary"
+                              disabled={isEmpty(func?.arguments)}
+                              onClick={() => { handleTest(index); }}
+                            >Test</Button>
                           </>
                           : null
                         }

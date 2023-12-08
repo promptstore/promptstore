@@ -22,13 +22,17 @@ function SentenceEncoder({ __name, __metadata, constants, logger }) {
     });
   }
 
-  async function createEmbedding(input) {
-    // logger.debug('input:', input);
+  async function createEmbedding(request) {
+    // logger.debug('request:', request);
     const model = await getModel();
     // logger.debug('model:', model);
-    const embedding = await model.embed(input);
+    const embedding = await model.embed(request.input);
     const values = embedding.dataSync();
-    return Array.from(values);
+    return {
+      index: 0,
+      object: 'embedding',
+      embedding: Array.from(values),
+    }
   }
 
   return {

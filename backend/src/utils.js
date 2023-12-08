@@ -173,7 +173,7 @@ export const fillTemplate = (templateString, templateVars, engine = 'es6') => {
 
     try {
       templateString = templateString.replace(/\`/g, '\\`');
-      logger.debug('templateString:', templateString);
+      // logger.debug('templateString:', templateString);
       const func = new Function(...Object.keys(templateVars), "return `" + templateString + "`;");
       const str = func(...Object.values(templateVars));
       // logger.debug('str:', str);

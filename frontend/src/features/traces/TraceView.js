@@ -1,10 +1,11 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Col, Descriptions, Row, Tree } from 'antd';
+import { Button, Col, Descriptions, Drawer, Row, Tree } from 'antd';
 import { DownloadOutlined, DownOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
+import ReactFlow, { ReactFlowProvider } from 'reactflow';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -20,10 +21,29 @@ import {
 
 const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
+const nodeProps = {
+  sourcePosition: 'right',
+  targetPosition: 'left',
+  style: { width: 200 },
+};
+
+const reactFlowProps = {
+  panOnDrag: false,
+  panOnScroll: false,
+  zoomOnScroll: false,
+  zoomOnPinch: false,
+  zoomOnDoubleClick: false,
+  nodesDraggable: false,
+  nodesConnectable: false,
+};
+
+const proOptions = { hideAttribution: true };
+
 export function TraceView() {
 
-  const [top, setTop] = useState(false);
+  const [open, setOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState([]);
+  const [top, setTop] = useState(false);
 
   const traces = useSelector(selectTraces);
   const loaded = useSelector(selectLoaded);
@@ -36,6 +56,8 @@ export function TraceView() {
 
   const id = location.pathname.match(/\/traces\/(.*)/)[1];
   const trace = traces[id];
+
+  // console.log('trace:', trace);
 
   const step = useMemo(() => {
     const inner = (trace) => {
@@ -104,6 +126,69 @@ export function TraceView() {
     }
   }, [trace]);
 
+  const graph = useMemo(() => {
+    if (trace) {
+      const nodes = [];
+      const edges = [];
+      let x = 0;
+      let y = 0;
+      let prior;
+      const enrichmentPipeline = getNode(trace.trace[0], 'enrichment-pipeline');
+      // console.log('enrichmentPipeline:', enrichmentPipeline);
+      if (enrichmentPipeline) {
+        for (const step of enrichmentPipeline.children) {
+          const node = {
+            id: step.id,
+            data: {
+              label: step.type,
+            },
+            position: { x, y },
+            ...nodeProps,
+          };
+          if (x === 0) {
+            node.type = 'input';
+          }
+          nodes.push(node);
+          if (prior) {
+            edges.push({
+              id: `${prior.id}-${step.id}`,
+              source: prior.id,
+              target: step.id,
+            });
+          }
+          prior = node;
+          x += 250;
+        }
+      }
+      const callModel = getNode(trace.trace[0], 'call-model');
+      if (callModel) {
+        const node = {
+          id: callModel.id,
+          data: {
+            label: callModel.type,
+          },
+          position: { x, y },
+          type: 'output',
+          ...nodeProps,
+        };
+        nodes.push(node);
+        if (prior) {
+          edges.push({
+            id: `${prior.id}-${callModel.id}`,
+            source: prior.id,
+            target: callModel.id,
+          });
+        }
+        prior = node;
+        x += 250;
+      }
+      return { nodes, edges };
+    }
+    return { nodes: [], edges: [] };
+  }, [trace]);
+
+  // console.log('graph:', graph);
+
   useEffect(() => {
     dispatch(getTraceAsync(id));
 
@@ -148,57 +233,91 @@ export function TraceView() {
     }
   };
 
+  const handleNodeClick = () => { };
+
   if (!loaded) {
     return (
       <div style={{ marginTop: 20 }}>Loading...</div>
     );
   }
   return (
-    <div style={{ marginTop: 20 }}>
-      <Row gutter={16}>
-        <Col span={6}>
-          <Descriptions className="trace" title="Trace" column={1} layout="vertical">
-            <Descriptions.Item span={1}>
-              <Tree
-                showLine
-                switcherIcon={<DownOutlined />}
-                onSelect={onSelect}
-                treeData={treeData}
-                style={{ padding: '10px 15px' }}
-                defaultExpandAll={true}
-              />
-            </Descriptions.Item>
-          </Descriptions>
-        </Col>
-        <Col span={14}>
-          <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
-            <Download filename={snakeCase(trace.name) + '.json'} payload={trace}>
-              <Button type="text" icon={<DownloadOutlined />} />
-            </Download>
-            <Link onClick={navigateTop}>Top</Link>
-            <Link to={`/traces`}>List</Link>
-          </div>
-          {step ?
-            <Inspector step={step} />
-            :
-            <div></div>
-          }
-        </Col>
-        {/* <Col span={4}>
+    <>
+      <div style={{ marginTop: 20 }}>
+        <Row gutter={16}>
+          <Col span={6}>
+            <Descriptions className="trace" title="Trace" column={1} layout="vertical">
+              <Descriptions.Item span={1}>
+                <Tree
+                  showLine
+                  switcherIcon={<DownOutlined />}
+                  onSelect={onSelect}
+                  treeData={treeData}
+                  style={{ padding: '10px 15px' }}
+                  defaultExpandAll={true}
+                />
+              </Descriptions.Item>
+            </Descriptions>
+          </Col>
+          <Col span={14}>
+            <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
+              <Download filename={snakeCase(trace.name) + '.json'} payload={trace}>
+                <Button type="text" icon={<DownloadOutlined />} />
+              </Download>
+              <Link onClick={navigateTop}>Top</Link>
+              <Link to={`/traces`}>List</Link>
+              <Link onClick={() => setOpen(true)}>Lineage</Link>
+            </div>
+            {step ?
+              <Inspector step={step} />
+              :
+              <div></div>
+            }
+          </Col>
+          {/* <Col span={4}>
           {step ?
             <Governance step={step} />
             :
             <div></div>
           }
         </Col> */}
-        <Col span={4}>
-          {step ?
-            <Status step={step} username={trace.createdBy} />
-            :
-            <div></div>
-          }
-        </Col>
-      </Row>
-    </div>
+          <Col span={4}>
+            {step ?
+              <Status step={step} username={trace.createdBy} />
+              :
+              <div></div>
+            }
+          </Col>
+        </Row>
+      </div>
+      <Drawer
+        title="Lineage"
+        placement="bottom"
+        closable={true}
+        onClose={() => setOpen(false)}
+        open={open}
+      >
+        <ReactFlowProvider>
+          <ReactFlow
+            {...reactFlowProps}
+            nodes={graph.nodes}
+            edges={graph.edges}
+            onNodeClick={handleNodeClick}
+            proOptions={proOptions}
+          />
+        </ReactFlowProvider>
+      </Drawer>
+    </>
   );
+}
+
+const getNode = (trace, type) => {
+  if (trace.type === type) {
+    return trace;
+  }
+  const children = trace.children || [];
+  for (const child of children) {
+    const node = getNode(child, type);
+    if (node) return node;
+  }
+  return null;
 }

@@ -94,9 +94,12 @@ export const deleteAgentsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeAgents({ ids }));
 };
 
+const MAX_RETRY_COUNT = 3;
+
+let events;
+
 export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   dispatch(startRun());
-  let events;
   http.post('/api/agent-executions/', { agent, workspaceId })
     .then(() => {
       if (events) {
@@ -116,13 +119,22 @@ export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
       }
       throw err;
     });
+  listen(dispatch);
+};
+
+const listen = (dispatch, retries = 0) => {
   events = new EventSource('/api/agent-events');
-  const imgR = /https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)(\?[^\s]*)/gmi;
   events.onmessage = (event) => {
     const parsedData = JSON.parse(event.data);
     let output = trim(parsedData, '"');
-    // output = output.replace(imgR, '$1 <img src="$1" style="height:48px; width:48px;" />');
     dispatch(addAgentOutput({ output: { key: Date.now(), output } }));
+  }
+  events.onerror = (err) => {
+    console.error('EventSource error:', err);
+    events.close();
+    if (retries < MAX_RETRY_COUNT) {
+      setTimeout(() => listen(dispatch, retries + 1), 200);
+    }
   }
 };
 

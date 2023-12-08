@@ -1,3 +1,5 @@
+import logger from '../../logger';
+
 export type Trace = any[];
 
 export class Tracer {
@@ -25,7 +27,7 @@ export class Tracer {
   }
 
   push(step: any) {
-    // console.log('!! push:', step.type);
+    // logger.debug('!! push:', step.type);
     this.currentTrace().push(step);
     return this;
   }
@@ -43,16 +45,16 @@ export class Tracer {
   down() {
     const children = [];
     this.currentStep()['children'] = children;
-    // console.log('!! down:', this.currentStep()?.type || '?', this.stack.length);
+    // logger.debug('!! down:', this.currentStep()?.type || '?', this.stack.length);
     this.stack.push(children);
-    // console.log('!! :', this.stack.length);
+    // logger.debug('!! :', this.stack.length);
     return this;
   }
 
   up() {
-    // console.log('!! up:', this.currentStep()?.type || '?');
+    // logger.debug('!! up:', this.currentStep()?.type || '?');
     this.stack.pop();
-    // console.log('!! :', this.currentStep()?.type || '?', this.stack.length);
+    // logger.debug('!! :', this.currentStep()?.type || '?', this.stack.length);
     return this;
   }
 

@@ -24,7 +24,6 @@ function PIIService({ __name, __metadata, constants, logger, app, auth }) {
       }
     });
     const resp = res.data.text;
-    logger.log('debug', 'resp: %s', resp);
     if (resp.match(/<[^>]+>/)) {
       return {
         error: {

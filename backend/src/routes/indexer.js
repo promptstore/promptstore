@@ -4,33 +4,39 @@ import { LoaderEnum } from '../core/indexers/Loader';
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const {
+    appsService,
     documentsService,
     indexesService,
     uploadsService,
   } = services;
 
   // cache of results to poll
-  const jobs = {};
+  const _jobs = {};
 
-  const setJobResult = (correlationId) => (result) => {
-    // logger.debug('index result:', result);
-    if (correlationId) {
-      jobs[correlationId] = result;
-      setTimeout(() => {  // allow 10m to poll for results
-        delete jobs[correlationId];
-      }, 10 * 60 * 1000);
-    }
+  const getJobResult = (correlationId) => {
+    return _jobs[correlationId];
+  };
+
+  const setJobResult = (correlationId, result) => {
+    _jobs[correlationId] = result;
+    setTimeout(() => {  // allow 10m to poll for results
+      delete _jobs[correlationId];
+    }, 10 * 60 * 1000);
+  };
+
+  const unsetJobResult = (correlationId) => {
+    delete _jobs[correlationId];
   };
 
   app.get('/api/index-status/:correlationId', auth, async (req, res) => {
     const { correlationId } = req.params;
-    // logger.debug('checking index status for:', correlationId);
-    const result = jobs[correlationId];
+    logger.debug('checking index status for:', correlationId);
+    const result = getJobResult(correlationId);
     if (!result) {
       return res.sendStatus(423);
     }
     res.json(result);
-    delete jobs[correlationId];
+    unsetJobResult(correlationId);
   });
 
   app.post('/api/index/api', auth, async (req, res) => {
@@ -81,7 +87,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     try {
       workflowClient.index(indexParams, LoaderEnum.api, [ExtractorEnum.json], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
       res.sendStatus(200);
 
@@ -206,7 +212,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     try {
       workflowClient.index(indexParams, LoaderEnum.crawler, [ExtractorEnum.crawler], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
       res.sendStatus(200);
 
@@ -269,7 +275,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       workflowClient.index(indexParams, null, [ExtractorEnum.neo4j], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
       res.sendStatus(200);
 
@@ -333,7 +339,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.csv], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
       res.sendStatus(200);
 
@@ -405,7 +411,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.text], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
       res.sendStatus(200);
 
@@ -417,7 +423,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/document', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, documents, params, workspaceId } = req.body;
+    const { appId, correlationId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -438,7 +444,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
           logger.error('Upload not found:', uploadId);
           // keep processing the other documents
         }
-        const objectName = `${upload.workspaceId}/documents/${upload.filename}`;
+        let objectName;
+        if (appId) {
+          objectName = `${upload.workspaceId}/documents/apps/${appId}/${upload.filename}`;
+        } else {
+          objectName = `${upload.workspaceId}/documents/${upload.filename}`;
+        }
         logger.debug('Loading', objectName);
         const file = await documentsService.download(objectName);
         docs.push({
@@ -475,7 +486,27 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       // Chunks are extracted directly from the document processor
       workflowClient.index(indexParams, null, [ExtractorEnum.unstructured], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(async (results) => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        if (appId) {
+          const indexId = index.id;
+          const uploadId = documents[0];
+          const app = await appsService.getApp(appId);
+          const indexes = app.indexes || [];
+          await appsService.upsertApp({
+            id: appId,
+            indexes: [...indexes, indexId],
+            documents: {
+              ...app.documents,
+              [uploadId]: {
+                ...app.documents?.[uploadId],
+                index: indexId,
+              },
+            },
+          });
+        }
+      });
 
       res.sendStatus(200);
 
@@ -540,7 +571,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     try {
       workflowClient.index(indexParams, LoaderEnum.wikipedia, [ExtractorEnum.text], {
         address: constants.TEMPORAL_URL,
-      }).then(setJobResult(correlationId));
+      }).then(results => setJobResult(correlationId, results[0]));
 
     } catch (err) {
       logger.error(err, err.stack);

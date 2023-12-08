@@ -24,6 +24,8 @@ function PalmLLM({ __name, constants, logger }) {
     return completionClient;
   }
 
+
+
   /**
    * interface PaLMChatRequest {
    *   model: string;  // The name of the model to use. Format: name=models/{model}.
@@ -110,8 +112,13 @@ function PalmLLM({ __name, constants, logger }) {
    */
 
   async function createEmbedding(request) {
-    const res = await client.embedText(request);
-    return res.data;
+    const client = getCompletionClient();
+    const res = await client.embedText({ text: request.input, model: 'models/embedding-gecko-001' });
+    return {
+      index: 0,
+      object: 'embedding',
+      embedding: res[0].embedding.value,
+    };
   }
 
   function createImage(prompt, options) {

@@ -4,7 +4,7 @@ import logger from '../../logger';
 import { getExtension } from '../../utils';
 
 import { Document } from './Document';
-import { EmbeddingProviderEnum, EmbeddingService } from './EmbeddingProvider';
+import { EmbeddingService } from './EmbeddingProvider';
 import {
   CsvExtractor,
   ExtendedDocument,
@@ -76,7 +76,7 @@ export class Pipeline {
   private loaderService: LoaderService;
   private vectorStoreService: VectorStoreService;
 
-  private _embeddingProvider: EmbeddingProviderEnum;
+  private _embeddingProvider: string;
   private _vectorStoreProvider: VectorStoreEnum;
   private _graphStoreProvider: GraphStoreEnum;
 
@@ -201,6 +201,7 @@ export class Pipeline {
   async extractAndIndex(documents: Document[], params: RunParams, extractor: Extractor, index?: any, suffix?: string) {
     // Extract
     const chunks = await extractor.getChunks(documents, params);
+    // logger.debug('chunks:', chunks);
 
     logger.debug('Indexing %d chunks', chunks.length);
 
@@ -325,7 +326,7 @@ export class Pipeline {
     }
   }
 
-  public set embeddingProvider(provider: EmbeddingProviderEnum) {
+  public set embeddingProvider(provider: string) {
     this._embeddingProvider = provider;
   }
 

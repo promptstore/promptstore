@@ -73,7 +73,7 @@ export default ({ logger, services }) => {
       this.isChat = isChat;
       this.model = model || (isChat ? 'gpt-4-1106-preview' : 'text-davinci-003');
       this.modelParams = {
-        max_tokens: 255,
+        max_tokens: 256,
         ...(modelParams || {}),
         n: 1,
         stop: STOP,

@@ -308,6 +308,7 @@ li img {
   border-radius: 2px;
 }
 
+.react-flow__node .react-flow__handle,
 .react-flow__node-compositionNode .react-flow__handle,
 .react-flow__node-functionNode .react-flow__handle,
 .react-flow__node-joinerNode .react-flow__handle,
@@ -835,4 +836,8 @@ article.collapsible .panel.closed {
 
 #user-uploads-table a {
   color: rgba(0, 0, 0, 0.88);
+}
+
+.model-view .ant-descriptions .ant-descriptions-row>td {
+  padding-bottom: 8px;
 }

@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
 
+import { setApps } from './appsSlice';
+
 export const appUploaderSlice = createSlice({
   name: 'appUploader',
   initialState: {
@@ -129,9 +131,10 @@ export const getUploadContentAsync = (appId, id, maxBytes) => async (dispatch, g
 
 export const deleteUploadsAsync = ({ workspaceId, appId, uploads }) => async (dispatch) => {
   const names = uploads.map((u) => u.name);
-  const url = `/api/uploads?workspace=${workspaceId}&names=${names.join(',')}`;
-  await http.delete(url);
+  const url = `/api/uploads?workspace=${workspaceId}&app=${appId}&names=${names.join(',')}`;
+  const res = await http.delete(url);
   dispatch(removeUploads({ appId, uploads }));
+  dispatch(setApps({ apps: [res.data] }));
 };
 
 export const selectLoaded = (state) => state.appUploader.loaded;

@@ -43,6 +43,7 @@ import WorkspaceContext from './contexts/WorkspaceContext';
 import UserContext from './contexts/UserContext';
 import { About } from './features/about/About';
 import { Agents } from './features/agents/Agents';
+import { Analyst } from './features/apps/Analyst';
 import { AppChat } from './features/apps/AppChat';
 import { AppForm } from './features/apps/AppForm';
 import { AppFormNew } from './features/apps/AppFormNew';
@@ -72,6 +73,7 @@ import { PromptSetsList } from './features/promptSets/PromptSetsList';
 import { PromptSetForm } from './features/promptSets/PromptSetForm';
 import { PromptSetView } from './features/promptSets/PromptSetView';
 import { RagTester } from './features/ragtester/RagTester';
+import { TracesDashboard } from './features/traces/TracesDashboard';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
 import { TrainingList } from './features/training/TrainingList';
@@ -638,8 +640,9 @@ function App() {
                     <Route path="/about" element={<About />} />
                     <Route path="/agents" element={<Agents />} />
                     <Route path="/apps-edit/:id" element={<AppFormNew />} />
-                    <Route path="/apps/:id/chat" element={<AppChat />} />
-                    <Route path="/apps/:id" element={<AppView />} />
+                    <Route path="/apps/:id" element={<AppChat />} />
+                    {/* <Route path="/apps/:id" element={<AppView />} /> */}
+                    <Route path="/apps/:id/analyst" element={<Analyst />} />
                     <Route path="/apps" element={<AppsList />} />
                     <Route path="/compositions/:id" element={<Composer />} />
                     <Route path="/compositions" element={<CompositionsList />} />
@@ -665,6 +668,7 @@ function App() {
                     <Route path="/rag" element={<RagTester />} />
                     <Route path="/traces/:id" element={<TraceView />} />
                     <Route path="/traces" element={<TracesList />} />
+                    <Route path="/traces-dash" element={<TracesDashboard />} />
                     <Route path="/training" element={<TrainingList />} />
                     <Route path="/transformations/:id" element={<TransformationForm />} />
                     <Route path="/transformations" element={<TransformationsList />} />

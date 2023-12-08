@@ -101,17 +101,21 @@ export function ModelForm() {
   const isNew = id === 'new';
 
   const chatProviderOptions = useMemo(() => {
-    return (providers.chat || []).map(p => ({
+    const list = (providers.chat || []).map(p => ({
       label: p.name,
       value: p.key,
     }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
   }, [providers]);
 
   const completionProviderOptions = useMemo(() => {
-    return (providers.completion || []).map(p => ({
+    const list = (providers.completion || []).map(p => ({
       label: p.name,
       value: p.key,
     }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
   }, [providers]);
 
   useEffect(() => {
@@ -277,6 +281,16 @@ export function ModelForm() {
               options={completionProviderOptions}
               optionFilterProp="label"
             />
+          </Form.Item>
+          : null
+        }
+        {typeValue === 'gpt' || typeValue === 'completion' ?
+          <Form.Item
+            name="contextWindow"
+            label="Context Window"
+            wrapperCol={{ span: 5 }}
+          >
+            <Input />
           </Form.Item>
           : null
         }

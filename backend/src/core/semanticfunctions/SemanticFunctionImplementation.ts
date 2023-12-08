@@ -4,19 +4,8 @@ import { mapJsonAsync } from 'jsonpath-mapper';
 
 import logger from '../../logger';
 
-import { DataMapper, Model } from '../common_types';
-import { SemanticFunctionError } from '../errors';
-import { UserMessage } from '../models/openai';
-import { getInputString } from '../utils';
 import { Callback } from '../callbacks/Callback';
-import { InputGuardrails } from '../guardrails/InputGuardrails';
-import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPipeline';
-import {
-  SemanticFunctionImplementationParams,
-  SemanticFunctionImplementationCallParams,
-  SemanticFunctionImplementationOnEndParams,
-} from './SemanticFunctionImplementation_types';
-import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
+import { DataMapper, Model } from '../common_types';
 import {
   PARA_DELIM,
   MultiModalChatRequest,
@@ -27,6 +16,19 @@ import {
   ChatRequestContext,
   ResponseMetadata,
 } from '../conversions/RosettaStone';
+import { SemanticFunctionError } from '../errors';
+import { InputGuardrails } from '../guardrails/InputGuardrails';
+import { LLMModel } from '../models/llm_types';
+import { UserMessage } from '../models/openai';
+import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPipeline';
+import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
+import { getInputString } from '../utils';
+import { SemanticFunction } from './SemanticFunction';
+import {
+  SemanticFunctionImplementationParams,
+  SemanticFunctionImplementationCallParams,
+  SemanticFunctionImplementationOnEndParams,
+} from './SemanticFunctionImplementation_types';
 
 dayjs.extend(relativeTime);
 
@@ -35,34 +37,49 @@ const nonSystem = (m: Message) => m.role !== 'system';
 export class SemanticFunctionImplementation {
 
   model: Model;
+  isDefault: boolean;
   argsMappingTemplate?: string;
   returnMappingTemplate?: string;
-  isDefault: boolean;
+  indexContentPropertyPath?: string;
+  indexContextPropertyPath?: string;
+  rewriteQuery?: boolean;
+  summarizeResults?: boolean;
   promptEnrichmentPipeline?: PromptEnrichmentPipeline;
   inputGuardrails?: InputGuardrails;
   outputProcessingPipeline?: OutputProcessingPipeline;
+  queryRewriteFunction: SemanticFunction;
   dataMapper: DataMapper;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
   constructor({
     model,
+    isDefault,
     argsMappingTemplate,
     returnMappingTemplate,
-    isDefault,
+    indexContentPropertyPath,
+    indexContextPropertyPath,
+    rewriteQuery,
+    summarizeResults,
     promptEnrichmentPipeline,
     inputGuardrails,
     outputProcessingPipeline,
+    queryRewriteFunction,
     dataMapper,
     callbacks,
   }: SemanticFunctionImplementationParams) {
     this.model = model;
+    this.isDefault = isDefault;
     this.argsMappingTemplate = argsMappingTemplate;
     this.returnMappingTemplate = returnMappingTemplate;
-    this.isDefault = isDefault;
+    this.indexContentPropertyPath = indexContentPropertyPath;
+    this.indexContextPropertyPath = indexContextPropertyPath;
+    this.rewriteQuery = rewriteQuery;
+    this.summarizeResults = summarizeResults;
     this.promptEnrichmentPipeline = promptEnrichmentPipeline;
     this.inputGuardrails = inputGuardrails;
     this.outputProcessingPipeline = outputProcessingPipeline;
+    this.queryRewriteFunction = queryRewriteFunction;
     this.dataMapper = dataMapper || mapJsonAsync;
     this.callbacks = callbacks || [];
   }
@@ -85,7 +102,12 @@ export class SemanticFunctionImplementation {
       }
       let response: any;
       let responseMetadata: ResponseMetadata;
-      if (this.model.modelType === 'gpt') {
+      if (this.model.modelType === 'gpt' || this.model.modelType === 'completion') {
+        const contextWindow = (this.model as LLMModel).contextWindow || 4096;
+        let maxTokens = +modelParams.max_tokens;
+        if (isNaN(maxTokens)) {
+          maxTokens = 1024;
+        }
         let messages: Message[];
         let visionMessages: VisionMessage[];
         let context: ChatRequestContext;
@@ -93,9 +115,26 @@ export class SemanticFunctionImplementation {
         let msgs: Message[];
         let functions: Function[];
 
+        if (this.rewriteQuery) {
+          const content = args[this.indexContentPropertyPath];
+          if (content) {
+            const res = await this.queryRewriteFunction.call({
+              args: { content },
+              modelParams: { n: 1 },
+              callbacks,
+            });
+            args[this.indexContentPropertyPath] = res.response.choices[0].message.content;
+          }
+        }
         if (args.imageUrl) {
           if (this.promptEnrichmentPipeline) {
-            messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
+            messages = await this.promptEnrichmentPipeline.call({
+              args,
+              contextWindow,
+              maxTokens,
+              modelKey,
+              callbacks,
+            });
             visionMessages = [
               ...messages.slice(0, -1)?.map(m => ({
                 role: m.role,
@@ -139,7 +178,7 @@ export class SemanticFunctionImplementation {
           }
         } else {
           if (this.promptEnrichmentPipeline) {
-            messages = await this.promptEnrichmentPipeline.call({ args, callbacks });
+            messages = await this.promptEnrichmentPipeline.call({ args, contextWindow, maxTokens, modelKey, callbacks });
             if (!messages.length) {
               this.throwSemanticFunctionError('no prompt');
             }
@@ -153,8 +192,7 @@ export class SemanticFunctionImplementation {
             msgs = [userMessage];
           }
         }
-
-        if (this.inputGuardrails) {
+        if (this.inputGuardrails && this.inputGuardrails.length) {
           await this.inputGuardrails.call({ messages, callbacks });
         }
         if (returnTypeSchema) {
@@ -172,6 +210,7 @@ export class SemanticFunctionImplementation {
             max_tokens: modelParams.max_tokens,
             messages: visionMessages,
           };
+          logger.debug('!!!!!!!!!!!!!!!!!!!! request:', request);
           response = await this.model.call({ request, callbacks, vision: true });
         } else {
           request = {
@@ -198,7 +237,7 @@ export class SemanticFunctionImplementation {
       } else {
         this.throwSemanticFunctionError(`model type ${this.model.modelType} not supported`);
       }
-      if (this.outputProcessingPipeline) {
+      if (this.outputProcessingPipeline && this.outputProcessingPipeline.length) {
         response = await this.outputProcessingPipeline.call({ response, callbacks });
       }
       if (this.returnMappingTemplate) {
@@ -332,9 +371,14 @@ export class SemanticFunctionImplementation {
 }
 
 interface SemanticFunctionImplementationOptions {
+  isDefault: boolean;
   argsMappingTemplate?: string;
   returnMappingTemplate?: string;
-  isDefault: boolean;
+  indexContentPropertyPath?: string;
+  indexContextPropertyPath?: string;
+  rewriteQuery?: boolean;
+  summarizeResults?: boolean;
+  queryRewriteFunction?: SemanticFunction;
   callbacks?: Callback[];
 }
 
@@ -342,7 +386,7 @@ export const semanticFunctionImplementation = (options: SemanticFunctionImplemen
   model: Model,
   promptEnrichmentPipeline: PromptEnrichmentPipeline,
   inputGuardrails: InputGuardrails,
-  outputProcessingPipeline: OutputProcessingPipeline
+  outputProcessingPipeline: OutputProcessingPipeline,
 ) => {
   return new SemanticFunctionImplementation({
     ...options,

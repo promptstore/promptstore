@@ -21,7 +21,7 @@ export default ({ app, auth, logger, services }) => {
       let resp;
       if (vectorStoreProvider === 'neo4j') {
         const { embeddingProvider, nodeLabel } = params;
-        const testEmbedding = await embeddingService.createEmbedding(embeddingProvider, 'foo');
+        const { embedding: testEmbedding } = await embeddingService.createEmbedding(embeddingProvider, { input: 'foo' });
         const embeddingDimension = testEmbedding.length;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
@@ -32,6 +32,8 @@ export default ({ app, auth, logger, services }) => {
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
         });
+      } else if (vectorStoreProvider === 'chroma') {
+        resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema);
       } else {
         throw new Error('Vector store provider not supported: ' + vectorStoreProvider);
       }
@@ -117,7 +119,8 @@ export default ({ app, auth, logger, services }) => {
     } = indexParams;
     let queryEmbedding;
     if (vectorStoreProvider !== 'redis') {
-      queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, q);
+      const res = await embeddingService.createEmbedding(embeddingProvider, { input: q });
+      queryEmbedding = res.embedding;
     }
     const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, {
       queryEmbedding,
