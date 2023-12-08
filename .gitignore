@@ -25,3 +25,5 @@ metadata.yaml
 backend/src/plugins/tools/bigquery/keys/
 backend/src/plugins/tools/bigquery_sql/keys/
 backend/src/config/serviceAccountKey.json
+.env.local
+.env.local.bak
