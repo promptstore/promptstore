@@ -1,6 +1,12 @@
+import searchFunctions from '../searchFunctions';
+
 export default ({ app, auth, constants, logger, services }) => {
 
+  const OBJECT_TYPE = 'workspaces';
+
   const { emailService, usersService, workspacesService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   /**
    * @openapi
@@ -213,7 +219,7 @@ export default ({ app, auth, constants, logger, services }) => {
   /*
   req.user: {
     name: 'Mark Mo',
-    picture: 'https://avatars.dicebear.com/api/gridy/0.XXX4164767352256.svg',
+    picture: 'https://api.dicebear.com/7.x/initials/svg?seed=MM',
     iss: 'https://securetoken.google.com/XXX',
     aud: 'XXX',
     auth_time: 1691469874,
@@ -380,6 +386,8 @@ export default ({ app, auth, constants, logger, services }) => {
     const values = req.body;
     const user = await usersService.getUser(req.user.username);
     const workspace = await workspacesService.upsertWorkspace(values, user);
+    const obj = createSearchableObject(workspace);
+    await indexObject(obj);
     res.json(workspace);
   });
 
@@ -417,6 +425,8 @@ export default ({ app, auth, constants, logger, services }) => {
     const values = req.body;
     const user = await usersService.getUser(req.user.username);
     const workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
+    const obj = createSearchableObject(workspace);
+    await indexObject(obj);
     res.json(workspace);
   });
 
@@ -445,6 +455,7 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/workspaces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await workspacesService.deleteWorkspaces([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -475,6 +486,7 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/workspaces', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await workspacesService.deleteWorkspaces(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
 
@@ -546,5 +558,30 @@ export default ({ app, auth, constants, logger, services }) => {
       res.sendStatus(404);
     }
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Workspaces',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      key: rec.key,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      isPublic: rec.isPublic,
+      metadata: {
+      },
+    };
+  }
 
 };

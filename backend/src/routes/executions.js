@@ -2,7 +2,7 @@ import { isTruthy } from '../utils';
 
 export default ({ app, auth, logger, services }) => {
 
-  const { compositionsService, executionsService, functionsService } = services;
+  const { executionsService } = services;
 
   /**
    * @openapi

@@ -59,7 +59,7 @@
     "react-dom": "^18.0.0",
     "react-dotenv": "^0.1.3",
     "react-flow": "^1.0.3",
-    "react-instantsearch-dom": "^6.40.0",
+    "react-instantsearch": "^7.4.1",
     "react-instantsearch-hooks-web": "^6.38.3",
     "react-json-view": "^1.21.3",
     "react-markdown": "^8.0.7",

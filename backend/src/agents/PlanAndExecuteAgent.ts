@@ -144,10 +144,7 @@ export default ({ logger, services }) => {
             });
           }
           if (this.isChat) {
-            response = await llmService.createChatCompletion({
-              provider: this.provider,
-              request,
-            });
+            response = await llmService.createChatCompletion(this.provider, request);
             console.log('\n!!!!! NEXT STEP RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
           } else {
             response = await llmService.createCompletion({
@@ -185,7 +182,7 @@ export default ({ logger, services }) => {
             callback.onEvaluateStepEnd({ model: this.model, response: { ...response } });
           }
           i += 1;
-          previousSteps.push(new Step(step, response.choices[0].message.content));
+          previousSteps.push(new Step(step, response.choices[0].message.content as string));
         }
 
         for (let callback of this.currentCallbacks) {
@@ -219,17 +216,14 @@ export default ({ logger, services }) => {
       }
       let response: ChatResponse;
       if (this.isChat) {
-        response = await llmService.createChatCompletion({
-          provider: this.provider,
-          request,
-        });
+        response = await llmService.createChatCompletion(this.provider, request);
       } else {
         response = await llmService.createCompletion({
           provider: this.provider,
           request,
         });
       }
-      const content = response.choices[0].message.content;
+      const content = response.choices[0].message.content as string;
       this.history.push(new AssistantMessage(content));
 
       const plan = await this._parsePlanOutput(content);
@@ -378,10 +372,7 @@ export default ({ logger, services }) => {
       // }
       // let response: ChatResponse;
       // if (this.isChat) {
-      //   response = await llmService.createChatCompletion({
-      //     provider: this.provider,
-      //     request,
-      //   });
+      //   response = await llmService.createChatCompletion(this.provider, request);
       //   console.log('\n!!!!! OBSERVATION RESPONSE:\n', JSON.stringify(response.choices[0].message, null, 2), '\n!!!!!\n');
       // } else {
       //   response = await llmService.createCompletion({
@@ -513,10 +504,7 @@ Answer:`
       for (let callback of this.currentCallbacks) {
         callback.onEvaluateResponseStart({ question, response, request });
       }
-      const res = await llmService.createChatCompletion({
-        provider: 'openai',
-        request,
-      });
+      const res = await llmService.createChatCompletion('openai', request);
       const ans = res.choices[0].message.content;
       const valid = ans !== "I don't know";
       return valid;

@@ -1,6 +1,12 @@
-export default ({ app, auth, logger, services }) => {
+import searchFunctions from '../searchFunctions';
+
+export default ({ app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'functions';
 
   const { functionsService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   app.get('/api/workspaces/:workspaceId/functions', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
@@ -24,6 +30,8 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const func = await functionsService.upsertFunction(values, username);
+    const obj = createSearchableObject(func);
+    await indexObject(obj);
     res.json(func);
   });
 
@@ -32,19 +40,50 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const func = await functionsService.upsertFunction({ ...values, id }, username);
+    const obj = createSearchableObject(func);
+    await indexObject(obj);
     res.json(func);
   });
 
   app.delete('/api/functions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await functionsService.deleteFunctions([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
   app.delete('/api/functions', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await functionsService.deleteFunctions(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.tags?.join(' '),
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Semantic Function',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      isPublic: rec.isPublic,
+      metadata: {
+        documentType: rec.documentType,
+        tags: rec.tags,
+      },
+    };
+  }
 
 };

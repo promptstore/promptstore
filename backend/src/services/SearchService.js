@@ -3,7 +3,7 @@ import isObject from 'lodash.isobject';
 
 export function SearchService({ constants, logger, services }) {
 
-  const { embeddingService, vectorStoreService } = services;
+  const { llmService, vectorStoreService } = services;
 
   const documents = [];
   const parentDocuments = [];
@@ -213,7 +213,7 @@ export function SearchService({ constants, logger, services }) {
     try {
       if (vectorStoreProvider === 'neo4j') {
         const { embeddingProvider } = params;
-        const queryEmbedding = await embeddingService.createEmbedding(embeddingProvider, q);
+        const queryEmbedding = await llmService.createEmbedding(embeddingProvider, q);
         return vectorStoreService.search('neo4j', indexName, query, attrs, {
           queryEmbedding,
         });

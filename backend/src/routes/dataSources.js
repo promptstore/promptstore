@@ -1,8 +1,20 @@
 import path from 'path';
 
+import searchFunctions from '../searchFunctions';
+
 export default ({ app, auth, constants, logger, pg, services }) => {
 
-  const { appsService, dataSourcesService, documentsService, sqlSourceService } = services;
+  const OBJECT_TYPE = 'data-sources';
+
+  const {
+    appsService,
+    dataSourcesService,
+    documentsService,
+    extractorService,
+    sqlSourceService,
+  } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   /**
    * @openapi
@@ -591,6 +603,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
               const objectName = path.join(String(upload.workspace_id), constants.DOCUMENTS_PREFIX, upload.filename);
 
               if (documentType === 'csv') {
+                const content = await documentsService.read(objectName, mb);
                 const options = {
                   bom: true,
                   columns: true,
@@ -599,11 +612,10 @@ export default ({ app, auth, constants, logger, pg, services }) => {
                   skip_records_with_error: true,
                   trim: true,
                 };
-                const output = await documentsService.read(
-                  objectName,
-                  mb,
-                  documentsService.transformations.csv,
-                  options
+                const output = await extractorService.getChunks(
+                  'csv',
+                  [{ content, ext: 'csv' }],
+                  { options, raw: true }
                 );
                 res.json(output);
 
@@ -680,6 +692,8 @@ export default ({ app, auth, constants, logger, pg, services }) => {
         },
       });
     }
+    const obj = createSearchableObject(dataSource);
+    await indexObject(obj);
     res.json(dataSource);
   });
 
@@ -717,6 +731,8 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { username } = req.user;
     const values = req.body;
     const dataSource = await dataSourcesService.upsertDataSource({ ...values, id }, username);
+    const obj = createSearchableObject(dataSource);
+    await indexObject(obj);
     res.json(dataSource);
   });
 
@@ -745,6 +761,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await dataSourcesService.deleteDataSources([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -775,7 +792,32 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/data-sources', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await dataSourcesService.deleteDataSources(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Data Source',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        documentType: rec.documentType,
+      },
+    };
+  }
 
 };

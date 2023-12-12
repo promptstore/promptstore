@@ -1,6 +1,12 @@
-export default ({ app, auth, logger, services }) => {
+import searchFunctions from '../searchFunctions';
+
+export default ({ app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'compositions';
 
   const { compositionsService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   /**
    * @openapi
@@ -455,6 +461,8 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const composition = await compositionsService.upsertComposition(values, username);
+    const obj = createSearchableObject(composition);
+    await indexObject(obj);
     res.json(composition);
   });
 
@@ -492,6 +500,8 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const composition = await compositionsService.upsertComposition({ ...values, id }, username);
+    const obj = createSearchableObject(composition);
+    await indexObject(obj);
     res.json(composition);
   });
 
@@ -520,6 +530,7 @@ export default ({ app, auth, logger, services }) => {
   app.delete('/api/compositions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await compositionsService.deleteCompositions([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -550,7 +561,31 @@ export default ({ app, auth, logger, services }) => {
   app.delete('/api/compositions', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await compositionsService.deleteCompositions(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Composition',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+      },
+    };
+  }
 
 };

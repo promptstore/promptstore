@@ -18,6 +18,7 @@ import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 
 import pg from './db';
+import initSearchIndex from './initSearchIndex';
 import logger from './logger';
 import { AgentsService } from './services/AgentsService';
 import { AppsService } from './services/AppsService';
@@ -27,7 +28,6 @@ import { DataSourcesService } from './services/DataSourcesService';
 import { DestinationsService } from './services/DestinationsService';
 import { DocumentsService } from './services/DocumentsService';
 import { EmailService } from './services/EmailService';
-import { EmbeddingService } from './services/EmbeddingService';
 import { ExecutionsService } from './services/ExecutionsService';
 import { ExtractorService } from './services/ExtractorService';
 import { FeatureStoreService } from './services/FeatureStoreService';
@@ -57,6 +57,10 @@ import * as workflowClient from './workflow/clients';
 let ENV = process.env.ENV;
 logger.debug('ENV:', ENV);
 
+const SEARCH_INDEX_NAME = 'pssearch';
+const SEARCH_NODE_LABEL = 'Object';
+const SEARCH_VECTORSTORE_PROVIDER = 'redis';
+
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
@@ -65,7 +69,6 @@ const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
 const PORT = process.env.PORT || '5000';
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
-const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
 const GRAPH_STORE_PLUGINS = process.env.GRAPH_STORE_PLUGINS || '';
@@ -80,7 +83,6 @@ const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 
 const basePath = path.dirname(fileURLToPath(import.meta.url));
-const embeddingPlugins = await getPlugins(basePath, EMBEDDING_PLUGINS, logger);
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, logger);
 const graphStorePlugins = await getPlugins(basePath, GRAPH_STORE_PLUGINS, logger);
@@ -187,13 +189,6 @@ const emailService = EmailService({
   logger,
 });
 
-const embeddingService = EmbeddingService({
-  logger, registry: {
-    ...embeddingPlugins,
-    ...llmPlugins,
-  }
-});
-
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
@@ -240,6 +235,11 @@ const sess = {
   secret: 'Data Science is a workspace sport!',
   store: new RedisStore({ client: rc }),
 };
+
+initSearchIndex({
+  constants: { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER },
+  services: { vectorStoreService },
+});
 
 app.use(session(sess));
 
@@ -342,7 +342,6 @@ const executionsService = ExecutionsService({
   services: {
     compositionsService,
     dataSourcesService,
-    embeddingService,
     featureStoreService,
     functionsService,
     graphStoreService,
@@ -385,6 +384,9 @@ const options = {
     FILE_BUCKET,
     IMAGES_PREFIX,
     MAILTRAP_INVITE_TEMPLATE_UUID,
+    SEARCH_INDEX_NAME,
+    SEARCH_NODE_LABEL,
+    SEARCH_VECTORSTORE_PROVIDER,
     TEMPORAL_URL,
   },
   logger,
@@ -400,7 +402,6 @@ const options = {
     destinationsService,
     documentsService,
     emailService,
-    embeddingService,
     executionsService,
     extractorService,
     featureStoreService,
@@ -451,7 +452,7 @@ const parseQueryString = (str) => {
 };
 
 app.get('/api/v1/*', async (req, res, next) => {
-  logger.debug('originalUrl: ', req.originalUrl);
+  logger.debug('originalUrl:', req.originalUrl);
   const path = req.originalUrl.split('?')[0];
   const searchParams = new URLSearchParams(parseQueryString(req.originalUrl));
   const tenant = searchParams.get('tenant');

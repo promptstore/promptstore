@@ -267,20 +267,7 @@ export function IndexModal({
                 optionFilterProp="label"
               />
             </Form.Item>
-            <Form.Item
-              label="Graph Store"
-              name="graphStoreProvider"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select
-                allowClear
-                disabled={!!vectorStoreProviderValue}
-                loading={graphStoresLoading}
-                options={graphStoreOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            {vectorStoreProviderValue !== 'redis' ?
+            {vectorStoreProviderValue && vectorStoreProviderValue !== 'redis' ?
               <Form.Item
                 label="Embedding"
                 name="embeddingProvider"
@@ -301,6 +288,19 @@ export function IndexModal({
               </Form.Item>
               : null
             }
+            <Form.Item
+              label="Graph Store"
+              name="graphStoreProvider"
+              wrapperCol={{ span: 10 }}
+            >
+              <Select
+                allowClear
+                disabled={!!vectorStoreProviderValue}
+                loading={graphStoresLoading}
+                options={graphStoreOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
           </>
           : null
         }

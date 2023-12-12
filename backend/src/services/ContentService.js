@@ -160,11 +160,11 @@ export function ContentService({ pg, logger }) {
     } else {
       const { rows } = await pg.query(`
         INSERT INTO content (app_id, content_id, text, hash, created_by, modified_by, val)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `,
         [content.appId, content.contentId, content.text, hashStr(content.text), content.createdBy, content.modifiedBy, val]
       );
-      return rows[0].id;
+      return mapRow(rows[0]);
     }
   }
 

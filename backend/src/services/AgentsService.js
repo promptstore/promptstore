@@ -68,11 +68,11 @@ export function AgentsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO agents (workspace_id, name, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `,
         [agent.workspaceId, agent.name, val, username, created, username, created]
       );
-      return { ...agent, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

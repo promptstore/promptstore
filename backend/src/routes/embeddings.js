@@ -1,9 +1,9 @@
 export default ({ app, auth, logger, services }) => {
 
-  const { embeddingService } = services;
+  const { llmService } = services;
 
   app.get('/api/embedding-providers', auth, (req, res) => {
-    const providers = embeddingService.getEmbeddingProviders();
+    const providers = llmService.getEmbeddingProviders();
     res.json(providers);
   });
 

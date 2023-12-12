@@ -1,4 +1,4 @@
-import { Suspense, useContext, useEffect, useMemo } from 'react';
+import { Suspense, useContext, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Button, Divider, Dropdown, Modal } from 'antd';
@@ -7,7 +7,7 @@ import { ExclamationCircleFilled, TeamOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import UserContext from '../../contexts/UserContext';
+import { SearchModal } from '../SearchModal';
 import {
   selectLoaded as selectWorkspacesLoaded,
   selectWorkspaces,
@@ -18,10 +18,11 @@ import './Navbar.css';
 
 function Navbar() {
 
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
   const { currentUser, logout, setError } = useAuth();
   const { isDarkMode, navbarState, setIsDarkMode } = useContext(NavbarContext);
   const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
-  // const { currentUser } = useContext(UserContext);
 
   const [firstName] = (currentUser.displayName || currentUser.email).split(' ');
   const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
@@ -31,6 +32,28 @@ function Navbar() {
   const workspaces = useSelector(selectWorkspaces);
   const workspacesLoaded = useSelector(selectWorkspacesLoaded);
   const isWorkspacesEmpty = !Object.keys(workspaces).length;
+
+  let lastPressTime = 0;
+
+  const handleKeyDown = (ev) => {
+    if (ev.code === 'AltLeft' || ev.code === 'AltRight') {
+      const thisPressTime = new Date();
+      if (thisPressTime - lastPressTime <= 500) {
+        lastPressTime = 0;
+        openSearch();
+      } else {
+        lastPressTime = thisPressTime;
+      }
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, []);
 
   const workspacesList = useMemo(() => {
     const list = Object.values(workspaces);
@@ -71,6 +94,14 @@ function Navbar() {
       okButtonProps: { danger: true },
       cancelText: 'No',
     });
+  };
+
+  const onSearchCancel = () => {
+    setSearchModalOpen(false);
+  };
+
+  const openSearch = () => {
+    setSearchModalOpen(true);
   };
 
   const profileMenuItems = [
@@ -151,74 +182,102 @@ function Navbar() {
   );
 
   return (
-    <Suspense fallback={<Loading />}>
-      <nav className="navbar">
-        <div className="navbar-title" style={{ fontSize: '2em' }}>{navbarState.title}</div>
-        <div className="navbar-menu" style={{ fontWeight: 600 }}>
-          <ul>
-            {navbarState.createLink && typeof navbarState.createLink === 'string' &&
+    <>
+      <SearchModal
+        onCancel={onSearchCancel}
+        open={searchModalOpen}
+        indexName="pssearch"
+        titleField={(r => (
+          <span style={{ fontFamily: 'monospace' }}>
+            <span style={{
+              color: 'rgb(128, 127, 128)',
+              fontSize: '11px',
+              marginRight: 4,
+              opacity: 0.8,
+            }}>
+              {r.label.toLowerCase()}
+            </span>"{r.name}"
+          </span>
+        ))}
+        indexParams={{ nodeLabel: 'Object', embeddingProvider: 'openai', vectorStoreProvider: 'redis' }}
+        theme={isDarkMode ? 'dark' : 'light'}
+      />
+      <Suspense fallback={<Loading />}>
+        <nav className="navbar">
+          <div className="navbar-title" style={{ fontSize: '2em' }}>{navbarState.title}</div>
+          <div className="navbar-menu" style={{ fontWeight: 600 }}>
+            <ul>
+              {navbarState.createLink && typeof navbarState.createLink === 'string' &&
+                <li>
+                  <Button type="primary"
+                    onClick={() => navigate(navbarState.createLink)}
+                  >
+                    Create
+                  </Button>
+                </li>
+              }
+              {navbarState.createLink && typeof navbarState.createLink === 'function' &&
+                <li>
+                  <Button type="primary"
+                    onClick={navbarState.createLink}
+                  >
+                    Create
+                  </Button>
+                </li>
+              }
               <li>
-                <Button type="primary"
-                  onClick={() => navigate(navbarState.createLink)}
+                <Button type="default"
+                  onClick={openSearch}
                 >
-                  Create
+                  Find
                 </Button>
               </li>
-            }
-            {navbarState.createLink && typeof navbarState.createLink === 'function' &&
-              <li>
-                <Button type="primary"
-                  onClick={navbarState.createLink}
-                >
-                  Create
-                </Button>
-              </li>
-            }
-          </ul>
-        </div>
-        <div className="selected-entity">
-          <div style={{ display: 'flex' }}>
-            <div>
-              <Divider type="vertical" />
-            </div>
-            <div>
-              {workspacesLoaded ? (
-                !isWorkspacesEmpty ?
-                  <Dropdown menu={workspacesMenu} placement="bottomRight" arrow>
-                    <div style={{ cursor: 'pointer', display: 'flex' }}>
+            </ul>
+          </div>
+          <div className="selected-entity">
+            <div style={{ display: 'flex' }}>
+              <div>
+                <Divider type="vertical" />
+              </div>
+              <div>
+                {workspacesLoaded ? (
+                  !isWorkspacesEmpty ?
+                    <Dropdown menu={workspacesMenu} placement="bottomRight" arrow>
+                      <div style={{ cursor: 'pointer', display: 'flex' }}>
+                        <div><TeamOutlined /></div>
+                        <div style={{ marginLeft: 7 }}>
+                          {selectedWorkspace ?
+                            <span>{selectedWorkspace.name}</span>
+                            :
+                            <span style={{ fontWeight: 600 }}>Select Workspace</span>
+                          }
+                        </div>
+                      </div>
+                    </Dropdown>
+                    :
+                    <div style={{ cursor: 'default', display: 'flex' }}>
                       <div><TeamOutlined /></div>
                       <div style={{ marginLeft: 7 }}>
-                        {selectedWorkspace ?
-                          <span>{selectedWorkspace.name}</span>
-                          :
-                          <span style={{ fontWeight: 600 }}>Select Workspace</span>
-                        }
+                        <Link to="/workspaces/new">
+                          <span style={{ fontWeight: 600 }}>Create Workspace</span>
+                        </Link>
                       </div>
                     </div>
-                  </Dropdown>
-                  :
-                  <div style={{ cursor: 'default', display: 'flex' }}>
-                    <div><TeamOutlined /></div>
-                    <div style={{ marginLeft: 7 }}>
-                      <Link to="/workspaces/new">
-                        <span style={{ fontWeight: 600 }}>Create Workspace</span>
-                      </Link>
-                    </div>
-                  </div>
-              ) : null
-              }
+                ) : null
+                }
+              </div>
             </div>
           </div>
-        </div>
-        {currentUser !== null &&
-          <div>
-            <Dropdown menu={profileMenu} placement="bottomRight" arrow>
-              <MyAvatar />
-            </Dropdown>
-          </div>
-        }
-      </nav>
-    </Suspense>
+          {currentUser !== null &&
+            <div>
+              <Dropdown menu={profileMenu} placement="bottomRight" arrow>
+                <MyAvatar />
+              </Dropdown>
+            </div>
+          }
+        </nav>
+      </Suspense>
+    </>
   );
 }
 

@@ -1,8 +1,14 @@
 import isEmpty from 'lodash.isempty';
 
-export default ({ app, auth, logger, services }) => {
+import searchFunctions from '../searchFunctions';
 
-  const { executionsService, functionsService, promptSetsService } = services;
+export default ({ app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'prompt-sets';
+
+  const { executionsService, promptSetsService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   app.get('/api/workspaces/:workspaceId/prompt-sets', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
@@ -37,8 +43,10 @@ export default ({ app, auth, logger, services }) => {
       logger.warn(err);
       // proceed without summary
     }
-    const promptSet = await promptSetsService.upsertPromptSet(values, username);
-    res.json(promptSet);
+    const ps = await promptSetsService.upsertPromptSet(values, username);
+    const obj = createSearchableObject(ps);
+    await indexObject(obj);
+    res.json(ps);
   });
 
   app.put('/api/prompt-sets/:id', auth, async (req, res, next) => {
@@ -51,19 +59,23 @@ export default ({ app, auth, logger, services }) => {
       logger.warn(err);
       // proceed without summary
     }
-    const promptSet = await promptSetsService.upsertPromptSet({ ...values, id }, username);
-    res.json(promptSet);
+    const ps = await promptSetsService.upsertPromptSet({ ...values, id }, username);
+    const obj = createSearchableObject(ps);
+    await indexObject(obj);
+    res.json(ps);
   });
 
   app.delete('/api/prompt-sets/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await promptSetsService.deletePromptSets([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
   app.delete('/api/prompt-sets', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await promptSetsService.deletePromptSets(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
 
@@ -87,5 +99,34 @@ export default ({ app, auth, logger, services }) => {
     }
     return response.choices[0].message.content;
   };
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.tags?.join(' '),
+      rec.description,
+      rec.prompts?.map(p => p.prompt),
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Prompt Template',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      key: rec.skill,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      isPublic: rec.isPublic,
+      metadata: {
+        tags: rec.tags,
+        templateEngine: rec.templateEngine,
+      },
+    };
+  }
 
 };

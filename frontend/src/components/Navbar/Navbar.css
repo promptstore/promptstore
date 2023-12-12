@@ -9,9 +9,13 @@
   justify-content: flex-end;
 }
 
+.navbar-menu ul {
+  display: flex;
+}
+
 .navbar-menu li {
   list-style-type: none;
-  margin: 0 1rem;
+  margin: 0 8px;
 }
 
 /* .navbar-menu li.active,

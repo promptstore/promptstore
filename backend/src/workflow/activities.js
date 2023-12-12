@@ -28,12 +28,12 @@ export const createActivities = ({
   logger,
   dataSourcesService,
   destinationsService,
-  embeddingService,
   executionsService,
   extractorService,
   indexesService,
   functionsService,
   graphStoreService,
+  llmService,
   loaderService,
   sqlSourceService,
   uploadsService,
@@ -217,11 +217,11 @@ export const createActivities = ({
   async index(params, loaderProvider, extractorProviders) {
     try {
       const pipeline = new Pipeline({
-        embeddingService,
         executionsService,
         extractorService,
         indexesService,
         graphStoreService,
+        llmService,
         loaderService,
         vectorStoreService,
       }, {

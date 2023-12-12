@@ -250,3 +250,7 @@ export const getBaseURL = (endpoint) => {
   const url = new URL(endpoint);
   return `${url.protocol}//${url.hostname}`;
 };
+
+export const runWithMinDelay = (startTime, minDelay, fn) => {
+  setTimeout(fn, minDelay - (new Date() - startTime));
+};

@@ -9,71 +9,70 @@ import {
   IndexChunksParams,
   SearchParams,
   VectorStore,
-  VectorStoreEnum,
   VectorStoreService,
 } from '../core/indexers/VectorStore';
 import { PluginServiceParams } from '../core/indexers/Plugin';
 
 export function VectorStoreService({ logger, registry }: PluginServiceParams): VectorStoreService {
 
-  function getIndexes(vectorstore: VectorStoreEnum) {
+  function getIndexes(vectorstore: string) {
     logger.debug('get indexes, vectorstore:', vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.getIndexes();
   };
 
-  function getIndex(vectorstore: VectorStoreEnum, indexName: string, params: GetIndexParams) {
+  function getIndex(vectorstore: string, indexName: string, params: GetIndexParams) {
     logger.debug('get index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.getIndex(indexName, params);
   };
 
-  function createIndex(vectorstore: VectorStoreEnum, indexName: string, schema: JSONSchema7, params: CreateIndexParams) {
+  function createIndex(vectorstore: string, indexName: string, schema: JSONSchema7, params: CreateIndexParams) {
     logger.debug('create index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.createIndex(indexName, schema, params);
   };
 
-  function dropIndex(vectorstore: VectorStoreEnum, indexName: string) {
+  function dropIndex(vectorstore: string, indexName: string) {
     logger.debug('drop index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.dropIndex(indexName);
   };
 
-  function getNumberChunks(vectorstore: VectorStoreEnum, indexName: string, params: GetNumberChunksParams) {
+  function getNumberChunks(vectorstore: string, indexName: string, params: GetNumberChunksParams) {
     logger.debug('get number chunks from index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.getNumberChunks(indexName, params);
   };
 
-  function dropData(vectorstore: VectorStoreEnum, indexName: string, params: DropDataParams) {
+  function dropData(vectorstore: string, indexName: string, params: DropDataParams) {
     logger.debug('drop data from index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.dropData(indexName, params);
   };
 
-  function indexChunks(vectorstore: VectorStoreEnum, chunks: Chunk[], embeddings: Array<number[]>, params: IndexChunksParams) {
+  function indexChunks(vectorstore: string, chunks: Chunk[], embeddings: Array<number[]>, params: IndexChunksParams) {
     logger.debug('index chunks, vectorstore:', vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.indexChunks(chunks, embeddings, params);
   };
 
-  function deleteChunks(vectorstore: VectorStoreEnum, ids: string[]) {
+  function deleteChunks(vectorstore: string, ids: string[], params) {
     logger.debug('delete chunks, vectorstore:', vectorstore);
     const instance = registry[vectorstore] as VectorStore;
-    return instance.deleteChunks(ids);
+    return instance.deleteChunks(ids, params);
   };
 
-  function deleteChunk(vectorstore: VectorStoreEnum, id: string) {
+  function deleteChunk(vectorstore: string, id: string, params) {
     logger.debug('delete chunk, vectorstore:', vectorstore);
     const instance = registry[vectorstore] as VectorStore;
-    return instance.deleteChunk(id);
+    return instance.deleteChunk(id, params);
   };
 
-  function search(vectorstore: VectorStoreEnum, indexName: string, query: string, attrs: any, params: SearchParams) {
+  function search(vectorstore: string, indexName: string, query: string, attrs: any, logicalType: boolean, params: SearchParams) {
     logger.debug('search for "%s" in index: %s, vectorstore:', query, indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
-    return instance.search(indexName, query, attrs, params);
+    return instance.search(indexName, query, attrs, logicalType, params);
   };
 
   function getVectorStores() {

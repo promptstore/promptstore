@@ -17,7 +17,7 @@ import {
   selectLoading as selectVectorStoresLoading,
 } from '../uploader/vectorStoresSlice';
 
-import { SearchModal } from './SearchModal';
+import { SearchModal } from '../../components/SearchModal';
 import {
   createIndexAsync,
   createPhysicalIndexAsync,

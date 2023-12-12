@@ -2,14 +2,13 @@ import { JSONSchema7 } from 'json-schema';
 
 import logger from '../../logger';
 
+import { LLMService } from '../models/llm_types';
 import { Chunk } from './Chunk';
 import {
   EmbeddingProvider,
-  EmbeddingService,
 } from './EmbeddingProvider';
 import {
   VectorStore,
-  VectorStoreEnum,
   VectorStoreService,
 } from './VectorStore';
 
@@ -22,20 +21,20 @@ export interface IndexParams {
   embeddingNodeProperty: string;
   similarityMetric: string;
   embeddingProvider: string;
-  vectorStoreProvider: VectorStoreEnum;
+  vectorStoreProvider: string;
   workspaceId: number;
   username: string;
 }
 
 export class Indexer {
 
-  protected embeddingService: EmbeddingService;
   protected indexesService: any;
+  protected llmService: LLMService;
   protected vectorStoreService: VectorStoreService;
 
-  constructor({ embeddingService, indexesService, vectorStoreService }) {
-    this.embeddingService = embeddingService;
+  constructor({ indexesService, llmService, vectorStoreService }) {
     this.indexesService = indexesService;
+    this.llmService = llmService;
     this.vectorStoreService = vectorStoreService;
   }
 
@@ -65,13 +64,13 @@ export class Indexer {
     } = params;
     let index: any;
     if (indexId === 'new') {
-      const providers =
-        this.embeddingService.getEmbeddingProviders().map(p => p.key);
-      if (embeddingProvider && !providers.includes(embeddingProvider)) {
+      const embeddingProviders = this.llmService.getEmbeddingProviders().map(p => p.key);
+      if (embeddingProvider && !embeddingProviders.includes(embeddingProvider)) {
         throw new Error('Unsupported embedding provider: ' + embeddingProvider);
       }
 
-      if (!Object.values(VectorStoreEnum).includes(vectorStoreProvider)) {
+      const vectorStoreProviders = this.vectorStoreService.getVectorStores().map(p => p.key);
+      if (vectorStoreProviders && !vectorStoreProviders.includes(vectorStoreProvider)) {
         throw new Error('Unsupported vector store provider: ' + vectorStoreProvider);
       }
 
@@ -110,7 +109,7 @@ export class Indexer {
   }) {
     let embeddingDimension: number;
     if (embeddingProvider) {
-      const embedder = EmbeddingProvider.create(embeddingProvider, this.embeddingService);
+      const embedder = EmbeddingProvider.create(embeddingProvider, this.llmService);
       const testEmbedding = await embedder.createEmbedding({ input: 'foo' });
       embeddingDimension = testEmbedding.embedding.length;
     }
@@ -152,8 +151,8 @@ export class Indexer {
     vectorStoreProvider,
   }) {
     let embeddings: Array<number[]>;
-    if (vectorStoreProvider !== VectorStoreEnum.redis) {
-      const embedder = EmbeddingProvider.create(embeddingProvider, this.embeddingService);
+    if (vectorStoreProvider !== 'redis') {
+      const embedder = EmbeddingProvider.create(embeddingProvider, this.llmService);
       const proms = chunks.map((chunk: Chunk) => embedder.createEmbedding({ input: chunk.text }));
       const responses = await Promise.all(proms);
       embeddings = responses.map(r => r.embedding);

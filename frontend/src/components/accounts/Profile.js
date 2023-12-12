@@ -18,11 +18,11 @@ export default function Profile() {
 
   const [form] = Form.useForm();
 
-  const [firstName] = (currentUser.displayName || currentUser.email).split(' ');
+  const [firstName, lastName] = (currentUser.displayName || currentUser.email).split(/\s+/);
   const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
 
   const fetchAvatars = () => {
-    const res = generateAvatar();
+    const res = generateAvatar(firstName, lastName);
     setAvatars(res);
   };
 

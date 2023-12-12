@@ -1,17 +1,18 @@
 import { OpenAIMessage } from './openai_types';
 import {
+  ContentType,
   FunctionCall,
   MessageRole,
 } from '../conversions/RosettaStone';
 
-export class OpenAIMessageImpl implements OpenAIMessage {
+export class OpenAIMessageImpl<T> implements OpenAIMessage<T> {
 
   role: MessageRole;
-  content: string;
+  content: T;
   name?: string;
   function_call?: FunctionCall;
 
-  constructor({ role, content, name, function_call }: OpenAIMessage) {
+  constructor({ role, content, name, function_call }: OpenAIMessage<T>) {
     this.role = role;
     this.content = content;
     this.name = name;
@@ -51,10 +52,10 @@ export class FunctionMessage implements OpenAIMessage {
 export class UserMessage implements OpenAIMessage {
 
   role = MessageRole.user;
-  content: string;
+  content: ContentType;
   name?: string;
 
-  constructor(content: string, name?: string) {
+  constructor(content: ContentType, name?: string) {
     this.content = content;
     this.name = name;
   }

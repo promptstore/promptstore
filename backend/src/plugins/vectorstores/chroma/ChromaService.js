@@ -172,7 +172,7 @@ function ChromaService({ __name, constants, logger }) {
     }
   };
 
-  async function search(indexName, query, attrs, params) {
+  async function search(indexName, query, attrs, logicalType, params) {
     const { k, queryEmbedding } = params;
     try {
       const collection = await getCollection(indexName);

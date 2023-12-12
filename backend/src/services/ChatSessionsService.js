@@ -82,11 +82,11 @@ export function ChatSessionsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO chat_sessions (workspace_id, name, type, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [session.workspaceId, session.name, session.type, val, username, created, username, created]
       );
-      return { ...session, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

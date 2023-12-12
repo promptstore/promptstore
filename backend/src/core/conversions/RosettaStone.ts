@@ -92,21 +92,21 @@ export type ContentObject = TextContent | ImageContent;
 
 export type ContentType = string | string[] | ContentObject[];
 
-export interface VisionMessage {
-  role: MessageRole;
-  content: ContentType;
-}
+// export interface VisionMessage {
+//   role: MessageRole;
+//   content: ContentType;
+// }
 
-export interface Message {
+export interface Message<T = ContentType> {
   role: MessageRole;
-  content: string;
+  content: T;
   name?: string;
   function_call?: FunctionCall;
   citation_metadata?: CitationMetadata;
   final?: boolean;
 }
 
-export type MultiModalMessage = Message | VisionMessage;
+// export type MultiModalMessage = Message | VisionMessage;
 
 interface FewShotLearningExample {
   input: Message;
@@ -159,11 +159,11 @@ export interface SafetySetting {
   threshold: HarmBlockThreshold;  // Controls the probability threshold at which harm is blocked.
 }
 
-export interface VisionChatRequest {
-  model: string;
-  max_tokens: number;
-  messages: VisionMessage[];
-}
+// export interface VisionChatRequest {
+//   model: string;
+//   max_tokens: number;
+//   messages: VisionMessage[];
+// }
 
 export interface ChatRequest {
   model: string;
@@ -177,13 +177,13 @@ export interface ChatRequest {
   safety_settings?: SafetySetting[];
 }
 
-export type MultiModalChatRequest = ChatRequest | VisionChatRequest;
+// export type MultiModalChatRequest = ChatRequest | VisionChatRequest;
 
-export interface ProviderRequest {
-  provider: string;
-  request: ChatRequest;
-  vision?: boolean;
-};
+// export interface ProviderRequest {
+//   provider: string;
+//   request: ChatRequest;
+//   vision?: boolean;
+// };
 
 export interface SafetyRating {
   category: string;
@@ -309,7 +309,7 @@ export function toVertexAIChatRequest(request: ChatRequest) {
       output: toPaLMMessage(output),
     }));
   }
-  const context = createSystemPrompt(prompt.context, systemMessages, functions);
+  const context = createSystemPrompt(prompt.context, systemMessages as SystemMessage[], functions);
   return {
     model,
     prompt: {
@@ -704,6 +704,7 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
     created,
     model,
     choices,
+    n: choices.length,
     usage,
   };
 }
@@ -860,7 +861,7 @@ function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {
   if (prompt.history) {
     for (const message of prompt.history) {
       if (message.role === 'system') {
-        systemMessages.push(new OpenAIMessageImpl(message));
+        systemMessages.push(new OpenAIMessageImpl<string>(message as SystemMessage));
       } else if (message.role === 'function') {
         messages.push(new FunctionMessage(makeObservation(message.content), message.name));
       } else {
@@ -871,19 +872,23 @@ function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {
   if (prompt.examples) {
     for (const { input, output } of prompt.examples) {
       messages.push(new UserMessage(input.content));
-      messages.push(new AssistantMessage(output.content));
+      messages.push(new AssistantMessage(output.content as string));
     }
   }
   for (const message of prompt.messages) {
     if (message.role === 'system') {
-      systemMessages.push(new OpenAIMessageImpl(message));
+      systemMessages.push(new OpenAIMessageImpl<string>(message as SystemMessage));
     } else if (message.role === 'function') {
       messages.push(new FunctionMessage(makeObservation(message.content), message.name));
     } else {
       messages.push(new OpenAIMessageImpl(message));
     }
   }
-  const systemPrompt = createSystemPrompt(prompt.context, systemMessages, functions);
+  const systemPrompt = createSystemPrompt(
+    prompt.context,
+    systemMessages as SystemMessage[],
+    functions,
+  );
   if (systemPrompt) {
     return [new SystemMessage(systemPrompt), ...messages];
   }
@@ -935,7 +940,7 @@ function getFunctionPrompts(functions: Function[]) {
 
 function createSystemPrompt(
   context: ChatRequestContext,
-  systemMessages: PaLMMessage[],
+  systemMessages: SystemMessage[],
   functions?: Function[]
 ) {
   const systemPrompt: string[] = [];
@@ -954,16 +959,19 @@ function createSystemPrompt(
   return null;
 }
 
-function makeObservation(observation: string) {
-  return observation;
-  // return 'Observation: ' + observation + '\nThought: ';
-}
-
-function convertContentTypeToString(content: ContentType) {
+export function convertContentTypeToString(content: ContentType) {
   if (typeof content === 'string') {
     return content;
   }
-  return '';
+  return (content as ContentObject[])
+    .filter(c => c.type === 'text')
+    .map((c: TextContent) => c.text)
+    .join('\n\n');
+}
+
+function makeObservation(observation: ContentType) {
+  return convertContentTypeToString(observation);
+  // return 'Observation: ' + observation + '\nThought: ';
 }
 
 /*** ************/

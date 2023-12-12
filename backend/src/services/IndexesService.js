@@ -109,11 +109,11 @@ export function IndexesService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO doc_indexes (workspace_id, name, engine, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [index.workspaceId, index.name, index.vectorStoreProvider, val, username, created, username, created]
       );
-      return { ...index, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

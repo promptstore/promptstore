@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
+import isEmpty from 'lodash.isempty';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -35,6 +36,7 @@ import {
 import {
   deletePromptSetsAsync,
   getPromptSetsAsync,
+  selectLoaded,
   selectLoading,
   selectPromptSets,
 } from './promptSetsSlice';
@@ -61,7 +63,9 @@ export function PromptSetsList() {
   const [searchValue, setSearchValue] = useState('');
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', { defaultValue: [] });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [numItems, setNumItems] = useLocalStorageState('prompt-sets-num-items', { defaultValue: 12 });
 
+  const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const promptSets = useSelector(selectPromptSets);
   const settings = useSelector(selectSettings);
@@ -69,24 +73,29 @@ export function PromptSetsList() {
   const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
-    const list =
-      Object.values(promptSets)
-        .filter((ps) => ps.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
-        .filter((ps) => selectedTags?.length ? intersects(ps.tags, selectedTags) : true)
-        .filter((ps) => filterTemplates ? ps.isTemplate : true)
-        .filter((ps) => filterPublic ? ps.isPublic : true)
-        .map((ps) => ({
-          key: ps.id,
-          name: ps.name,
-          prompt: ps.prompts?.[0]?.prompt,
-          summary: ps.summary,
-          skill: ps.skill,
-          tags: ps.tags,
-          isTemplate: ps.isTemplate,
-          isPublic: ps.isPublic,
-        }));
-    list.sort((a, b) => a.name > b.name ? 1 : -1);
-    return list;
+    if (layout === 'grid' && isEmpty(promptSets)) {
+      // show loading cards
+      return [...Array(numItems).keys()].map(key => ({ key }));
+    } else {
+      const list =
+        Object.values(promptSets)
+          .filter((ps) => ps.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+          .filter((ps) => selectedTags?.length ? intersects(ps.tags, selectedTags) : true)
+          .filter((ps) => filterTemplates ? ps.isTemplate : true)
+          .filter((ps) => filterPublic ? ps.isPublic : true)
+          .map((ps) => ({
+            key: ps.id,
+            name: ps.name,
+            prompt: ps.prompts?.[0]?.prompt,
+            summary: ps.summary,
+            skill: ps.skill,
+            tags: ps.tags,
+            isTemplate: ps.isTemplate,
+            isPublic: ps.isPublic,
+          }));
+      list.sort((a, b) => a.name > b.name ? 1 : -1);
+      return list;
+    }
   }, [promptSets, searchValue, filterPublic, filterTemplates, selectedTags]);
 
   const tagOptions = useMemo(() => {
@@ -121,8 +130,11 @@ export function PromptSetsList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getPromptSetsAsync({ workspaceId: selectedWorkspace.id }));
       dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
+      dispatch(getPromptSetsAsync({
+        workspaceId: selectedWorkspace.id,
+        minDelay: layout === 'grid' ? 2000 : 0,
+      }));
     }
   }, [selectedWorkspace]);
 
@@ -134,6 +146,12 @@ export function PromptSetsList() {
       });
     }
   }, [location]);
+
+  useEffect(() => {
+    if (loaded) {
+      setNumItems(Object.keys(promptSets).length);
+    }
+  }, [loaded, promptSets]);
 
   const onDelete = () => {
     dispatch(deletePromptSetsAsync({ ids: selectedRowKeys }));
@@ -335,7 +353,7 @@ export function PromptSetsList() {
         {layout === 'grid' ?
           <Space wrap size="large">
             {data.map(p =>
-              <Card key={p.key} title={p.name} style={{ width: 350, height: 200 }}>
+              <Card key={p.key} title={p.name} style={{ width: 350, height: 200 }} loading={loading}>
                 <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
                   <div style={{ height: 30 }}>
                     Skill: <span style={{ color: '#177ddc' }}>{p.skill}</span>

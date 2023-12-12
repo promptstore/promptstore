@@ -1,8 +1,28 @@
 import { formatAlgolia } from '../utils';
 
-export default ({ app, auth, logger, services }) => {
+import searchFunctions from '../searchFunctions';
+import searchableObjects from '../searchableObjects';
 
-  const { embeddingService, searchService, vectorStoreService } = services;
+export default ({ app, auth, constants, logger, services }) => {
+
+  const {
+    agentsService,
+    appsService,
+    compositionsService,
+    dataSourcesService,
+    destinationsService,
+    functionsService,
+    indexesService,
+    llmService,
+    modelsService,
+    promptSetsService,
+    transformationsService,
+    uploadsService,
+    workspacesService,
+    vectorStoreService,
+  } = services;
+
+  const { indexObject } = searchFunctions({ constants, services });
 
   app.get('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
     const { name, vectorStoreProvider } = req.params;
@@ -21,7 +41,7 @@ export default ({ app, auth, logger, services }) => {
       let resp;
       if (vectorStoreProvider === 'neo4j') {
         const { embeddingProvider, nodeLabel } = params;
-        const { embedding: testEmbedding } = await embeddingService.createEmbedding(embeddingProvider, { input: 'foo' });
+        const { embedding: testEmbedding } = await llmService.createEmbedding(embeddingProvider, { input: 'foo' });
         const embeddingDimension = testEmbedding.length;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
@@ -67,6 +87,21 @@ export default ({ app, auth, logger, services }) => {
     }
   });
 
+  app.post('/api/chunks/:vectorStoreProvider/:name', auth, async (req, res, next) => {
+    const { name, vectorStoreProvider } = req.params;
+    const { chunks, embeddings, params } = req.body;
+    try {
+      const resp = await vectorStoreService.indexChunks(vectorStoreProvider, chunks, embeddings, {
+        ...params,
+        indexName: name,
+      });
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
   // app.delete('/api/indexes/:indexName/documents/:uid', async (req, res) => {
   //   const { indexName, uid } = req.params;
   //   try {
@@ -80,16 +115,16 @@ export default ({ app, auth, logger, services }) => {
   //   }
   // });
 
-  // app.post('/api/bulk-delete', async (req, res) => {
-  //   const { indexName, uids } = req.body;
-  //   try {
-  //     const resp = await searchService.deleteDocuments(uids, { indexName });
-  //     res.send(resp);
-  //   } catch (err) {
-  //     logger.error(String(err));
-  //     res.sendStatus(400);
-  //   }
-  // });
+  app.post('/api/bulk-delete', async (req, res) => {
+    const { ids, params, vectorStoreProvider } = req.body;
+    try {
+      const resp = await vectorStoreService.deleteChunks(vectorStoreProvider, ids, params);
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
 
   // app.delete('/api/delete-matching', async (req, res) => {
   //   const { indexName, q, ...rest } = req.query;
@@ -105,24 +140,25 @@ export default ({ app, auth, logger, services }) => {
   // });
 
   app.post('/api/search', auth, async (req, res, next) => {
-    const { requests, attrs, indexParams } = req.body;
+    const { requests, attrs, logicalType, indexParams } = req.body;
     const { indexName, params: { query } } = requests[0];
-    const q = query.trim();
-    if (q.length < 2) {
-      return [];
-    }
     // logger.debug('query:', q);
     const {
       nodeLabel,
       embeddingProvider,
       vectorStoreProvider,
     } = indexParams;
+    const q = query.trim();
+    if (q.length < 2) {
+      const result = formatAlgolia(requests, [], nodeLabel);
+      return res.status(200).send({ results: [result] });
+    }
     let queryEmbedding;
     if (vectorStoreProvider !== 'redis') {
-      const res = await embeddingService.createEmbedding(embeddingProvider, { input: q });
+      const res = await llmService.createEmbedding(embeddingProvider, { input: q });
       queryEmbedding = res.embedding;
     }
-    const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, {
+    const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, logicalType, {
       queryEmbedding,
     });
     // logger.debug('rawResults:', rawResults);
@@ -135,6 +171,40 @@ export default ({ app, auth, logger, services }) => {
     const { requests } = req.body;
     const results = [];
     res.status(200).send(results);
+  });
+
+  const serviceMapping = {
+    agents: agentsService.getAgents,
+    apps: appsService.getApps,
+    compositions: compositionsService.getCompositions,
+    dataSources: dataSourcesService.getDataSources,
+    destinations: destinationsService.getDestinations,
+    functions: functionsService.getFunctions,
+    indexes: indexesService.getIndexes,
+    models: modelsService.getModels,
+    promptSets: promptSetsService.getPromptSets,
+    transformations: transformationsService.getTransformations,
+    uploads: uploadsService.getUploads,
+  };
+
+  app.post('/api/workspaces/:workspaceId/rebuild-search-index', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    try {
+      for (const key of Object.keys(serviceMapping)) {
+        const records = await serviceMapping[key](workspaceId);
+        for (const rec of records) {
+          const obj = searchableObjects[key](rec);
+          await indexObject(obj);
+        }
+      }
+      const rec = await workspacesService.getWorkspace(workspaceId);
+      const obj = searchableObjects['workspaces'](rec);
+      await indexObject(obj);
+      res.json({ status: 'OK' });
+    } catch (err) {
+      logger.debug('Error rebuilding search index:', err, err.stack);
+      res.sendStatus(500);
+    }
   });
 
 };

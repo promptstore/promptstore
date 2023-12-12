@@ -1,30 +1,22 @@
-import { PluginMetadata } from './common_types';
 import { EmbeddingRequest, EmbeddingResponse } from '../conversions/RosettaStone';
-
-export interface EmbeddingService {
-
-  createEmbedding(provider: string, request: EmbeddingRequest): Promise<EmbeddingResponse>
-
-  getEmbeddingProviders?(): PluginMetadata[];
-
-}
+import { LLMService } from '../models/llm_types';
 
 export abstract class EmbeddingProvider {
 
   __name: string;
 
-  protected embeddingService: EmbeddingService;
+  protected llmService: LLMService;
 
-  constructor(embeddingService: EmbeddingService) {
-    this.embeddingService = embeddingService;
+  constructor(llmService: LLMService) {
+    this.llmService = llmService;
   }
 
-  static create(provider: string, embeddingService: EmbeddingService) {
+  static create(provider: string, llmService: LLMService) {
     return new class extends EmbeddingProvider {
       createEmbedding(request: EmbeddingRequest) {
-        return this.embeddingService.createEmbedding(provider, request);
+        return this.llmService.createEmbedding(provider, request);
       }
-    }(embeddingService);
+    }(llmService);
   }
 
   abstract createEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse>

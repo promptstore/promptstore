@@ -4,15 +4,6 @@ import { Chunk } from './Chunk';
 import { Document } from './Document';
 import { PluginMetadata } from './common_types';
 
-export enum ExtractorEnum {
-  csv = 'csv',
-  json = 'json',
-  neo4j = 'neo4j',
-  onesource = 'onesource',
-  text = 'text',
-  unstructured = 'unstructured',
-}
-
 export interface CsvOptions {
   bom: boolean;
   columns: boolean;
@@ -97,13 +88,13 @@ export type SchemaParams = CsvSchemaParams | JsonSchemaParams | Neo4jSchemaParam
 
 export interface ExtractorService {
 
-  getChunks(extractor: ExtractorEnum, documents: Document[] | null, params: Partial<ExtractorParams>): Promise<Chunk[]>;
+  getChunks(extractor: string, documents: Document[] | null, params: Partial<ExtractorParams>): Promise<Chunk[]>;
 
-  getSchema(extractor: ExtractorEnum, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  getSchema(extractor: string, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
-  matchDocument(extractor: ExtractorEnum, document: ExtendedDocument): boolean;
+  matchDocument(extractor: string, document: ExtendedDocument): boolean;
 
-  extract(extractor: ExtractorEnum, filepath: string, originalname: string, mimetype: string): Promise<any>;
+  extract(extractor: string, filepath: string, originalname: string, mimetype: string): Promise<any>;
 
   getExtractors(): PluginMetadata[];
 
@@ -123,6 +114,25 @@ export abstract class Extractor {
     this.extractorService = extractorService;
   }
 
+  static create(extractor: string, extractorService: ExtractorService) {
+    return new class extends Extractor {
+
+      async getChunks(documents: Document[] | null, params: any) {
+        const chunks = await this.extractorService.getChunks(extractor, documents, params);
+        return chunks.map(Chunk.create);
+      }
+
+      getSchema(params: any) {
+        return this.extractorService.getSchema(extractor, params);
+      }
+
+      matchDocument(document: ExtendedDocument) {
+        return this.extractorService.matchDocument(extractor, document);
+      }
+
+    }(extractorService);
+  }
+
   abstract getChunks(documents: Document[] | null, params: Partial<ExtractorParams>): Promise<Chunk[]>;
 
   abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
@@ -136,16 +146,16 @@ export abstract class Extractor {
 export class CsvExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: Partial<CsvExtractorParams>) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.csv, documents, params);
+    const chunks = await this.extractorService.getChunks('csv', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema(params: Partial<CsvSchemaParams>) {
-    return this.extractorService.getSchema(ExtractorEnum.csv, params);
+    return this.extractorService.getSchema('csv', params);
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.csv, document);
+    return this.extractorService.matchDocument('csv', document);
   }
 
 }
@@ -153,16 +163,16 @@ export class CsvExtractor extends Extractor {
 export class JsonExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: Partial<JsonExtractorParams>) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.json, documents, params);
+    const chunks = await this.extractorService.getChunks('json', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema(params: Partial<JsonSchemaParams>) {
-    return this.extractorService.getSchema(ExtractorEnum.json, params);
+    return this.extractorService.getSchema('json', params);
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.json, document);
+    return this.extractorService.matchDocument('json', document);
   }
 
 }
@@ -170,16 +180,16 @@ export class JsonExtractor extends Extractor {
 export class Neo4jExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: Partial<Neo4jExtractorParams>) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.neo4j, documents, params);
+    const chunks = await this.extractorService.getChunks('neo4j', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema(params: Neo4jSchemaParams) {
-    return this.extractorService.getSchema(ExtractorEnum.neo4j, params);
+    return this.extractorService.getSchema('neo4j', params);
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.neo4j, document);
+    return this.extractorService.matchDocument('neo4j', document);
   }
 
 }
@@ -187,20 +197,20 @@ export class Neo4jExtractor extends Extractor {
 export class OnesourceExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: OnesourceExtractorParams) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.onesource, documents, params);
+    const chunks = await this.extractorService.getChunks('onesource', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema() {
-    return this.extractorService.getSchema(ExtractorEnum.onesource);
+    return this.extractorService.getSchema('onesource');
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.onesource, document);
+    return this.extractorService.matchDocument('onesource', document);
   }
 
   extract(filepath: string, originalname: string, mimetype: string) {
-    return this.extractorService.extract(ExtractorEnum.onesource, filepath, originalname, mimetype);
+    return this.extractorService.extract('onesource', filepath, originalname, mimetype);
   }
 
 }
@@ -208,16 +218,16 @@ export class OnesourceExtractor extends Extractor {
 export class TextExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: Partial<TextExtractorParams>) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.text, documents, params);
+    const chunks = await this.extractorService.getChunks('text', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema() {
-    return this.extractorService.getSchema(ExtractorEnum.text);
+    return this.extractorService.getSchema('text');
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.text, document);
+    return this.extractorService.matchDocument('text', document);
   }
 
 }
@@ -225,20 +235,20 @@ export class TextExtractor extends Extractor {
 export class UnstructuredExtractor extends Extractor {
 
   async getChunks(documents: Document[] | null, params: UnstructuredExtractorParams) {
-    const chunks = await this.extractorService.getChunks(ExtractorEnum.unstructured, documents, params);
+    const chunks = await this.extractorService.getChunks('unstructured', documents, params);
     return chunks.map(Chunk.create);
   }
 
   getSchema() {
-    return this.extractorService.getSchema(ExtractorEnum.unstructured);
+    return this.extractorService.getSchema('unstructured');
   }
 
   matchDocument(document: ExtendedDocument) {
-    return this.extractorService.matchDocument(ExtractorEnum.unstructured, document);
+    return this.extractorService.matchDocument('unstructured', document);
   }
 
   extract(filepath: string, originalname: string, mimetype: string) {
-    return this.extractorService.extract(ExtractorEnum.unstructured, filepath, originalname, mimetype);
+    return this.extractorService.extract('unstructured', filepath, originalname, mimetype);
   }
 
 }

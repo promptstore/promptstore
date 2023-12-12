@@ -103,11 +103,11 @@ function JsonParser({ __name, constants, logger }) {
         },
         "type": {
           "type": "string",
-          "description": "The type of chunk if defined, e.g., \"Title\", \"NarrativeText\", \"Image\"",
+          "description": "The type of chunk if defined, e.g., \"Title\", \"NarrativeText\", \"Image\""
         },
         "text": {
           "type": "string",
-          "description": "The chunk text",
+          "description": "The chunk text"
         },
         "data": {
           "type": {},

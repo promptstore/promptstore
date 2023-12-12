@@ -252,7 +252,7 @@ function Neo4jService({ __name, constants, logger }) {
     }
   }
 
-  async function search(indexName, query, attrs, params) {
+  async function search(indexName, query, attrs, logicalType, params) {
     const {
       queryEmbedding,
       keywordIndexName,

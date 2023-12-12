@@ -26,7 +26,6 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   const {
     chatSessionsService,
-    embeddingService,
     indexesService,
     llmService,
     promptSetsService,
@@ -112,11 +111,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     let {
       args,
       engine,
-      history,
+      history = [],
       indexName,
       isCritic,
-      modelParams,
-      originalMessages,
+      modelParams = {},
+      originalMessages = [],
       promptSetId,
       systemPromptInput,
       critiquePromptSetId,
@@ -227,7 +226,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         const searchParams = {};
         if (vectorStoreProvider === 'neo4j') {
           const { embedding: queryEmbedding } =
-            await embeddingService.createEmbedding(embeddingProvider, { input: content });
+            await llmService.createEmbedding(embeddingProvider, { input: content });
           searchParams['queryEmbedding'] = queryEmbedding;
         }
         const hits = await vectorStoreService.search(vectorStoreProvider, indexName, content, null, searchParams);
@@ -293,7 +292,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         })
         .down();
 
-      proms.push(llmService.createChatCompletion({ provider, request }));
+      proms.push(llmService.createChatCompletion(provider, request));
     }
     const completions = await Promise.all(proms);
 
@@ -429,12 +428,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.post('/api/embedding', auth, async (req, res) => {
     const { input, model, provider } = req.body;
-    let embedding;
-    if (provider === 'sentenceencoder') {
-      embedding = await embeddingService.createEmbedding(provider, { input });
-    } else {
-      embedding = await llmService.createEmbedding(provider, { model, input });
-    }
+    const embedding = await llmService.createEmbedding(provider, { model, input });
     res.json(embedding.embedding);
   });
 
@@ -519,7 +513,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       prompt: { messages },
       model_params: modelParams,
     };
-    return llmService.createChatCompletion({ provider, request });
+    return llmService.createChatCompletion(provider, request);
   };
 
   const getMaxTokens = (app) => {

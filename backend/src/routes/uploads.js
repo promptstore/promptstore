@@ -4,14 +4,18 @@ import multer from 'multer';
 import path from 'path';
 import uuid from 'uuid';
 
+import searchFunctions from '../searchFunctions';
 import { getExtension } from '../utils';
 
 export default ({ app, auth, constants, logger, mc, services, workflowClient }) => {
+
+  const OBJECT_TYPE = 'uploads';
 
   const {
     appsService,
     dataSourcesService,
     documentsService,
+    extractorService,
     functionsService,
     graphStoreService,
     indexesService,
@@ -20,6 +24,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     uploadsService,
     vectorStoreService,
   } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   const upload = multer({ dest: '/var/data' });
 
@@ -132,6 +138,9 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   }
 
   function convertToOnesourceFormat(json) {
+    if (!Array.isArray(json)) {
+      return null;
+    }
     let metadata;
     const stack = [];
     const documents = [];
@@ -217,20 +226,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
       const objectName = path.join(String(upload.workspaceId), constants.DOCUMENTS_PREFIX, upload.filename);
       if (ext === 'csv') {
-        const options = {
-          bom: true,
-          columns: true,
-          delimiter: ',',
-          quote: '"',
-          skip_records_with_error: true,
-          trim: true,
-        };
-        const output = await documentsService.read(
-          objectName,
-          mb,
-          documentsService.transformations.csv,
-          options
-        );
+        const content = await documentsService.read(objectName, mb);
+        const output = await extractorService.getChunks('csv', [{ content, ext: 'csv' }], { raw: true });
         res.json(output);
 
       } else if (ext === 'txt') {
@@ -395,6 +392,9 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
 
+        const obj = createSearchableObject(result);
+        indexObject(obj);
+
       });
     res.sendStatus(200);
   });
@@ -457,9 +457,11 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
                 if (doc.index) {
                   await deletePhysicalIndexAndData(doc.index);
                   await indexesService.deleteIndexes([doc.index]);
+                  await deleteObject('indexes:' + doc.index);
                 }
                 if (doc.dataSource) {
                   await dataSourcesService.deleteDataSources([doc.dataSource]);
+                  await deleteObject('data-sources:' + doc.dataSource);
                 }
                 delete newDocuments[uploadId];
               }
@@ -471,8 +473,10 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
             documents: newDocuments,
             indexes: newIndexes,
           });
+          await deleteObjects(ids.map(objectId));
           return res.json(app);
         }
+
         res.json(uploadIds);
       } catch (e) {
         logger.error('Error deleting documents:', e);
@@ -501,6 +505,30 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         // maybe no such store
       }
     }
+  }
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.filename,
+      rec.data?.data?.structured_content?.map(c => c.text).join('\n'),
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Document',
+      type: OBJECT_TYPE,
+      name: rec.filename,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        filetype: rec.data?.metadata?.filetype,
+      },
+    };
   }
 
 };

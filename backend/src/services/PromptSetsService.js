@@ -23,7 +23,7 @@ export function PromptSetsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
-      WHERE workspace_id = $1
+      WHERE workspace_id = $1 OR workspace_id = 1
       OR (val->>'isPublic')::boolean = true
       `;
     const { rows } = await pg.query(q, [workspaceId]);
@@ -43,7 +43,7 @@ export function PromptSetsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND val->>'name' LIKE $2 || '%'
       `;
     const { rows } = await pg.query(q, [workspaceId, name]);
@@ -63,7 +63,7 @@ export function PromptSetsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND skill = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, skill]);
@@ -91,7 +91,7 @@ export function PromptSetsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
       FROM prompt_sets p
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND p.val->>'isTemplate' = 'true'
       `;
     const { rows } = await pg.query(q, [workspaceId]);
@@ -138,11 +138,11 @@ export function PromptSetsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO prompt_sets (workspace_id, skill, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `,
         [promptSet.workspaceId, promptSet.skill, val, username, created, username, created]
       );
-      return { ...promptSet, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

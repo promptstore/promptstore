@@ -8,7 +8,6 @@ import pg from '../db';
 import { DataSourcesService } from '../services/DataSourcesService';
 import { DestinationsService } from '../services/DestinationsService';
 import { ExecutionsService } from '../services/ExecutionsService';
-import { EmbeddingService } from '../services/EmbeddingService';
 import { ExtractorService } from '../services/ExtractorService';
 import { FeatureStoreService } from '../services/FeatureStoreService';
 import { GraphStoreService } from '../services/GraphStoreService';
@@ -52,9 +51,6 @@ const mc = new Minio.Client({
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(__dirname, '..');
 
-const EMBEDDING_PLUGINS = process.env.EMBEDDING_PLUGINS || '';
-const embeddingPlugins = await getPlugins(basePath, EMBEDDING_PLUGINS, logger);
-
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const extractorPlugins = await getPlugins(basePath, EXTRACTOR_PLUGINS, logger);
 
@@ -88,12 +84,6 @@ const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logg
 
 const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
-const embeddingService = EmbeddingService({
-  logger, registry: {
-    ...embeddingPlugins,
-    ...llmPlugins,
-  }
-});
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 const functionsService = FunctionsService({ pg, logger });
@@ -280,12 +270,12 @@ async function runWorker() {
       logger,
       dataSourcesService,
       destinationsService,
-      embeddingService,
       executionsService,
       extractorService,
       functionsService,
       graphStoreService,
       indexesService,
+      llmService,
       loaderService,
       sqlSourceService,
       uploadsService,

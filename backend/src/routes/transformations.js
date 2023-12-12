@@ -1,8 +1,13 @@
 import { columnsToFields } from '../core/conversions/schema';
+import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
+  const OBJECT_TYPE = 'transformations';
+
   const { dataSourcesService, sqlSourceService, transformationsService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   // cache of results to poll
   const jobs = {};
@@ -67,6 +72,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
 
     const transformation = await transformationsService.upsertTransformation(values, username);
+    const obj = createSearchableObject(transformation);
+    await indexObject(obj);
     res.json(transformation);
   });
 
@@ -75,18 +82,22 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { username } = req.user;
     const values = req.body;
     const transformation = await transformationsService.upsertTransformation({ ...values, id }, username);
+    const obj = createSearchableObject(transformation);
+    await indexObject(obj);
     res.json(transformation);
   });
 
   app.delete('/api/transformations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await transformationsService.deleteTransformations([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
   app.delete('/api/transformations', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await transformationsService.deleteTransformations(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
 
@@ -99,7 +110,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         address: constants.TEMPORAL_URL,
       })
       .then((result) => {
-        logger.debug('result:', result);
+        // logger.debug('result:', result);
         if (correlationId) {
           jobs[correlationId] = result;
         }
@@ -112,5 +123,32 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       });
     res.sendStatus(200);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Transformation',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        dataSourceId: rec.dataSourceId,
+        destinationIds: rec.destinationIds,
+        indexId: rec.indexId,
+        vectorStoreProvider: rec.engine,
+      },
+    };
+  }
 
 };

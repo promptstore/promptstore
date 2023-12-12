@@ -2,6 +2,7 @@ import { Callback } from '../callbacks/Callback';
 import { GraphStoreService } from '../indexers/GraphStore';
 import { PromptTemplate } from './PromptTemplate';
 import { Message, ModelParams } from '../conversions/RosettaStone';
+import { LLMService } from '../models/llm_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 export interface PromptEnrichmentCallParams {
@@ -127,7 +128,7 @@ export type SemanticSearchEnrichmentOnErrorCallbackFunction = (errors: any) => v
 export interface SearchIndexEnrichmentParams {
   indexName: string;
   indexParams: IndexParams;
-  embeddingService: any;
+  llmService: LLMService;
   vectorStoreService: any;
   callbacks?: Callback[];
 }

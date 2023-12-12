@@ -16,7 +16,14 @@ import {
   PromptTemplateCallParams,
   TemplateFiller,
 } from './PromptTemplate_types';
-import { CitationMetadata, FunctionCall, Message, MessageRole } from '../conversions/RosettaStone';
+import {
+  CitationMetadata,
+  ContentType,
+  FunctionCall,
+  Message,
+  MessageRole,
+  convertContentTypeToString,
+} from '../conversions/RosettaStone';
 
 dayjs.extend(relativeTime);
 
@@ -61,7 +68,7 @@ export class PromptTemplate {
       }
       const messages = this.messages.map((message) => ({
         role: message.role,
-        content: this.templateFiller(message.content, args),
+        content: this.templateFiller(convertContentTypeToString(message.content), args),
       }));
       this.onEnd({ messages });
       return messages;
@@ -84,7 +91,7 @@ export class PromptTemplate {
     }
     const preContextArgs = { ...args, context: '' };
     const preContextText = this.messages
-      .map(m => this.templateFiller(m.content, preContextArgs))
+      .map(m => this.templateFiller(convertContentTypeToString(m.content), preContextArgs))
       .join('\n\n');
     const preContextTokens = encoding.encode(preContextText);
     const preContextLength = preContextTokens.length;
@@ -145,7 +152,7 @@ export class PromptTemplate {
 export class ChatMessage implements Message {
 
   role: MessageRole;
-  content: string;
+  content: ContentType;
   name?: string;
   function_call?: FunctionCall;
   citation_metadata?: CitationMetadata;

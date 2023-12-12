@@ -1,6 +1,12 @@
-export default ({ app, auth, logger, services }) => {
+import searchFunctions from '../searchFunctions';
+
+export default ({ app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'indexes';
 
   const { graphStoreService, indexesService, vectorStoreService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   app.get('/api/workspaces/:workspaceId/indexes', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
@@ -11,7 +17,6 @@ export default ({ app, auth, logger, services }) => {
   app.get('/api/indexes/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const index = await indexesService.getIndex(id);
-    // logger.debug('index:', index);
     res.json(index);
   });
 
@@ -19,6 +24,8 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const index = await indexesService.upsertIndex(values, username);
+    const obj = createSearchableObject(index);
+    await indexObject(obj);
     res.json(index);
   });
 
@@ -27,6 +34,8 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const index = await indexesService.upsertIndex({ ...values, id }, username);
+    const obj = createSearchableObject(index);
+    await indexObject(obj);
     res.json(index);
   });
 
@@ -34,6 +43,7 @@ export default ({ app, auth, logger, services }) => {
     const id = req.params.id;
     await deletePhysicalIndexAndData(id);
     await indexesService.deleteIndexes([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -42,6 +52,7 @@ export default ({ app, auth, logger, services }) => {
     const proms = ids.map(deletePhysicalIndexAndData);
     await Promise.all(proms);
     await indexesService.deleteIndexes(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
 
@@ -63,6 +74,31 @@ export default ({ app, auth, logger, services }) => {
         // maybe no such store
       }
     }
+  }
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Semantic Index',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        vectorStoreProvider: rec.vectorStoreProvider,
+        graphStoreProvider: rec.graphStoreProvider,
+      },
+    };
   }
 
 };

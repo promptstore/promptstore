@@ -71,11 +71,11 @@ export function TransformationsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO transformations (workspace_id, data_source_id, name, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [transformation.workspaceId, transformation.dataSourceId, transformation.name, val, username, created, username, created]
       );
-      return { ...transformation, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

@@ -421,6 +421,11 @@ spec:
                 secretKeyRef:
                   key: NEO4J_VECTOR_STORE_PASSWORD
                   name: "{{ .Values.appname }}"
+            - name: EMAIL_OVERRIDE
+              valueFrom:
+                secretKeyRef:
+                  key: EMAIL_OVERRIDE
+                  name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data
               name: file-storage
@@ -832,6 +837,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: NEO4J_VECTOR_STORE_PASSWORD
+                  name: "{{ .Values.appname }}"
+            - name: EMAIL_OVERRIDE
+              valueFrom:
+                secretKeyRef:
+                  key: EMAIL_OVERRIDE
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data

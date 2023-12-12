@@ -99,11 +99,11 @@ export function WorkspacesService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO workspaces (name, val, created, created_by, modified, modified_by)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
         `,
         [workspace.name, val, created, user.username, created, user.username]
       );
-      return { ...workspace, ...val, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

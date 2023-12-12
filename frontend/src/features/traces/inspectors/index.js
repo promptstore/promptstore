@@ -55,12 +55,12 @@ export function Inspector({ step }) {
       return <PromptTemplate step={step} title="Call Prompt Template" />
 
     case 'call-model':
-      let messages;
-      if (step.model === 'gpt-4-vision-preview') {
-        messages = step.messages;
-      } else {
-        messages = createOpenAIMessages(step.prompt);
-      }
+      // let messages;
+      // if (step.model === 'gpt-4-vision-preview') {
+      //   messages = step.messages;
+      // } else {
+      const messages = createOpenAIMessages(step.prompt);
+      // }
       return <ModelCall messages={messages} step={step} title="Call GPT Model" />
 
     case 'call-custom-model':

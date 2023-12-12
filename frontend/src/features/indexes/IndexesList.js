@@ -7,7 +7,7 @@ import useLocalStorageState from 'use-local-storage-state';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
-import { SearchModal } from './SearchModal';
+import { SearchModal } from '../../components/SearchModal';
 import {
   deleteIndexesAsync,
   getIndexesAsync,
@@ -17,7 +17,7 @@ import {
 
 export function IndexesList() {
 
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [page, setPage] = useLocalStorageState('indexes-list-page', { defaultValue: 1 });
   const [selectedIndex, setSelectedIndex] = useState({});
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -80,13 +80,13 @@ export function IndexesList() {
   };
 
   const onSearchCancel = () => {
-    setIsSearchModalOpen(false);
+    setSearchModalOpen(false);
     setSelectedIndex({});
   };
 
   const openSearch = (index) => {
     setSelectedIndex(index);
-    setIsSearchModalOpen(true);
+    setSearchModalOpen(true);
   };
 
   const columns = [
@@ -167,7 +167,7 @@ export function IndexesList() {
       {contextHolder}
       <SearchModal
         onCancel={onSearchCancel}
-        open={isSearchModalOpen}
+        open={searchModalOpen}
         indexName={selectedIndex.name}
         theme={isDarkMode ? 'dark' : 'light'}
         titleField={titleField}

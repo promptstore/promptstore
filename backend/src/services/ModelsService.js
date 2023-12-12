@@ -22,7 +22,7 @@ export function ModelsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE workspace_id = $1
+      WHERE workspace_id = $1 OR workspace_id = 1
       OR (val->>'isPublic')::boolean = true
       `;
     const { rows } = await pg.query(q, [workspaceId]);
@@ -42,7 +42,7 @@ export function ModelsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND name LIKE $2 || '%'
       `;
     const { rows } = await pg.query(q, [workspaceId, name]);
@@ -62,7 +62,7 @@ export function ModelsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND val->>'key' = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, key]);
@@ -82,7 +82,7 @@ export function ModelsService({ pg, logger }) {
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND name = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, name]);
@@ -129,11 +129,11 @@ export function ModelsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO models (workspace_id, name, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `,
         [model.workspaceId, model.name, val, username, created, username, created]
       );
-      return { ...model, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

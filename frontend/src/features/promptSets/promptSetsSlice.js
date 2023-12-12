@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
+import { runWithMinDelay } from '../../utils';
 
 export const promptSetsSlice = createSlice({
   name: 'promptSets',
@@ -35,11 +36,14 @@ export const {
   startLoad,
 } = promptSetsSlice.actions;
 
-export const getPromptSetsAsync = ({ workspaceId }) => async (dispatch) => {
+export const getPromptSetsAsync = ({ workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/workspaces/${workspaceId}/prompt-sets`;
+  const startTime = new Date();
   const res = await http.get(url);
-  dispatch(setPromptSets({ promptSets: res.data }));
+  runWithMinDelay(startTime, minDelay, () => {
+    dispatch(setPromptSets({ promptSets: res.data }));
+  });
 };
 
 export const getPromptSetAsync = (id) => async (dispatch) => {

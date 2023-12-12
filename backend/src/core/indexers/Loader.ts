@@ -1,12 +1,6 @@
 import { Document } from './Document';
 import { PluginMetadata } from './common_types';
 
-export enum LoaderEnum {
-  api = 'api',
-  minio = 'minio',
-  wikipedia = 'wikipedia',
-}
-
 export interface ApiLoaderParams {
   endpoint: string;
   schema: object;
@@ -25,7 +19,7 @@ export type LoaderParams = ApiLoaderParams | MinioLoaderParams | WikipediaLoader
 
 export interface LoaderService {
 
-  load(loader: LoaderEnum, params: LoaderParams): Promise<Document[]>;
+  load(loader: string, params: LoaderParams): Promise<Document[]>;
 
   getLoaders(): PluginMetadata[];
 
@@ -41,6 +35,17 @@ export abstract class Loader {
     this.loaderService = loaderService;
   }
 
+  static create(loader: string, loaderService: LoaderService) {
+    return new class extends Loader {
+
+      async load(params: any) {
+        const docs = await this.loaderService.load(loader, params);
+        return docs.map(Document.create);
+      }
+
+    }(loaderService);
+  }
+
   abstract load(params: LoaderParams): Promise<Document[]>;
 
 }
@@ -48,7 +53,7 @@ export abstract class Loader {
 export class ApiLoader extends Loader {
 
   async load(params: ApiLoaderParams) {
-    const docs = await this.loaderService.load(LoaderEnum.api, params);
+    const docs = await this.loaderService.load('api', params);
     return docs.map(Document.create);
   }
 
@@ -57,7 +62,7 @@ export class ApiLoader extends Loader {
 export class MinioLoader extends Loader {
 
   async load(params: MinioLoaderParams) {
-    const docs = await this.loaderService.load(LoaderEnum.minio, params);
+    const docs = await this.loaderService.load('minio', params);
     return docs.map(Document.create);
   }
 
@@ -66,7 +71,7 @@ export class MinioLoader extends Loader {
 export class WikipediaLoader extends Loader {
 
   async load(params: WikipediaLoaderParams) {
-    const docs = await this.loaderService.load(LoaderEnum.wikipedia, params);
+    const docs = await this.loaderService.load('wikipedia', params);
     return docs.map(Document.create);
   }
 

@@ -12,7 +12,6 @@ export function ExecutionsService({ logger, rc, services }) {
   const {
     compositionsService,
     dataSourcesService,
-    embeddingService,
     featureStoreService,
     functionsService,
     graphStoreService,
@@ -41,7 +40,6 @@ export function ExecutionsService({ logger, rc, services }) {
         logger, rc, services: {
           compositionsService,
           dataSourcesService,
-          embeddingService,
           featureStoreService,
           functionsService,
           graphStoreService,

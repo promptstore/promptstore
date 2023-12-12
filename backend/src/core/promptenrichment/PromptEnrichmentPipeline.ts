@@ -7,8 +7,11 @@ import { unflatten } from 'flat';
 
 import logger from '../../logger';
 import { Callback } from '../callbacks/Callback';
+import { ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunctionError } from '../errors';
 import { GraphStoreService } from '../indexers/GraphStore';
+import { LLMService } from '../models/llm_types';
+import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 import {
   PromptEnrichmentPipelineParams,
   PromptEnrichmentStep,
@@ -28,8 +31,6 @@ import {
   OnGraphEnrichmentEndParams,
 } from './PromptEnrichmentPipeline_types';
 import { PromptTemplate } from './PromptTemplate';
-import { ModelParams } from '../conversions/RosettaStone';
-import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 dayjs.extend(relativeTime);
 
@@ -175,7 +176,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
 
   indexName: string;
   indexParams: IndexParams;
-  embeddingService: any;
+  llmService: LLMService;
   vectorStoreService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
@@ -183,13 +184,13 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
   constructor({
     indexName,
     indexParams,
-    embeddingService,
+    llmService,
     vectorStoreService,
     callbacks,
   }: SearchIndexEnrichmentParams) {
     this.indexName = indexName;
     this.indexParams = indexParams;
-    this.embeddingService = embeddingService;
+    this.llmService = llmService;
     this.vectorStoreService = vectorStoreService;
     this.callbacks = callbacks || [];
   }
@@ -201,7 +202,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       const query = this.getQuery(args);
       const { nodeLabel, embeddingProvider, vectorStoreProvider } = this.indexParams;
       const { embedding: queryEmbedding } =
-        await this.embeddingService.createEmbedding(embeddingProvider, { input: query });
+        await this.llmService.createEmbedding(embeddingProvider, { input: query });
       const results = await this.vectorStoreService.search(
         vectorStoreProvider,
         this.indexName,
@@ -599,7 +600,7 @@ export const featureStoreEnrichment = (options: FeatureStoreEnrichmentOptions) =
 interface SemanticSearchEnrichmentOptions {
   indexName: string;
   indexParams: IndexParams;
-  embeddingService: any;
+  llmService: LLMService;
   vectorStoreService: any;
   callbacks?: Callback[];
 }

@@ -338,10 +338,11 @@ export const generateCopyImageAsync = (appId, contentId, params) => async (dispa
   dispatch(setExpandedRowKeys({ key: contentId }));
 };
 
-export const searchClient = (indexParams) => ({
+export const searchClient = (indexParams, workspaceId) => ({
   async search(requests) {
     const url = '/api/search';
-    const res = await http.post(url, { requests, indexParams });
+    const attrs = { 'Object__workspaceId': workspaceId, 'Object__isPublic': true };
+    const res = await http.post(url, { requests, indexParams, attrs, logicalType: 'or' });
     return res.data;
   },
   async searchForFacetValues(requests) {

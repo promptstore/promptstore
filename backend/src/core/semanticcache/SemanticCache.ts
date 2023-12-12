@@ -3,7 +3,7 @@ declare const Buffer;
 import { SchemaFieldTypes, VectorAlgorithms } from 'redis';
 import uuid from 'uuid';
 
-import { EmbeddingService } from '../indexers/EmbeddingProvider';
+import { LLMService } from '../models/llm_types';
 
 const INDEX_NAME = 'idx:cache';
 const PREFIX = 'vs:cache';
@@ -16,12 +16,12 @@ const float32Buffer = (arr: number[]) => {
 
 export default class SemanticCache {
 
-  embeddingService: EmbeddingService;
+  llmService: LLMService;
   redisClient: any;
   logger: any;
 
-  constructor(embeddingService: EmbeddingService, redisClient: any, logger: any) {
-    this.embeddingService = embeddingService;
+  constructor(llmService: LLMService, redisClient: any, logger: any) {
+    this.llmService = llmService;
     this.redisClient = redisClient;
     this.logger = logger;
     this.setup();
@@ -65,7 +65,7 @@ export default class SemanticCache {
   async get(prompt: string, n: number = 1) {
     try {
       const { embedding } =
-        await this.embeddingService.createEmbedding('sentenceencoder', { input: prompt });
+        await this.llmService.createEmbedding('sentenceencoder', { input: prompt });
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {
         PARAMS: {
@@ -94,7 +94,7 @@ export default class SemanticCache {
   async set(prompt: string, content: string, embedding?: number[]) {
     try {
       if (!embedding) {
-        const response = await this.embeddingService.createEmbedding('sentenceencoder', { input: prompt });
+        const response = await this.llmService.createEmbedding('sentenceencoder', { input: prompt });
         embedding = response.embedding;
       }
       const uid = uuid.v4();

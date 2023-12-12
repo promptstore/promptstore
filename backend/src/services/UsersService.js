@@ -87,10 +87,10 @@ export function UsersService({ pg }) {
     } else {
       const { rows } = await pg.query(
         `INSERT INTO users (username, val) ` +
-        `VALUES ($1, $2) RETURNING id`,
+        `VALUES ($1, $2) RETURNING *`,
         [user.username, user]
       );
-      return { ...user, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

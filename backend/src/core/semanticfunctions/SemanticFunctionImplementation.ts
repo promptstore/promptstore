@@ -8,11 +8,8 @@ import { Callback } from '../callbacks/Callback';
 import { DataMapper, Model } from '../common_types';
 import {
   PARA_DELIM,
-  MultiModalChatRequest,
   Function,
   Message,
-  MessageRole,
-  VisionMessage,
   ChatRequestContext,
   ResponseMetadata,
 } from '../conversions/RosettaStone';
@@ -109,7 +106,7 @@ export class SemanticFunctionImplementation {
           maxTokens = 1024;
         }
         let messages: Message[];
-        let visionMessages: VisionMessage[];
+        // let visionMessages: VisionMessage[];
         let context: ChatRequestContext;
         let hist: Message[];
         let msgs: Message[];
@@ -126,72 +123,115 @@ export class SemanticFunctionImplementation {
             args[this.indexContentPropertyPath] = res.response.choices[0].message.content;
           }
         }
-        if (args.imageUrl) {
-          if (this.promptEnrichmentPipeline) {
-            messages = await this.promptEnrichmentPipeline.call({
-              args,
-              contextWindow,
-              maxTokens,
-              modelKey,
-              callbacks,
-            });
-            visionMessages = [
-              ...messages.slice(0, -1)?.map(m => ({
-                role: m.role,
-                content: m.content,
+        // if (args.imageUrl) {
+        //   if (this.promptEnrichmentPipeline) {
+        //     messages = await this.promptEnrichmentPipeline.call({
+        //       args,
+        //       contextWindow,
+        //       maxTokens,
+        //       modelKey,
+        //       callbacks,
+        //     });
+        //     visionMessages = [
+        //       ...messages.slice(0, -1)?.map(m => ({
+        //         role: m.role,
+        //         content: m.content,
+        //       })),
+        //       {
+        //         role: MessageRole.user,
+        //         content: [
+        //           {
+        //             type: 'text',
+        //             text: messages.slice(-1)[0].content,
+        //           },
+        //           {
+        //             type: 'image_url',
+        //             image_url: {
+        //               url: args.imageUrl,
+        //             },
+        //           },
+        //         ],
+        //       },
+        //     ];
+        //   } else {
+        //     const userMessage = this.getInputAsMessage(args);
+        //     visionMessages = [
+        //       {
+        //         role: MessageRole.user,
+        //         content: [
+        //           {
+        //             type: 'text',
+        //             text: userMessage.content,
+        //           },
+        //           {
+        //             type: 'image_url',
+        //             image_url: {
+        //               url: args.imageUrl,
+        //             },
+        //           },
+        //         ],
+        //       },
+        //     ];
+        //   }
+        // } else {
+        if (this.promptEnrichmentPipeline) {
+          messages = await this.promptEnrichmentPipeline.call({
+            args,
+            contextWindow,
+            maxTokens,
+            modelKey,
+            callbacks,
+          });
+          if (!messages.length) {
+            this.throwSemanticFunctionError('no prompt');
+          }
+          context = this.getContext(messages);
+          if (history) {
+            hist = this.getNonSystemMessageHistory(history);
+          }
+          msgs = this.getNonSystemMessages(messages);
+          if (args.imageUrl) {
+            msgs = [
+              ...msgs.slice(0, -1),
+              ...msgs.slice(-1).map(m => ({
+                ...m,
+                content: [
+                  {
+                    type: 'text',
+                    text: m.content as string,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: args.imageUrl,
+                    },
+                  },
+                ],
               })),
-              {
-                role: MessageRole.user,
-                content: [
-                  {
-                    type: 'text',
-                    text: messages.slice(-1)[0].content,
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: args.imageUrl,
-                    },
-                  },
-                ],
-              },
-            ];
-          } else {
-            const userMessage = this.getInputAsMessage(args);
-            visionMessages = [
-              {
-                role: MessageRole.user,
-                content: [
-                  {
-                    type: 'text',
-                    text: userMessage.content,
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: args.imageUrl,
-                    },
-                  },
-                ],
-              },
             ];
           }
         } else {
-          if (this.promptEnrichmentPipeline) {
-            messages = await this.promptEnrichmentPipeline.call({ args, contextWindow, maxTokens, modelKey, callbacks });
-            if (!messages.length) {
-              this.throwSemanticFunctionError('no prompt');
-            }
-            context = this.getContext(messages);
-            if (history) {
-              hist = this.getNonSystemMessageHistory(history);
-            }
-            msgs = this.getNonSystemMessages(messages);
+          const text = this.getInput(args);
+          let userMessage: UserMessage;
+          if (args.imageUrl) {
+            userMessage = new UserMessage([
+              {
+                type: 'text',
+                text,
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: args.imageUrl,
+                },
+              },
+            ]);
           } else {
-            const userMessage = this.getInputAsMessage(args);
-            msgs = [userMessage];
+            userMessage = new UserMessage(text);
           }
+          msgs = [userMessage];
         }
+        // }
         if (this.inputGuardrails && this.inputGuardrails.length) {
           await this.inputGuardrails.call({ messages, callbacks });
         }
@@ -203,28 +243,28 @@ export class SemanticFunctionImplementation {
           );
           functions = [outputFormatter.toJSON()];
         }
-        let request: MultiModalChatRequest;
-        if (args.imageUrl) {
-          request = {
-            model: modelKey,
-            max_tokens: modelParams.max_tokens,
-            messages: visionMessages,
-          };
-          logger.debug('!!!!!!!!!!!!!!!!!!!! request:', request);
-          response = await this.model.call({ request, callbacks, vision: true });
-        } else {
-          request = {
-            model: modelKey,
-            model_params: modelParams,
-            functions,
-            prompt: {
-              context,
-              history: hist,
-              messages: msgs,
-            }
-          };
-          response = await this.model.call({ request, callbacks });
-        }
+        // let request: MultiModalChatRequest;
+        // if (args.imageUrl) {
+        //   request = {
+        //     model: modelKey,
+        //     max_tokens: modelParams.max_tokens,
+        //     messages: visionMessages,
+        //   };
+        //   logger.debug('!!!!!!!!!!!!!!!!!!!! request:', request);
+        //   response = await this.model.call({ request, callbacks, vision: true });
+        // } else {
+        const request = {
+          model: modelKey,
+          model_params: modelParams,
+          functions,
+          prompt: {
+            context,
+            history: hist,
+            messages: msgs,
+          }
+        };
+        response = await this.model.call({ request, callbacks });
+        // }
         responseMetadata = {
           prompts: messages,
         };
@@ -272,12 +312,12 @@ export class SemanticFunctionImplementation {
     return messages.filter(nonSystem);
   }
 
-  getInputAsMessage(args: any) {
+  getInput(args: any) {
     const content = getInputString(args);
     if (!content) {
       this.throwSemanticFunctionError('Cannot parse args');
     }
-    return new UserMessage(content);
+    return content;
   }
 
   async mapArgs(args: any, mappingTemplate: string, isBatch: boolean) {

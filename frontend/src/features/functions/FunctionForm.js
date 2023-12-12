@@ -444,6 +444,7 @@ export function FunctionForm() {
             maxHeight: 600,
             overflowY: 'auto',
           }}
+          okButtonProps={{ style: { display: 'none' } }}
         >
           <div>
             <div style={{ float: 'right' }}>

@@ -8,7 +8,7 @@ import logger from '../../logger';
 import { Model } from '../common_types';
 import { SemanticFunctionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
-import { ChatRequest, ChatResponse, MessageRole } from '../conversions/RosettaStone';
+import { ChatRequest, ChatResponse, MessageRole, convertContentTypeToString } from '../conversions/RosettaStone';
 import SemanticCache from '../semanticcache/SemanticCache';
 import {
   CustomModelParams,
@@ -86,25 +86,25 @@ export class LLMChatModel implements LLMModel {
       ...request.model_params,
     };
     const vision = request.model === 'gpt-4-vision-preview';
-    if (vision) {
-      request = {
-        ...request,
-        model,
-      };
-    } else {
-      request = {
-        ...request,
-        model,
-        model_params: modelParamsWithDefaults,
-      };
-    }
+    // if (vision) {
+    //   request = {
+    //     ...request,
+    //     model,
+    //   };
+    // } else {
+    request = {
+      ...request,
+      model,
+      model_params: modelParamsWithDefaults,
+    };
+    // }
     this.onStart({ request });
     try {
-      const response = await this.completionService({ provider: this.provider, request, vision });
+      const response = await this.completionService(this.provider, request, vision);
       if (this.semanticCache && this.semanticCacheEnabled) {
         for (const choice of response.choices) {
           let content = choice.message.content;
-          await this.semanticCache.set(prompt, content, embedding);
+          await this.semanticCache.set(prompt, convertContentTypeToString(content), embedding);
         }
       }
       this.onEnd({ model, response });
@@ -120,7 +120,7 @@ export class LLMChatModel implements LLMModel {
     const model = request.model || this.model;
     const n = request.model_params?.n || 1;
     const messages = request.prompt.messages;
-    const prompt = messages[messages.length - 1].content;
+    const prompt = convertContentTypeToString(messages[messages.length - 1].content);
     const { embedding, hits } = await this.semanticCache.get(prompt, n);
     let response: ChatResponse;
     if (hits.length) {
@@ -200,7 +200,7 @@ export class LLMCompletionModel implements LLMModel {
     };
     this.onStart({ request });
     try {
-      const response = await this.completionService({ provider: this.provider, request });
+      const response = await this.completionService(this.provider, request);
       this.onEnd({ model, response });
       return response;
     } catch (err) {

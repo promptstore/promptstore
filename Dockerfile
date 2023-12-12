@@ -25,7 +25,10 @@ COPY ./backend/src/services ./services
 COPY ./backend/src/workflow ./workflow
 COPY ./backend/src/app.js .
 COPY ./backend/src/db.js .
+COPY ./backend/src/initSearchIndex.js .
 COPY ./backend/src/logger.js .
+COPY ./backend/src/searchableObjects.js .
+COPY ./backend/src/searchFunctions.js .
 COPY ./backend/src/utils.js .
 COPY ./frontend/build/ ./build/
 

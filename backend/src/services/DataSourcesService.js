@@ -89,11 +89,11 @@ export function DataSourcesService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO data_sources (workspace_id, name, type, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [dataSource.workspaceId, dataSource.name, dataSource.type, val, username, created, username, created]
       );
-      return { ...dataSource, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

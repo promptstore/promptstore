@@ -1,6 +1,12 @@
-export default ({ app, auth, constants, logger, pg, services }) => {
+import searchFunctions from '../searchFunctions';
 
-  const { destinationsService, sqlSourceService } = services;
+export default ({ app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'destinations';
+
+  const { destinationsService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   /**
    * @openapi
@@ -259,6 +265,8 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { username } = req.user;
     const values = req.body;
     const destination = await destinationsService.upsertDestination(values, username);
+    const obj = createSearchableObject(destination);
+    await indexObject(obj);
     res.json(destination);
   });
 
@@ -296,6 +304,8 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { username } = req.user;
     const values = req.body;
     const destination = await destinationsService.upsertDestination({ ...values, id }, username);
+    const obj = createSearchableObject(destination);
+    await indexObject(obj);
     res.json(destination);
   });
 
@@ -324,6 +334,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/destinations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await destinationsService.deleteDestinations([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -354,7 +365,33 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/destinations', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await destinationsService.deleteDestinations(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Destination',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        documentType: rec.documentType,
+        type: rec.type,
+      },
+    };
+  }
 
 };

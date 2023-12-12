@@ -89,11 +89,11 @@ export function DestinationsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO destinations (workspace_id, name, type, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [destination.workspaceId, destination.name, destination.type, val, username, created, username, created]
       );
-      return { ...destination, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

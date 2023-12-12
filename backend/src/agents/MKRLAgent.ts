@@ -248,9 +248,9 @@ export default ({ logger, services }) => {
       }
       let response: ChatResponse;
       if (this.isChat) {
-        response = await llmService.createChatCompletion({ provider: this.provider, request });
+        response = await llmService.createChatCompletion(this.provider, request);
       } else {
-        response = await llmService.createCompletion({ provider: this.provider, request });
+        response = await llmService.createCompletion(this.provider, request);
       }
       for (let callback of this.currentCallbacks) {
         callback.onObserveModelEnd({
@@ -272,14 +272,14 @@ export default ({ logger, services }) => {
         if (final) {
           return { done: true, content };
         }
-        const { error, retriable } = this._getParseError(content);
+        const { error, retriable } = this._getParseError(content as string);
         if (retriable) {
           return { done: false, content: this._makeObservation(error) };
         }
         this._throwAgentError(error);
       }
 
-      return this._processResponse(content, extraFunctionCallParams);
+      return this._processResponse(content as string, extraFunctionCallParams);
     }
 
     async _processResponse(content: string, extraFunctionCallParams: any) {

@@ -32,7 +32,7 @@ data:
   ## PLUGINS ########
 
   # Embedding plugins
-  EMBEDDING_PLUGINS: "sentenceencoder|Sentence Encoder|./plugins/embedding/sentenceencoder"
+  EMBEDDING_PLUGINS: ""
 
   # Extractor plugins
   EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured,csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,neo4j|Neo4j|./plugins/extractors/neo4j,text|Text Parser|./plugins/extractors/text"
@@ -47,7 +47,7 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia"

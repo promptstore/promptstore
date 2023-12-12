@@ -1,7 +1,8 @@
-import { ExtractorEnum } from '../core/indexers/Extractor';
-import { LoaderEnum } from '../core/indexers/Loader';
+import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
+
+  const OBJECT_TYPE = 'indexes';
 
   const {
     appsService,
@@ -9,6 +10,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     indexesService,
     uploadsService,
   } = services;
+
+  const { indexObject } = searchFunctions({ constants, services });
 
   // cache of results to poll
   const _jobs = {};
@@ -85,9 +88,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     };
 
     try {
-      workflowClient.index(indexParams, LoaderEnum.api, [ExtractorEnum.json], {
+      workflowClient.index(indexParams, 'api', ['json'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then((results) => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'api' });
+        indexObject(obj);
+      });
 
       res.sendStatus(200);
 
@@ -210,9 +218,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     };
 
     try {
-      workflowClient.index(indexParams, LoaderEnum.crawler, [ExtractorEnum.crawler], {
+      workflowClient.index(indexParams, 'crawler', ['crawler'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then(results => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'crawler' });
+        indexObject(obj);
+      });
 
       res.sendStatus(200);
 
@@ -273,9 +286,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         allowedRels,
       };
 
-      workflowClient.index(indexParams, null, [ExtractorEnum.neo4j], {
+      workflowClient.index(indexParams, null, ['neo4j'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then(results => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'graph' });
+        indexObject(obj);
+      });
 
       res.sendStatus(200);
 
@@ -337,9 +355,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         allowedRels,
       };
 
-      workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.csv], {
+      workflowClient.index(indexParams, 'minio', ['csv'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then(results => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'csv' });
+        indexObject(obj);
+      });
 
       res.sendStatus(200);
 
@@ -409,9 +432,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         allowedRels,
       };
 
-      workflowClient.index(indexParams, LoaderEnum.minio, [ExtractorEnum.text], {
+      workflowClient.index(indexParams, 'minio', ['text'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then(results => {
+        const index = results[0]
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'csv' });
+        indexObject(obj);
+      });
 
       res.sendStatus(200);
 
@@ -484,7 +512,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       // There are no documents to extract
       // Chunks are extracted directly from the document processor
-      workflowClient.index(indexParams, null, [ExtractorEnum.unstructured], {
+      workflowClient.index(indexParams, null, ['unstructured'], {
         address: constants.TEMPORAL_URL,
       }).then(async (results) => {
         const index = results[0];
@@ -506,6 +534,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
             },
           });
         }
+        const obj = createSearchableObject(index, { source: 'unstructured' });
+        indexObject(obj);
       });
 
       res.sendStatus(200);
@@ -569,14 +599,45 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     };
 
     try {
-      workflowClient.index(indexParams, LoaderEnum.wikipedia, [ExtractorEnum.text], {
+      workflowClient.index(indexParams, 'wikipedia', ['text'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => setJobResult(correlationId, results[0]));
+      }).then(results => {
+        const index = results[0];
+        setJobResult(correlationId, index);
+        const obj = createSearchableObject(index, { source: 'wikipedia' });
+        indexObject(obj);
+      });
 
     } catch (err) {
       logger.error(err, err.stack);
       res.sendStatus(500);
     }
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec, metadata) {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Semantic Index',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        vectorStoreProvider: rec.vectorStoreProvider,
+        graphStoreProvider: rec.graphStoreProvider,
+        ...metadata,
+      },
+    };
+  }
 
 };

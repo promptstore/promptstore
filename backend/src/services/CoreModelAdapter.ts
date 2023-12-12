@@ -53,7 +53,6 @@ export default ({ logger, rc, services }) => {
   const {
     compositionsService,
     dataSourcesService,
-    embeddingService,
     featureStoreService,
     functionsService,
     graphStoreService,
@@ -108,7 +107,7 @@ export default ({ logger, rc, services }) => {
 
   function createSemanticCache(provider: string) {
     if (!cacheSingleton) {
-      cacheSingleton = new SemanticCache(embeddingService, rc, logger);
+      cacheSingleton = new SemanticCache(llmService, rc, logger);
     }
     return cacheSingleton;
   }
@@ -182,7 +181,7 @@ export default ({ logger, rc, services }) => {
     return semanticSearchEnrichment({
       indexName: index.name,
       indexParams,
-      embeddingService,
+      llmService,
       vectorStoreService,
       callbacks,
     });

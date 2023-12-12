@@ -3,10 +3,15 @@ import EventEmitter from 'events';
 import { AgentDebugCallback } from '../agents/AgentDebugCallback';
 import { AgentEventEmitterCallback } from '../agents/AgentEventEmitterCallback';
 import { AgentTracingCallback } from '../agents/AgentTracingCallback';
+import searchFunctions from '../searchFunctions';
 
-export default ({ agents, app, auth, logger, services }) => {
+export default ({ agents, app, auth, constants, logger, services }) => {
+
+  const OBJECT_TYPE = 'agents';
 
   const { agentsService, functionsService, toolService, tracesService } = services;
+
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
 
   let clients = [];
   let events = [];
@@ -478,6 +483,8 @@ export default ({ agents, app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const agent = await agentsService.upsertAgent(values, username);
+    const obj = createSearchableObject(agent);
+    await indexObject(obj);
     res.json(agent);
   });
 
@@ -515,6 +522,8 @@ export default ({ agents, app, auth, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     const agent = await agentsService.upsertAgent({ ...values, id }, username);
+    const obj = createSearchableObject(agent);
+    await indexObject(obj);
     res.json(agent);
   });
 
@@ -543,6 +552,7 @@ export default ({ agents, app, auth, logger, services }) => {
   app.delete('/api/agents/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await agentsService.deleteAgents([id]);
+    await deleteObject(objectId(id));
     res.json(id);
   });
 
@@ -573,7 +583,32 @@ export default ({ agents, app, auth, logger, services }) => {
   app.delete('/api/agents', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await agentsService.deleteAgents(ids);
+    await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
+
+  const objectId = (id) => OBJECT_TYPE + ':' + id;
+
+  function createSearchableObject(rec) {
+    const texts = [
+      rec.name,
+      rec.goal,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    return {
+      id: objectId(rec.id),
+      nodeLabel: 'Object',
+      label: 'Agents',
+      type: OBJECT_TYPE,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {
+        agentType: rec.agentType,
+      },
+    };
+  }
 
 }

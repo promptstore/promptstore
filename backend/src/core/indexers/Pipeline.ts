@@ -3,25 +3,17 @@ import { JSONSchema7 } from 'json-schema';
 import logger from '../../logger';
 import { getExtension } from '../../utils';
 
+import { LLMService } from '../models/llm_types';
 import { Document } from './Document';
-import { EmbeddingService } from './EmbeddingProvider';
 import {
-  CsvExtractor,
   ExtendedDocument,
   Extractor,
-  ExtractorEnum,
   ExtractorParams,
   ExtractorService,
-  JsonExtractor,
-  Neo4jExtractor,
-  OnesourceExtractor,
-  TextExtractor,
-  UnstructuredExtractor,
 } from './Extractor';
 import {
   AddChunksParams,
   GraphStore,
-  GraphStoreEnum,
   GraphStoreService,
 } from './GraphStore';
 import {
@@ -32,7 +24,6 @@ import {
   ApiLoader,
   ApiLoaderParams,
   Loader,
-  LoaderEnum,
   LoaderService,
   MinioLoader,
   MinioLoaderParams,
@@ -40,14 +31,13 @@ import {
   WikipediaLoaderParams,
 } from './Loader';
 import {
-  VectorStoreEnum,
   VectorStoreService,
 } from './VectorStore';
 
 interface GraphStoreIndexParams {
   name: string,
   workspaceId: number;
-  graphStoreProvider: GraphStoreEnum;
+  graphStoreProvider: string;
   nodeLabel: string
   embeddingNodeProperty: string;
   textNodeProperties: string[];
@@ -68,27 +58,27 @@ type RunParams = ApiLoaderParams
 
 export class Pipeline {
 
-  private embeddingService: EmbeddingService;
   private executionsService: any;
   private extractorService: ExtractorService;
   private indexesService: any;
   private graphStoreService: GraphStoreService;
+  private llmService: LLMService;
   private loaderService: LoaderService;
   private vectorStoreService: VectorStoreService;
 
   private _embeddingProvider: string;
-  private _vectorStoreProvider: VectorStoreEnum;
-  private _graphStoreProvider: GraphStoreEnum;
+  private _vectorStoreProvider: string;
+  private _graphStoreProvider: string;
 
   private _loader: Loader;
   private _extractors: Extractor[] = [];
 
   constructor({
-    embeddingService,
     executionsService,
     extractorService,
     indexesService,
     graphStoreService,
+    llmService,
     loaderService,
     vectorStoreService,
   }, {
@@ -98,11 +88,11 @@ export class Pipeline {
     vectorStoreProvider,
     graphStoreProvider,
   }) {
-    this.embeddingService = embeddingService;
     this.executionsService = executionsService;
     this.extractorService = extractorService;
     this.indexesService = indexesService;
     this.graphStoreService = graphStoreService;
+    this.llmService = llmService;
     this.loaderService = loaderService;
     this.vectorStoreService = vectorStoreService;
     this.loaderProvider = loaderProvider;
@@ -147,7 +137,7 @@ export class Pipeline {
 
     // Check Embedding Provider
     if (!this._graphStoreProvider) {
-      if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
+      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis' {
         if (params.indexId === 'new') {
           this.embeddingProvider = params.embeddingProvider;
         } else {
@@ -157,7 +147,7 @@ export class Pipeline {
           this.embeddingProvider = index.embeddingProvider;
         }
       }
-      if (!this._embeddingProvider && this._vectorStoreProvider !== VectorStoreEnum.redis) {
+      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis') {
         throw new Error('Missing embedding provider');
       }
     }
@@ -215,8 +205,8 @@ export class Pipeline {
 
     if (this._vectorStoreProvider) {
       const indexer = new Indexer({
-        embeddingService: this.embeddingService,
         indexesService: this.indexesService,
+        llmService: this.llmService,
         vectorStoreService: this.vectorStoreService,
       });
       if (!index) {
@@ -276,53 +266,13 @@ export class Pipeline {
     return index;
   }
 
-  public set loaderProvider(provider: LoaderEnum) {
-    switch (provider) {
-      case LoaderEnum.api:
-        this._loader = new ApiLoader(this.loaderService);
-        break;
-
-      case LoaderEnum.minio:
-        this._loader = new MinioLoader(this.loaderService);
-        break;
-
-      case LoaderEnum.wikipedia:
-        this._loader = new WikipediaLoader(this.loaderService);
-        break;
-
-      default:
-    }
+  public set loaderProvider(loader: string) {
+    this._loader = Loader.create(loader, this.loaderService);
   }
 
-  public set extractorProviders(providers: ExtractorEnum[]) {
+  public set extractorProviders(providers: string[]) {
     for (const provider of providers) {
-      switch (provider) {
-        case ExtractorEnum.csv:
-          this._extractors.push(new CsvExtractor(this.extractorService));
-          break;
-
-        case ExtractorEnum.json:
-          this._extractors.push(new JsonExtractor(this.extractorService));
-          break;
-
-        case ExtractorEnum.neo4j:
-          this._extractors.push(new Neo4jExtractor(this.extractorService));
-          break;
-
-        case ExtractorEnum.onesource:
-          this._extractors.push(new OnesourceExtractor(this.extractorService));
-          break;
-
-        case ExtractorEnum.text:
-          this._extractors.push(new TextExtractor(this.extractorService));
-          break;
-
-        case ExtractorEnum.unstructured:
-          this._extractors.push(new UnstructuredExtractor(this.extractorService));
-          break;
-
-        default:
-      }
+      this._extractors.push(Extractor.create(provider, this.extractorService));
     }
   }
 
@@ -330,11 +280,11 @@ export class Pipeline {
     this._embeddingProvider = provider;
   }
 
-  public set vectorStoreProvider(provider: VectorStoreEnum) {
+  public set vectorStoreProvider(provider: string) {
     this._vectorStoreProvider = provider;
   }
 
-  public set graphStoreProvider(provider: GraphStoreEnum) {
+  public set graphStoreProvider(provider: string) {
     this._graphStoreProvider = provider;
   }
 

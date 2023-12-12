@@ -1,4 +1,6 @@
 import {
+  ChatRequest,
+  EmbeddingRequest,
   fromOpenAIChatResponse,
   fromOpenAICompletionResponse,
   fromVertexAIChatResponse,
@@ -16,18 +18,22 @@ import {
   fromCohereChatResponse,
   toCohereChatRequest,
 } from '../core/conversions/RosettaStone';
+import { PluginServiceParams } from '../core/indexers/Plugin';
+import { PluginMetadata } from '../core/indexers/common_types';
+import { LLM, LLMService } from '../core/models/llm_types';
 
-export function LLMService({ logger, registry, services }) {
+export function LLMService({ logger, registry, services }: PluginServiceParams): LLMService {
 
   const { parserService } = services;
 
-  async function createChatCompletion({ provider, request, vision }) {
-    logger.debug('!!!!!!!!!!!!!!!!! vision:', vision);
-    const instance = registry[provider || 'openai'];
+  async function createChatCompletion(provider: string, request: ChatRequest, vision: boolean) {
+    logger.debug('provider:', provider);
+    const instance = registry[provider] as LLM;
     let providerRequest;
-    if (vision) {
-      providerRequest = request;
-    } else if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+    // if (vision) {
+    //   providerRequest = request;
+    // } else 
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAIChatRequest(request);
     } else if (provider === 'bedrock') {
       if (request.model.startsWith('anthropic')) {
@@ -35,7 +41,7 @@ export function LLMService({ logger, registry, services }) {
       } else if (request.model.startsWith('cohere')) {
         providerRequest = toCohereChatRequest(request);
       } else {
-        throw new Error('unknown model:', request.model);
+        throw new Error('unknown model: ' + request.model);
       }
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
@@ -64,7 +70,7 @@ export function LLMService({ logger, registry, services }) {
           model: request.model,
         };
       } else {
-        throw new Error('unknown model:', request.model);
+        throw new Error('unknown model: ' + request.model);
       }
     }
     if (provider === 'llamaapi') {
@@ -80,8 +86,8 @@ export function LLMService({ logger, registry, services }) {
     throw new Error('should not be able to get here');
   }
 
-  async function createCompletion({ provider, request }) {
-    const instance = registry[provider || 'openai'];
+  async function createCompletion(provider: string, request: ChatRequest) {
+    const instance = registry[provider] as LLM;
     let providerRequest;
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = toOpenAICompletionRequest(request);
@@ -95,8 +101,8 @@ export function LLMService({ logger, registry, services }) {
     logger.debug('provider request:', providerRequest);
     const response = await instance.createCompletion(providerRequest);
     logger.debug('provider response:', response);
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai' || provider === 'llamaapi') {
-      return await fromOpenAICompletionResponse(response, parserService);
+    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+      return fromOpenAICompletionResponse(response, parserService);
     }
     if (provider === 'llamaapi') {
       return fromLlamaApiChatResponse(response);
@@ -111,8 +117,8 @@ export function LLMService({ logger, registry, services }) {
     throw new Error('should not be able to get here');
   }
 
-  async function createEmbedding(provider, request) {
-    const instance = registry[provider || 'openai'];
+  async function createEmbedding(provider: string, request: EmbeddingRequest) {
+    const instance = registry[provider] as LLM;
     let providerRequest;
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       providerRequest = request;
@@ -133,28 +139,41 @@ export function LLMService({ logger, registry, services }) {
     throw new Error('should not be able to get here');
   }
 
-  async function createImage(provider, prompt, options) {
-    const instance = registry[provider];
+  async function createImage(provider: string, prompt: string, options: any) {
+    const instance = registry[provider] as LLM;
     return await instance.createImage(prompt, options);
   }
 
-  async function generateImageVariant(provider, imageUrl, options) {
-    const instance = registry[provider];
+  async function generateImageVariant(provider: string, imageUrl: string, options: any) {
+    const instance = registry[provider] as LLM;
     return await instance.generateImageVariant(imageUrl, options);
   }
 
-  function getChatProviders() {
-    return Object.entries(registry).map(([key, p]) => ({
-      key,
-      name: p.__name,
-    }));
+  function getChatProviders(): PluginMetadata[] {
+    return Object.entries(registry)
+      .filter(([_, p]) => 'createChatCompletion' in p)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
   }
 
   function getCompletionProviders() {
-    return Object.entries(registry).map(([key, p]) => ({
-      key,
-      name: p.__name,
-    }));
+    return Object.entries(registry)
+      .filter(([_, p]) => 'createCompletion' in p)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
+  }
+
+  function getEmbeddingProviders() {
+    return Object.entries(registry)
+      .filter(([_, p]) => 'createEmbedding' in p)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
   }
 
   return {
@@ -163,6 +182,7 @@ export function LLMService({ logger, registry, services }) {
     createEmbedding,
     getChatProviders,
     getCompletionProviders,
+    getEmbeddingProviders,
     createImage,
     generateImageVariant,
   }

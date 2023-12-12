@@ -1,6 +1,5 @@
 import {
   Loader,
-  LoaderEnum,
   LoaderParams,
   LoaderService,
 } from '../core/indexers/Loader';
@@ -8,7 +7,7 @@ import { PluginServiceParams } from '../core/indexers/Plugin';
 
 export function LoaderService({ logger, registry }: PluginServiceParams): LoaderService {
 
-  function load(loader: LoaderEnum, params: LoaderParams) {
+  function load(loader: string, params: LoaderParams) {
     logger.debug('load from loader:', loader);
     const instance = registry[loader] as Loader;
     return instance.load(params);

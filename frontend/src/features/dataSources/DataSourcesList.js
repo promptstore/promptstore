@@ -48,6 +48,8 @@ export function DataSourcesList() {
   const indexed = useSelector(selectIndexed);
   const indexing = useSelector(selectIndexing);
 
+  console.log('data sources:', dataSources);
+
   const data = useMemo(() => {
     const list = Object.values(dataSources).map((ds) => ({
       key: ds.id,

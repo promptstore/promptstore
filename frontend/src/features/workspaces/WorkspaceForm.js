@@ -80,12 +80,6 @@ export function WorkspaceForm() {
   }, [selectedWorkspace, isLinking]);
 
   useEffect(() => {
-    if (nameValue && !keyValue) {
-      form.setFieldValue('key', slugify(nameValue));
-    }
-  }, [nameValue]);
-
-  useEffect(() => {
     if (backOnSave) {
       setBackOnSave(false);
       navigate('/workspaces');
@@ -128,13 +122,6 @@ export function WorkspaceForm() {
     setApiKey(null);
   };
 
-  const handleKeyAssignment = async () => {
-    const { name } = await apiKeyForm.validateFields();
-    dispatch(handleKeyAssignmentAsync({ apiKey, name, workspaceId: id }));
-    setApiKey(null);
-    apiKeyForm.resetFields();
-  };
-
   const handleInvite = async () => {
     const values = await inviteMembersForm.validateFields();
     if (values.invites) {
@@ -150,13 +137,11 @@ export function WorkspaceForm() {
     setIsInviteModalOpen(false);
   };
 
-  const getKey = () => {
-    setApiKey(uuidv4());
-  };
-
-  const revokeKey = () => {
-    dispatch(revokeKeyAssignmentAsync({ workspaceId: id, ids: apiSelectedRowKeys }));
-    setApiSelectedRowKeys([]);
+  const handleKeyAssignment = async () => {
+    const { name } = await apiKeyForm.validateFields();
+    dispatch(handleKeyAssignmentAsync({ apiKey, name, workspaceId: id }));
+    setApiKey(null);
+    apiKeyForm.resetFields();
   };
 
   const linkToApps = (ev) => {
@@ -207,6 +192,21 @@ export function WorkspaceForm() {
 
   const openInviteModal = () => {
     setIsInviteModalOpen(true);
+  };
+
+  const getKey = () => {
+    setApiKey(uuidv4());
+  };
+
+  const revokeKey = () => {
+    dispatch(revokeKeyAssignmentAsync({ workspaceId: id, ids: apiSelectedRowKeys }));
+    setApiSelectedRowKeys([]);
+  };
+
+  const setKeyValue = () => {
+    if (nameValue && !keyValue) {
+      form.setFieldValue('key', slugify(nameValue));
+    }
   };
 
   const columns = [
@@ -386,10 +386,8 @@ export function WorkspaceForm() {
                   message: 'Please enter a workspace name',
                 },
               ]}
-              trigger="onBlur"
-              validateTrigger="onBlur"
             >
-              <Input />
+              <Input onBlur={setKeyValue} />
             </Form.Item>
             <Form.Item
               label="Key"

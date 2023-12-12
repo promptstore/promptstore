@@ -88,11 +88,11 @@ export function UploadsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO file_uploads (workspace_id, user_id, filename, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
         `,
         [upload.workspaceId, username, upload.filename, val, username, created, username, created]
       );
-      return { ...upload, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

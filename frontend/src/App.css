@@ -841,3 +841,54 @@ article.collapsible .panel.closed {
 .model-view .ant-descriptions .ant-descriptions-row>td {
   padding-bottom: 8px;
 }
+
+.search-panel .ais-SearchBox-input,
+.search-panel .ais-Hits-item,
+.search-panel .ais-InfiniteHits-item,
+.search-panel .ais-Pagination-item--selected .ais-Pagination-link {
+  box-shadow: none;
+}
+
+.search-panel .ais-Hits-item,
+.search-panel .ais-InfiniteHits-item {
+  border-width: 1px;
+}
+
+.ais-Hits-list {
+  height: 374px;
+  overflow-y: scroll;
+}
+
+.search-panel .ais-SearchBox-input {
+  border: none;
+}
+
+.search-panel .ais-SearchBox-submit {
+  display: block;
+}
+
+.searchbox-submit {
+  cursor: pointer;
+  line-height: 40px;
+  padding: 0 8px;
+  width: 56px;
+}
+
+.searchbox-submit:hover,
+.search-panel .ais-SearchBox-submit:hover {
+  color: #69b1ff;
+}
+
+.search-panel .ais-SearchBox-reset {
+  right: 69px;
+}
+
+.searchbox-container {
+  border: 1px solid #d6d6e7;
+  border-radius: 3px;
+  display: flex;
+}
+
+.searchbox {
+  flex: 1;
+}

@@ -67,11 +67,11 @@ export function AppsService({ pg, logger }) {
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO apps (workspace_id, name, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `,
         [app.workspaceId, app.name, val, username, created, username, created]
       );
-      return { ...app, id: rows[0].id };
+      return mapRow(rows[0]);
     }
   }
 

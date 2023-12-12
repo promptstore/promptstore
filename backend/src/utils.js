@@ -5,7 +5,6 @@ import fs from 'fs';
 import isObject from 'lodash.isobject';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { unflatten } from 'flat';
 
 import logger from './logger';
 
@@ -310,7 +309,6 @@ export const formatAlgolia = (requests, rawResult, nodeLabel) => {
     a[key] = v;
     return a;
   }, {}));
-  hits = hits.map(unflatten);
   hits = hits.map((val) => {
     if (val.dist) {
       return {

@@ -35,6 +35,9 @@ function CsvParser({ __name, constants, logger }) {
       const index = doc.content.lastIndexOf('\n');
       const content = doc.content.slice(0, index);
       const rows = parse(content, options);
+      if (params.raw) {
+        return rows;
+      }
       let schema = params.schema;
       if (!schema) {
         schema = await getSchema({

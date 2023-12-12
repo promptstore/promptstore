@@ -583,7 +583,7 @@ function App() {
         fullName: 'Test Account',
         firstName: 'Test',
         lastName: 'Account',
-        photoURL: 'https://avatars.dicebear.com/api/gridy/0.5334164767352256.svg',
+        photoURL: 'https://api.dicebear.com/7.x/initials/svg?seed=TA',
         username: 'test.account@promptstore.dev',
         displayName: 'Test Account',
       };

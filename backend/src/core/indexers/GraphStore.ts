@@ -4,10 +4,6 @@ import { Neo4jSchemaParams } from './Extractor';
 import { Chunk } from './Chunk';
 import { PluginMetadata } from './common_types';
 
-export enum GraphStoreEnum {
-  neo4j = 'neo4j',
-}
-
 export interface Node {
   id: string;
   type: string;
@@ -42,11 +38,11 @@ export type SchemaParams = Neo4jSchemaParams;
 
 export interface GraphStoreService {
 
-  addGraph(graphstore: GraphStoreEnum, indexName: string, graph: Graph): void;
+  addGraph(graphstore: string, indexName: string, graph: Graph): void;
 
-  dropData(graphstore: GraphStoreEnum, indexName: string): void;
+  dropData(graphstore: string, indexName: string): void;
 
-  getSchema(graphstore: GraphStoreEnum, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  getSchema(graphstore: string, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
 
   getGraphStores(): PluginMetadata[];
 
@@ -66,14 +62,22 @@ export abstract class GraphStore {
     this.graphStoreService = graphStoreService;
   }
 
-  static create(graphstore: GraphStoreEnum, indexName: string, services: GraphStoreServicesParams) {
-    switch (graphstore) {
-      case GraphStoreEnum.neo4j:
-        return new Neo4jGraphStore(indexName, services);
+  static create(graphstore: string, indexName: string, services: GraphStoreServicesParams) {
+    return new class extends GraphStore {
 
-      default:
-        return null;
-    }
+      addGraph(indexName: string, graph: Graph) {
+        return this.graphStoreService.addGraph(graphstore, indexName, graph);
+      }
+
+      dropData(indexName: string) {
+        return this.graphStoreService.dropData(graphstore, indexName);
+      }
+
+      getSchema(params: Partial<Neo4jSchemaParams>) {
+        return this.graphStoreService.getSchema(graphstore, params);
+      }
+
+    }(indexName, services);
   }
 
   addChunks(chunks: Chunk[], params: Partial<AddChunksParams>) {
@@ -117,21 +121,5 @@ export abstract class GraphStore {
   abstract dropData(indexName: string): void;
 
   abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
-
-}
-
-export class Neo4jGraphStore extends GraphStore {
-
-  addGraph(indexName: string, graph: Graph) {
-    return this.graphStoreService.addGraph(GraphStoreEnum.neo4j, indexName, graph);
-  }
-
-  dropData(indexName: string) {
-    return this.graphStoreService.dropData(GraphStoreEnum.neo4j, indexName);
-  }
-
-  getSchema(params: Partial<Neo4jSchemaParams>) {
-    return this.graphStoreService.getSchema(GraphStoreEnum.neo4j, params);
-  }
 
 }
