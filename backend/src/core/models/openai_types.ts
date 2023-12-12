@@ -10,17 +10,6 @@ import {
   MessageRole,
 } from '../conversions/RosettaStone';
 
-// export interface OpenAIVisionMessage {
-//   role: MessageRole;
-//   content: ContentObject[];
-//   max_tokens: number;
-// }
-
-// export interface OpenAIVisionChatCompletionRequest {
-//   model: string;
-//   messages: OpenAIVisionMessage[];
-// }
-
 export interface OpenAIMessage<T = ContentType> extends Message<T> {
   role: MessageRole;  // The role of the message author. 
   content: T;  // The contents of the message. content is required for all messages, and may be null for assistant messages with function calls.

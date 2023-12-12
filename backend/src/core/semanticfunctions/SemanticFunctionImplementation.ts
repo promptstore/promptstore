@@ -106,7 +106,6 @@ export class SemanticFunctionImplementation {
           maxTokens = 1024;
         }
         let messages: Message[];
-        // let visionMessages: VisionMessage[];
         let context: ChatRequestContext;
         let hist: Message[];
         let msgs: Message[];
@@ -123,57 +122,6 @@ export class SemanticFunctionImplementation {
             args[this.indexContentPropertyPath] = res.response.choices[0].message.content;
           }
         }
-        // if (args.imageUrl) {
-        //   if (this.promptEnrichmentPipeline) {
-        //     messages = await this.promptEnrichmentPipeline.call({
-        //       args,
-        //       contextWindow,
-        //       maxTokens,
-        //       modelKey,
-        //       callbacks,
-        //     });
-        //     visionMessages = [
-        //       ...messages.slice(0, -1)?.map(m => ({
-        //         role: m.role,
-        //         content: m.content,
-        //       })),
-        //       {
-        //         role: MessageRole.user,
-        //         content: [
-        //           {
-        //             type: 'text',
-        //             text: messages.slice(-1)[0].content,
-        //           },
-        //           {
-        //             type: 'image_url',
-        //             image_url: {
-        //               url: args.imageUrl,
-        //             },
-        //           },
-        //         ],
-        //       },
-        //     ];
-        //   } else {
-        //     const userMessage = this.getInputAsMessage(args);
-        //     visionMessages = [
-        //       {
-        //         role: MessageRole.user,
-        //         content: [
-        //           {
-        //             type: 'text',
-        //             text: userMessage.content,
-        //           },
-        //           {
-        //             type: 'image_url',
-        //             image_url: {
-        //               url: args.imageUrl,
-        //             },
-        //           },
-        //         ],
-        //       },
-        //     ];
-        //   }
-        // } else {
         if (this.promptEnrichmentPipeline) {
           messages = await this.promptEnrichmentPipeline.call({
             args,
@@ -231,7 +179,6 @@ export class SemanticFunctionImplementation {
           }
           msgs = [userMessage];
         }
-        // }
         if (this.inputGuardrails && this.inputGuardrails.length) {
           await this.inputGuardrails.call({ messages, callbacks });
         }
@@ -243,16 +190,6 @@ export class SemanticFunctionImplementation {
           );
           functions = [outputFormatter.toJSON()];
         }
-        // let request: MultiModalChatRequest;
-        // if (args.imageUrl) {
-        //   request = {
-        //     model: modelKey,
-        //     max_tokens: modelParams.max_tokens,
-        //     messages: visionMessages,
-        //   };
-        //   logger.debug('!!!!!!!!!!!!!!!!!!!! request:', request);
-        //   response = await this.model.call({ request, callbacks, vision: true });
-        // } else {
         const request = {
           model: modelKey,
           model_params: modelParams,

@@ -85,13 +85,6 @@ export class LLMChatModel implements LLMModel {
       ...defaultLLMChatModelParams,
       ...request.model_params,
     };
-    const vision = request.model === 'gpt-4-vision-preview';
-    // if (vision) {
-    //   request = {
-    //     ...request,
-    //     model,
-    //   };
-    // } else {
     request = {
       ...request,
       model,
@@ -100,7 +93,7 @@ export class LLMChatModel implements LLMModel {
     // }
     this.onStart({ request });
     try {
-      const response = await this.completionService(this.provider, request, vision);
+      const response = await this.completionService(this.provider, request);
       if (this.semanticCache && this.semanticCacheEnabled) {
         for (const choice of response.choices) {
           let content = choice.message.content;

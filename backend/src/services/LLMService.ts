@@ -22,38 +22,44 @@ import { PluginServiceParams } from '../core/indexers/Plugin';
 import { PluginMetadata } from '../core/indexers/common_types';
 import { LLM, LLMService } from '../core/models/llm_types';
 
+const OPENAI_COMPATIBLE_PROVIDERS = ['openai', 'llama2', 'localai'];
+
 export function LLMService({ logger, registry, services }: PluginServiceParams): LLMService {
 
   const { parserService } = services;
 
-  async function createChatCompletion(provider: string, request: ChatRequest, vision: boolean) {
+  async function createChatCompletion(provider: string, request: ChatRequest) {
     logger.debug('provider:', provider);
     const instance = registry[provider] as LLM;
-    let providerRequest;
-    // if (vision) {
-    //   providerRequest = request;
-    // } else 
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+
+    let providerRequest: any;
+    if (OPENAI_COMPATIBLE_PROVIDERS.includes(provider)) {
       providerRequest = toOpenAIChatRequest(request);
+
     } else if (provider === 'bedrock') {
       if (request.model.startsWith('anthropic')) {
         providerRequest = toAnthropicChatRequest(request);
       } else if (request.model.startsWith('cohere')) {
         providerRequest = toCohereChatRequest(request);
       } else {
-        throw new Error('unknown model: ' + request.model);
+        throw new Error('unknown bedrock model: ' + request.model);
       }
+
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
+
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAIChatRequest(request);
+
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+
     // logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
     // logger.debug('provider response:', response);
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+
+    if (OPENAI_COMPATIBLE_PROVIDERS.includes(provider)) {
       return fromOpenAIChatResponse(response);
     }
     if (provider === 'bedrock') {
@@ -63,6 +69,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
           ...universalResponse,
           model: request.model,
         };
+
       } else if (request.model.startsWith('cohere')) {
         const universalResponse = await fromCohereChatResponse(response, parserService);
         return {
@@ -73,9 +80,11 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
         throw new Error('unknown model: ' + request.model);
       }
     }
+
     if (provider === 'llamaapi') {
       return fromLlamaApiChatResponse(response);
     }
+
     if (provider === 'vertexai') {
       const universalResponse = await fromVertexAIChatResponse(response, parserService);
       return {
@@ -83,6 +92,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
         model: request.model,
       };
     }
+
     throw new Error('should not be able to get here');
   }
 

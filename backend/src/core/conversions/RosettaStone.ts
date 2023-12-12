@@ -92,11 +92,6 @@ export type ContentObject = TextContent | ImageContent;
 
 export type ContentType = string | string[] | ContentObject[];
 
-// export interface VisionMessage {
-//   role: MessageRole;
-//   content: ContentType;
-// }
-
 export interface Message<T = ContentType> {
   role: MessageRole;
   content: T;
@@ -105,8 +100,6 @@ export interface Message<T = ContentType> {
   citation_metadata?: CitationMetadata;
   final?: boolean;
 }
-
-// export type MultiModalMessage = Message | VisionMessage;
 
 interface FewShotLearningExample {
   input: Message;
@@ -159,12 +152,6 @@ export interface SafetySetting {
   threshold: HarmBlockThreshold;  // Controls the probability threshold at which harm is blocked.
 }
 
-// export interface VisionChatRequest {
-//   model: string;
-//   max_tokens: number;
-//   messages: VisionMessage[];
-// }
-
 export interface ChatRequest {
   model: string;
   prompt: ChatPrompt;
@@ -176,14 +163,6 @@ export interface ChatRequest {
   user?: string;
   safety_settings?: SafetySetting[];
 }
-
-// export type MultiModalChatRequest = ChatRequest | VisionChatRequest;
-
-// export interface ProviderRequest {
-//   provider: string;
-//   request: ChatRequest;
-//   vision?: boolean;
-// };
 
 export interface SafetyRating {
   category: string;

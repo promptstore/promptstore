@@ -10,7 +10,7 @@ import SemanticCache from '../semanticcache/SemanticCache';
 
 export interface LLMService {
 
-  createChatCompletion?(provider: string, request: any, vision: boolean): Promise<ChatResponse>;
+  createChatCompletion?(provider: string, request: any): Promise<ChatResponse>;
 
   createCompletion?(provider: string, request: any): Promise<ChatResponse>;
 
@@ -32,7 +32,7 @@ export interface LLM {
 
   __name: string;
 
-  createChatCompletion(request: any, vision?: boolean): Promise<any>;
+  createChatCompletion(request: any): Promise<any>;
 
   createCompletion(request: any): Promise<any>;
 
@@ -48,7 +48,7 @@ export interface LLMModel extends Model {
   contextWindow: number;
 }
 
-export type CompletionService = (provider: string, request: ChatRequest, vision?: boolean) => Promise<ChatResponse>;
+export type CompletionService = (provider: string, request: ChatRequest) => Promise<ChatResponse>;
 
 export interface LLMChatModelParams {
   modelType: string;
@@ -63,7 +63,6 @@ export interface LLMChatModelParams {
 
 export interface ModelCallParams {
   request: ChatRequest;
-  vision?: boolean;
   callbacks?: Callback[];
 }
 
