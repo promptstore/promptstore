@@ -36,6 +36,9 @@ export class AssistantMessage implements OpenAIMessage {
 
 }
 
+/**
+ * @deprecated
+ */
 export class FunctionMessage implements OpenAIMessage {
 
   role = MessageRole.function;
@@ -45,6 +48,19 @@ export class FunctionMessage implements OpenAIMessage {
   constructor(content: string, name: string) {
     this.content = content;
     this.name = name;
+  }
+
+}
+
+export class ToolMessage implements OpenAIMessage {
+
+  role = MessageRole.tool;
+  content: string;  // The contents of the tool message.
+  tool_call_id: string;  // Tool call that this message is responding to.
+
+  constructor(content: string, tool_call_id: string) {
+    this.content = content;
+    this.tool_call_id = tool_call_id;
   }
 
 }

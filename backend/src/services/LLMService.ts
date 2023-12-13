@@ -17,6 +17,7 @@ import {
   toAnthropicChatRequest,
   fromCohereChatResponse,
   toCohereChatRequest,
+  toMistralChatRequest,
 } from '../core/conversions/RosettaStone';
 import { PluginServiceParams } from '../core/indexers/Plugin';
 import { PluginMetadata } from '../core/indexers/common_types';
@@ -48,6 +49,9 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
 
+    } else if (provider === 'mistral') {
+      providerRequest = toMistralChatRequest(request);
+
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAIChatRequest(request);
 
@@ -59,7 +63,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     const response = await instance.createChatCompletion(providerRequest);
     // logger.debug('provider response:', response);
 
-    if (OPENAI_COMPATIBLE_PROVIDERS.includes(provider)) {
+    if ([...OPENAI_COMPATIBLE_PROVIDERS, 'mistral'].includes(provider)) {
       return fromOpenAIChatResponse(response);
     }
     if (provider === 'bedrock') {

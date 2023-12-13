@@ -34,6 +34,7 @@ import {
   HuggingFaceLogo,
   Llama2Logo,
   LlamaApiLogo,
+  MistralAILogo,
   OpenAILogo,
   VertexAILogo,
 } from '../../logos';
@@ -154,6 +155,11 @@ export function ModelsList() {
       case 'llamaapi':
         return (
           <LlamaApiLogo />
+        );
+
+      case 'mistral':
+        return (
+          <MistralAILogo />
         );
 
       case 'api':

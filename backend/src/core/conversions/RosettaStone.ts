@@ -67,6 +67,7 @@ export enum MessageRole {
   user = 'user',
   assistant = 'assistant',
   function = 'function',
+  tool = 'tool',
 }
 
 export interface FunctionCall {
@@ -162,6 +163,8 @@ export interface ChatRequest {
   stream?: boolean;
   user?: string;
   safety_settings?: SafetySetting[];
+  safe_mode?: boolean;
+  random_seed?: number;
 }
 
 export interface SafetyRating {
@@ -1056,6 +1059,36 @@ export async function fromCohereChatResponse(response: CohereChatCompletionRespo
     model: meta?.api_version?.version,
     n: generations.length,
     choices,
+  };
+}
+
+/*** ************/
+
+/*** translate to mistral ************/
+
+export function toMistralChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+    safe_mode,
+    random_seed,
+  } = request;
+  const {
+    temperature,
+    top_p,
+    max_tokens,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  return {
+    model,
+    messages,
+    temperature,
+    top_p,
+    max_tokens,
+    stream,
+    safe_mode,
+    random_seed,
   };
 }
 
