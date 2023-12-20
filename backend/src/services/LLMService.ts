@@ -1,23 +1,27 @@
 import {
   ChatRequest,
   EmbeddingRequest,
-  fromOpenAIChatResponse,
-  fromOpenAICompletionResponse,
-  fromVertexAIChatResponse,
-  fromVertexAICompletionResponse,
-  fromVertexAIEmbeddingResponse,
+  toAnthropicChatRequest,
+  toCohereChatRequest,
+  fromCohereChatResponse,
+  toGeminiChatRequest,
+  fromGeminiChatResponse,
+  toLlamaApiChatRequest,
+  fromLlamaApiChatResponse,
+  toMistralChatRequest,
+  toMistralEmbeddingRequest,
+  fromMistralEmbeddingResponse,
   toOpenAIChatRequest,
   toOpenAICompletionRequest,
   toVertexAIChatRequest,
   toVertexAICompletionRequest,
   toVertexAIEmbeddingRequest,
-  fromLlamaApiChatResponse,
-  toLlamaApiChatRequest,
+  fromOpenAIChatResponse,
+  fromOpenAICompletionResponse,
+  fromVertexAIChatResponse,
+  fromVertexAICompletionResponse,
+  fromVertexAIEmbeddingResponse,
   fromAnthropicChatResponse,
-  toAnthropicChatRequest,
-  fromCohereChatResponse,
-  toCohereChatRequest,
-  toMistralChatRequest,
 } from '../core/conversions/RosettaStone';
 import { PluginServiceParams } from '../core/indexers/Plugin';
 import { PluginMetadata } from '../core/indexers/common_types';
@@ -30,7 +34,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
   const { parserService } = services;
 
   async function createChatCompletion(provider: string, request: ChatRequest) {
-    logger.debug('provider:', provider);
+    logger.debug('chat provider:', provider);
     const instance = registry[provider] as LLM;
 
     let providerRequest: any;
@@ -46,6 +50,9 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
         throw new Error('unknown bedrock model: ' + request.model);
       }
 
+    } else if (provider === 'gemini') {
+      providerRequest = toGeminiChatRequest(request);
+
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
 
@@ -59,9 +66,9 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
       throw new Error(`model provider ${provider} not supported.`);
     }
 
-    // logger.debug('provider request:', providerRequest);
+    logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
-    // logger.debug('provider response:', response);
+    logger.debug('provider response:', response);
 
     if ([...OPENAI_COMPATIBLE_PROVIDERS, 'mistral'].includes(provider)) {
       return fromOpenAIChatResponse(response);
@@ -80,9 +87,18 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
           ...universalResponse,
           model: request.model,
         };
+
       } else {
         throw new Error('unknown model: ' + request.model);
       }
+    }
+
+    if (provider === 'gemini') {
+      const universalResponse = fromGeminiChatResponse(response);
+      return {
+        ...universalResponse,
+        model: request.model,
+      };
     }
 
     if (provider === 'llamaapi') {
@@ -101,26 +117,35 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
   }
 
   async function createCompletion(provider: string, request: ChatRequest) {
+    logger.debug('completion provider:', provider);
     const instance = registry[provider] as LLM;
-    let providerRequest;
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+
+    let providerRequest: any;
+    if (OPENAI_COMPATIBLE_PROVIDERS.includes(provider)) {
       providerRequest = toOpenAICompletionRequest(request);
+
     } else if (provider === 'llamaapi') {
       providerRequest = toLlamaApiChatRequest(request);
+
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAICompletionRequest(request);
+
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+
     logger.debug('provider request:', providerRequest);
     const response = await instance.createCompletion(providerRequest);
     logger.debug('provider response:', response);
+
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return fromOpenAICompletionResponse(response, parserService);
     }
+
     if (provider === 'llamaapi') {
       return fromLlamaApiChatResponse(response);
     }
+
     if (provider === 'vertexai') {
       const universalResponse = await fromVertexAICompletionResponse(response, parserService);
       return {
@@ -128,28 +153,43 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
         model: request.model,
       };
     }
+
     throw new Error('should not be able to get here');
   }
 
   async function createEmbedding(provider: string, request: EmbeddingRequest) {
     const instance = registry[provider] as LLM;
-    let providerRequest;
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+
+    let providerRequest: any;
+    if ([...OPENAI_COMPATIBLE_PROVIDERS, 'sentenceencoder'].includes(provider)) {
       providerRequest = request;
+
+    } else if (provider === 'mistral') {
+      providerRequest = toMistralEmbeddingRequest(request);
+
     } else if (provider === 'vertexai') {
       providerRequest = toVertexAIEmbeddingRequest(request);
+
     } else {
       throw new Error(`model provider ${provider} not supported.`);
     }
+
     // logger.debug('provider request:', providerRequest);
     const response = await instance.createEmbedding(providerRequest);
     // logger.debug('provider response:', response);
-    if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
+
+    if ([...OPENAI_COMPATIBLE_PROVIDERS, 'sentenceencoder'].includes(provider)) {
       return response;
     }
+
+    if (provider === 'mistral') {
+      return fromMistralEmbeddingResponse(response);
+    }
+
     if (provider === 'vertexai') {
       return fromVertexAIEmbeddingResponse(response);
     }
+
     throw new Error('should not be able to get here');
   }
 

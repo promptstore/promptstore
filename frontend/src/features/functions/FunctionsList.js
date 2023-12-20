@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
+import isEmpty from 'lodash.isempty';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -49,6 +50,7 @@ import {
 import {
   deleteFunctionsAsync,
   getFunctionsAsync,
+  selectLoaded,
   selectLoading,
   selectFunctions,
 } from './functionsSlice';
@@ -70,8 +72,10 @@ export function FunctionsList() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', { defaultValue: [] });
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', { defaultValue: [] });
+  const [numItems, setNumItems] = useLocalStorageState('functions-num-items', { defaultValue: 12 });
 
   const functions = useSelector(selectFunctions);
+  const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
@@ -81,20 +85,25 @@ export function FunctionsList() {
   const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
-    const list = Object.values(functions)
-      .filter((func) => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
-      .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
-      .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
-      .filter((func) => filterSystem ? func.isPublic : true)
-      .map((func) => ({
-        key: func.id,
-        name: func.name,
-        implementations: func.implementations,
-        tags: func.tags,
-        isPublic: func.isPublic,
-      }));
-    list.sort((a, b) => a.name > b.name ? 1 : -1);
-    return list;
+    if (layout === 'grid' && isEmpty(functions)) {
+      // show loading cards
+      return [...Array(numItems).keys()].map(key => ({ key }));
+    } else {
+      const list = Object.values(functions)
+        .filter((func) => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+        .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
+        .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
+        .filter((func) => filterSystem ? func.isPublic : true)
+        .map((func) => ({
+          key: func.id,
+          name: func.name,
+          implementations: func.implementations,
+          tags: func.tags,
+          isPublic: func.isPublic,
+        }));
+      list.sort((a, b) => a.name > b.name ? 1 : -1);
+      return list;
+    }
   }, [functions, filterSystem, searchValue, selectedImpls, selectedTags]);
 
   const modelOptions = useMemo(() => {
@@ -141,8 +150,11 @@ export function FunctionsList() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
+      dispatch(getFunctionsAsync({
+        workspaceId,
+        minDelay: layout === 'grid' ? 2000 : 0,
+      }));
     }
   }, [selectedWorkspace]);
 
@@ -154,6 +166,12 @@ export function FunctionsList() {
       });
     }
   }, [location]);
+
+  useEffect(() => {
+    if (loaded) {
+      setNumItems(Object.keys(functions).length);
+    }
+  }, [loaded, functions]);
 
   const onDelete = () => {
     dispatch(deleteFunctionsAsync({ ids: selectedRowKeys }));
@@ -343,7 +361,7 @@ export function FunctionsList() {
         {layout === 'grid' ?
           <Space wrap size="large">
             {data.map(f =>
-              <Card key={f.key} title={f.name} style={{ width: 350, height: 200 }}>
+              <Card key={f.key} title={f.name} style={{ width: 350, height: 200 }} loading={loading}>
                 <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
                   <div style={{ height: 30 }}>
                     <span style={{ marginRight: 8 }}>Implementations:</span>
@@ -405,7 +423,7 @@ const beforeUpload = (file) => {
   const isLt2M = file.size / 1024 / 1024 < 100;
 
   if (!isLt2M) {
-    message.error('File must smaller than 100MB.');
+    message.error('File must be smaller than 100MB.');
   }
 
   return isJSON && isLt2M;

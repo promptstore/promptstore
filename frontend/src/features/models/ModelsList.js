@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
+import isEmpty from 'lodash.isempty';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -31,6 +32,7 @@ import {
   AnthropicLogo,
   BedrockLogo,
   EuropaLabsLogo,
+  GeminiLogo,
   HuggingFaceLogo,
   Llama2Logo,
   LlamaApiLogo,
@@ -45,6 +47,7 @@ import {
 import {
   deleteModelsAsync,
   getModelsAsync,
+  selectLoaded,
   selectLoading,
   selectModels,
 } from './modelsSlice';
@@ -58,26 +61,34 @@ export function ModelsList() {
   const [page, setPage] = useLocalStorageState('models-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [numItems, setNumItems] = useLocalStorageState('models-num-items', { defaultValue: 12 });
 
+  const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
   const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
-    const list = Object.values(models)
-      .filter((model) => model.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
-      .filter((model) => filterPublic ? model.isPublic : true)
-      .map((model) => ({
-        key: model.id,
-        modelKey: model.key,
-        name: model.name,
-        provider: model.provider || model.type,
-        type: model.type,
-        isPublic: model.isPublic,
-        description: model.description,
-      }));
-    list.sort((a, b) => a.name > b.name ? 1 : -1);
-    return list;
+    if (layout === 'grid' && isEmpty(models)) {
+      // show loading cards
+      return [...Array(numItems).keys()].map(key => ({ key }));
+    } else {
+      const list = Object.values(models)
+        .filter((model) => model.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+        .filter((model) => filterPublic ? model.isPublic : true)
+        .map((model) => ({
+          key: model.id,
+          modelKey: model.key,
+          name: model.name,
+          provider: model.provider || model.type,
+          type: model.type,
+          isPublic: model.isPublic,
+          description: model.description,
+          contextWindow: model.contextWindow,
+        }));
+      list.sort((a, b) => a.name > b.name ? 1 : -1);
+      return list;
+    }
   }, [models, filterPublic, searchValue]);
 
   const { setNavbarState } = useContext(NavbarContext);
@@ -99,7 +110,10 @@ export function ModelsList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id }));
+      dispatch(getModelsAsync({
+        workspaceId: selectedWorkspace.id,
+        minDelay: layout === 'grid' ? 2000 : 0,
+      }));
     }
   }, [selectedWorkspace]);
 
@@ -111,6 +125,12 @@ export function ModelsList() {
       });
     }
   }, [location]);
+
+  useEffect(() => {
+    if (loaded) {
+      setNumItems(Object.keys(models).length);
+    }
+  }, [loaded, models]);
 
   const onDelete = () => {
     dispatch(deleteModelsAsync({ ids: selectedRowKeys }));
@@ -125,21 +145,47 @@ export function ModelsList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  const formatNumber = (num) => {
+    if (num) {
+      num = +num;
+      if (!isNaN(num)) {
+        return num.toLocaleString('en-US');
+      }
+    }
+    return null;
+  }
+
+  const getColor = (type) => {
+    if (type === 'gpt') {
+      return '#108ee9';
+    }
+    if (type === 'api') {
+      return '#87d068';
+    }
+    if (type === 'completion') {
+      return '#2db7f5';
+    }
+    if (type === 'embedding') {
+      return '#a219ff';
+    }
+    return null;
+  }
+
   const ProviderLogo = ({ provider }) => {
     switch (provider) {
-      case 'openai':
+      case 'api':
         return (
-          <OpenAILogo />
-        );
-
-      case 'vertexai':
-        return (
-          <VertexAILogo />
+          <EuropaLabsLogo />
         );
 
       case 'bedrock':
         return (
           <BedrockLogo />
+        );
+
+      case 'gemini':
+        return (
+          <GeminiLogo />
         );
 
       case 'huggingface':
@@ -162,9 +208,14 @@ export function ModelsList() {
           <MistralAILogo />
         );
 
-      case 'api':
+      case 'openai':
         return (
-          <EuropaLabsLogo />
+          <OpenAILogo />
+        );
+
+      case 'vertexai':
+        return (
+          <VertexAILogo />
         );
 
       default:
@@ -174,33 +225,33 @@ export function ModelsList() {
 
   const ProviderLabel = ({ provider }) => {
     switch (provider) {
+      case 'api':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} />
+            <div>Europa Labs</div>
+          </Space>
+        );
+
       case 'bedrock':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
             <div>Bedrock</div>
           </Space>
         );
 
-      case 'openai':
+      case 'gemini':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
-            <div>OpenAI</div>
-          </Space>
-        );
-
-      case 'vertexai':
-        return (
-          <Space>
-            <ProviderLogo provider={provider} />
-            <div>Vertex AI</div>
+            <div>Gemini</div>
           </Space>
         );
 
       case 'huggingface':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
             <div>Hugging Face</div>
           </Space>
@@ -208,7 +259,7 @@ export function ModelsList() {
 
       case 'llama2':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
             <div>Llama 2</div>
           </Space>
@@ -216,17 +267,33 @@ export function ModelsList() {
 
       case 'llamaapi':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
             <div>Llama API</div>
           </Space>
         );
 
-      case 'api':
+      case 'mistral':
         return (
-          <Space>
+          <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
-            <div>Europa Labs</div>
+            <div>Mistral</div>
+          </Space>
+        );
+
+      case 'openai':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} />
+            <div>OpenAI</div>
+          </Space>
+        );
+
+      case 'vertexai':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} />
+            <div>Vertex AI</div>
           </Space>
         );
 
@@ -242,7 +309,7 @@ export function ModelsList() {
       title: 'Name',
       dataIndex: 'name',
       render: (_, { key, name }) => (
-        <div style={{ minWidth: 250 }}>
+        <div style={{ minWidth: 250, whiteSpace: 'nowrap' }}>
           <Link to={`/models/${key}`}>{name}</Link>
         </div>
       )
@@ -266,17 +333,28 @@ export function ModelsList() {
       dataIndex: 'isPublic',
       render: (_, { isPublic }) => (
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
-          <span>{isPublic ? <CheckOutlined /> : ''}</span>
+          <span>{isPublic ? <CheckOutlined /> : null}</span>
         </div>
       )
     },
     {
       title: 'Provider',
       dataIndex: 'provider',
-      width: '100%',
       render: (_, { provider }) => (
         <ProviderLabel provider={provider} />
       )
+    },
+    {
+      title: 'Context Window',
+      dataIndex: 'contextWindow',
+      render: (_, { contextWindow }) => (
+        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+          {formatNumber(contextWindow)}
+        </div>
+      )
+    },
+    {
+      width: '100%',
     },
     {
       title: 'Action',
@@ -398,16 +476,29 @@ export function ModelsList() {
             {data.map(m =>
               <Card key={m.key}
                 title={<CardTitle provider={m.provider} title={m.name} />}
-                style={{ width: 350, height: 200 }}
+                style={{ width: 350, height: 230 }}
+                loading={loading}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
-                  <div style={{ height: 30 }}>
-                    <Typography.Text ellipsis>
-                      {m.description}
-                    </Typography.Text>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', height: 126 }}>
                   <div>
-                    <Tag>{m.type}</Tag>
+                    <Space>
+                      <Tag color={getColor(m.type)}>{m.type}</Tag>
+                      <div>{m.modelKey}</div>
+                    </Space>
+                  </div>
+                  <div style={{ height: 30, marginTop: 8 }}>
+                    <Typography.Paragraph ellipsis>
+                      {m.description}
+                    </Typography.Paragraph>
+                  </div>
+                  <div style={{ marginTop: 5 }}>
+                    <Typography.Text>
+                      {m.contextWindow ?
+                        <span><span className="inline-label">context window:</span> {formatNumber(m.contextWindow)}</span>
+                        :
+                        <span>&nbsp;</span>
+                      }
+                    </Typography.Text>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>
                     <Link to={`/models/${m.key}/edit`}>Edit</Link>
@@ -447,7 +538,7 @@ const beforeUpload = (file) => {
   const isLt2M = file.size / 1024 / 1024 < 100;
 
   if (!isLt2M) {
-    message.error('File must smaller than 100MB.');
+    message.error('File must be smaller than 100MB.');
   }
 
   return isJSON && isLt2M;

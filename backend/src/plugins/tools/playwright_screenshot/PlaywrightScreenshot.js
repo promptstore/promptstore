@@ -66,12 +66,18 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, imageUrl) => {
+        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
           if (err) {
             logger.error(err);
             return reject(err);
           }
-          logger.debug('presigned url:', imageUrl);
+          logger.debug('presigned url:', presignedUrl);
+          if (constants.ENV === 'dev') {
+            const u = new URL(presignedUrl);
+            imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+          } else {
+            imageUrl = presignedUrl;
+          }
           resolve({ imageUrl, objectName });
         });
       });

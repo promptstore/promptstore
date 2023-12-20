@@ -4,10 +4,14 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.32"
+version: "0.6.43"
 
 port: "5000"
-promptstore_email:
+
+base_url: 
+
+promptstore:
+  email:
 
 ingress:
   domain:
@@ -24,7 +28,7 @@ db:
 # Redis
 redis:
   host: "redis-master.redis.svc.cluster.local"
-  pass:
+  pass: changeme
 
 # MinIO filestore
 s3:
@@ -78,7 +82,7 @@ custom_models:
 
 # Onesource
 onesource:
-  api_url: "http://onesource-service.promptstore.svc.cluster.local:5000"
+  api_url:
 
 # Unstructured
 unstructured:
@@ -105,6 +109,12 @@ bedrock:
   access_key_id:
   secret_access_key:
   session_token:
+
+# gemini - ./plugins/llms/gemini
+gemini:
+  project_id:
+  project_location:
+  service_account_key_file:
 
 # gpt4all - ./plugins/llms/gpt4all
 gpt4all:
@@ -140,7 +150,7 @@ google_vertex:
 keycloak:
   host:
   callback:
-  realm: "AgencyAI"
+  realm:
   client_id:
   client_secret:
 
@@ -161,20 +171,28 @@ bigquery:
 
 ## Tool plugins ########
 
-# SERP API - ./plugins/tools/serpapi
-serpapi:
-  api_url: "https://google.serper.dev/search"
-  api_key:
-
-# OpenWeather - ./plugins/tools/openweather
-openweather:
-  api_key:
+# Jira - ./plugins/tools/jira
+jira:
+  api_url:
+  email:
+  pat:
+  project_key:
 
 # Mailtrap - ./plugins/tools/email
 mailtrap:
   template_uuid:
   token:
   sender_email:
+  invite_template_uuid"
+
+# OpenWeather - ./plugins/tools/openweather
+openweather:
+  api_key:
+
+# SERP API - ./plugins/tools/serpapi
+serpapi:
+  api_url: "https://google.serper.dev/search"
+  api_key:
 
 ########
 
@@ -190,6 +208,6 @@ vector_stores:
 
 # RediSearch (default semantic index)
 vecsearch:
-  api_url: "http://vecsearch.vecsearch.svc.cluster.local:5002/api"
+  api_url:
 
 ########

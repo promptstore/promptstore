@@ -11,7 +11,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     uploadsService,
   } = services;
 
-  const { indexObject } = searchFunctions({ constants, services });
+  const { indexObject } = searchFunctions({ constants, logger, services });
 
   // cache of results to poll
   const _jobs = {};

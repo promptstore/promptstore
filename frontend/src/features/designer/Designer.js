@@ -1,8 +1,14 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Divider, Form, Input, Layout, Select, Table } from 'antd';
-import { LinkOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Button, Divider, Form, Input, Layout, Select, Table, Upload, message } from 'antd';
+import {
+  LinkOutlined,
+  LoadingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import isEmpty from 'lodash.isempty';
@@ -12,6 +18,10 @@ import useLocalStorageState from 'use-local-storage-state';
 import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import {
+  fileUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
 import {
   createPromptSetAsync,
   getPromptSetsAsync,
@@ -115,6 +125,7 @@ export function Designer() {
   const promptSets = useSelector(selectPromptSets);
   const promptSetsLoading = useSelector(selectPromptSetsLoading);
   const traceId = useSelector(selectTraceId);
+  const uploading = useSelector(selectUploading);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -122,6 +133,8 @@ export function Designer() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [messageApi, contextHolder] = message.useMessage();
 
   let id;
   const match = location.pathname.match(/\/design\/(.*)/);
@@ -280,6 +293,17 @@ export function Designer() {
     setArgsFormData(session.argsFormData);
   };
 
+  const getInputStr = (messages) => {
+    const message = messages[messages.length - 1];
+    if (Array.isArray(message.content)) {
+      const textContent = message.content.findLast(c => c.type === 'text');
+      if (textContent) {
+        return textContent.text;
+      }
+    }
+    return null;
+  }
+
   const handleChatSubmit = async (values) => {
     let sp;
     let history = [];
@@ -287,9 +311,11 @@ export function Designer() {
     const originalMessages = messages;
     let args;
     let engine;
+    let index;
     if (messages.length > 1) {
-      history = messages.slice(0, -1);
-      messages = messages.slice(-1);
+      index = messages.findLastIndex(m => m.role !== 'user') + 1;
+      history = messages.slice(0, index);
+      messages = messages.slice(index);
     }
     const {
       promptSet,
@@ -313,15 +339,16 @@ export function Designer() {
             .map(p => ({ role: p.role, content: p.prompt }))
             ;
           if (contentVar) {
-            const content = messages[0].content;
+            const content = getInputStr(messages);
             args = { [contentVar]: content };
+            const idx = nonSystemMessages.findLastIndex(m => m.role !== 'user') + 1;
             if (nonSystemMessages.length > 1) {
               history = [
-                ...nonSystemMessages.slice(0, -1),
+                ...nonSystemMessages.slice(0, idx),
                 ...history,
               ];
             }
-            messages = nonSystemMessages.slice(-1);
+            messages = nonSystemMessages.slice(idx);
           } else {
             if (nonSystemMessages.length > 0) {
               history = [
@@ -346,7 +373,26 @@ export function Designer() {
       // TODO ignore variables?
       sp = systemPrompt;
     }
-    dispatch(getChatResponseAsync({
+    if (messages.length > 1) {
+      let content = [];
+      for (const m of messages) {
+        if (typeof m.content === 'string') {
+          content.push({
+            type: 'text',
+            text: m.content,
+          });
+        } else {
+          content.push(...m.content);
+        }
+      }
+      messages = [
+        {
+          role: 'user',
+          content,
+        }
+      ];
+    }
+    const payload = {
       systemPrompt: sp,
       promptSetId: promptSet,
       systemPromptInput: systemPrompt,
@@ -355,12 +401,13 @@ export function Designer() {
       criterion: criterion,
       history,
       messages,
-      originalMessages,
+      originalMessages: [...originalMessages.slice(0, index), ...messages],
       args,
       engine,
       modelParams,
       workspaceId: selectedWorkspace.id,
-    }));
+    };
+    dispatch(getChatResponseAsync(payload));
   };
 
   const onCritique = async ({ input, completion }) => {
@@ -613,6 +660,24 @@ export function Designer() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  const handleChange = (info) => {
+    if (info.file.status === 'uploading') {
+      return;
+    }
+    if (info.file.status === 'done') {
+      dispatch(fileUploadAsync(selectedWorkspace.id, info.file, true));
+    }
+  };
+
+  const uploadButton = (
+    <div>
+      {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+      <div style={{ marginTop: 8 }}>
+        {uploading ? 'Uploading...' : 'Upload Image'}
+      </div>
+    </div>
+  );
+
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
@@ -630,6 +695,7 @@ export function Designer() {
         onCancel={handleCreateCancel}
         onOk={handleCreate}
       />
+      {contextHolder}
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
           <Sider
@@ -794,9 +860,22 @@ export function Designer() {
               onUseSelected={onUseSelected}
               onReset={onReset}
               onSave={onSave}
-              placeholder="Write an email subject line for the latest iPhone."
+              placeholder="Ask away..."
               traceId={traceId}
             />
+            <div style={{ marginTop: 20, textAlign: 'center' }}>
+              <Upload
+                name="upload"
+                listType="picture-card"
+                className="avatar-uploader"
+                showUploadList={false}
+                customRequest={dummyRequest}
+                beforeUpload={beforeUpload}
+                onChange={handleChange}
+              >
+                {uploadButton}
+              </Upload>
+            </div>
             {varsSchema ?
               <div style={{ marginTop: 24, width: 868 }}>
                 <div style={{ float: 'right' }}>
@@ -818,7 +897,7 @@ export function Designer() {
                   />
                 </div>
                 <div style={{ marginBottom: 24 }}>
-                  The message will be assigned to the `content` variable if using a Prompt Template.
+                  The message will be assigned to the `{contentVar}` variable if using a Prompt Template.
                 </div>
               </div>
               : null
@@ -855,15 +934,17 @@ export function Designer() {
 
 const formatMessage = (m) => {
   if (Array.isArray(m.content)) {
-    return {
-      key: uuidv4(),
-      role: m.role,
-      content: m.content.map(msg => ({
+    if (m.role === 'assistant') {
+      return {
         key: uuidv4(),
-        content: msg.content,
-        model: msg.model,
-      })),
-    };
+        role: m.role,
+        content: m.content.map(msg => ({
+          key: uuidv4(),
+          content: msg.content,
+          model: msg.model,
+        })),
+      };
+    }
   }
   return {
     key: uuidv4(),
@@ -915,4 +996,31 @@ const excludeProps = (props, schema) => {
     };
   }
   return null;
+};
+
+const beforeUpload = (file) => {
+  // console.log('file:', file);
+
+  const isPng = file.type === 'image/png';
+
+  const isJpg = file.type === 'image/jpeg';
+
+  if (!(isPng || isJpg)) {
+    message.error('You may only upload an image file.');
+  }
+
+  const isLt2M = file.size / 1024 / 1024 < 100;
+
+  if (!isLt2M) {
+    message.error('File must be smaller than 100Mb.');
+  }
+
+  return (isPng || isJpg) && isLt2M;
+};
+
+// https://stackoverflow.com/questions/51514757/action-function-is-required-with-antd-upload-control-but-i-dont-need-it
+const dummyRequest = ({ file, onSuccess }) => {
+  setTimeout(() => {
+    onSuccess('ok');
+  }, 20);
 };

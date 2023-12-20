@@ -6,7 +6,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const { emailService, usersService, workspacesService } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   /**
    * @openapi

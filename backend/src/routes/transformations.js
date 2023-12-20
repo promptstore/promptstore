@@ -7,7 +7,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const { dataSourcesService, sqlSourceService, transformationsService } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   // cache of results to poll
   const jobs = {};

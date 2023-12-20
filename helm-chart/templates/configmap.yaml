@@ -7,6 +7,7 @@ data:
   PORT: "{{ .Values.port }}"
   PROJECT_NAME: "{{ .Values.appname }}"
   DISABLE_TERMINAL: "1"
+  BASE_URL: "{{ .Values.base_url }}"
 
   # PostgreSQL Metastore
   PGHOST: "{{ .Values.db.host }}"
@@ -18,7 +19,7 @@ data:
 
   # MinIO filestore
   S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
-  S3_PORT: "80"
+  S3_PORT: "443"
 
   # Background job processing
   TEMPORAL_URL: "{{ .Values.temporal.api_url }}"
@@ -47,7 +48,7 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia"
@@ -65,7 +66,7 @@ data:
   SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql,clickhouse|ClickHouse|./plugins/sqlsources/clickhouse,bigquery|BigQuery|./plugins/sqlsources/bigquery"
 
   # Tool plugins
-  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot"
+  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira"
 
   # Vector store plugins
   VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j"
@@ -120,6 +121,11 @@ data:
   # Bedrock - ./plugins/llms/bedrock
   AWS_REGION: "{{ .Values.bedrock.region }}"
 
+  # gemini - ./plugins/llms/gemini
+  GOOGLE_PROJECT_ID: "{{ .Values.gemini.project_id }}"
+  GOOGLE_PROJECT_LOCATION: "{{ .Values.gemini.project_location }}"
+  GCS_BUCKET: "{{ .Values.appname }}"
+
   # gpt4all - ./plugins/llms/gpt4all
   GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"
 
@@ -131,6 +137,9 @@ data:
 
   # LocalAI - ./plugins/llms/localai
   LOCALAI_BASE_PATH: "{{ .Values.localai.base_path }}"
+
+  # Mistral - ./plugins/llms/mistral
+  MISTRAL_API: "{{ .Values.mistral.api_url }}"
 
   # OpenAI - ./plugins/llms/openai
 
@@ -154,13 +163,16 @@ data:
 
   ## Tool plugins ########
 
-  # SERP API - ./plugins/tools/serpapi
-  SERPAPI_URL: "{{ .Values.serpapi.api_url }}"
+  # Jira - ./plugins/tools/jira
+  JIRA_API_URL: "{{ .Values.jira.api_url }}"
+  JIRA_PROJECT_KEY: "{{ .Values.jira.project_key }}"
+
+  # Mailtrap - ./plugins/tools/email
 
   # OpenWeather - ./plugins/tools/openweather
 
-  # Mailtrap - ./plugins/tools/email
-  MAILTRAP_TEMPLATE_UUID: "{{ .Values.mailtrap.template_uuid }}"
+  # SERP API - ./plugins/tools/serpapi
+  SERPAPI_URL: "{{ .Values.serpapi.api_url }}"
 
   ########
 

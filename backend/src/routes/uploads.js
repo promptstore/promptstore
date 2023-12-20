@@ -25,7 +25,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     vectorStoreService,
   } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   const upload = multer({ dest: '/var/data' });
 
@@ -356,7 +356,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   });
 
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
-    let { correlationId, workspaceId, appId } = req.body;
+    let { correlationId, workspaceId, appId, isImage } = req.body;
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
@@ -372,11 +372,11 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         });
       }
     }
-    logger.debug('workspaceId:', workspaceId);
-    logger.debug('appId:', appId);
+    logger.debug('workspace id:', workspaceId);
+    logger.debug('app id:', appId);
     workflowClient
       .upload(req.file, workspaceId, appId, username, {
-        DOCUMENTS_PREFIX: constants.DOCUMENTS_PREFIX,
+        DOCUMENTS_PREFIX: isImage ? constants.IMAGES_PREFIX : constants.DOCUMENTS_PREFIX,
         FILE_BUCKET: constants.FILE_BUCKET,
       }, {
         address: constants.TEMPORAL_URL,
@@ -384,7 +384,27 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       .then((result) => {
         // logger.debug('upload result:', result);
         if (correlationId) {
-          jobs[correlationId] = result;
+          if (isImage) {
+            mc.presignedUrl('GET', constants.FILE_BUCKET, result.name, 24 * 60 * 60, (err, presignedUrl) => {
+              if (err) {
+                logger.error(err);
+                return res.status(400).send({
+                  error: { message: 'Error getting presigned url: ' + err.message },
+                });
+              }
+              logger.debug('presigned url:', presignedUrl);
+              let imageUrl;
+              if (constants.ENV === 'dev') {
+                const u = new URL(presignedUrl);
+                imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+              } else {
+                imageUrl = presignedUrl;
+              }
+              jobs[correlationId] = { ...result, imageUrl };
+            });
+          } else {
+            jobs[correlationId] = result;
+          }
         }
 
         // allow 10m to poll for results
@@ -392,8 +412,10 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
 
-        const obj = createSearchableObject(result);
-        indexObject(obj);
+        if (!isImage) {
+          const obj = createSearchableObject(result);
+          indexObject(obj);
+        }
 
       });
     res.sendStatus(200);

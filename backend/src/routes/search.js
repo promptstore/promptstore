@@ -22,7 +22,7 @@ export default ({ app, auth, constants, logger, services }) => {
     vectorStoreService,
   } = services;
 
-  const { indexObject } = searchFunctions({ constants, services });
+  const { indexObject } = searchFunctions({ constants, logger, services });
 
   app.get('/api/index/:vectorStoreProvider/:name', auth, async (req, res, next) => {
     const { name, vectorStoreProvider } = req.params;
@@ -36,8 +36,22 @@ export default ({ app, auth, constants, logger, services }) => {
   });
 
   app.post('/api/index', auth, async (req, res, next) => {
+    const { username } = req.user;
     const { indexName, schema, params, vectorStoreProvider } = req.body;
     try {
+      let index = await indexesService.getIndexByName(1, indexName);
+      if (!index) {
+        index = await indexesService.upsertIndex({
+          name: indexName,
+          schema,
+          workspaceId: 1,
+          embeddingProvider: 'sentenceencoder',
+          vectorStoreProvider: 'redis',
+          nodeLabel: params.nodeLabel,
+        }, username);
+        logger.debug("Created new index '%s' [%s]", indexName, index.id);
+      }
+
       let resp;
       if (vectorStoreProvider === 'neo4j') {
         const { embeddingProvider, nodeLabel } = params;
@@ -48,9 +62,10 @@ export default ({ app, auth, constants, logger, services }) => {
           embeddingDimension,
         });
       } else if (vectorStoreProvider === 'redis') {
-        const { nodeLabel } = params;
+        const { nodeLabel, vectorField } = params;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
+          vectorField,
         });
       } else if (vectorStoreProvider === 'chroma') {
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema);
@@ -143,6 +158,9 @@ export default ({ app, auth, constants, logger, services }) => {
     const { requests, attrs, logicalType, indexParams } = req.body;
     const { indexName, params: { query } } = requests[0];
     // logger.debug('query:', q);
+    if (!query) {
+      return res.status(200).send({ results: [] });
+    }
     const {
       nodeLabel,
       embeddingProvider,

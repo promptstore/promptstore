@@ -87,7 +87,7 @@ const beforeUpload = (file) => {
   const isLt2M = file.size / 1024 / 1024 < 1000;
 
   if (!isLt2M) {
-    message.error('File must smaller than 1GB.');
+    message.error('File must be smaller than 1GB.');
   }
 
   return (isCSV || isText || isZip || isPdf || isWord) && isLt2M;

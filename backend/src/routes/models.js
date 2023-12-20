@@ -6,7 +6,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const { modelsService } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   app.get('/api/workspace/:workspaceId/models', auth, async (req, res, next) => {
     const { workspaceId } = req.params;

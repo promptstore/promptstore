@@ -405,7 +405,7 @@ const beforeUpload = (file) => {
   const isLt2M = file.size / 1024 / 1024 < 100;
 
   if (!isLt2M) {
-    message.error('File must smaller than 100MB.');
+    message.error('File must be smaller than 100MB.');
   }
 
   return isJSON && isLt2M;

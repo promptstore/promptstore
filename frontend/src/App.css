@@ -879,8 +879,9 @@ article.collapsible .panel.closed {
   color: #69b1ff;
 }
 
-.search-panel .ais-SearchBox-reset {
-  right: 69px;
+.search-panel .ais-SearchBox-reset,
+.search-panel .ais-SearchBox-loadingIndicator {
+  right: 109px;
 }
 
 .searchbox-container {
@@ -891,4 +892,9 @@ article.collapsible .panel.closed {
 
 .searchbox {
   flex: 1;
+}
+
+.inline-label {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
 }

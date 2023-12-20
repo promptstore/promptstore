@@ -1,5 +1,5 @@
 import React from 'react';
-import { Space, Typography } from 'antd';
+import { Image, Space, Typography } from 'antd';
 
 import { JsonView } from '../../../components/JsonView';
 import { decodeEntities, getInputString, hashStr } from '../../../utils';
@@ -52,6 +52,37 @@ function Errors({ step }) {
   );
 }
 
+function Content({ content }) {
+  if (Array.isArray(content)) {
+    return content.map((c, i) => {
+      if (typeof c === 'string') {
+        return c;
+      }
+      if (c.type === 'image_url') {
+        return (
+          <div key={'content-' + i} style={{ marginBottom: 16 }}>
+            <Image src={c.image_url.url} width={200} />
+          </div>
+        );
+      }
+      return (
+        <div key={'content-' + i}>
+          <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
+            {c.text}
+          </Typography.Paragraph>
+        </div>
+      );
+    });
+  }
+  return (
+    <div>
+      <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
+        {content}
+      </Typography.Paragraph>
+    </div>
+  );
+}
+
 export function Input({ step }) {
   let input;
   if (step.args) {
@@ -62,9 +93,7 @@ export function Input({ step }) {
   return (
     <Space direction="vertical" size="middle">
       {input ?
-        <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
-          {input}
-        </Typography.Paragraph>
+        <Content content={input} />
         : null
       }
       {step.args ?
@@ -131,12 +160,9 @@ export function Messages({ step }) {
                     : c.type === 'image_url' ?
                       <>
                         <div className="ant-descriptions-item-label">Image</div>
-                        <Typography.Paragraph
-                          className="first"
-                          style={{ whiteSpace: 'pre-wrap' }}
-                        >
-                          {c.image_url.url}
-                        </Typography.Paragraph>
+                        <div style={{ marginBottom: 16 }}>
+                          <Image src={c.image_url.url} width={200} />
+                        </div>
                       </>
                       :
                       <JsonView src={c} />

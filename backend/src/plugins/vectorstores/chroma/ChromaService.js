@@ -1,5 +1,5 @@
 import { ChromaClient } from 'chromadb'
-import { flatten } from 'flat';
+import { flatten, unflatten } from 'flat';
 import isEmpty from 'lodash.isempty';
 import omit from 'lodash.omit';
 
@@ -179,7 +179,11 @@ function ChromaService({ __name, constants, logger }) {
       if (collection) {
         let where;
         if (attrs) {
-          where = attrs;
+          const filters = Object.entries(attrs).map(([k, v]) => ({
+            [k]: { '$eq': v }
+          }));
+          const op = '$' + logicalType;
+          where = { [op]: filters };
         }
         let res;
         if (queryEmbedding) {
@@ -195,25 +199,32 @@ function ChromaService({ __name, constants, logger }) {
             where,
           });
         }
-        return res.ids[0].map((id, i) => {
-          const dist = res.distances[0][i];
-          const metadata = res.metadatas[0][i];
-          const nodeLabel = metadata.nodeLabel;
-          delete metadata.nodeLabel;
-          let doc = {
-            id,
-            text: res.documents[0][i],
-            ...metadata,
-          };
-          doc = Object.entries(doc).reduce((a, [k, v]) => {
-            a[nodeLabel + '__' + k] = v;
+        return res.ids[0]
+          .map((id, i) => {
+            const dist = res.distances[0][i];
+            const metadata = res.metadatas[0][i];
+            const nodeLabel = metadata.nodeLabel;
+            delete metadata.nodeLabel;
+            let doc = {
+              id,
+              text: res.documents[0][i],
+              ...metadata,
+            };
+            doc = Object.entries(doc).reduce((a, [k, v]) => {
+              a[nodeLabel + '__' + k] = v;
+              return a;
+            }, {});
+            return {
+              ...doc,
+              dist,
+            };
+          })
+          .map(d => Object.entries(d).reduce((a, [k, v]) => {
+            const key = k.replace(/__/g, '.');
+            a[key] = v;
             return a;
-          }, {});
-          return {
-            ...doc,
-            dist,
-          };
-        });
+          }, {}))
+          .map(unflatten);
       }
       logger.debug("collection '%s' not found", indexName);
       return [];

@@ -1,8 +1,8 @@
-export default async ({ constants, services }) => {
+export default async ({ constants, logger, services }) => {
 
   const { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER } = constants;
 
-  const { vectorStoreService } = services;
+  const { indexesService, vectorStoreService } = services;
 
   const searchSchema = {
     "$id": "https://promptstore.dev/object.schema.json",
@@ -69,6 +69,19 @@ export default async ({ constants, services }) => {
       "workspaceId",
     ]
   };
+
+  let index = await indexesService.getIndexByName(1, SEARCH_INDEX_NAME);
+  if (!index) {
+    index = await indexesService.upsertIndex({
+      name: SEARCH_INDEX_NAME,
+      schema: searchSchema,
+      workspaceId: 1,
+      embeddingProvider: 'sentenceencoder',
+      vectorStoreProvider: 'redis',
+      nodeLabel: SEARCH_NODE_LABEL,
+    }, 'system');
+    logger.debug("Created new index '%s' [%s]", SEARCH_INDEX_NAME, index.id);
+  }
 
   // await vectorStoreService.dropIndex(SEARCH_VECTORSTORE_PROVIDER, SEARCH_INDEX_NAME);
   const searchIndex = await vectorStoreService.getIndex(SEARCH_VECTORSTORE_PROVIDER, SEARCH_INDEX_NAME);

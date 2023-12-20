@@ -137,7 +137,7 @@ export class Pipeline {
 
     // Check Embedding Provider
     if (!this._graphStoreProvider) {
-      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis' {
+      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis') {
         if (params.indexId === 'new') {
           this.embeddingProvider = params.embeddingProvider;
         } else {

@@ -14,7 +14,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     sqlSourceService,
   } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   /**
    * @openapi

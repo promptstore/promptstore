@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
+import { runWithMinDelay } from '../../utils';
 
 export const functionsSlice = createSlice({
   name: 'functions',
@@ -53,19 +54,25 @@ export const {
   startTest,
 } = functionsSlice.actions;
 
-export const getFunctionsAsync = ({ workspaceId }) => async (dispatch) => {
+export const getFunctionsAsync = ({ workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/workspaces/${workspaceId}/functions`;
+  const startTime = new Date();
   const res = await http.get(url);
-  dispatch(setFunctions({ functions: res.data }));
+  runWithMinDelay(startTime, minDelay, () => {
+    dispatch(setFunctions({ functions: res.data }));
+  });
 };
 
-export const getFunctionsByTagAsync = ({ tag, workspaceId }) => async (dispatch) => {
+export const getFunctionsByTagAsync = ({ tag, workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   dispatch(resetFunctions());
   const url = `/api/workspaces/${workspaceId}/functions/tags/${tag}`;
+  const startTime = new Date();
   const res = await http.get(url);
-  dispatch(setFunctions({ functions: res.data }));
+  runWithMinDelay(startTime, minDelay, () => {
+    dispatch(setFunctions({ functions: res.data }));
+  });
 };
 
 export const getFunctionAsync = (id) => async (dispatch) => {

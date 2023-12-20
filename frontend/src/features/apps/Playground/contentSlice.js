@@ -341,7 +341,10 @@ export const generateCopyImageAsync = (appId, contentId, params) => async (dispa
 export const searchClient = (indexParams, workspaceId) => ({
   async search(requests) {
     const url = '/api/search';
-    const attrs = { 'Object__workspaceId': workspaceId, 'Object__isPublic': true };
+    let attrs;
+    if (indexParams.indexName) {
+      attrs = { 'Object__workspaceId': workspaceId, 'Object__isPublic': true };
+    }
     const res = await http.post(url, { requests, indexParams, attrs, logicalType: 'or' });
     return res.data;
   },

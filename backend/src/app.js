@@ -2,6 +2,7 @@ import Minio from 'minio';
 import bodyParser from 'body-parser';
 import connectRedis from 'connect-redis';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import express from 'express';
 import fs from 'fs';
 import http from 'http';
@@ -54,19 +55,25 @@ import { VectorStoreService } from './services/VectorStoreService';
 import { getPlugins, installModules } from './utils';
 import * as workflowClient from './workflow/clients';
 
-let ENV = process.env.ENV;
+const ENV = process.env.ENV?.toLowerCase();
 logger.debug('ENV:', ENV);
+if (ENV === 'dev') {
+  dotenv.config();
+}
 
 const SEARCH_INDEX_NAME = 'pssearch';
 const SEARCH_NODE_LABEL = 'Object';
 const SEARCH_VECTORSTORE_PROVIDER = 'redis';
 
+const BASE_URL = process.env.BASE_URL;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
 const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
 const PORT = process.env.PORT || '5000';
+const S3_ENDPOINT = process.env.S3_ENDPOINT;
+const S3_PORT = process.env.S3_PORT;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
@@ -148,13 +155,15 @@ const swaggerOptions = {
   apis,
 };
 
-const mc = new Minio.Client({
-  endPoint: process.env.S3_ENDPOINT,
-  port: parseInt(process.env.S3_PORT, 10),
-  useSSL: false,
+const minioOptions = {
+  endPoint: S3_ENDPOINT,
+  port: parseInt(S3_PORT, 10),
+  useSSL: ENV !== 'dev',
   accessKey: process.env.AWS_ACCESS_KEY,
   secretKey: process.env.AWS_SECRET_KEY,
-});
+};
+logger.debug('minio options:', minioOptions);
+const mc = new Minio.Client(minioOptions);
 
 const rc = redis.createClient({
   url: `redis://${process.env.REDIS_HOST}:6379`,
@@ -238,7 +247,8 @@ const sess = {
 
 initSearchIndex({
   constants: { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER },
-  services: { vectorStoreService },
+  logger,
+  services: { indexesService, vectorStoreService },
 });
 
 app.use(session(sess));
@@ -379,11 +389,14 @@ const options = {
   app,
   auth,
   constants: {
+    BASE_URL,
     DOCUMENTS_PREFIX,
     ENV,
     FILE_BUCKET,
     IMAGES_PREFIX,
     MAILTRAP_INVITE_TEMPLATE_UUID,
+    S3_ENDPOINT,
+    S3_PORT,
     SEARCH_INDEX_NAME,
     SEARCH_NODE_LABEL,
     SEARCH_VECTORSTORE_PROVIDER,

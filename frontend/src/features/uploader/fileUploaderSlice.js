@@ -3,6 +3,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
+import { setMessages } from '../designer/chatSlice';
 import { setFunctions } from '../functions/functionsSlice';
 import { setModels } from '../models/modelsSlice';
 import { setPromptSets } from '../promptSets/promptSetsSlice';
@@ -82,13 +83,14 @@ export const {
   indexed,
 } = fileUploaderSlice.actions;
 
-export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState) => {
+export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, getState) => {
   dispatch(startUpload());
   const correlationId = uuidv4();
   const form = new FormData();
   form.append('workspaceId', workspaceId);
   form.append('correlationId', correlationId);
   form.append('file', file.originFileObj);
+  form.append('isImage', isImage);
   await http.post('/api/upload', form);
   const intervalId = setInterval(async () => {
     let res;
@@ -100,11 +102,30 @@ export const fileUploadAsync = (workspaceId, file) => async (dispatch, getState)
         ...omit(res.data, ['data']),
         content: res.data.data,
       };
-      const { uploads } = getState().fileUploader;
-      dispatch(setUploads({
-        workspaceId,
-        uploads: [...uploads[workspaceId], upload],
-      }));
+      if (isImage) {
+        const { messages } = getState().chat;
+        dispatch(setMessages({
+          messages: [...messages, {
+            key: uuidv4(),
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                objectName: res.data.name,
+                image_url: {
+                  url: res.data.imageUrl,
+                },
+              },
+            ],
+          }]
+        }));
+      } else {
+        const { uploads } = getState().fileUploader;
+        dispatch(setUploads({
+          workspaceId,
+          uploads: [...uploads[workspaceId], upload],
+        }));
+      }
       dispatch(uploaded());
     } catch (err) {
       // 423 - locked ~ not ready

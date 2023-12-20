@@ -1,3 +1,4 @@
+import { EmbeddingResponse } from '../conversions/RosettaStone';
 import { OpenAIMessage } from "./openai_types";
 
 export interface MistralChatCompletionRequest {
@@ -54,4 +55,17 @@ export interface MistralEmbeddingRequest {
   model: string;
   input: string[];
   envoding_format: string;  // The format of the output data. Value: "float"
+}
+
+interface MistralEmbeddingUsage {
+  prompt_tokens: number;
+  total_tokens: number;
+}
+
+export interface MistralEmbeddingResponse {
+  id: string;
+  object: string;  // "list"
+  data: EmbeddingResponse[];
+  model: string;
+  usage: MistralEmbeddingUsage;
 }

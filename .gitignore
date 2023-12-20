@@ -18,6 +18,7 @@ k8s/loki-virtualservice.yaml
 k8s/openaiplatform-virtualservice.yaml
 openaiplatform/
 backend/src/plugins/sqlsources/bigquery/keys/
+backend/src/plugins/llms/gemini/keys/
 scratchpad.md
 /neo4j/
 mage_data/

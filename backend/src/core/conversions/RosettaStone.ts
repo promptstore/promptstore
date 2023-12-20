@@ -1,6 +1,7 @@
 import uuid from 'uuid';
 
 import logger from '../../logger';
+import { getMimetype } from '../../utils';
 
 import { SchemishConverter } from './Schemish';
 import {
@@ -9,6 +10,14 @@ import {
 import {
   CohereChatCompletionResponse,
 } from '../models/cohere_types';
+import {
+  GeminiChatResponse,
+  GeminiContent,
+  GeminiTools,
+} from '../models/gemini_types';
+import {
+  MistralEmbeddingResponse,
+} from '../models/mistral_types';
 import {
   OpenAIMessageImpl,
   UserMessage,
@@ -81,12 +90,14 @@ export interface TextContent {
 }
 
 interface ImageURL {
-  url: string;
+  url: string;  // Either a URL of the image or the base64 encoded image data.
+  detail?: string;  // Specifies the detail level of the image. Defaults to auto
 }
 
 export interface ImageContent {
   type: string;
   image_url: ImageURL;
+  objectName?: string;
 }
 
 export type ContentObject = TextContent | ImageContent;
@@ -234,6 +245,686 @@ export interface EmbeddingResponse {
   index: number;  // The index of the embedding in the list of embeddings.
   object: string;  // The object type, which is always "embedding".
   embedding: number[];  // The embedding vector, which is a list of floats. The length of vector depends on the model.
+}
+
+/*** ************/
+
+/*** translate to anthropic ************/
+
+export function toAnthropicChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+    user,
+  } = request;
+  const {
+    temperature,
+    top_k,
+    top_p,
+    stop = [],
+    max_tokens,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  const prompt =
+    PARA_DELIM + 'Human: ' +
+    messages.map(m => m.content).join(PARA_DELIM) + PARA_DELIM +
+    'Assistant:'
+    ;
+  const stop_sequences = ['\\n\\nHuman:', ...stop];
+  return {
+    modelId: model,
+    body: {
+      // model,
+      prompt,
+      max_tokens_to_sample: max_tokens,
+      temperature,
+      top_k,
+      top_p,
+      stop_sequences,
+      // metadata: {
+      //   user_id: user,
+      // },
+      stream,
+    }
+  };
+}
+
+export async function fromAnthropicChatResponse(response: AnthropicChatCompletionResponse, parserService) {
+  const {
+    completion,
+    stop_reason,
+    model,
+  } = response;
+  let choices: ChatCompletionChoice[];
+  const { action, action_input } = await parserService.parse('json', completion);
+  if (action) {
+    if (action === 'Final Answer') {
+      choices = [
+        {
+          finish_reason: stop_reason,
+          index: 0,
+          message: {
+            role: MessageRole.assistant,
+            content: action_input,
+            final: true,
+          },
+        }
+      ];
+    } else {
+      const args = { input: action_input };
+      choices = [
+        {
+          finish_reason: stop_reason,
+          index: 0,
+          message: {
+            role: MessageRole.function,
+            content: null,
+            function_call: {
+              name: action,
+              arguments: JSON.stringify(args),
+            },
+          },
+        }
+      ];
+    }
+  } else {
+    choices = [
+      {
+        finish_reason: stop_reason,
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content: completion,
+        },
+      }
+    ];
+  }
+  return {
+    id: uuid.v4(),
+    created: new Date(),
+    model,
+    n: choices.length,
+    choices,
+  };
+}
+
+/*** ************/
+
+/*** translate to cohere ************/
+
+export function toCohereChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+  } = request;
+  const {
+    n,
+    temperature,
+    top_k,
+    top_p = 0.75,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  const prompt = messages.map(m => m.content).join(PARA_DELIM);
+  return {
+    modelId: model,
+    body: {
+      prompt,
+      // model,
+      num_generations: n,
+      stream,
+      max_tokens,
+      temperature,
+      stop_sequences: stop?.length ? stop : undefined,
+      k: top_k,
+      p: Math.max(top_p, 0.99),
+
+      // doesn't appear supported in Bedrock API - "ValidationException: Malformed input request: extraneous key [presence_penalty]"
+      // frequency_penalty,
+      // presence_penalty,
+
+      logit_bias,
+    }
+  };
+}
+
+export async function fromCohereChatResponse(response: CohereChatCompletionResponse, parserService) {
+  const {
+    id,
+    prompt,
+    generations,
+    meta,
+  } = response;
+  const content = generations[0].text;
+  let choices: ChatCompletionChoice[];
+  const { action, action_input } = await parserService.parse('json', content);
+  if (action) {
+    if (action === 'Final Answer') {
+      choices = [
+        {
+          index: 0,
+          message: {
+            role: MessageRole.assistant,
+            content: action_input,
+            final: true,
+          },
+        }
+      ];
+    } else {
+      const args = { input: action_input };
+      choices = [
+        {
+          index: 0,
+          message: {
+            role: MessageRole.function,
+            content: null,
+            function_call: {
+              name: action,
+              arguments: JSON.stringify(args),
+            },
+          },
+        }
+      ];
+    }
+  } else {
+    choices = generations.map(g => ({
+      index: g.index,
+      message: {
+        role: MessageRole.assistant,
+        content: g.text,
+        finish_reason: g.finish_reason,
+      },
+      logprobs: {
+        tokens: g.token_likelihoods?.map(t => t.token),
+        token_logprobs: g.token_likelihoods?.map(t => t.likelihood),
+      },
+    }));
+  }
+  return {
+    id,
+    created: new Date(),
+    model: meta?.api_version?.version,
+    n: generations.length,
+    choices,
+  };
+}
+
+/*** ************/
+
+/*** translate to gemini ************/
+
+function getGeminiRole(role: MessageRole) {
+  switch (role) {
+    case MessageRole.system:
+    case MessageRole.user:
+      return 'user';
+
+    case MessageRole.assistant:
+      return 'model';
+
+    default:
+  }
+}
+
+function getGeminiContentParts(content: ContentType) {
+  if (typeof content === 'string') {
+    return [{ text: content }];
+  }
+  if (Array.isArray(content) && content.length) {
+    if (typeof content[0] === 'string') {
+      return (content as string[]).map(text => ({ text }));
+    }
+    return (content as ContentObject[]).map(c => {
+      if (c.type === 'text') {
+        return { text: (c as TextContent).text };
+      } else {
+        const imageContent = c as ImageContent;
+        const file_uri = imageContent.image_url.url;
+        const mime_type = getMimetype(imageContent.objectName);
+        return { file_data: { mime_type, file_uri } };
+      }
+    });
+  }
+  return [];
+}
+
+function createGeminiContents(prompt: ChatPrompt) {
+  const contents: GeminiContent[] = [];
+  if (prompt.history) {
+    for (const message of prompt.history) {
+      if (message.role !== 'function') {
+        contents.push({
+          role: getGeminiRole(message.role),
+          parts: getGeminiContentParts(message.content),
+        });
+      }
+    }
+  }
+  if (prompt.examples) {
+    for (const { input, output } of prompt.examples) {
+      contents.push({
+        role: 'user',
+        parts: getGeminiContentParts(input.content),
+      });
+      contents.push({
+        role: 'model',
+        parts: getGeminiContentParts(output.content),
+      });
+    }
+  }
+  for (const message of prompt.messages) {
+    if (message.role !== 'function') {
+      contents.push({
+        role: getGeminiRole(message.role),
+        parts: getGeminiContentParts(message.content),
+      });
+    }
+  }
+  return contents;
+}
+
+function createGeminiVisionContents(prompt: ChatPrompt) {
+  const contents: GeminiContent[] = [];
+  for (const message of prompt.messages) {
+    if (message.role !== 'function') {
+      contents.push({
+        role: getGeminiRole(message.role),
+        parts: getGeminiContentParts(message.content),
+      });
+    }
+  }
+  return contents;
+}
+
+export function toGeminiChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    safe_mode,
+    prompt,
+    functions,
+  } = request;
+  const {
+    temperature,
+    top_p,
+    top_k,
+    max_tokens,
+    stop,
+  } = model_params;
+  let contents: GeminiContent[];
+  if (model === 'gemini-pro-vision') {
+    contents = createGeminiVisionContents(prompt);
+  } else {
+    contents = createGeminiContents(prompt);
+  }
+  let tools: GeminiTools;
+  if (functions) {
+    tools = {
+      function_declarations: functions,
+    };
+  }
+  let safety_settings: SafetySetting[];
+  if (safe_mode) {
+    safety_settings = [
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 2,  // medium probability and above
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 2,
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 2,
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 2,
+      },
+    ];
+  }
+  return {
+    model,
+    contents,
+    generation_config: {
+      temperature,
+      top_p,
+      top_k,
+      candidate_count: 1,  // must be 1
+      max_output_tokens: max_tokens,
+      stop_sequences: stop,
+    },
+    tools,
+    safety_settings,
+  };
+}
+
+export function fromGeminiChatResponse(response: GeminiChatResponse) {
+  try {
+    const choices = response.candidates.map((c, i) => {
+      let citation_metadata: CitationMetadata;
+      if (c.citationMetadata) {
+        const citation_sources = c.citationMetadata.citations.map(c => ({
+          start_index: c.startIndex,
+          end_index: c.endIndex,
+          uri: c.uri,
+          license_: c.license,
+        }));
+        citation_metadata = { citation_sources };
+      }
+      return {
+        index: i,
+        finish_reason: c.finishReason.toString(),
+        message: {
+          role: MessageRole.assistant,
+          content: c.content.parts[0].text,
+          citation_metadata,
+        },
+        safety_ratings: c.safetyRatings?.map(r => ({
+          category: r.category,
+          probability: r.probability,
+        })),
+      };
+    });
+    let usage;
+    if (response.usageMetadata) {
+      const { promptTokenCount, candidatesTokenCount, totalTokenCount } = response.usageMetadata;
+      usage = {
+        completion_tokens: candidatesTokenCount,
+        prompt_tokens: promptTokenCount,
+        total_tokens: totalTokenCount,
+      };
+    }
+    return {
+      id: uuid.v4(),
+      created: new Date(),
+      choices,
+      usage,
+      n: choices.length,
+    }
+  } catch (err) {
+    logger.error(err, err.stack);
+    throw err;
+  }
+}
+
+/*** ************/
+
+/*** translate to llamaapi ************/
+
+export function toLlamaApiChatRequest(request: ChatRequest) {
+  const {
+    functions,
+    function_call,
+    stream,
+  } = request;
+  const messages = createOpenAIMessages(request.prompt);
+  return {
+    messages,
+    functions,
+    function_call,
+    stream,
+  };
+}
+
+export function fromLlamaApiChatResponse(response: OpenAIChatCompletionResponse) {
+  const {
+    choices,
+  } = response;
+  return {
+    id: uuid.v4(),
+    created: new Date(),
+    model: 'llama-13b-chat',
+    n: choices.length,
+    choices: choices.map(c => ({
+      finish_reason: c.finish_reason,
+      index: c.index,
+      message: {
+        role: c.message.role,
+        content: c.message.content,
+        function_call: c.message.function_call,
+      }
+    })),
+  };
+}
+
+/*** ************/
+
+/*** translate to mistral ************/
+
+export function toMistralChatRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    stream,
+    safe_mode,
+    random_seed,
+  } = request;
+  const {
+    temperature,
+    top_p,
+    max_tokens,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  return {
+    model,
+    messages,
+    temperature,
+    top_p,
+    max_tokens,
+    stream,
+    safe_mode,
+    random_seed,
+  };
+}
+
+export function toMistralEmbeddingRequest(request: EmbeddingRequest) {
+  const { model, input } = request;
+  if (typeof input === 'string') {
+    return {
+      model: model || 'mistral-embed',
+      input: [input],
+      encoding_format: 'float',
+    };
+  }
+  return {
+    model: model || 'mistral-embed',
+    input,
+    encoding_format: 'float',
+  };
+}
+
+export function fromMistralEmbeddingResponse(response: MistralEmbeddingResponse) {
+  return response.data[0];
+}
+
+/*** ************/
+
+/*** translate to openai ************/
+
+export function toOpenAIChatRequest(request: ChatRequest) {
+  const {
+    functions,
+    function_call,
+    model,
+    model_params,
+    stream,
+    user,
+  } = request;
+  const {
+    temperature,
+    top_p,
+    n,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+  } = model_params;
+  const messages = createOpenAIMessages(request.prompt);
+  return {
+    model,
+    messages,
+    functions,
+    function_call,
+    stream,
+    user,
+    temperature,
+    top_p,
+    n,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+  };
+}
+
+export function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse) {
+  const {
+    id,
+    created,
+    model,
+    choices,
+    usage,
+  } = response;
+  return {
+    id,
+    created,
+    model,
+    n: choices.length,
+    choices: choices.map(c => ({
+      finish_reason: c.finish_reason,
+      index: c.index,
+      message: {
+        role: c.message.role,
+        content: c.message.content,
+        name: c.message.name,
+        function_call: c.message.function_call,
+      }
+    })),
+    usage,
+  };
+}
+
+export function toOpenAICompletionRequest(request: ChatRequest) {
+  const {
+    functions,
+    model,
+    model_params,
+    best_of,
+    stream,
+    user,
+  } = request;
+  const messages = createOpenAIMessages(request.prompt, functions);
+  const prompt = messages.map(m => m.content).join(PARA_DELIM);
+  const {
+    temperature,
+    top_p,
+    n,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+  } = model_params;
+  return {
+    model,
+    prompt,
+    stream,
+    user,
+    temperature,
+    top_p,
+    n,
+    stop,
+    max_tokens,
+    presence_penalty,
+    frequency_penalty,
+    logit_bias,
+    best_of,
+  };
+}
+
+export async function fromOpenAICompletionResponse(response: OpenAICompletionResponse, parserService: any) {
+  const {
+    id,
+    created,
+    model,
+    usage,
+  } = response;
+  let choices: ChatCompletionChoice[];
+  if (response.choices.length) {
+    const { action, action_input } = await parserService.parse('json', response.choices[0].text);
+    if (action) {
+      if (action === 'Final Answer') {
+        choices = [
+          {
+            finish_reason: response.choices[0].finish_reason,
+            index: 0,
+            message: {
+              role: MessageRole.assistant,
+              content: action_input,
+              final: true,
+            },
+            logprobs: response.choices[0].logprobs,
+          }
+        ];
+      } else {
+        const args = { input: action_input };
+        choices = [
+          {
+            finish_reason: response.choices[0].finish_reason,
+            index: 0,
+            message: {
+              role: MessageRole.function,
+              content: null,
+              function_call: {
+                name: action,
+                arguments: JSON.stringify(args),
+              },
+            },
+            logprobs: response.choices[0].logprobs,
+          }
+        ];
+      }
+    } else {
+      choices = response.choices.map(c => ({
+        finish_reason: c.finish_reason,
+        index: c.index,
+        message: {
+          role: MessageRole.assistant,
+          content: c.text,
+        },
+        logprobs: c.logprobs,
+      }));
+    }
+  } else {
+    choices = [
+      {
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content: 'No response from model',
+          final: true,
+        },
+      }
+    ];
+  }
+  return {
+    id,
+    created,
+    model,
+    choices,
+    n: choices.length,
+    usage,
+  };
 }
 
 /*** ************/
@@ -511,330 +1202,6 @@ function toPaLMMessage(message: Message) {
 
 /*** ************/
 
-/*** translate to openai ************/
-
-export function toOpenAIChatRequest(request: ChatRequest) {
-  const {
-    functions,
-    function_call,
-    model,
-    model_params,
-    stream,
-    user,
-  } = request;
-  const {
-    temperature,
-    top_p,
-    n,
-    stop,
-    max_tokens,
-    presence_penalty,
-    frequency_penalty,
-    logit_bias,
-  } = model_params;
-  const messages = createOpenAIMessages(request.prompt);
-  return {
-    model,
-    messages,
-    functions,
-    function_call,
-    stream,
-    user,
-    temperature,
-    top_p,
-    n,
-    stop,
-    max_tokens,
-    presence_penalty,
-    frequency_penalty,
-    logit_bias,
-  };
-}
-
-export function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse) {
-  const {
-    id,
-    created,
-    model,
-    choices,
-    usage,
-  } = response;
-  return {
-    id,
-    created,
-    model,
-    n: choices.length,
-    choices: choices.map(c => ({
-      finish_reason: c.finish_reason,
-      index: c.index,
-      message: {
-        role: c.message.role,
-        content: c.message.content,
-        name: c.message.name,
-        function_call: c.message.function_call,
-      }
-    })),
-    usage,
-  };
-}
-
-export function toOpenAICompletionRequest(request: ChatRequest) {
-  const {
-    functions,
-    model,
-    model_params,
-    best_of,
-    stream,
-    user,
-  } = request;
-  const messages = createOpenAIMessages(request.prompt, functions);
-  const prompt = messages.map(m => m.content).join(PARA_DELIM);
-  const {
-    temperature,
-    top_p,
-    n,
-    stop,
-    max_tokens,
-    presence_penalty,
-    frequency_penalty,
-    logit_bias,
-  } = model_params;
-  return {
-    model,
-    prompt,
-    stream,
-    user,
-    temperature,
-    top_p,
-    n,
-    stop,
-    max_tokens,
-    presence_penalty,
-    frequency_penalty,
-    logit_bias,
-    best_of,
-  };
-}
-
-export async function fromOpenAICompletionResponse(response: OpenAICompletionResponse, parserService: any) {
-  const {
-    id,
-    created,
-    model,
-    usage,
-  } = response;
-  let choices: ChatCompletionChoice[];
-  if (response.choices.length) {
-    const { action, action_input } = await parserService.parse('json', response.choices[0].text);
-    if (action) {
-      if (action === 'Final Answer') {
-        choices = [
-          {
-            finish_reason: response.choices[0].finish_reason,
-            index: 0,
-            message: {
-              role: MessageRole.assistant,
-              content: action_input,
-              final: true,
-            },
-            logprobs: response.choices[0].logprobs,
-          }
-        ];
-      } else {
-        const args = { input: action_input };
-        choices = [
-          {
-            finish_reason: response.choices[0].finish_reason,
-            index: 0,
-            message: {
-              role: MessageRole.function,
-              content: null,
-              function_call: {
-                name: action,
-                arguments: JSON.stringify(args),
-              },
-            },
-            logprobs: response.choices[0].logprobs,
-          }
-        ];
-      }
-    } else {
-      choices = response.choices.map(c => ({
-        finish_reason: c.finish_reason,
-        index: c.index,
-        message: {
-          role: MessageRole.assistant,
-          content: c.text,
-        },
-        logprobs: c.logprobs,
-      }));
-    }
-  } else {
-    choices = [
-      {
-        index: 0,
-        message: {
-          role: MessageRole.assistant,
-          content: 'No response from model',
-          final: true,
-        },
-      }
-    ];
-  }
-  return {
-    id,
-    created,
-    model,
-    choices,
-    n: choices.length,
-    usage,
-  };
-}
-
-/*** ************/
-
-/*** translate to llamaapi ************/
-
-export function toLlamaApiChatRequest(request: ChatRequest) {
-  const {
-    functions,
-    function_call,
-    stream,
-  } = request;
-  const messages = createOpenAIMessages(request.prompt);
-  return {
-    messages,
-    functions,
-    function_call,
-    stream,
-  };
-}
-
-export function fromLlamaApiChatResponse(response: OpenAIChatCompletionResponse) {
-  const {
-    choices,
-  } = response;
-  return {
-    id: uuid.v4(),
-    created: new Date(),
-    model: 'llama-13b-chat',
-    n: choices.length,
-    choices: choices.map(c => ({
-      finish_reason: c.finish_reason,
-      index: c.index,
-      message: {
-        role: c.message.role,
-        content: c.message.content,
-        function_call: c.message.function_call,
-      }
-    })),
-  };
-}
-
-/*** ************/
-
-/*** translate to anthropic ************/
-
-export function toAnthropicChatRequest(request: ChatRequest) {
-  const {
-    model,
-    model_params,
-    stream,
-    user,
-  } = request;
-  const {
-    temperature,
-    top_k,
-    top_p,
-    stop = [],
-    max_tokens,
-  } = model_params;
-  const messages = createOpenAIMessages(request.prompt);
-  const prompt =
-    PARA_DELIM + 'Human: ' +
-    messages.map(m => m.content).join(PARA_DELIM) + PARA_DELIM +
-    'Assistant:'
-    ;
-  const stop_sequences = ['\\n\\nHuman:', ...stop];
-  return {
-    modelId: model,
-    body: {
-      // model,
-      prompt,
-      max_tokens_to_sample: max_tokens,
-      temperature,
-      top_k,
-      top_p,
-      stop_sequences,
-      // metadata: {
-      //   user_id: user,
-      // },
-      stream,
-    }
-  };
-}
-
-export async function fromAnthropicChatResponse(response: AnthropicChatCompletionResponse, parserService) {
-  const {
-    completion,
-    stop_reason,
-    model,
-  } = response;
-  let choices: ChatCompletionChoice[];
-  const { action, action_input } = await parserService.parse('json', completion);
-  if (action) {
-    if (action === 'Final Answer') {
-      choices = [
-        {
-          finish_reason: stop_reason,
-          index: 0,
-          message: {
-            role: MessageRole.assistant,
-            content: action_input,
-            final: true,
-          },
-        }
-      ];
-    } else {
-      const args = { input: action_input };
-      choices = [
-        {
-          finish_reason: stop_reason,
-          index: 0,
-          message: {
-            role: MessageRole.function,
-            content: null,
-            function_call: {
-              name: action,
-              arguments: JSON.stringify(args),
-            },
-          },
-        }
-      ];
-    }
-  } else {
-    choices = [
-      {
-        finish_reason: stop_reason,
-        index: 0,
-        message: {
-          role: MessageRole.assistant,
-          content: completion,
-        },
-      }
-    ];
-  }
-  return {
-    id: uuid.v4(),
-    created: new Date(),
-    model,
-    n: choices.length,
-    choices,
-  };
-}
-
-/*** ************/
-
 /*** utility ************/
 
 function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {
@@ -954,142 +1321,6 @@ export function convertContentTypeToString(content: ContentType) {
 function makeObservation(observation: ContentType) {
   return convertContentTypeToString(observation);
   // return 'Observation: ' + observation + '\nThought: ';
-}
-
-/*** ************/
-
-/*** translate to cohere ************/
-
-export function toCohereChatRequest(request: ChatRequest) {
-  const {
-    model,
-    model_params,
-    stream,
-  } = request;
-  const {
-    n,
-    temperature,
-    top_k,
-    top_p = 0.75,
-    stop,
-    max_tokens,
-    presence_penalty,
-    frequency_penalty,
-    logit_bias,
-  } = model_params;
-  const messages = createOpenAIMessages(request.prompt);
-  const prompt = messages.map(m => m.content).join(PARA_DELIM);
-  return {
-    modelId: model,
-    body: {
-      prompt,
-      // model,
-      num_generations: n,
-      stream,
-      max_tokens,
-      temperature,
-      stop_sequences: stop?.length ? stop : undefined,
-      k: top_k,
-      p: Math.max(top_p, 0.99),
-
-      // doesn't appear supported in Bedrock API - "ValidationException: Malformed input request: extraneous key [presence_penalty]"
-      // frequency_penalty,
-      // presence_penalty,
-
-      logit_bias,
-    }
-  };
-}
-
-export async function fromCohereChatResponse(response: CohereChatCompletionResponse, parserService) {
-  const {
-    id,
-    prompt,
-    generations,
-    meta,
-  } = response;
-  const content = generations[0].text;
-  let choices: ChatCompletionChoice[];
-  const { action, action_input } = await parserService.parse('json', content);
-  if (action) {
-    if (action === 'Final Answer') {
-      choices = [
-        {
-          index: 0,
-          message: {
-            role: MessageRole.assistant,
-            content: action_input,
-            final: true,
-          },
-        }
-      ];
-    } else {
-      const args = { input: action_input };
-      choices = [
-        {
-          index: 0,
-          message: {
-            role: MessageRole.function,
-            content: null,
-            function_call: {
-              name: action,
-              arguments: JSON.stringify(args),
-            },
-          },
-        }
-      ];
-    }
-  } else {
-    choices = generations.map(g => ({
-      index: g.index,
-      message: {
-        role: MessageRole.assistant,
-        content: g.text,
-        finish_reason: g.finish_reason,
-      },
-      logprobs: {
-        tokens: g.token_likelihoods?.map(t => t.token),
-        token_logprobs: g.token_likelihoods?.map(t => t.likelihood),
-      },
-    }));
-  }
-  return {
-    id,
-    created: new Date(),
-    model: meta?.api_version?.version,
-    n: generations.length,
-    choices,
-  };
-}
-
-/*** ************/
-
-/*** translate to mistral ************/
-
-export function toMistralChatRequest(request: ChatRequest) {
-  const {
-    model,
-    model_params,
-    stream,
-    safe_mode,
-    random_seed,
-  } = request;
-  const {
-    temperature,
-    top_p,
-    max_tokens,
-  } = model_params;
-  const messages = createOpenAIMessages(request.prompt);
-  return {
-    model,
-    messages,
-    temperature,
-    top_p,
-    max_tokens,
-    stream,
-    safe_mode,
-    random_seed,
-  };
 }
 
 /*** ************/

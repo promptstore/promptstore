@@ -2,6 +2,7 @@ import logger from '../../logger';
 
 import { GuardrailError } from '../errors';
 import { Callback } from '../callbacks/Callback';
+import { convertMessagesWithImages } from '../utils';
 import {
   InputGuardrailsCallParams,
   InputGuardrailsOnEndParams,
@@ -27,7 +28,7 @@ export class InputGuardrails {
 
   async call({ messages, callbacks }: InputGuardrailsCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ messages });
+    this.onStart({ messages: await convertMessagesWithImages(messages) });
     try {
       const contents = messages.map(m => m.content);
       const text = contents.join('\n\n');

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Avatar, Button, Checkbox, Divider, Input, Radio, Space, Spin, Typography } from 'antd';
+import { Avatar, Button, Checkbox, Divider, Image, Input, Radio, Space, Spin, Typography } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -32,14 +32,18 @@ export function Chat({
 }) {
 
   if (!placeholder) {
-    placeholder = 'For example: "limit to three words"';
+    placeholder = 'Ask away...';
   }
+
+  // console.log('messages:', messages);
 
   const [indeterminate, setIndeterminate] = useState(false);
   const [selected, setSelected] = useState({});
   const [checkAll, setCheckAll] = useState(false);
   const [input, setInput] = useState(null);
   // const [lastInput, setLastInput] = useState(null);
+
+  let previewVisible = false;
 
   const selectedEntries = Object.entries(selected).filter(([_, v]) => v.checked).map(([k, v]) => [k, v.index]);
   selectedEntries.sort((a, b) => a[1] < b[1] ? -1 : 1);
@@ -52,7 +56,7 @@ export function Chat({
 
   const findMessage = (key) => {
     for (const m of messages) {
-      if (Array.isArray(m.content)) {
+      if (m.role === 'assistant' && Array.isArray(m.content)) {
         const content = m.content.find(c => c.key === key);
         if (content) {
           return { message: m, content };
@@ -65,6 +69,7 @@ export function Chat({
   };
 
   const handleChange = (key) => {
+    if (previewVisible) return;
     if (selectMultiple) {
       const { message, content } = findMessage(key);
       let selectedUpdate;
@@ -320,13 +325,58 @@ export function Chat({
     );
   };
 
+  const UserContent = ({ message }) => {
+    const { key, content } = message;
+    if (Array.isArray(content)) {
+      return (
+        <div style={{
+          alignContent: 'end',
+          display: 'flex',
+          flexDirection: 'column',
+          flexWrap: 'wrap',
+          gap: 16,
+          textAlign: 'end'
+        }}>
+          {content.map((c, i) => {
+            if (c.type === 'text') {
+              return (
+                <div key={key + '-' + i}>
+                  <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>
+                    {c.text}
+                  </Typography.Text>
+                </div>
+              );
+            } else if (c.type === 'image_url') {
+              return (
+                <div key={key + '-' + i}>
+                  <Image src={c.image_url.url} width={200}
+                    preview={{
+                      onVisibleChange: (visible) => {
+                        previewVisible = visible;
+                      },
+                    }}
+                  />
+                </div>
+              );
+            }
+          })}
+        </div>
+      )
+    }
+    return (
+      <Typography.Text key={key} copyable style={{ whiteSpace: 'pre-wrap' }}>
+        {content}
+      </Typography.Text>
+    );
+  }
+
   const UserMessage = ({ message, onChange }) => {
     if (selectMultiple) {
       return (
         <Checkbox value={message.key} onChange={onChange} checked={selected[message.key]?.checked}>
           <div className="chatline user">
             <div className="content">
-              <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography.Text>
+              <UserContent message={message} />
             </div>
             <div className="avatar"><Avatar>U</Avatar></div>
           </div>
@@ -336,7 +386,7 @@ export function Chat({
     return (
       <div className="chatline user">
         <div className="content">
-          <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography.Text>
+          <UserContent message={message} />
         </div>
         <div className="avatar"><Avatar>U</Avatar></div>
       </div>
@@ -542,13 +592,19 @@ const MessageInput = ({ disabled, handleSubmit, loading, onChange, placeholder, 
           placeholder={placeholder}
           value={value}
         />
-        <Button type="text"
-          disabled={disabled || loading || !value}
-          icon={<SendOutlined />}
-          onClick={handleSubmit}
-        />
+        <div style={{ marginLeft: 3 }}>
+          <Button type="text"
+            disabled={disabled || loading || !value}
+            icon={<SendOutlined />}
+            onClick={handleSubmit}
+          />
+        </div>
       </div>
-      <p style={{ lineHeight: '32px' }}>Press Shift+Enter to insert a new line.</p>
+      <p className="text-secondary"
+        style={{ lineHeight: '32px' }}
+      >
+        Press Shift+Enter to insert a new line.
+      </p>
     </div>
   );
 };

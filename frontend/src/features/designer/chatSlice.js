@@ -51,10 +51,11 @@ const cleanMessage = (m) => {
   if (Array.isArray(m.content)) {
     return {
       role: m.role,
-      content: m.content.map(msg => ({
-        content: msg.content,
-        model: msg.model,
-      })),
+      content: m.content.map(msg => {
+        msg = { ...msg };
+        delete msg.key;
+        return msg;
+      }),
     };
   }
   return {
@@ -72,11 +73,12 @@ const cleanMessage = (m) => {
 export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/chat';
-  const res = await http.post(url, {
+  const payload = {
     ...req,
     history: req.history.map(cleanMessage),
     messages: req.messages.map(cleanMessage),  // remove keys
-  });
+  };
+  const res = await http.post(url, payload);
   const { completions, lastSession, traceId } = res.data;
   const messages = [];
   let cost = 0;

@@ -1,4 +1,4 @@
-export default ({ constants, services }) => {
+export default ({ constants, logger, services }) => {
 
   const { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER } = constants;
   const { vectorStoreService } = services;

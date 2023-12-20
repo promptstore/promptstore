@@ -5,6 +5,7 @@ import uuid from 'uuid';
 
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
+import { convertMessagesWithImages } from '../core/utils';
 import { downloadImage, fillTemplate, getMessages } from '../utils';
 import chatSessions from './chatSessions';
 
@@ -141,7 +142,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         id: uuid.v4(),
         type: 'chat',
         models,
-        messages: req.body.messages,
+        messages: await convertMessagesWithImages(req.body.messages),
         args,
         startTime: startTime.getTime(),
       })
@@ -161,7 +162,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       .push({
         id: uuid.v4(),
         type: 'call-prompt-template',
-        messageTemplates,
+        messageTemplates: await convertMessagesWithImages(messageTemplates),
         args,
         startTime: startTime.getTime(),
       });
@@ -176,13 +177,33 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     }
     let messages;
     if (args) {
-      messages = req.body.messages.map(m => ({
-        role: m.role,
-        content: fillTemplate(m.content, args, engine),
-      }));
+      messages = req.body.messages.map(m => {
+        let content;
+        if (m.role === 'user' && Array.isArray(m.content)) {
+          content = [...m.content];
+          const index = content.findLastIndex(c => c.type === 'text');
+          content.splice(index, 1, {
+            type: 'text',
+            text: fillTemplate(content[index].text, args, engine),
+          });
+        } else {
+          content = fillTemplate(m.content, args, engine);
+        }
+        return {
+          role: m.role,
+          content,
+        };
+      });
     } else {
       messages = req.body.messages;
     }
+    // // sort content objects with text content at the top
+    // messages = messages.map(m => {
+    //   if (m.role === 'user' && Array.isArray(m.content)) {
+    //     m.content.sort((a, b) => a.type > b.type ? -1 : 1);
+    //   }
+    //   return m;
+    // });
 
     const outputMessages = [];
     if (sp) {
@@ -195,7 +216,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       .addProperty('endTime', endTime.getTime())
       .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
       .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
-      .addProperty('messages', outputMessages)
+      .addProperty('messages', await convertMessagesWithImages(outputMessages))
       .addProperty('success', true)
       ;
 
@@ -261,22 +282,25 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       max_tokens: modelParams.maxTokens,
       n: 1,
       temperature: modelParams.temperature,
-      top_p: modelParams.topP,
-      stop: modelParams.stop,
-      presence_penalty: modelParams.presencePenalty,
-      frequency_penalty: modelParams.frequencyPenalty,
-      top_k: modelParams.topK,
+
+      // the following are invalid parameters for gpt-4-vision-preview
+      // top_p: modelParams.topP,
+      // stop: modelParams.stop,
+      // presence_penalty: modelParams.presencePenalty,
+      // frequency_penalty: modelParams.frequencyPenalty,
+      // top_k: modelParams.topK,
     };
     const proms = [];
     for (const { model, provider } of models) {
+      const prompt = {
+        context: { system_prompt: sp },
+        history: cleanMessages(model, history),
+        messages: cleanMessages(model, messages),
+      };
       let request = {
         model,
-        prompt: {
-          context: { system_prompt: sp },
-          history: cleanMessages(model, history),
-          messages: cleanMessages(model, messages),
-        },
         model_params,
+        prompt,
       };
 
       startTime = new Date();
@@ -285,9 +309,13 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .push({
           id: uuid.v4(),
           type: 'call-model',
-          ...request,
           model,
           modelParams: model_params,
+          prompt: {
+            context: prompt.context,
+            history: await convertMessagesWithImages(prompt.history),
+            messages: await convertMessagesWithImages(prompt.messages),
+          },
           startTime: startTime.getTime(),
         })
         .down();
@@ -341,11 +369,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         i += 1;
       }
     }
-    const userMessage = [...originalMessages].reverse().find(m => m.role === 'user');
+    const index = originalMessages.findLastIndex(m => m.role !== 'user') + 1;
+    const userMessages = originalMessages.slice(index);
 
     // TODO why was this needed?
     // to make sure the message used as an argument is also included
-    const curMessages = [...history, userMessage];
+    const curMessages = [...history, ...userMessages];
 
     const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username);
     let session;
@@ -401,18 +430,19 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   const cleanMessages = (model, messages) => {
     return messages.map(m => {
-      let content;
       if (Array.isArray(m.content)) {
-        const modelContent = m.content.find(c => c.model === model);
-        if (modelContent) {
-          content = modelContent.content;
-        } else {
-          content = m.content[0].content;  // use content from the first model
+        if (m.content[0].model) {
+          let content;
+          const modelContent = m.content.find(c => c.model === model);
+          if (modelContent) {
+            content = modelContent.content;
+          } else {
+            content = m.content[0].content;  // use content from the first model
+          }
+          return { ...m, content };
         }
-      } else {
-        content = m.content;
       }
-      return { ...m, content };
+      return m;
     });
   };
 
@@ -488,12 +518,19 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, imageUrl) => {
+        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
           if (err) {
-            logger.error(err);
+            logger.error('Error getting presigned url:', err);
             return reject(err);
           }
-          logger.debug('presigned url:', imageUrl);
+          logger.debug('presigned url:', presignedUrl);
+          let imageUrl;
+          if (constants.ENV === 'dev') {
+            const u = new URL(presignedUrl);
+            imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+          } else {
+            imageUrl = presignedUrl;
+          }
           resolve({ imageUrl, objectName });
         });
       });

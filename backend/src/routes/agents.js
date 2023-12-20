@@ -11,7 +11,7 @@ export default ({ agents, app, auth, constants, logger, services }) => {
 
   const { agentsService, functionsService, toolService, tracesService } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   let clients = [];
   let events = [];

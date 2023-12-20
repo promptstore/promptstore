@@ -188,7 +188,21 @@ export const getExtension = (filepath) => {
   if (!filepath) return null;
   const index = filepath.lastIndexOf('.');
   return filepath.slice(index + 1);
-}
+};
+
+export const getMimetype = (filepath) => {
+  const ext = getExtension(filepath);
+  switch (ext) {
+    case 'png':
+      return 'image/png';
+
+    case 'jpeg':
+    case 'jpg':
+      return 'image/jpeg';
+
+    default:
+  }
+};
 
 export const getMessages = (prompts, features, engine) =>
   prompts.map((p, i) => ({

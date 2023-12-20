@@ -73,8 +73,8 @@ export const createActivities = ({
 
   upload(file, workspaceId, appId, username, constants) {
     logger.info('file:', file);
-    logger.info('workspaceId:', workspaceId);
-    logger.info('appId:', appId);
+    logger.info('workspace id:', workspaceId);
+    logger.info('app id:', appId);
     logger.info('username:', username);
     logger.info('constants:', constants);
     const metadata = {

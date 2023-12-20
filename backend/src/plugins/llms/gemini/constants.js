@@ -1,0 +1,6 @@
+export default {
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID,
+  GOOGLE_PROJECT_LOCATION: process.env.GOOGLE_PROJECT_LOCATION,
+  GCS_BUCKET: process.env.GCS_BUCKET,
+}

@@ -45,6 +45,11 @@ spec:
                 configMapKeyRef:
                   key: PORT
                   name: "{{ .Values.appname }}"
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: BASE_URL
+                  name: "{{ .Values.appname }}"
             - name: PGHOST
               valueFrom:
                 configMapKeyRef:
@@ -205,6 +210,26 @@ spec:
                 configMapKeyRef:
                   key: AWS_REGION
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_PROJECT_ID
+                  name: "{{ .Values.appname }}"
+            - name: GOOGLE_PROJECT_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_PROJECT_LOCATION
+                  name: "{{ .Values.appname }}"
+            - name: GCS_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  key: GCS_BUCKET
+                  name: "{{ .Values.appname }}"
+            - name: GPT4ALL_API
+              valueFrom:
+                configMapKeyRef:
+                  key: GPT4ALL_API
+                  name: "{{ .Values.appname }}"
             - name: PALM2_MODEL_NAME
               valueFrom:
                 configMapKeyRef:
@@ -225,10 +250,10 @@ spec:
                 configMapKeyRef:
                   key: LOCALAI_BASE_PATH
                   name: "{{ .Values.appname }}"
-            - name: GPT4ALL_API
+            - name: MISTRAL_API
               valueFrom:
                 configMapKeyRef:
-                  key: GPT4ALL_API
+                  key: MISTRAL_API
                   name: "{{ .Values.appname }}"
             - name: KEYCLOAK_HOST
               valueFrom:
@@ -255,15 +280,20 @@ spec:
                 configMapKeyRef:
                   key: TOKEN_STORE_KEY
                   name: "{{ .Values.appname }}"
+            - name: JIRA_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: JIRA_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: JIRA_PROJECT_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: JIRA_PROJECT_KEY
+                  name: "{{ .Values.appname }}"
             - name: SERPAPI_URL
               valueFrom:
                 configMapKeyRef:
                   key: SERPAPI_URL
-                  name: "{{ .Values.appname }}"
-            - name: MAILTRAP_TEMPLATE_UUID
-              valueFrom:
-                configMapKeyRef:
-                  key: MAILTRAP_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
@@ -346,10 +376,20 @@ spec:
                 secretKeyRef:
                   key: AWS_SESSION_TOKEN
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: LLAMAAPI_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: MISTRAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: MISTRAL_API_KEY
                   name: "{{ .Values.appname }}"
             - name: OPENAI_API_KEY
               valueFrom:
@@ -381,15 +421,15 @@ spec:
                 secretKeyRef:
                   key: KEY_FILENAME
                   name: "{{ .Values.appname }}"
-            - name: SERPAPI_KEY
+            - name: JIRA_EMAIL
               valueFrom:
                 secretKeyRef:
-                  key: SERPAPI_KEY
+                  key: JIRA_EMAIL
                   name: "{{ .Values.appname }}"
-            - name: OPENWEATHER_API_KEY
+            - name: JIRA_PAT
               valueFrom:
                 secretKeyRef:
-                  key: OPENWEATHER_API_KEY
+                  key: JIRA_PAT
                   name: "{{ .Values.appname }}"
             - name: MAILTRAP_TOKEN
               valueFrom:
@@ -406,10 +446,25 @@ spec:
                 secretKeyRef:
                   key: PROMPTSTORE_EMAIL
                   name: "{{ .Values.appname }}"
+            - name: MAILTRAP_TEMPLATE_UUID
+              valueFrom:
+                secretKeyRef:
+                  key: MAILTRAP_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
             - name: MAILTRAP_INVITE_TEMPLATE_UUID
               valueFrom:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENWEATHER_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: SERPAPI_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERPAPI_KEY
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:
@@ -462,6 +517,11 @@ spec:
                 configMapKeyRef:
                   key: PORT
                   name: "{{ .Values.appname }}"
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: BASE_URL
+                  name: "{{ .Values.appname }}"
             - name: PGHOST
               valueFrom:
                 configMapKeyRef:
@@ -622,6 +682,26 @@ spec:
                 configMapKeyRef:
                   key: AWS_REGION
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_PROJECT_ID
+                  name: "{{ .Values.appname }}"
+            - name: GOOGLE_PROJECT_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_PROJECT_LOCATION
+                  name: "{{ .Values.appname }}"
+            - name: GCS_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  key: GCS_BUCKET
+                  name: "{{ .Values.appname }}"
+            - name: GPT4ALL_API
+              valueFrom:
+                configMapKeyRef:
+                  key: GPT4ALL_API
+                  name: "{{ .Values.appname }}"
             - name: PALM2_MODEL_NAME
               valueFrom:
                 configMapKeyRef:
@@ -642,10 +722,10 @@ spec:
                 configMapKeyRef:
                   key: LOCALAI_BASE_PATH
                   name: "{{ .Values.appname }}"
-            - name: GPT4ALL_API
+            - name: MISTRAL_API
               valueFrom:
                 configMapKeyRef:
-                  key: GPT4ALL_API
+                  key: MISTRAL_API
                   name: "{{ .Values.appname }}"
             - name: KEYCLOAK_HOST
               valueFrom:
@@ -672,15 +752,20 @@ spec:
                 configMapKeyRef:
                   key: TOKEN_STORE_KEY
                   name: "{{ .Values.appname }}"
+            - name: JIRA_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: JIRA_API_URL
+                  name: "{{ .Values.appname }}"
+            - name: JIRA_PROJECT_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: JIRA_PROJECT_KEY
+                  name: "{{ .Values.appname }}"
             - name: SERPAPI_URL
               valueFrom:
                 configMapKeyRef:
                   key: SERPAPI_URL
-                  name: "{{ .Values.appname }}"
-            - name: MAILTRAP_TEMPLATE_UUID
-              valueFrom:
-                configMapKeyRef:
-                  key: MAILTRAP_TEMPLATE_UUID
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
@@ -763,10 +848,20 @@ spec:
                 secretKeyRef:
                   key: AWS_SESSION_TOKEN
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: LLAMAAPI_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: MISTRAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: MISTRAL_API_KEY
                   name: "{{ .Values.appname }}"
             - name: OPENAI_API_KEY
               valueFrom:
@@ -798,15 +893,15 @@ spec:
                 secretKeyRef:
                   key: KEY_FILENAME
                   name: "{{ .Values.appname }}"
-            - name: SERPAPI_KEY
+            - name: JIRA_EMAIL
               valueFrom:
                 secretKeyRef:
-                  key: SERPAPI_KEY
+                  key: JIRA_EMAIL
                   name: "{{ .Values.appname }}"
-            - name: OPENWEATHER_API_KEY
+            - name: JIRA_PAT
               valueFrom:
                 secretKeyRef:
-                  key: OPENWEATHER_API_KEY
+                  key: JIRA_PAT
                   name: "{{ .Values.appname }}"
             - name: MAILTRAP_TOKEN
               valueFrom:
@@ -823,10 +918,25 @@ spec:
                 secretKeyRef:
                   key: PROMPTSTORE_EMAIL
                   name: "{{ .Values.appname }}"
+            - name: MAILTRAP_TEMPLATE_UUID
+              valueFrom:
+                secretKeyRef:
+                  key: MAILTRAP_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
             - name: MAILTRAP_INVITE_TEMPLATE_UUID
               valueFrom:
                 secretKeyRef:
                   key: MAILTRAP_INVITE_TEMPLATE_UUID
+                  name: "{{ .Values.appname }}"
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENWEATHER_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: SERPAPI_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SERPAPI_KEY
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:

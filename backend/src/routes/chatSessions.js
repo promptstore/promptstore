@@ -1,6 +1,6 @@
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 
-export default ({ app, auth, logger, services }) => {
+export default ({ app, auth, constants, logger, mc, services }) => {
 
   const { chatSessionsService, executionsService } = services;
 
@@ -215,8 +215,53 @@ export default ({ app, auth, logger, services }) => {
     const { type } = req.query;
     const { username } = req.user;
     const sessions = await chatSessionsService.getChatSessions(workspaceId, type, username);
-    res.json(sessions);
+    const enhanced = [];
+    for (const s of sessions) {
+      const messages = [];
+      for (const m of s.messages) {
+        if (m.role === 'user' && Array.isArray(m.content)) {
+          const content = [];
+          for (const c of m.content) {
+            if (typeof c === 'string') {
+              content.push(c);
+              continue;
+            }
+            if (c.type === 'image_url') {
+              const url = await getPresignedUrl(c.objectName);
+              content.push({ ...c, image_url: { url } });
+              continue;
+            }
+            content.push(c);
+          }
+          messages.push({ ...m, content });
+          continue;
+        }
+        messages.push(m);
+      }
+      enhanced.push({ ...s, messages });
+    }
+    res.json(enhanced);
   });
+
+  const getPresignedUrl = (objectName) => {
+    return new Promise((resolve, reject) => {
+      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
+        if (err) {
+          logger.error('Error getting presigned url:', err);
+          return reject(err);
+        }
+        logger.debug('presigned url:', presignedUrl);
+        let imageUrl;
+        if (constants.ENV === 'dev') {
+          const u = new URL(presignedUrl);
+          imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+        } else {
+          imageUrl = presignedUrl;
+        }
+        resolve(imageUrl);
+      });
+    });
+  };
 
   /**
    * @openapi

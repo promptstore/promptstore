@@ -12,6 +12,7 @@ import { SemanticFunctionError } from '../errors';
 import { GraphStoreService } from '../indexers/GraphStore';
 import { LLMService } from '../models/llm_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
+import { convertMessagesWithImages } from '../utils';
 import {
   PromptEnrichmentPipelineParams,
   PromptEnrichmentStep,
@@ -58,8 +59,8 @@ export class PromptEnrichmentPipeline {
       for (const step of this.steps) {
         args = await step.call({ args, callbacks });
       }
-      const messages = this.promptTemplate.call({ args, contextWindow, maxTokens, modelKey, callbacks });
-      this.onEnd({ messages });
+      const messages = await this.promptTemplate.call({ args, contextWindow, maxTokens, modelKey, callbacks });
+      this.onEnd({ messages: await convertMessagesWithImages(messages) });
       return messages;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
@@ -201,6 +202,8 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     try {
       const query = this.getQuery(args);
       const { nodeLabel, embeddingProvider, vectorStoreProvider } = this.indexParams;
+
+      // TODO `queryEmbedding` not required if using redis
       const { embedding: queryEmbedding } =
         await this.llmService.createEmbedding(embeddingProvider, { input: query });
       const results = await this.vectorStoreService.search(
@@ -210,6 +213,8 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         null,
         { k: 5, queryEmbedding }
       );
+      logger.debug('results:', results);
+
       let hits = results
         .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
           const key = k.replace(/__/g, '.');

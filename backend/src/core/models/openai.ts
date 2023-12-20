@@ -1,9 +1,26 @@
+import isObject from 'lodash.isobject';
+
 import { OpenAIMessage } from './openai_types';
 import {
   ContentType,
+  ContentObject,
   FunctionCall,
+  ImageContent,
   MessageRole,
 } from '../conversions/RosettaStone';
+
+// remove `objectName` from `ImageContent`
+function cleanContent(content: ContentObject[]) {
+  return content.map(c => {
+    if (c.type === 'image_url') {
+      return {
+        type: 'image_url',
+        image_url: { url: (c as ImageContent).image_url.url },
+      };
+    }
+    return c;
+  });
+}
 
 export class OpenAIMessageImpl<T> implements OpenAIMessage<T> {
 
@@ -14,7 +31,12 @@ export class OpenAIMessageImpl<T> implements OpenAIMessage<T> {
 
   constructor({ role, content, name, function_call }: OpenAIMessage<T>) {
     this.role = role;
-    this.content = content;
+    if (role === 'user' && Array.isArray(content) && content.length && isObject(content[0])) {
+      // if `content` is `ContentObject[]`
+      this.content = cleanContent(content) as T;
+    } else {
+      this.content = content;
+    }
     this.name = name;
     this.function_call = function_call;
   }

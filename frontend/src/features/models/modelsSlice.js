@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
+import { runWithMinDelay } from '../../utils';
 
 export const modelsSlice = createSlice({
   name: 'models',
@@ -35,11 +36,14 @@ export const {
   startLoad,
 } = modelsSlice.actions;
 
-export const getModelsAsync = ({ workspaceId }) => async (dispatch) => {
+export const getModelsAsync = ({ workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/workspace/${workspaceId}/models`;
+  const startTime = new Date();
   const res = await http.get(url);
-  dispatch(setModels({ models: res.data }));
+  runWithMinDelay(startTime, minDelay, () => {
+    dispatch(setModels({ models: res.data }));
+  });
 };
 
 export const getModelAsync = (id) => async (dispatch) => {

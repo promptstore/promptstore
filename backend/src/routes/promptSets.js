@@ -8,7 +8,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const { executionsService, promptSetsService } = services;
 
-  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, services });
+  const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   app.get('/api/workspaces/:workspaceId/prompt-sets', auth, async (req, res, next) => {
     const { workspaceId } = req.params;

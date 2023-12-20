@@ -108,7 +108,7 @@ export class Composition {
           let toolNode = node as IToolNode;
           let tool = toolNode.tool;
           let response = await tool.call(myargs, true);
-          res = merge(res, response);
+          res = merge(res, { response });
         } else if (node.type === 'mapperNode') {
           let mapperNode = node as IMapperNode;
           let mappingTemplate = mapperNode.mappingTemplate;

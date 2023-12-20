@@ -1,7 +1,8 @@
 import Minio from 'minio';
 import { NativeConnection, Worker } from '@temporalio/worker';
-import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import path from 'path';
 
 import logger from '../logger';
 import pg from '../db';
@@ -29,8 +30,11 @@ import { getPlugins } from '../utils';
 
 import { createActivities } from './activities';
 
-let ENV = process.env.ENV;
+let ENV = process.env.ENV?.toLowerCase();
 logger.debug('ENV:', ENV);
+if (ENV === 'dev') {
+  dotenv.config();
+}
 
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
@@ -43,7 +47,7 @@ const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 const mc = new Minio.Client({
   endPoint: S3_ENDPOINT,
   port: parseInt(S3_PORT, 10),
-  useSSL: false,
+  useSSL: ENV !== 'dev',
   accessKey: AWS_ACCESS_KEY,
   secretKey: AWS_SECRET_KEY,
 });

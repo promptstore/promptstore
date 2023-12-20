@@ -10,6 +10,7 @@ import { fillTemplate } from '../../utils';
 import { Validator } from '../common_types';
 import { SchemaError } from '../errors';
 import { Callback } from '../callbacks/Callback';
+import { convertMessagesWithImages } from '../utils';
 import {
   OnPromptTemplateEndParams,
   PromptTemplateParams,
@@ -54,9 +55,9 @@ export class PromptTemplate {
     this.callbacks = callbacks || [];
   }
 
-  call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
+  async call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args, contextWindow, maxTokens, modelKey });
+    await this.onStart({ args, contextWindow, maxTokens, modelKey });
     try {
       if (this.schema) {
         this.validate(args, this.schema);
@@ -70,7 +71,7 @@ export class PromptTemplate {
         role: message.role,
         content: this.templateFiller(convertContentTypeToString(message.content), args),
       }));
-      this.onEnd({ messages });
+      this.onEnd({ messages: await convertMessagesWithImages(messages) });
       return messages;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
@@ -122,10 +123,10 @@ export class PromptTemplate {
     }
   }
 
-  onStart({ args }: PromptTemplateCallParams) {
+  async onStart({ args }: PromptTemplateCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onPromptTemplateStart({
-        messageTemplates: this.messages,
+        messageTemplates: await convertMessagesWithImages(this.messages),
         args,
       });
     }
