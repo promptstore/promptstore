@@ -96,7 +96,6 @@ export function DestinationsList() {
     {
       title: 'Instance Type',
       dataIndex: 'instance',
-      width: '100%',
       render: (_, { instance }) => (
         <Tag color={getColor(instance)}>{instance}</Tag>
       )
@@ -104,6 +103,8 @@ export function DestinationsList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space size="middle">
           <Button type="link"

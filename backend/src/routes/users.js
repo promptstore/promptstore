@@ -43,4 +43,10 @@ export default ({ app, auth, logger, services }) => {
     res.json({ status: 'OK' });
   });
 
+  app.delete('/api/users', auth, async (req, res, next) => {
+    const ids = req.query.ids.split(',');
+    await usersService.deleteUsers(ids);
+    res.json(ids);
+  });
+
 };

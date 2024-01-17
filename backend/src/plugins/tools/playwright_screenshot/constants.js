@@ -8,4 +8,5 @@ export default {
   AWS_ACCESS_KEY: process.env.AWS_ACCESS_KEY,
   AWS_SECRET_KEY: process.env.AWS_SECRET_KEY,
   ENV: process.env.ENV,
+  BASE_URL: process.env.BASE_URL,
 }

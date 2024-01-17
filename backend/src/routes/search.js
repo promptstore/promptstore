@@ -1,4 +1,4 @@
-import { formatAlgolia } from '../utils';
+import { formatAlgolia, formatAttrs } from '../utils';
 
 import searchFunctions from '../searchFunctions';
 import searchableObjects from '../searchableObjects';
@@ -35,34 +35,51 @@ export default ({ app, auth, constants, logger, services }) => {
     res.send(index);
   });
 
+  app.post('/api/embeddings/:embeddingProvider', auth, async (req, res, next) => {
+    const { embeddingProvider, embeddingModel } = req.params;
+    logger.debug('create embeddings using %s:', embeddingProvider, req.body);
+    const { chunks } = req.body;
+    const embeddings = [];
+    for (const chunk of chunks) {
+      const response = await llmService.createEmbedding(embeddingProvider, { input: chunk, model: embeddingModel });
+      embeddings.push(response.data[0].embedding);
+    }
+    res.json(embeddings);
+  });
+
   app.post('/api/index', auth, async (req, res, next) => {
     const { username } = req.user;
     const { indexName, schema, params, vectorStoreProvider } = req.body;
+    logger.debug('create index:', req.body);
     try {
+      let { embeddingProvider, embeddingModel, nodeLabel } = params;
+      if (!embeddingProvider || !embeddingModel) {
+        embeddingProvider = embeddingModel = 'sentenceencoder';
+      }
       let index = await indexesService.getIndexByName(1, indexName);
       if (!index) {
         index = await indexesService.upsertIndex({
           name: indexName,
           schema,
           workspaceId: 1,
-          embeddingProvider: 'sentenceencoder',
-          vectorStoreProvider: 'redis',
-          nodeLabel: params.nodeLabel,
+          embeddingProvider,
+          embeddingModel,
+          vectorStoreProvider: vectorStoreProvider || 'redis',
+          nodeLabel,
         }, username);
         logger.debug("Created new index '%s' [%s]", indexName, index.id);
       }
 
       let resp;
       if (vectorStoreProvider === 'neo4j') {
-        const { embeddingProvider, nodeLabel } = params;
-        const { embedding: testEmbedding } = await llmService.createEmbedding(embeddingProvider, { input: 'foo' });
-        const embeddingDimension = testEmbedding.length;
+        const response = await llmService.createEmbedding(embeddingProvider, { input: 'foo', model: embeddingModel });
+        const embeddingDimension = response.data[0].embedding.length;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
           embeddingDimension,
         });
       } else if (vectorStoreProvider === 'redis') {
-        const { nodeLabel, vectorField } = params;
+        const { vectorField } = params;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
           vectorField,
@@ -155,40 +172,44 @@ export default ({ app, auth, constants, logger, services }) => {
   // });
 
   app.post('/api/search', auth, async (req, res, next) => {
-    const { requests, attrs, logicalType, indexParams } = req.body;
-    const { indexName, params: { query } } = requests[0];
+    const { requests, logicalType, workspaceId, attributesForFacets } = req.body;
+    const { indexName, params: { query, facetFilters = [] } } = requests[0];
     // logger.debug('query:', q);
-    if (!query) {
-      return res.status(200).send({ results: [] });
-    }
+    // logger.debug('workspace id:', workspaceId);
+    // logger.debug('index name:', indexName);
+    const index = await indexesService.getIndexByName(workspaceId, indexName);
+    // logger.debug('index:', index);
     const {
       nodeLabel,
       embeddingProvider,
+      embeddingModel,
       vectorStoreProvider,
-    } = indexParams;
+    } = index;
     const q = query.trim();
     if (q.length < 2) {
-      const result = formatAlgolia(requests, [], nodeLabel);
-      return res.status(200).send({ results: [result] });
+      const result = formatAlgolia(requests, [], nodeLabel, attributesForFacets);
+      return res.status(200).json({ results: [result] });
     }
     let queryEmbedding;
     if (vectorStoreProvider !== 'redis') {
-      const res = await llmService.createEmbedding(embeddingProvider, { input: q });
-      queryEmbedding = res.embedding;
+      const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
+      queryEmbedding = response.data[0].embedding;
     }
+    const attrs = { ...req.body.attrs, ...formatAttrs(nodeLabel, facetFilters.flat()) };
+    // logger.debug('attrs:', attrs);
     const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, logicalType, {
       queryEmbedding,
     });
     // logger.debug('rawResults:', rawResults);
-    const result = formatAlgolia(requests, rawResults, nodeLabel);
+    const result = formatAlgolia(requests, rawResults, nodeLabel, attributesForFacets);
     // logger.debug('result:', result);
-    res.status(200).send({ results: [result] });
+    res.status(200).json({ results: [result] });
   });
 
   app.post('/api/sffv', auth, async (req, res, next) => {
     const { requests } = req.body;
     const results = [];
-    res.status(200).send(results);
+    res.status(200).json(results);
   });
 
   const serviceMapping = {

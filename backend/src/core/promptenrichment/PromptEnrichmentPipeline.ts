@@ -52,16 +52,41 @@ export class PromptEnrichmentPipeline {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, messages, contextWindow, maxTokens, modelKey, isBatch, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args, contextWindow, modelKey });
+    this.onStart({ args, isBatch, contextWindow, modelKey });
     try {
+      const costComponents = [];
+      let totalCost = 0;
+      let promptTokens = 0;
+      let completionTokens = 0;
+      let totalTokens = 0;
       for (const step of this.steps) {
-        args = await step.call({ args, callbacks });
+        const res = await step.call({ args, isBatch, callbacks });
+        args = res.args;
+        const responseMetadata = res.responseMetadata;
+        if (responseMetadata) {
+          costComponents.push(...(responseMetadata.costComponents || []));
+          totalCost += responseMetadata.totalCost || 0;
+          promptTokens += responseMetadata.promptTokens || 0;
+          completionTokens += responseMetadata.completionTokens || 0;
+          totalTokens += responseMetadata.totalTokens || 0;
+        }
       }
-      const messages = await this.promptTemplate.call({ args, contextWindow, maxTokens, modelKey, callbacks });
-      this.onEnd({ messages: await convertMessagesWithImages(messages) });
-      return messages;
+      const responseMetadata = {
+        totalCost,
+        costComponents,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+      };
+      const prompts = await this.promptTemplate.call({ args, messages, contextWindow, maxTokens, modelKey, isBatch, callbacks });
+      this.onEnd({ messages: await convertMessagesWithImages(prompts) });
+
+      return {
+        messages: prompts,
+        responseMetadata,
+      };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -69,10 +94,11 @@ export class PromptEnrichmentPipeline {
     }
   }
 
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onPromptEnrichmentStart({
         args,
+        isBatch,
       });
     }
   }
@@ -116,9 +142,9 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks }: PromptEnrichmentCallParams) {
+  async call({ args, isBatch, callbacks }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, isBatch });
     try {
       const values = await this.featureStoreService.getOnlineFeatures(
         this.featurestore,
@@ -130,7 +156,7 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
         ...values
       };
       this.onEnd({ enrichedArgs });
-      return enrichedArgs;
+      return { args: enrichedArgs };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -138,7 +164,7 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
     }
   }
 
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onFeatureStoreEnrichmentStart({
         featureStore: {
@@ -146,6 +172,7 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
           params: this.featureStoreParams,
         },
         args,
+        isBatch,
       });
     }
   }
@@ -196,25 +223,30 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, isBatch, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, isBatch });
     try {
       const query = this.getQuery(args);
-      const { nodeLabel, embeddingProvider, vectorStoreProvider } = this.indexParams;
-
-      // TODO `queryEmbedding` not required if using redis
-      const { embedding: queryEmbedding } =
-        await this.llmService.createEmbedding(embeddingProvider, { input: query });
+      const { nodeLabel, embeddingModel, vectorStoreProvider } = this.indexParams;
+      if (!vectorStoreProvider) {
+        throw new Error('Only vector stores currently support search');
+      }
+      let queryEmbedding: number[];
+      if (vectorStoreProvider !== 'redis') {
+        const { provider, model } = embeddingModel;
+        const response = await this.llmService.createEmbedding(provider, { input: query, model });
+        queryEmbedding = response.data[0].embedding;
+      }
       const results = await this.vectorStoreService.search(
         vectorStoreProvider,
         this.indexName,
         query,
-        null,
-        { k: 5, queryEmbedding }
+        null,  // attrs
+        null,  // logicalType
+        { k: 5, queryEmbedding }  // params
       );
       logger.debug('results:', results);
-
       let hits = results
         .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
           const key = k.replace(/__/g, '.');
@@ -239,7 +271,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       const context = contextLines.join('\n\n');
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });
-      return enrichedArgs;
+      return { args: enrichedArgs };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -277,7 +309,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     return get(args, indexContentPropertyPath);
   }
 
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onSemanticSearchEnrichmentStart({
         index: {
@@ -285,6 +317,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
           params: this.indexParams,
         },
         args,
+        isBatch,
       });
     }
   }
@@ -338,21 +371,27 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, isBatch, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, isBatch });
     try {
       const context = get(args, this.contextPropertyPath);
       const fnargs = set({}, this.contentPropertyPath, context);
-      const { response } = await this.semanticFunction.call({
+      const { response, responseMetadata } = await this.semanticFunction.call({
         args: fnargs,
         modelKey: this.modelKey,
         modelParams: this.modelParams,
         isBatch: false,
       });
+      // TODO - assumes content response, not function call
       const enrichedArgs = set(clone(args), this.contextPropertyPath, response.choices[0].message.content);
       this.onEnd({ enrichedArgs });
-      return enrichedArgs;
+
+      return {
+        args: enrichedArgs,
+        responseMetadata,
+      };
+
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -360,7 +399,7 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
     }
   }
 
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onFunctionEnrichmentStart({
         functionName: this.semanticFunction.name,
@@ -369,6 +408,7 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
         contentPropertyPath: this.contentPropertyPath,
         contextPropertyPath: this.contextPropertyPath,
         args,
+        isBatch,
       });
     }
   }
@@ -414,9 +454,9 @@ export class SqlEnrichment implements PromptEnrichmentStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, isBatch, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, isBatch });
     try {
       let context: string;
       if (this.sqlSourceInfo.sqlType === 'schema') {
@@ -426,7 +466,7 @@ export class SqlEnrichment implements PromptEnrichmentStep {
       }
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });
-      return enrichedArgs;
+      return { args: enrichedArgs };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -435,7 +475,6 @@ export class SqlEnrichment implements PromptEnrichmentStep {
   }
 
   enrich(args: any, context: string) {
-    // const contextPath = this.indexParams.indexContextPropertyPath || 'context';
     const contextPath = 'context';
     const existingContext = get(args, contextPath);
     if (existingContext) {
@@ -447,21 +486,11 @@ export class SqlEnrichment implements PromptEnrichmentStep {
     return set(clone(args), contextPath, context);
   }
 
-  // getQuery(args: any) {
-  //   const { allResults, indexContentPropertyPath } = this.indexParams;
-  //   if (allResults) {
-  //     return '*';
-  //   }
-  //   if (!indexContentPropertyPath || indexContentPropertyPath === 'root') {
-  //     return args;
-  //   }
-  //   return get(args, indexContentPropertyPath);
-  // }
-
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onSqlEnrichmentStart({
         args,
+        isBatch,
       });
     }
   }
@@ -501,16 +530,16 @@ export class KnowledgeGraphEnrichment implements PromptEnrichmentStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: PromptEnrichmentCallParams) {
+  async call({ args, isBatch, callbacks = [] }: PromptEnrichmentCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+    this.onStart({ args, isBatch });
     try {
       const { graphstore, nodeLabel } = this.graphSourceInfo;
       const schema = await this.graphStoreService.getSchema(graphstore, { nodeLabel });
       const context = getSchemaAsText(schema);
       const enrichedArgs = this.enrich(args, context);
       this.onEnd({ enrichedArgs });
-      return enrichedArgs;
+      return { args: enrichedArgs };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -530,10 +559,11 @@ export class KnowledgeGraphEnrichment implements PromptEnrichmentStep {
     return set(clone(args), contextPath, context);
   }
 
-  onStart({ args }: PromptEnrichmentCallParams) {
+  onStart({ args, isBatch }: PromptEnrichmentCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onGraphEnrichmentStart({
         args,
+        isBatch,
       });
     }
   }

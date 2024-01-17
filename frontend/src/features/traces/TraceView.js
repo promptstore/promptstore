@@ -57,7 +57,7 @@ export function TraceView() {
   const id = location.pathname.match(/\/traces\/(.*)/)[1];
   const trace = traces[id];
 
-  console.log('trace:', trace);
+  // console.log('trace:', trace);
 
   const step = useMemo(() => {
     const inner = (trace) => {
@@ -226,7 +226,7 @@ export function TraceView() {
   };
 
   const onSelect = (selectedKeys, info) => {
-    console.log('info:', info);
+    // console.log('info:', info);
     const key = info.selectedNodes?.[0]?.key;
     if (key) {
       setSelectedKeys([key]);
@@ -261,7 +261,9 @@ export function TraceView() {
           <Col span={14}>
             <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
               <Download filename={snakeCase(trace.name) + '.json'} payload={trace}>
-                <Button type="text" icon={<DownloadOutlined />} />
+                <Button type="text" icon={<DownloadOutlined />}>
+                  Download
+                </Button>
               </Download>
               <Link onClick={navigateTop}>Top</Link>
               <Link to={`/traces`}>List</Link>

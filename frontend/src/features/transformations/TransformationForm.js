@@ -1,8 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Col, Divider, Form, Input, Row, Select, Space } from 'antd';
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Divider, Form, Input, Select, Space } from 'antd';
+import { CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   DndContext,
   DragOverlay,
@@ -20,12 +20,16 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import * as dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
+import { ScheduleModalInput } from '../../components/ScheduleModalInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getDataSourcesAsync,
   getDataSourceContentAsync,
+  getDataSourceAsync,
   selectDataSources,
   selectLoading as selectDataSourcesLoading,
 } from '../dataSources/dataSourcesSlice';
@@ -44,6 +48,22 @@ import {
   selectLoading as selectIndexesLoading,
   setIndexes,
 } from '../indexes/indexesSlice';
+// import {
+//   getEmbeddingProviders,
+//   selectEmbeddingProviders,
+//   selectLoading as selectEmbeddingProvidersLoading,
+// } from '../uploader/embeddingSlice';
+import {
+  getModelsAsync,
+  selectModels,
+  selectLoading as selectModelsLoading,
+} from '../models/modelsSlice';
+import {
+  getGraphStores,
+  selectGraphStores,
+  selectLoaded as selectGraphStoresLoaded,
+  selectLoading as selectGraphStoresLoading,
+} from '../uploader/graphStoresSlice';
 import {
   getVectorStores,
   selectVectorStores,
@@ -57,7 +77,12 @@ import {
   selectLoaded,
   selectTransformations,
   updateTransformationAsync,
+  pauseScheduleAsync,
+  unpauseScheduleAsync,
+  deleteScheduleAsync,
 } from './transformationsSlice';
+
+dayjs.extend(customParseFormat);
 
 const { TextArea } = Input;
 
@@ -102,9 +127,8 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
         <Draghandle attributes={attributes} listeners={listeners} />
       </div>
       <Form.Item
-        name={[field.name, 'column']}
         className="table-col"
-        style={{ width: '28%' }}
+        name={[field.name, 'column']}
       >
         <Select allowClear showSearch
           options={columnOptions}
@@ -113,9 +137,8 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
         />
       </Form.Item>
       <Form.Item
-        name={[field.name, 'dataType']}
         className="table-col"
-        style={{ width: '16%' }}
+        name={[field.name, 'dataType']}
       >
         <Select allowClear showSearch
           options={dataTypeOptions}
@@ -124,9 +147,8 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
         />
       </Form.Item>
       <Form.Item
-        name={[field.name, 'functionId']}
         className="table-col"
-        style={{ width: '28%' }}
+        name={[field.name, 'functionId']}
       >
         <Select allowClear showSearch
           options={functionOptions}
@@ -139,9 +161,8 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
         />
       </Form.Item>
       <Form.Item
-        name={[field.name, 'name']}
         className="table-col"
-        style={{ width: '28%' }}
+        name={[field.name, 'name']}
       >
         <Input placeholder="Feature name" />
       </Form.Item>
@@ -159,16 +180,21 @@ function SortableItem({ field, index, remove, columnOptions, functionOptions }) 
 export function TransformationForm() {
 
   const [backOnSave, setBackOnSave] = useState(false);
+  const [newIndex, setNewIndex] = useState('');
 
   const dataSources = useSelector(selectDataSources);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const destinations = useSelector(selectDestinations);
   const destinationsLoading = useSelector(selectDestinationsLoading);
   const functions = useSelector(selectFunctions);
+  const graphStoresLoaded = useSelector(selectGraphStoresLoaded);
+  const graphStoresLoading = useSelector(selectGraphStoresLoading);
+  const graphStores = useSelector(selectGraphStores);
   const indexes = useSelector(selectIndexes);
   const indexesLoading = useSelector(selectIndexesLoading);
   const loaded = useSelector(selectLoaded);
-  const [newIndex, setNewIndex] = useState('');
+  const models = useSelector(selectModels);
+  const modelsLoading = useSelector(selectModelsLoading);
   const transformations = useSelector(selectTransformations);
   const vectorStoresLoaded = useSelector(selectVectorStoresLoaded);
   const vectorStoresLoading = useSelector(selectVectorStoresLoading);
@@ -184,18 +210,47 @@ export function TransformationForm() {
   const newIndexInputRef = useRef(null);
   const [form] = Form.useForm();
   const dataSourceIdValue = Form.useWatch('dataSourceId', form);
+  const destinationIdsValue = Form.useWatch('destinationIds', form);
   const indexValue = Form.useWatch('indexId', form);
 
+  // console.log('source:', dataSources[dataSourceIdValue]);
+
   const id = location.pathname.match(/\/transformations\/(.*)/)[1];
-  const transformation = transformations[id];
   const isNew = id === 'new';
+
+  const transformation = useMemo(() => {
+    const tx = transformations[id];
+    if (tx) {
+      const schedule = tx.schedule || {};
+      return {
+        ...tx,
+        schedule: {
+          ...schedule,
+          startDate: schedule.startDate ? dayjs(schedule.startDate) : undefined,
+          endDate: schedule.endDate ? dayjs(schedule.endDate) : undefined,
+          startTime: schedule.startTime ? dayjs(schedule.startTime, 'HH:mm:ss') : undefined,
+          endTime: schedule.endTime ? dayjs(schedule.endTime, 'HH:mm:ss') : undefined,
+        },
+      };
+    }
+    return null;
+  }, [transformations]);
+
+  // console.log('transformation:', transformation);
 
   const columnOptions = useMemo(() => {
     if (dataSourceIdValue && dataSources) {
       const ds = dataSources[dataSourceIdValue];
-      if (ds && ds.content && ds.content.length) {
+      // if (ds?.content?.length) {
+      if (ds?.schema) {
+        // const list = Object
+        //   .keys(ds.content[0])
+        //   .map(col => ({
+        //     label: col,
+        //     value: col,
+        //   }));
         const list = Object
-          .keys(ds.content[0])
+          .keys(ds.schema[ds.tables]?.properties || {})
           .map(col => ({
             label: col,
             value: col,
@@ -231,6 +286,26 @@ export function TransformationForm() {
     return list;
   }, [destinations]);
 
+  // const embeddingProviderOptions = useMemo(() => {
+  //   const list = embeddingProviders.map(p => ({
+  //     label: p.name,
+  //     value: p.key,
+  //   }));
+  //   list.sort((a, b) => a.label < b.label ? -1 : 1);
+  //   return list;
+  // }, [embeddingProviders]);
+
+  const embeddingModelOptions = useMemo(() => {
+    const list = Object.values(models)
+      .filter(m => m.type === 'embedding')
+      .map(m => ({
+        label: m.name,
+        value: m.key,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [models]);
+
   const functionOptions = useMemo(() => {
     const list = Object.values(functions).map((func) => ({
       label: func.name,
@@ -245,6 +320,15 @@ export function TransformationForm() {
       ...list
     ];
   }, [functions]);
+
+  const graphStoreOptions = useMemo(() => {
+    const list = graphStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [graphStores]);
 
   const indexOptions = useMemo(() => {
     const list = Object.values(indexes)
@@ -274,6 +358,9 @@ export function TransformationForm() {
     if (!isNew) {
       dispatch(getTransformationAsync(id));
     }
+    if (!graphStoresLoaded) {
+      dispatch(getGraphStores());
+    }
   }, []);
 
   useEffect(() => {
@@ -289,15 +376,20 @@ export function TransformationForm() {
   useEffect(() => {
     if (dataSourceIdValue && dataSources) {
       const ds = dataSources[dataSourceIdValue];
-      if (ds && !ds.content) {
-        dispatch(getDataSourceContentAsync(dataSourceIdValue));
+      if (ds && !ds.schema) {
+        dispatch(getDataSourceAsync(dataSourceIdValue));
       }
+      // if (ds && !ds.content) {
+      //   dispatch(getDataSourceContentAsync(dataSourceIdValue));
+      // }
     }
   }, [dataSourceIdValue, dataSources]);
 
   useEffect(() => {
     if (indexValue === 'new' && !vectorStoresLoaded) {
       dispatch(getVectorStores());
+      // dispatch(getEmbeddingProviders());
+      dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id, type: 'embedding' }));
     }
   }, [indexValue]);
 
@@ -325,10 +417,27 @@ export function TransformationForm() {
   };
 
   const onFinish = (values) => {
+    let features;
+    let schedule;
+    // only save feature rows with values
+    if (values.features) {
+      features = values.features.filter(f => f && Object.values(f).some(v => v));
+    }
+    if (values.schedule) {
+      schedule = {
+        ...values.schedule,
+        startDate: values.schedule.startDate?.format('YYYY-MM-DD'),
+        endDate: values.schedule.endDate?.format('YYYY-MM-DD'),
+        startTime: values.schedule.startTime?.format('HH:mm:ss'),
+        endTime: values.schedule.endTime?.format('HH:mm:ss'),
+      };
+    }
     if (isNew) {
       dispatch(createTransformationAsync({
         values: {
           ...values,
+          features,
+          schedule,
           indexName: newIndex,
           workspaceId: selectedWorkspace.id,
         },
@@ -339,6 +448,9 @@ export function TransformationForm() {
         values: {
           ...transformation,
           ...values,
+          features,
+          schedule,
+          indexName: newIndex,
         },
       }));
     }
@@ -347,6 +459,50 @@ export function TransformationForm() {
 
   const onNewIndexChange = (ev) => {
     setNewIndex(ev.target.value);
+  };
+
+  const pauseSchedule = () => {
+    console.log('pausing schedule:', transformation.scheduleId);
+    if (transformation.scheduleId) {
+      dispatch(pauseScheduleAsync({ scheduleId: transformation.scheduleId }));
+      dispatch(updateTransformationAsync({
+        id,
+        values: {
+          ...transformation,
+          scheduleStatus: 'paused',
+        },
+      }));
+    }
+  };
+
+  const unpauseSchedule = () => {
+    console.log('unpausing schedule:', transformation.scheduleId);
+    if (transformation.scheduleId) {
+      dispatch(unpauseScheduleAsync({ scheduleId: transformation.scheduleId }));
+      dispatch(updateTransformationAsync({
+        id,
+        values: {
+          ...transformation,
+          scheduleStatus: 'running',
+        },
+      }));
+    }
+  };
+
+  const deleteSchedule = () => {
+    console.log('deleting schedule:', transformation.scheduleId);
+    if (transformation.scheduleId) {
+      dispatch(deleteScheduleAsync({ scheduleId: transformation.scheduleId }));
+      dispatch(updateTransformationAsync({
+        id,
+        values: {
+          ...transformation,
+          schedule: null,
+          scheduleId: null,
+          scheduleStatus: null,
+        },
+      }));
+    }
   };
 
   const sensors = useSensors(
@@ -384,6 +540,14 @@ export function TransformationForm() {
         >
           <SortableContext items={fields} strategy={verticalListSortingStrategy}>
             <div className="table">
+              <div className="table-row">
+                <div className="table-col"></div>
+                <div className="table-col">Source column</div>
+                <div className="table-col">Data Type</div>
+                <div className="table-col">Function</div>
+                <div className="table-col">Name</div>
+                <div className="table-col"></div>
+              </div>
               {fields.map((field, index) => (
                 <SortableItem key={field.key}
                   field={field}
@@ -457,123 +621,243 @@ export function TransformationForm() {
         >
           <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
         </Form.Item>
+        <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginBottom: 16 }}>
+          <Divider orientation="left" plain style={{ fontWeight: 600, margin: 0 }}>
+            Input
+          </Divider>
+        </Form.Item>
         <Form.Item
           label="Data Source"
-          name="dataSourceId"
-          rules={[
-            {
-              required: true,
-              message: 'Please select the data source',
-            },
-          ]}
           wrapperCol={{ span: 14 }}
         >
-          <Select allowClear showSearch
-            loading={dataSourcesLoading}
-            optionFilterProp="children"
-            options={dataSourceOptions}
-            placeholder="Search to select a data source"
-            filterOption={(input, option) => (option?.label ?? '').includes(input)}
-            filterSort={(a, b) =>
-              (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
-            }
+          <Form.Item
+            name="dataSourceId"
+            rules={[
+              {
+                required: true,
+                message: 'Please select the data source',
+              },
+            ]}
+            style={{
+              display: 'inline-block',
+              marginBottom: 0,
+              width: 'calc(100% - 32px)',
+            }}
+          >
+            <Select allowClear showSearch
+              loading={dataSourcesLoading}
+              optionFilterProp="children"
+              options={dataSourceOptions}
+              placeholder="Search to select a data source"
+              filterOption={(input, option) => (option?.label ?? '').includes(input)}
+              filterSort={(a, b) =>
+                (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
+              }
+            />
+          </Form.Item>
+          <Button
+            disabled={!dataSourceIdValue}
+            type="link"
+            icon={<LinkOutlined />}
+            onClick={() => navigate(`/data-sources/${dataSourceIdValue}`)}
+            style={{ width: 32 }}
           />
+        </Form.Item>
+        <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginBottom: 16 }}>
+          <Divider orientation="left" plain style={{ fontWeight: 600, margin: 0 }}>
+            Outputs
+          </Divider>
         </Form.Item>
         <Form.Item
           label="Destinations"
-          name="destinationIds"
           wrapperCol={{ span: 14 }}
         >
-          <Select allowClear showSearch
-            loading={destinationsLoading}
-            mode="multiple"
-            options={destinationOptions}
-            optionFilterProp="children"
-            placeholder="Search to select a destination"
-            filterOption={(input, option) => (option?.label ?? '').includes(input)}
-            filterSort={(a, b) =>
-              (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
-            }
+          <Form.Item
+            name="destinationIds"
+            style={{
+              display: 'inline-block',
+              marginBottom: 0,
+              width: 'calc(100% - 32px)',
+            }}
+          >
+            <Select allowClear showSearch
+              loading={destinationsLoading}
+              mode="multiple"
+              options={destinationOptions}
+              optionFilterProp="children"
+              placeholder="Search to select a destination"
+              filterOption={(input, option) => (option?.label ?? '').includes(input)}
+              filterSort={(a, b) =>
+                (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
+              }
+            />
+          </Form.Item>
+          <Button
+            disabled={!destinationIdsValue?.length}
+            type="link"
+            icon={<LinkOutlined />}
+            onClick={() => navigate(`/destinations/${destinationIdsValue[0]}`)}
+            style={{ width: 32 }}
           />
         </Form.Item>
         <Form.Item
           label="Index"
-          name="indexId"
           wrapperCol={{ span: 14 }}
         >
-          <Select allowClear showSearch
-            loading={indexesLoading}
-            options={indexOptions}
-            optionFilterProp="children"
-            placeholder="Search to select an index"
-            filterOption={(input, option) => (option?.label ?? '').includes(input)}
-            filterSort={(a, b) =>
-              (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
-            }
-            dropdownRender={(menu) => (
-              <>
-                {menu}
-                <Divider style={{ margin: '8px 0' }} />
-                <Space style={{ padding: '0 8px 4px' }}>
-                  <Input
-                    placeholder="Enter new index name"
-                    ref={newIndexInputRef}
-                    value={newIndex}
-                    onChange={onNewIndexChange}
-                  />
-                  <Button type="text" icon={<PlusOutlined />} onClick={createNewIndex}>
-                    Create New Index
-                  </Button>
-                </Space>
-              </>
-            )}
+          <Form.Item
+            name="indexId"
+            style={{
+              display: 'inline-block',
+              marginBottom: 0,
+              width: 'calc(100% - 32px)',
+            }}
+          >
+            <Select allowClear showSearch
+              loading={indexesLoading}
+              options={indexOptions}
+              optionFilterProp="children"
+              placeholder="Search to select an index"
+              filterOption={(input, option) => (option?.label ?? '').includes(input)}
+              filterSort={(a, b) =>
+                (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
+              }
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Space style={{ padding: '0 8px 4px' }}>
+                    <Input
+                      placeholder="Enter new index name"
+                      ref={newIndexInputRef}
+                      value={newIndex}
+                      onChange={onNewIndexChange}
+                    />
+                    <Button type="text" icon={<PlusOutlined />} onClick={createNewIndex}>
+                      Create New Index
+                    </Button>
+                  </Space>
+                </>
+              )}
+            />
+          </Form.Item>
+          <Button
+            disabled={!indexValue}
+            type="link"
+            icon={<LinkOutlined />}
+            onClick={() => navigate(`/indexes/${indexValue}`)}
+            style={{ width: 32 }}
           />
         </Form.Item>
         {indexValue === 'new' ?
+          <>
+            <Form.Item
+              label="Vector Store"
+              wrapperCol={{ span: 14 }}
+            >
+              <Form.Item
+                name="vectorStoreProvider"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please select the vector store',
+                  },
+                ]}
+                style={{
+                  display: 'inline-block',
+                  marginBottom: 0,
+                  width: 'calc(100% - 32px)',
+                }}
+              >
+                <Select
+                  allowClear
+                  loading={vectorStoresLoading}
+                  options={vectorStoreOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+            </Form.Item>
+            <Form.Item
+              label="Embedding"
+              wrapperCol={{ span: 14 }}
+            >
+              <Form.Item
+                name="embeddingModel"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please select the embedding model',
+                  },
+                ]}
+                style={{
+                  display: 'inline-block',
+                  marginBottom: 0,
+                  width: 'calc(100% - 32px)',
+                }}
+              >
+                <Select
+                  allowClear
+                  loading={modelsLoading}
+                  options={embeddingModelOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+            </Form.Item>
+          </>
+          : null
+        }
+        <Form.Item
+          label="Graph Store"
+          wrapperCol={{ span: 14 }}
+        >
           <Form.Item
-            label="Vector Store"
-            name="engine"
-            rules={[
-              {
-                required: true,
-                message: 'Please select the vector store',
-              },
-            ]}
-            wrapperCol={{ span: 14 }}
+            name="graphStoreProvider"
+            style={{
+              display: 'inline-block',
+              marginBottom: 0,
+              width: 'calc(100% - 32px)',
+            }}
           >
             <Select
               allowClear
-              loading={vectorStoresLoading}
-              options={vectorStoreOptions}
+              loading={graphStoresLoading}
+              options={graphStoreOptions}
               optionFilterProp="label"
             />
           </Form.Item>
-          : null
-        }
+        </Form.Item>
+        <Form.Item
+          label="Schedule"
+          name="schedule"
+        >
+          <ScheduleModalInput
+            onPause={pauseSchedule}
+            onUnpause={unpauseSchedule}
+            onDelete={deleteSchedule}
+            scheduleId={transformation?.scheduleId}
+            scheduleStatus={transformation?.scheduleStatus}
+          />
+        </Form.Item>
         {dataSourceIdValue ?
-          <Form.Item wrapperCol={{ offset: 4, span: 14 }}>
-            <Divider orientation="left" plain style={{ height: 32 }}>
-              Features
-            </Divider>
-            <div style={{ display: 'flex' }}>
-              <div style={{ flex: 1, padding: '0 12px 5px' }}>Source column</div>
-              <div style={{ flex: 1, marginLeft: 8, padding: '0 12px 5px' }}>Data Type</div>
-              <div style={{ flex: 1, marginLeft: 8, padding: '0 12px 5px' }}>Function</div>
-              <div style={{ flex: 1, marginLeft: 8, padding: '0 12px 5px' }}>Name</div>
-              <div style={{ width: 32 }}></div>
-            </div>
-            <Form.List name="features">
-              {(fields, { add, move, remove }, { errors }) => (
-                <FeatureList
-                  fields={fields}
-                  add={add}
-                  move={move}
-                  remove={remove}
-                  errors={errors}
-                />
-              )}
-            </Form.List>
-          </Form.Item>
+          <>
+            <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginBottom: 16 }}>
+              <Divider orientation="left" plain style={{ fontWeight: 600, margin: 0 }}>
+                Features
+              </Divider>
+            </Form.Item>
+            <Form.Item wrapperCol={{ offset: 4, span: 14 }}>
+              <Form.List name="features">
+                {(fields, { add, move, remove }, { errors }) => (
+                  <FeatureList
+                    fields={fields}
+                    add={add}
+                    move={move}
+                    remove={remove}
+                    errors={errors}
+                  />
+                )}
+              </Form.List>
+            </Form.Item>
+          </>
           : null
         }
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>

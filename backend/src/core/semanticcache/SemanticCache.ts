@@ -64,8 +64,9 @@ export default class SemanticCache {
 
   async get(prompt: string, n: number = 1) {
     try {
-      const { embedding } =
+      const response =
         await this.llmService.createEmbedding('sentenceencoder', { input: prompt });
+      const embedding = response.data[0].embedding;
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {
         PARAMS: {
@@ -95,7 +96,7 @@ export default class SemanticCache {
     try {
       if (!embedding) {
         const response = await this.llmService.createEmbedding('sentenceencoder', { input: prompt });
-        embedding = response.embedding;
+        embedding = response.data[0].embedding;
       }
       const uid = uuid.v4();
       const doc = {

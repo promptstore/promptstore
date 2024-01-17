@@ -1,14 +1,18 @@
 import { Validator } from '../common_types';
 import { Callback } from '../callbacks/Callback';
-import { ChatResponse, Message, ModelParams } from '../conversions/RosettaStone';
+import { ChatResponse, Function, Message, ModelParams, ResponseMetadata } from '../conversions/RosettaStone';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
 
 export interface SemanticFunctionCallParams {
   args: any;
+  messages?: Message[];
   history?: Message[],
+  extraSystemPrompt?: string;
   modelKey?: string;
   modelParams: ModelParams;
+  functions?: Function[];
   isBatch?: boolean;
+  options?: any;
   callbacks?: Callback[];
 }
 
@@ -18,20 +22,18 @@ export interface SemanticFunctionOnStartResponse extends SemanticFunctionCallPar
 }
 
 export interface SemanticFunctionOnEndParams {
-  response?: ChatResponse;
-  errors?: any;
-  implementation?: string;
+  errors: any;
+  response: ChatResponse;
+  responseMetadata: Partial<ResponseMetadata>;
 }
 
 export interface SemanticFunctionOnEndResponse extends SemanticFunctionOnEndParams {
   name: string;
-  response?: ChatResponse;
-  errors?: any;
 }
 
 export type SemanticFunctionOnStartCallbackFunction = (params: SemanticFunctionOnStartResponse) => void;
 
-export type SemanticFunctionOnEndCallbackFunction = (params: SemanticFunctionOnEndResponse) => void;
+export type SemanticFunctionOnEndCallbackFunction = (params: Partial<SemanticFunctionOnEndResponse>) => void;
 
 export type SemanticFunctionOnErrorCallbackFunction = (errors: any) => void;
 
@@ -41,6 +43,7 @@ export interface Experiment {
 }
 
 export interface SemanticFunctionParams {
+  id: number;
   name: string;
   description: string;
   argsSchema?: object;

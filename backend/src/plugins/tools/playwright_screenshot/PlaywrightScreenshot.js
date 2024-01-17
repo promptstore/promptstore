@@ -7,7 +7,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
   const mc = new Minio.Client({
     endPoint: constants.S3_ENDPOINT,
     port: parseInt(constants.S3_PORT, 10),
-    useSSL: true,
+    useSSL: false,
     accessKey: constants.AWS_ACCESS_KEY,
     secretKey: constants.AWS_SECRET_KEY,
   });
@@ -37,7 +37,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
       await page.screenshot({ path: localFilePath });
       const { imageUrl, objectName } = await saveImage(localFilePath);
       if (raw) {
-        return { imageUrl, objectName };
+        return { imageUrls: [imageUrl], objectNames: [objectName] };
       }
       // return 'Image URL: ' + imageUrl;
       return JSON.stringify({ imageUrl });
@@ -72,6 +72,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
             return reject(err);
           }
           logger.debug('presigned url:', presignedUrl);
+          let imageUrl;
           if (constants.ENV === 'dev') {
             const u = new URL(presignedUrl);
             imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;

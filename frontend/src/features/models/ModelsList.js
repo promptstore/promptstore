@@ -5,7 +5,7 @@ import {
   Button,
   Card,
   Input,
-  Radio,
+  Segmented,
   Space,
   Switch,
   Table,
@@ -16,10 +16,12 @@ import {
 } from 'antd';
 import {
   AppstoreOutlined,
+  CameraOutlined,
   CheckOutlined,
   DownloadOutlined,
   UnorderedListOutlined,
   UploadOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
@@ -28,6 +30,7 @@ import isEmpty from 'lodash.isempty';
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { formatNumber } from '../../utils';
 import {
   AnthropicLogo,
   BedrockLogo,
@@ -85,6 +88,8 @@ export function ModelsList() {
           isPublic: model.isPublic,
           description: model.description,
           contextWindow: model.contextWindow,
+          multimodal: model.multimodal,
+          creditsPerCall: model.creditsPerCall,
         }));
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
@@ -112,7 +117,7 @@ export function ModelsList() {
     if (selectedWorkspace) {
       dispatch(getModelsAsync({
         workspaceId: selectedWorkspace.id,
-        minDelay: layout === 'grid' ? 2000 : 0,
+        minDelay: layout === 'grid' ? 1000 : 0,
       }));
     }
   }, [selectedWorkspace]);
@@ -144,16 +149,6 @@ export function ModelsList() {
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
-
-  const formatNumber = (num) => {
-    if (num) {
-      num = +num;
-      if (!isNaN(num)) {
-        return num.toLocaleString('en-US');
-      }
-    }
-    return null;
-  }
 
   const getColor = (type) => {
     if (type === 'gpt') {
@@ -321,13 +316,6 @@ export function ModelsList() {
         <div style={{ whiteSpace: 'nowrap' }}>{modelKey}</div>
       )
     },
-    // {
-    //   title: 'Type',
-    //   dataIndex: 'type',
-    //   render: (_, { type }) => (
-    //     <div style={{ whiteSpace: 'nowrap' }}>{type}</div>
-    //   )
-    // },
     {
       title: 'Public',
       dataIndex: 'isPublic',
@@ -335,6 +323,13 @@ export function ModelsList() {
         <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
           <span>{isPublic ? <CheckOutlined /> : null}</span>
         </div>
+      )
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      render: (_, { type }) => (
+        <div style={{ whiteSpace: 'nowrap' }}>{type}</div>
       )
     },
     {
@@ -347,18 +342,28 @@ export function ModelsList() {
     {
       title: 'Context Window',
       dataIndex: 'contextWindow',
+      align: 'right',
       render: (_, { contextWindow }) => (
-        <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-          {formatNumber(contextWindow)}
+        <div style={{ whiteSpace: 'nowrap' }}>
+          {contextWindow ? formatNumber(contextWindow) : <span>&ndash;</span>}
         </div>
       )
     },
     {
-      width: '100%',
+      title: 'Avg. Credits',
+      dataIndex: 'creditsPerCall',
+      align: 'right',
+      render: (_, { creditsPerCall }) => (
+        <div style={{ whiteSpace: 'nowrap' }}>
+          {creditsPerCall ? formatNumber(creditsPerCall) : '0'}
+        </div>
+      )
     },
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space size="middle">
           <Button type="link"
@@ -426,7 +431,9 @@ export function ModelsList() {
                 Selected {selectedRowKeys.length} items
               </div>
               <Download filename={'models.json'} payload={selectedModels}>
-                <Button type="text" icon={<DownloadOutlined />} />
+                <Button type="text" icon={<DownloadOutlined />}>
+                  Download
+                </Button>
               </Download>
             </>
             : null
@@ -450,14 +457,16 @@ export function ModelsList() {
               beforeUpload={beforeUpload}
               onChange={onUpload}
             >
-              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
+              <Button type="text" loading={uploading} icon={<UploadOutlined />}>
+                Upload
+              </Button>
             </Upload>
           </div>
           <div style={{ flex: 1 }}></div>
-          <Radio.Group
-            buttonStyle="solid"
-            onChange={(ev) => setLayout(ev.target.value)}
-            optionType="button"
+          <Segmented
+            onChange={setLayout}
+            value={layout}
+            style={{ background: 'rgba(0, 0, 0, 0.25)' }}
             options={[
               {
                 label: <UnorderedListOutlined />,
@@ -468,7 +477,6 @@ export function ModelsList() {
                 value: 'grid'
               },
             ]}
-            value={layout}
           />
         </div>
         {layout === 'grid' ?
@@ -476,33 +484,50 @@ export function ModelsList() {
             {data.map(m =>
               <Card key={m.key}
                 title={<CardTitle provider={m.provider} title={m.name} />}
-                style={{ width: 350, height: 230 }}
+                style={{ width: 350, height: 225 }}
                 loading={loading}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', height: 126 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                  {m.description ?
+                    <Typography.Text ellipsis>{m.description}</Typography.Text>
+                    :
+                    <Typography.Text>&nbsp;</Typography.Text>
+                  }
+                  <Space>
+                    <Tag color={getColor(m.type)}>{m.type}</Tag>
+                    <div>{m.modelKey}</div>
+                  </Space>
                   <div>
-                    <Space>
-                      <Tag color={getColor(m.type)}>{m.type}</Tag>
-                      <div>{m.modelKey}</div>
-                    </Space>
-                  </div>
-                  <div style={{ height: 30, marginTop: 8 }}>
-                    <Typography.Paragraph ellipsis>
-                      {m.description}
-                    </Typography.Paragraph>
-                  </div>
-                  <div style={{ marginTop: 5 }}>
-                    <Typography.Text>
-                      {m.contextWindow ?
-                        <span><span className="inline-label">context window:</span> {formatNumber(m.contextWindow)}</span>
-                        :
-                        <span>&nbsp;</span>
-                      }
-                    </Typography.Text>
+                    {m.contextWindow ?
+                      <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
+                        <span><span className="inline-label">context</span> {formatNumber(m.contextWindow)}</span>
+                      </Typography.Text>
+                      : null
+                    }
+                    {m.creditsPerCall ?
+                      <Typography.Text style={{ display: 'inline-block' }}>
+                        <span><span className="inline-label">credits</span> ~{formatNumber(m.creditsPerCall)}</span>
+                      </Typography.Text>
+                      :
+                      <Typography.Text style={{ display: 'inline-block' }}>
+                        <span><span className="inline-label">credits</span> 0</span>
+                      </Typography.Text>
+                    }
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>
                     <Link to={`/models/${m.key}/edit`}>Edit</Link>
                     <Link to={`/models/${m.key}`}>View</Link>
+                    <div style={{ flex: 1 }} />
+                    <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 10, alignItems: 'center' }}>
+                      {m.multimodal ?
+                        <>
+                          <VideoCameraOutlined />
+                          <CameraOutlined />
+                        </>
+                        : null
+                      }
+                      <div style={{ cursor: 'default', fontFamily: 'Times New Roman', fontWeight: 600 }}>T</div>
+                    </div>
                   </div>
                 </div>
               </Card>

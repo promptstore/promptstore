@@ -15,7 +15,8 @@ export const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
 export const decodeEntities = (() => {
   // this prevents any overhead from creating the object each time
-  var element = document.createElement('div');
+  const element = document.createElement('div');
+  let doubleDecoded = false;
 
   function decodeHTMLEntities(str) {
     if (str && typeof str === 'string') {
@@ -25,6 +26,13 @@ export const decodeEntities = (() => {
       element.innerHTML = str;
       str = element.textContent;
       element.textContent = '';
+    }
+
+    // TODO can double encoding be prevented - occurs when
+    // message content included in another message - handlebars maybe
+    if (str.includes('&#') && !doubleDecoded) {
+      doubleDecoded = true;
+      return decodeHTMLEntities(str);
     }
 
     return str;
@@ -40,23 +48,31 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 4,
 
   // These options are needed to round to whole numbers if that's what you want.
-  //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
-  //maximumFractionDigits: 0, // (causes 2500.99 to be printed as $2,501)
+  // minimumFractionDigits: 0,  // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
+  // maximumFractionDigits: 0,  // (causes 2500.99 to be printed as $2,501)
 });
 
 export const formatCurrency = (number) => numberFormatter.format(number);
 
-export const getInputString = (args) => {
+const DEFAULT_CONTENT_PROPS = ['content', 'text', 'input'];
+
+export const getInput = (args, batch) => {
   if (typeof args === 'string') {
     return args;
   }
   if (Array.isArray(args) && args.length) {
-    return getInputString(args[0]);
+    if (batch) {
+      return args.map(x => getInput(x, batch));
+    }
+    return getInput(args[0]);
   }
   if (isObject(args)) {
-    const input = args.content || args.text || args.input;
-    if (input) {
-      return getInputString(input);
+    if (args.contentProp) {
+      return getInput(args[args.contentProp], batch);
+    }
+    const contentProp = DEFAULT_CONTENT_PROPS.find(p => args[p]);
+    if (contentProp) {
+      return getInput(args[contentProp], batch);
     }
   }
   return null;
@@ -254,3 +270,14 @@ export const getBaseURL = (endpoint) => {
 export const runWithMinDelay = (startTime, minDelay, fn) => {
   setTimeout(fn, minDelay - (new Date() - startTime));
 };
+
+export const formatNumber = (num, precision = 0) => {
+  if (num) {
+    num = +num;
+    if (!isNaN(num)) {
+      num = Math.round((num + Number.EPSILON) * Math.pow(10, precision)) / Math.pow(10, precision);
+      return num.toLocaleString('en-US');
+    }
+  }
+  return null;
+}

@@ -1,6 +1,7 @@
-import { delay } from './utils';
-
+import { countTokens } from '@anthropic-ai/tokenizer';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+
+import { delay } from './utils';
 
 function Bedrock({ __name, constants, logger }) {
 
@@ -56,12 +57,22 @@ function Bedrock({ __name, constants, logger }) {
     throw new Error('Not implemented');
   }
 
+  function getNumberTokens(model, text) {
+    // logger.debug('model:', model);
+    // logger.debug('text:', text);
+    if (text && model?.startsWith('anthropic')) {
+      return countTokens(text);
+    }
+    return 0;
+  }
+
   return {
     __name,
     createChatCompletion,
     createCompletion,
     createImage,
     generateImageVariant,
+    getNumberTokens,
   };
 
 }

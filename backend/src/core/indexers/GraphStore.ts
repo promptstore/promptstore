@@ -19,7 +19,7 @@ export interface Relationship {
 
 export interface Graph {
   nodes: Node[];
-  relationships: Relationship[];
+  relationships?: Relationship[];
 }
 
 export interface AddChunksParams {
@@ -78,6 +78,20 @@ export abstract class GraphStore {
       }
 
     }(indexName, services);
+  }
+
+  addChunksWithoutExtraction(chunks: Chunk[]) {
+    const nodes = chunks.map(chunk => {
+      const properties = Object.entries(chunk.data)
+        .map(([key, value]) => ({ key, value }));
+      return {
+        id: chunk.id,
+        type: chunk.type,
+        properties,
+      };
+    });
+    const graph = { nodes };
+    this.addGraph(this.__name, graph);
   }
 
   addChunks(chunks: Chunk[], params: Partial<AddChunksParams>) {

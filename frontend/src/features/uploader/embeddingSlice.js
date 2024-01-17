@@ -29,7 +29,7 @@ export const {
 
 export const getEmbeddingProviders = () => async (dispatch) => {
   dispatch(startLoad());
-  const url = 'api/embedding-providers';
+  const url = '/api/embedding-providers';
   const res = await http.get(url);
   dispatch(setProviders({ providers: res.data }));
 };

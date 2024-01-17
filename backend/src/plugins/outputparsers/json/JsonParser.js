@@ -3,7 +3,13 @@ import trimEnd from 'lodash.trimend';
 function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
 
   async function parse(text) {
-    // logger.debug('Parsing:', text);
+    logger.debug('parsing:', text);
+    if (!text) {
+      return {
+        error: 'Nothing to parse',
+        json: text,
+      };
+    }
     try {
       if (text.includes('```')) {
         text = text.split(/```(?:json)?/)[1].trim();
@@ -12,32 +18,18 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
       // keep trying
     }
     // logger.debug('text:', text);
-    // if (isTruncated(text)) {
-    const { jsonStr, fixed } = fixTruncatedJson(text);
-    // logger.debug('jsonStr:', jsonStr);
-    // if (fixed) {
     try {
-      return { text: jsonStr };
+      const { jsonStr, fixed } = fixTruncatedJson(text);
+      // logger.debug('json string:', jsonStr);
+      const json = JSON.parse(jsonStr);
+      return { json, fixed };
     } catch (err) {
+      logger.error('Error parsing text:', err);
       return {
         error: String(err),
-        text: jsonStr,
+        json: text,
       };
     }
-    // }
-    // return {
-    //   error: 'Invalid JSON',
-    //   text: jsonStr,
-    // };
-    // }
-    // try {
-    //   return text;
-    // } catch (err) {
-    //   return {
-    //     error: String(err),
-    //     text,
-    //   };
-    // }
   }
 
   /**
@@ -79,13 +71,6 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     return { stack, fixedStr, openQuotes };
   };
 
-  // Test if the json string is truncated by checking if the number of opening
-  // brackets is greater than the number of closing brackets.
-  const isTruncated = (jsonStr) => {
-    const { stack } = buildStack(jsonStr);
-    return stack.length > 0;
-  };
-
   // Simple json parser that attempts to fix truncated json that might
   // be caused by the API response being too long.
   const fixTruncatedJson = (jsonStr) => {
@@ -110,6 +95,13 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     fixedStr += closeStack.reverse().join('');
 
     return { fixedStr, fixed: true };
+  };
+
+  // Test if the json string is truncated by checking if the number of opening
+  // brackets is greater than the number of closing brackets.
+  const isTruncated = (jsonStr) => {
+    const { stack } = buildStack(jsonStr);
+    return stack.length > 0;
   };
 
   return {

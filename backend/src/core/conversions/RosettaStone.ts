@@ -38,9 +38,25 @@ import {
   PaLMMessage,
 } from '../models/vertexai_types';
 
+// TODO get prompts from store
 import { getPromptTemplate } from './prompt_template_variation_1';
+import { getPromptTemplate as buildToolsPrompt } from './prompt_template_variation_3';
 
 export const PARA_DELIM = '\n\n';
+
+const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
+  'gpt-4',
+  'gpt-4-1106-preview',
+  'gpt-4-0613',
+  'gpt-3.5-turbo',
+  'gpt-3.5-turbo-1106',
+  'gpt-3.5-turbo-0613',
+];
+
+const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
+  'gpt-4-1106-preview',
+  'gpt-3.5-turbo-1106',
+];
 
 /*** universal superset ************/
 
@@ -231,8 +247,40 @@ export interface ChatResponse {
   safetyFeedback?: SafetyFeedback[];
 }
 
+export interface ImageMetadata {
+  quality: string;
+  width: number;
+  height: number;
+}
+
+interface SystemInput {
+  args?: any;
+  messages?: Message[];
+  history?: Message[];
+  extraSystemPrompt?: string;
+}
+
 export interface ResponseMetadata {
-  prompts?: Message[];
+  provider: string;
+  functionId: number;
+  functionName: string;
+  prompts: Message[];
+  images: ImageMetadata[];
+  costComponents: Array<any>;
+  totalCost: number;
+  creditBalance: number;
+  modelInput: any;
+  modelUserInputText: string;
+  systemInput: SystemInput;
+  outputType: string;
+  systemOutput: Message;
+  systemOutputText: string;
+  modelOutput: Message;
+  modelOutputText: string;
+  implementation: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }
 
 export interface EmbeddingRequest {
@@ -241,11 +289,25 @@ export interface EmbeddingRequest {
   user?: string;  // A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
 }
 
-export interface EmbeddingResponse {
+interface EmbeddingObject {
   index: number;  // The index of the embedding in the list of embeddings.
   object: string;  // The object type, which is always "embedding".
   embedding: number[];  // The embedding vector, which is a list of floats. The length of vector depends on the model.
 }
+
+export interface EmbeddingUsage {
+  prompt_tokens: number;
+  total_tokens: number;
+}
+
+export interface EmbeddingResponse {
+  object: string;  // The object type, which is always "list".
+  data: EmbeddingObject[];
+  model: string;
+  usage: EmbeddingUsage;
+}
+
+type ToolsPromptBuilder = (toolDefinitions: string, toolKeys: string) => string[];
 
 /*** ************/
 
@@ -256,7 +318,6 @@ export function toAnthropicChatRequest(request: ChatRequest) {
     model,
     model_params,
     stream,
-    user,
   } = request;
   const {
     temperature,
@@ -275,16 +336,12 @@ export function toAnthropicChatRequest(request: ChatRequest) {
   return {
     modelId: model,
     body: {
-      // model,
       prompt,
       max_tokens_to_sample: max_tokens,
       temperature,
       top_k,
       top_p,
       stop_sequences,
-      // metadata: {
-      //   user_id: user,
-      // },
       stream,
     }
   };
@@ -297,7 +354,9 @@ export async function fromAnthropicChatResponse(response: AnthropicChatCompletio
     model,
   } = response;
   let choices: ChatCompletionChoice[];
-  const { action, action_input } = await parserService.parse('json', completion);
+
+  const { json } = await parserService.parse('json', completion);
+  const { action, action_input } = json;
   if (action) {
     if (action === 'Final Answer') {
       choices = [
@@ -403,7 +462,8 @@ export async function fromCohereChatResponse(response: CohereChatCompletionRespo
   } = response;
   const content = generations[0].text;
   let choices: ChatCompletionChoice[];
-  const { action, action_input } = await parserService.parse('json', content);
+  const { json } = await parserService.parse('json', content);
+  const { action, action_input } = json;
   if (action) {
     if (action === 'Final Answer') {
       choices = [
@@ -681,7 +741,6 @@ export function fromLlamaApiChatResponse(response: OpenAIChatCompletionResponse)
   return {
     id: uuid.v4(),
     created: new Date(),
-    model: 'llama-13b-chat',
     n: choices.length,
     choices: choices.map(c => ({
       finish_reason: c.finish_reason,
@@ -751,8 +810,6 @@ export function fromMistralEmbeddingResponse(response: MistralEmbeddingResponse)
 
 export function toOpenAIChatRequest(request: ChatRequest) {
   const {
-    functions,
-    function_call,
     model,
     model_params,
     stream,
@@ -768,7 +825,18 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     frequency_penalty,
     logit_bias,
   } = model_params;
-  const messages = createOpenAIMessages(request.prompt);
+  let functions: Function[];
+  let function_call: FunctionCallType | object;
+  let messages: Message[];
+  if (OPENAI_MODELS_SUPPORTING_FUNCTIONS.includes(model)) {
+    functions = request.functions;
+    function_call = request.function_call;
+    messages = createOpenAIMessages(request.prompt);
+  } else {
+    logger.debug('model "%s" doesn\'t support function calling', model);
+    logger.debug('functions:', request.functions);
+    messages = createOpenAIMessages(request.prompt, request.functions, buildToolsPrompt);
+  }
   return {
     model,
     messages,
@@ -787,20 +855,16 @@ export function toOpenAIChatRequest(request: ChatRequest) {
   };
 }
 
-export function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse) {
+export async function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse, parserService) {
   const {
     id,
     created,
     model,
-    choices,
     usage,
   } = response;
-  return {
-    id,
-    created,
-    model,
-    n: choices.length,
-    choices: choices.map(c => ({
+  let choices: ChatCompletionChoice[];
+  if (OPENAI_MODELS_SUPPORTING_FUNCTIONS.includes(model)) {
+    choices = response.choices.map(c => ({
       finish_reason: c.finish_reason,
       index: c.index,
       message: {
@@ -809,7 +873,78 @@ export function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse) {
         name: c.message.name,
         function_call: c.message.function_call,
       }
-    })),
+    }))
+  } else {
+    const candidates = response.choices;
+    if (candidates.length) {
+      const candidate = candidates[0];
+      const message = candidate.message;
+      const { json } = await parserService.parse('json', message.content);
+      const { action, action_input } = json;
+      if (action) {
+        if (action === 'Final Answer') {
+          choices = [
+            {
+              finish_reason: candidate.finish_reason,
+              index: candidate.index,
+              message: {
+                role: MessageRole.assistant,
+                content: action_input,
+                name: message.name,
+                citation_metadata: message.citation_metadata,
+                final: true,
+              },
+            }
+          ];
+        } else {
+          choices = [
+            {
+              finish_reason: candidate.finish_reason,
+              index: candidate.index,
+              message: {
+                role: MessageRole.function,
+                content: null,
+                name: message.name,
+                function_call: {
+                  name: action,
+                  arguments: JSON.stringify(action_input),
+                },
+                citation_metadata: message.citation_metadata,
+              }
+            }
+          ];
+        }
+      } else {
+        choices = response.choices.map(c => ({
+          finish_reason: c.finish_reason,
+          index: c.index,
+          message: {
+            role: c.message.role,
+            content: c.message.content,
+            name: c.message.name,
+            function_call: c.message.function_call,
+          }
+        }))
+      }
+    } else {
+      choices = [
+        {
+          index: 0,
+          message: {
+            role: MessageRole.assistant,
+            content: 'No response from model',
+            final: true,
+          },
+        }
+      ];
+    }
+  }
+  return {
+    id,
+    created,
+    model,
+    n: choices.length,
+    choices,
     usage,
   };
 }
@@ -861,7 +996,8 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
   } = response;
   let choices: ChatCompletionChoice[];
   if (response.choices.length) {
-    const { action, action_input } = await parserService.parse('json', response.choices[0].text);
+    const { json } = await parserService.parse('json', response.choices[0].text);
+    const { action, action_input } = json;
     if (action) {
       if (action === 'Final Answer') {
         choices = [
@@ -877,7 +1013,6 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
           }
         ];
       } else {
-        const args = { input: action_input };
         choices = [
           {
             finish_reason: response.choices[0].finish_reason,
@@ -887,7 +1022,7 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
               content: null,
               function_call: {
                 name: action,
-                arguments: JSON.stringify(args),
+                arguments: JSON.stringify(action_input),
               },
             },
             logprobs: response.choices[0].logprobs,
@@ -1004,7 +1139,8 @@ export async function fromVertexAIChatResponse(response: PaLMChatResponse, parse
   } = response;
   let choices: ChatCompletionChoice[];
   if (candidates.length) {
-    const { action, action_input } = await parserService.parse('json', candidates[0].content);
+    const { json } = await parserService.parse('json', candidates[0].content);
+    const { action, action_input } = json;
     if (action) {
       if (action === 'Final Answer') {
         choices = [
@@ -1107,7 +1243,8 @@ export async function fromVertexAICompletionResponse(response: PaLMCompletionRes
   } = response;
   let choices: ChatCompletionChoice[];
   if (candidates.length) {
-    const { action, action_input } = await parserService.parse('json', candidates[0].output);
+    const { json } = await parserService.parse('json', candidates[0].output);
+    const { action, action_input } = json;
     if (action) {
       if (action === 'Final Answer') {
         choices = [
@@ -1204,7 +1341,11 @@ function toPaLMMessage(message: Message) {
 
 /*** utility ************/
 
-function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {
+function createOpenAIMessages(
+  prompt: ChatPrompt,
+  functions?: Function[],
+  toolsPromptBuilder?: ToolsPromptBuilder
+) {
   const systemMessages: OpenAIMessage[] = [];
   const messages: OpenAIMessage[] = [];
   if (prompt.history) {
@@ -1237,6 +1378,7 @@ function createOpenAIMessages(prompt: ChatPrompt, functions?: Function[]) {
     prompt.context,
     systemMessages as SystemMessage[],
     functions,
+    toolsPromptBuilder
   );
   if (systemPrompt) {
     return [new SystemMessage(systemPrompt), ...messages];
@@ -1281,16 +1423,21 @@ export function getToolDefinitions(functions: Function[]) {
   return d.join('\n');
 }
 
-function getFunctionPrompts(functions: Function[]) {
+function getFunctionPrompts(functions: Function[], toolsPromptBuilder?: ToolsPromptBuilder) {
+  if (!toolsPromptBuilder) {
+    // get default
+    toolsPromptBuilder = getPromptTemplate;
+  }
   const toolDefinitions = getToolDefinitions(functions);
   const toolKeys = functions.map(f => f.name).join(', ');
-  return getPromptTemplate(toolDefinitions, toolKeys);
+  return toolsPromptBuilder(toolDefinitions, toolKeys);
 }
 
 function createSystemPrompt(
   context: ChatRequestContext,
   systemMessages: SystemMessage[],
-  functions?: Function[]
+  functions?: Function[],
+  toolsPromptBuilder?: ToolsPromptBuilder
 ) {
   const systemPrompt: string[] = [];
   if (context) {
@@ -1300,7 +1447,7 @@ function createSystemPrompt(
     systemPrompt.push(...systemMessages.map(m => m.content));
   }
   if (functions?.length) {
-    systemPrompt.push(...getFunctionPrompts(functions));
+    systemPrompt.push(...getFunctionPrompts(functions, toolsPromptBuilder));
   }
   if (systemPrompt.length) {
     return systemPrompt.join(PARA_DELIM);
@@ -1308,19 +1455,53 @@ function createSystemPrompt(
   return null;
 }
 
+export function fillContent(templateFiller: any, args: any, content: ContentType) {
+  if (typeof content === 'string') {
+    return templateFiller(content, args);
+  }
+  if (Array.isArray(content) && content.length) {
+    if (typeof content[0] === 'string') {
+      return (content as string[]).map(c => templateFiller(c, args));
+    }
+    return (content as ContentObject[]).map(c => {
+      if (c.type === 'text') {
+        return { ...c, text: templateFiller((c as TextContent).text, args) };
+      }
+      return c;
+    });
+  }
+  return content;
+}
+
+/**
+ * @param content 
+ * @returns 
+ */
 export function convertContentTypeToString(content: ContentType) {
   if (typeof content === 'string') {
     return content;
   }
-  return (content as ContentObject[])
-    .filter(c => c.type === 'text')
-    .map((c: TextContent) => c.text)
-    .join('\n\n');
+  if (Array.isArray(content) && content.length) {
+    if (typeof content[0] === 'string') {
+      return (content as string[]).join('\n\n');
+    }
+    return (content as ContentObject[])
+      .filter(c => c.type === 'text')
+      .map((c: TextContent) => c.text)
+      .join('\n\n');
+  }
+  return '';
 }
 
 function makeObservation(observation: ContentType) {
   return convertContentTypeToString(observation);
   // return 'Observation: ' + observation + '\nThought: ';
+}
+
+export function getText(messages: Message[]) {
+  return messages
+    .map(m => convertContentTypeToString(m.content))
+    .join('\n\n');
 }
 
 /*** ************/

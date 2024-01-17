@@ -10,11 +10,23 @@ function DateTimeParser({ __name, __metadata, constants, logger, app, auth }) {
    * @returns 
    */
   async function parse(text) {
-    // logger.debug('Parsing:', text);
-    let datetime = chrono.parseDate(text);
-
-    // logger.debug('Formatted:', datetime);
-    return datetime;
+    logger.debug('parsing:', text);
+    if (!text) {
+      return {
+        error: 'Nothing to parse',
+        json: text,
+      };
+    }
+    try {
+      text = chrono.parseDate(text);
+    } catch (err) {
+      logger.error('Error parsing text:', err);
+      return {
+        error: String(err),
+        json: text,
+      };
+    }
+    return { json: text };
   }
 
   return {

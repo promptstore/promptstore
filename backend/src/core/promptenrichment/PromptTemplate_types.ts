@@ -6,6 +6,7 @@ export type TemplateFiller = (content: string, args: object) => string;
 
 export interface PromptTemplateOnStartResponse {
   args: any;
+  isBatch: boolean;
   messageTemplates: Message[];
 }
 
@@ -36,6 +37,8 @@ export interface PromptTemplateParams {
 
 export interface PromptTemplateCallParams {
   args: any;
+  isBatch: boolean;
+  messages?: Message[];
   contextWindow: number;
   maxTokens: number;
   modelKey: string;

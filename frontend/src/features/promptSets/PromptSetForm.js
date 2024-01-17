@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Layout,
+  List,
   Radio,
   Select,
   Space,
@@ -46,6 +47,10 @@ import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { wordsDiff } from '../../utils/PatienceDiff';
 
 import { VersionsModal } from '../apps/Playground/VersionsModal';
+import {
+  getFunctionsByPromptSetAsync,
+  selectFunctions,
+} from '../functions/functionsSlice';
 
 import { TemplateModal } from './TemplateModal';
 import {
@@ -178,6 +183,7 @@ export function PromptSetForm() {
 
   const newSkillInputRef = useRef(null);
 
+  const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const promptSets = useSelector(selectPromptSets);
@@ -202,6 +208,8 @@ export function PromptSetForm() {
   const id = location.pathname.match(/\/prompt-sets\/(.*)\/edit/)[1];
   const isNew = id === 'new';
   const promptSet = promptSets[id];
+
+  // console.log('promptSet:', promptSet);
 
   const skillOptions = useMemo(() => {
     const list = skills.map((skill) => ({
@@ -249,6 +257,13 @@ export function PromptSetForm() {
     },
   ];
 
+  const functionsList = useMemo(() => {
+    return Object.values(functions).map(f => ({
+      id: f.id,
+      name: f.name,
+    }));
+  }, [functions]);
+
   const openVersion = async (id) => {
     if (!tempForm) {
       const values = await form.validateFields();
@@ -284,12 +299,13 @@ export function PromptSetForm() {
 
   useEffect(() => {
     if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
       dispatch(getSettingAsync({
-        workspaceId: selectedWorkspace.id,
+        workspaceId,
         key: 'skills',
       }));
       dispatch(getSettingAsync({
-        workspaceId: selectedWorkspace.id,
+        workspaceId,
         key: TAGS_KEY,
       }));
     }
@@ -339,6 +355,15 @@ export function PromptSetForm() {
   useEffect(() => {
     form.setFieldsValue(promptSet);
   }, [form, promptSet]);
+
+  useEffect(() => {
+    if (promptSet) {
+      dispatch(getFunctionsByPromptSetAsync({
+        workspaceId: selectedWorkspace.id,
+        promptSetId: promptSet.id,
+      }));
+    }
+  }, [promptSet]);
 
   const useTemplate = (template) => {
     form.setFieldValue('isTypesDefined', template.isTypesDefined);
@@ -633,7 +658,7 @@ export function PromptSetForm() {
         onSubmit={useTemplate}
         open={isTemplateModalOpen}
       />
-      <div style={{ marginTop: 20 }}>
+      <div id="promptset-form" style={{ marginTop: 20 }}>
         <Layout>
           <Sider
             style={{ height: 'fit-content', marginRight: 20 }}
@@ -663,6 +688,15 @@ export function PromptSetForm() {
               loading={loading}
               pagination={false}
             />
+            <List
+              header={<div>Semantic Functions</div>}
+              dataSource={functionsList}
+              renderItem={(item) => (
+                <List.Item>
+                  <Link to={`/functions/${item.id}/edit`}>{item.name}</Link>
+                </List.Item>
+              )}
+            />
           </Sider>
           <Content>
             <Form
@@ -674,11 +708,13 @@ export function PromptSetForm() {
               initialValues={promptSet}
             >
               <Form.Item wrapperCol={{ span: 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16 }}>
                   {!isNew ?
                     <>
                       <Download filename={snakeCase(promptSet.name) + '.json'} payload={promptSet}>
-                        <Button type="text" icon={<DownloadOutlined />} />
+                        <Button type="text" icon={<DownloadOutlined />}>
+                          Download
+                        </Button>
                       </Download>
                       <Link to={`/design/${id}`}>Design</Link>
                       <Link to={`/prompt-sets/${id}`}>View</Link>
@@ -773,7 +809,7 @@ export function PromptSetForm() {
                 />
               </Form.Item>
               <Form.Item
-                label="Typesafe"
+                label="Schema"
               >
                 <Form.Item
                   name="isTypesDefined"

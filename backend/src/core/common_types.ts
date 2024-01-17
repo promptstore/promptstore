@@ -3,6 +3,7 @@ import { ValidatorResult } from 'jsonschema';
 
 export interface Model {
   modelType: string;
+  provider?: string;
   model: string;
   callbacks: Callback[];
   call: (params: any) => Promise<any>;

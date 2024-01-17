@@ -114,6 +114,27 @@ export default {
     };
   },
 
+  evaluations: (rec) => {
+    const texts = [
+      rec.name,
+      rec.description,
+    ];
+    const text = texts.filter(t => t).join('\n');
+    const type = 'evaluations';
+    return {
+      id: type + ':' + rec.id,
+      nodeLabel: 'Object',
+      label: 'Evaluation',
+      type,
+      name: rec.name,
+      text,
+      createdDateTime: rec.created,
+      createdBy: rec.createdBy,
+      workspaceId: String(rec.workspaceId),
+      metadata: {},
+    };
+  },
+
   functions: (rec) => {
     const texts = [
       rec.name,

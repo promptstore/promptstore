@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Modal, Space, Table, message } from 'antd';
+import { Button, Modal, Space, Table, Tabs, message } from 'antd';
 import useLocalStorageState from 'use-local-storage-state';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,12 +15,16 @@ import {
   selectLoading as selectDataSourcesLoading,
 } from '../dataSources/dataSourcesSlice';
 import {
+  getDestinationAsync,
+  selectDestinations,
+  selectLoading as selectDestinationsLoading,
+} from '../destinations/destinationsSlice';
+import {
   deleteTransformationsAsync,
   getTransformationsAsync,
   runTransformationAsync,
   selectTransformations,
   selectLoading,
-  selectProcessing,
 } from './transformationsSlice';
 
 export function TransformationsList() {
@@ -33,18 +37,20 @@ export function TransformationsList() {
 
   const dataSources = useSelector(selectDataSources);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
+  const destinations = useSelector(selectDestinations);
+  const destinationsLoading = useSelector(selectDestinationsLoading);
   const loading = useSelector(selectLoading);
-  const processing = useSelector(selectProcessing);
   const transformations = useSelector(selectTransformations);
 
   const data = useMemo(() => {
     const list = Object.values(transformations).map((t) => ({
       key: t.id,
       name: t.name,
+      dataSourceName: dataSources[t.dataSourceId]?.name,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
-  }, [transformations]);
+  }, [transformations, dataSources]);
 
   const content = useMemo(() => {
     if (selectedKey && dataSources) {
@@ -53,9 +59,22 @@ export function TransformationsList() {
       if (ds) {
         return ds.content;
       }
-      return null;
     }
-  }, [selectedKey, dataSources, transformations]);
+    return null;
+  }, [selectedKey, dataSources]);
+
+  const destContent = useMemo(() => {
+    if (selectedKey && destinations) {
+      const tx = transformations[selectedKey];
+      if (tx.destinationIds?.length) {
+        const dest = destinations[tx.destinationIds[0]];
+        if (dest) {
+          return dest.content;
+        }
+      }
+    }
+    return null;
+  }, [selectedKey, destinations]);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -99,6 +118,16 @@ export function TransformationsList() {
     }
   }, [correlationId, transformations]);
 
+  useEffect(() => {
+    if (selectedKey && !correlationId[selectedKey]) {
+      messageApi.info({
+        content: 'Transformation run complete',
+        duration: 3,
+      });
+      setSelectedKey(null);
+    }
+  }, [correlationId, selectedKey]);
+
   const onPreviewCancel = () => {
     setIsPreviewModalOpen(false);
   }
@@ -114,25 +143,38 @@ export function TransformationsList() {
 
   const openPreview = (key) => {
     const tx = transformations[key];
-    dispatch(getDataSourceContentAsync(tx.dataSourceId));
+    if (tx.dataSourceId) {
+      const ds = dataSources[tx.dataSourceId];
+      if (!ds.content) {  // fetch once
+        dispatch(getDataSourceContentAsync(tx.dataSourceId));
+      }
+    }
+    if (tx.destinationIds?.length) {
+      // fetch from first destination
+      dispatch(getDestinationAsync(tx.destinationIds[0], true));
+    }
     setSelectedKey(key);
     setIsPreviewModalOpen(true);
   };
 
-  const runTransformation = (id) => {
+  const runTransformation = (key) => {
     const correlationId = uuidv4();
-    dispatch(runTransformationAsync({ id, correlationId, workspaceId: selectedWorkspace.id }));
+    dispatch(runTransformationAsync({
+      id: key,
+      correlationId,
+      workspaceId: selectedWorkspace.id,
+    }));
     setCorrelationId((curr) => ({
       ...curr,
-      [id]: correlationId,
+      [key]: correlationId,
     }));
+    setSelectedKey(key);
   };
 
   const columns = [
     {
       title: 'Name',
       dataIndex: 'name',
-      width: '100%',
       render: (_, { key, name }) => (
         <div style={{ minWidth: 250 }}>
           <Link to={`/transformations/${key}`}>{name}</Link>
@@ -140,8 +182,14 @@ export function TransformationsList() {
       )
     },
     {
+      title: 'Data Source',
+      dataIndex: 'dataSourceName',
+    },
+    {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space direction="vertical">
           <Space size="middle">
@@ -180,7 +228,7 @@ export function TransformationsList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
-  function TableView({ data }) {
+  function TableView({ data, loading }) {
 
     const columns = useMemo(() => {
       if (data && data.length) {
@@ -203,7 +251,8 @@ export function TransformationsList() {
       <Table
         columns={columns}
         dataSource={dataSource}
-        loading={dataSourcesLoading}
+        loading={loading}
+        pagination={false}
       />
     );
   }
@@ -215,11 +264,39 @@ export function TransformationsList() {
         open={isPreviewModalOpen}
         title="Content Preview"
         width={'75%'}
-        bodyStyle={{ height: 500, overflowY: 'auto' }}
+        bodyStyle={{ height: 500 }}
         onCancel={onPreviewCancel}
-        onOk={onPreviewCancel}
+        okButtonProps={{ style: { display: 'none' } }}
       >
-        <TableView data={content} />
+        <Tabs
+          defaultActiveKey="src"
+          items={[
+            {
+              key: 'src',
+              label: 'Source',
+              children: (
+                <div style={{ height: 438, overflowY: 'auto' }}>
+                  <TableView
+                    data={content}
+                    loading={dataSourcesLoading}
+                  />
+                </div>
+              )
+            },
+            {
+              key: 'dst',
+              label: 'Destination',
+              children: (
+                <div style={{ height: 438, overflowY: 'auto' }}>
+                  <TableView
+                    data={destContent}
+                    loading={destinationsLoading}
+                  />
+                </div>
+              )
+            },
+          ]}
+        />
       </Modal>
       <div style={{ marginTop: 20 }}>
         <div style={{ marginBottom: 16 }}>

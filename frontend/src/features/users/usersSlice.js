@@ -14,6 +14,17 @@ export const usersSlice = createSlice({
     users: {},
   },
   reducers: {
+    removeUsers: (state, action) => {
+      for (const id of action.payload.ids) {
+        delete state.users[id];
+      }
+    },
+    setCredits: (state, action) => {
+      state.currentUser = {
+        ...state.currentUser,
+        credits: action.payload.credits,
+      };
+    },
     setCurrentUser: (state, action) => {
       state.currentUser = action.payload.currentUser;
       state.authStatusChecked = true;
@@ -38,6 +49,8 @@ export const usersSlice = createSlice({
 });
 
 export const {
+  removeUsers,
+  setCredits,
   setCurrentUser,
   setError,
   setUsers,
@@ -78,7 +91,7 @@ export const getCurrentUserAsync = () => async (dispatch) => {
   }
 };
 
-export const upsertUserAsync = ({ user }) => async (dispatch) => {
+export const upsertUserAsync = (user) => async (dispatch) => {
   const url = '/api/users';
   const res = await http.post(url, user);
   dispatch(setUsers({ users: [res.data] }));
@@ -87,6 +100,12 @@ export const upsertUserAsync = ({ user }) => async (dispatch) => {
 export const setAdmin = () => async (dispatch) => {
   const url = 'api/roles';
   const res = await http.post(url, { role: 'admin' });
+};
+
+export const deleteUsersAsync = ({ ids }) => async (dispatch) => {
+  const url = `/api/users?ids=${ids.join(',')}`;
+  await http.delete(url);
+  dispatch(removeUsers({ ids }));
 };
 
 export const selectAuthStatusChecked = (state) => state.users.authStatusChecked;

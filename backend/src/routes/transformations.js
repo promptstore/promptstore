@@ -1,11 +1,22 @@
-import { columnsToFields } from '../core/conversions/schema';
+import startCase from 'lodash.startcase';
+import camelCase from 'lodash.camelcase';
+
+import { getDestinationSchema } from '../core/conversions/schema';
 import searchFunctions from '../searchFunctions';
+import { Indexer } from '../core/indexers/Indexer';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const OBJECT_TYPE = 'transformations';
 
-  const { dataSourcesService, sqlSourceService, transformationsService } = services;
+  const {
+    functionsService,
+    indexesService,
+    llmService,
+    modelsService,
+    transformationsService,
+    vectorStoreService,
+  } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -39,39 +50,55 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/transformations', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const { dataSourceId, features, indexId, indexName, workspaceId, vectorStoreProvider } = values;
+    const {
+      indexName,
+      name,
+      vectorStoreProvider,
+      workspaceId,
+    } = values;
+    const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
 
+    let indexId = values.indexId;
     // create index if new
     if (indexId === 'new') {
-      // const source = await dataSourcesService.getDataSource(dataSourceId);
-      // if (source.type === 'sql') {
-      //   const meta = await sqlSourceService.getSchema(source);
-      //   const schema = meta[source.tableName];
-      //   const indexFields = columnsToFields(schema.columns);
-      //   const index = await indexesService.upsertIndex({
-      //     name: indexName,
-      //     schema: { content: indexFields },
-      //     workspaceId,
-      //     vectorStoreProvider,
-      //   });
-      // }
-      const indexFields = Object.values(features).reduce((a, f) => {
-        a[f.name] = {
-          name: f.name,
-          dataType: f.dataType,
-          mandatory: false,
-        };
-        return a;
-      }, {});
-      const index = await indexesService.upsertIndex({
+      const features = await getCleanedFeatures(values.features);
+      const schema = getDestinationSchema(features);
+      const indexer = new Indexer({
+        indexesService,
+        llmService,
+        vectorStoreService,
+      });
+      const index = await indexer.createIndex({
         name: indexName,
-        schema: { content: indexFields },
+        schema,
         workspaceId,
+        username,
+        embeddingModel,
         vectorStoreProvider,
+        nodeLabel: startCase(camelCase(name)),
+      });
+      indexId = index.id;
+    }
+
+    let scheduleId;
+    if (values.schedule) {
+      scheduleId = await workflowClient.scheduleTransformation(values, workspaceId, username, {
+        address: constants.TEMPORAL_URL,
       });
     }
 
-    const transformation = await transformationsService.upsertTransformation(values, username);
+    const tx = {
+      ...values,
+      embeddingProvider: embeddingModel.provider,
+      indexId,
+      scheduleId,
+      scheduleStatus: 'running',
+    };
+    const transformation = await transformationsService.upsertTransformation(tx, username);
     const obj = createSearchableObject(transformation);
     await indexObject(obj);
     res.json(transformation);
@@ -81,7 +108,51 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const transformation = await transformationsService.upsertTransformation({ ...values, id }, username);
+    const {
+      name,
+      indexName,
+      vectorStoreProvider,
+      workspaceId,
+    } = values;
+    const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
+
+
+    let indexId = values.indexId;
+    // create index if new
+    if (indexId === 'new') {
+      const features = await getCleanedFeatures(values.features);
+      const schema = getDestinationSchema(features);
+      const indexer = new Indexer({
+        indexesService,
+        llmService,
+        vectorStoreService,
+      });
+      const index = await indexer.createIndex({
+        name: indexName,
+        schema,
+        workspaceId,
+        username,
+        embeddingModel,
+        vectorStoreProvider,
+        nodeLabel: startCase(camelCase(name)),
+      });
+      indexId = index.id;
+    }
+
+    let scheduleId;
+    if (values.schedule) {
+      logger.debug('scheduling transformation:', values);
+      scheduleId = await workflowClient.scheduleTransformation(values, workspaceId, username, {
+        address: constants.TEMPORAL_URL,
+      });
+    }
+
+    const tx = { ...values, id, indexId, scheduleId };
+    const transformation = await transformationsService.upsertTransformation(tx, username);
     const obj = createSearchableObject(transformation);
     await indexObject(obj);
     res.json(transformation);
@@ -89,6 +160,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.delete('/api/transformations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
+    const tx = await transformationsService.getTransformation(id);
+    if (tx.scheduleId) {
+      await workflowClient.deleteSchedule(tx.scheduleId, {
+        address: constants.TEMPORAL_URL,
+      });
+    }
     await transformationsService.deleteTransformations([id]);
     await deleteObject(objectId(id));
     res.json(id);
@@ -96,6 +173,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.delete('/api/transformations', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
+    for (const id of ids) {
+      const tx = await transformationsService.getTransformation(id);
+      if (tx.scheduleId) {
+        await workflowClient.deleteSchedule(tx.scheduleId, {
+          address: constants.TEMPORAL_URL,
+        });
+      }
+    }
     await transformationsService.deleteTransformations(ids);
     await deleteObjects(ids.map(objectId));
     res.json(ids);
@@ -150,5 +235,22 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       },
     };
   }
+
+  const getCleanedFeatures = async (features) => {
+    const feats = [];
+    for (const feature of features) {
+      let featureName;
+      if (feature.name) {
+        featureName = feature.name;
+      } else if (feature.functionId !== '__pass') {
+        const func = await functionsService.getFunction(feature.functionId);
+        featureName = func.name;
+      } else if (feature.column !== '__all') {
+        featureName = feature.column;
+      }
+      feats.push({ name: featureName, dataType: feature.type, mandatory: false });
+    }
+    return feats;
+  };
 
 };

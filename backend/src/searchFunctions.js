@@ -1,7 +1,13 @@
 export default ({ constants, logger, services }) => {
 
-  const { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER } = constants;
-  const { vectorStoreService } = services;
+  const {
+    SEARCH_EMBEDDING_PROVIDER,
+    SEARCH_INDEX_NAME,
+    SEARCH_NODE_LABEL,
+    SEARCH_VECTORSTORE_PROVIDER,
+  } = constants;
+
+  const { llmService, vectorStoreService } = services;
 
   async function deleteObjects(ids) {
     try {
@@ -25,7 +31,12 @@ export default ({ constants, logger, services }) => {
 
   async function indexObject(obj) {
     try {
-      await vectorStoreService.indexChunks(SEARCH_VECTORSTORE_PROVIDER, [obj], null, {
+      let embeddings;
+      if (SEARCH_VECTORSTORE_PROVIDER !== 'redis') {
+        const response = await llmService.createEmbedding(SEARCH_EMBEDDING_PROVIDER, { input: obj.text });
+        embeddings = [response.data[0].embedding];
+      }
+      await vectorStoreService.indexChunks(SEARCH_VECTORSTORE_PROVIDER, [obj], embeddings, {
         indexName: SEARCH_INDEX_NAME,
         nodeLabel: SEARCH_NODE_LABEL,
       });

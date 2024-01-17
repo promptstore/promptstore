@@ -5,7 +5,7 @@ import {
   Button,
   Card,
   Input,
-  Radio,
+  Segmented,
   Select,
   Space,
   Switch,
@@ -33,7 +33,7 @@ import {
   objectUploadAsync,
   selectUploading,
 } from '../uploader/fileUploaderSlice';
-import { getColor } from '../../utils';
+import { getColor, intersects } from '../../utils';
 
 import {
   getModelsAsync,
@@ -58,10 +58,6 @@ import {
 const { Search } = Input;
 
 const TAGS_KEY = 'functionTags';
-
-const intersects = (arr1 = [], arr2 = []) => {
-  return arr1.filter(v => arr2.includes(v)).length > 0;
-};
 
 export function FunctionsList() {
 
@@ -100,6 +96,7 @@ export function FunctionsList() {
           implementations: func.implementations,
           tags: func.tags,
           isPublic: func.isPublic,
+          description: func.description,
         }));
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
@@ -153,7 +150,7 @@ export function FunctionsList() {
       dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
       dispatch(getFunctionsAsync({
         workspaceId,
-        minDelay: layout === 'grid' ? 2000 : 0,
+        minDelay: layout === 'grid' ? 1000 : 0,
       }));
     }
   }, [selectedWorkspace]);
@@ -225,7 +222,6 @@ export function FunctionsList() {
     {
       title: 'Tags',
       dataIndex: 'tags',
-      width: '100%',
       render: (_, { tags = [] }) => (
         <Space size={[0, 8]} wrap>
           {tags.map((tag) => (
@@ -237,17 +233,19 @@ export function FunctionsList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="small" wrap>
           <Button type="link"
-            style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/functions/${record.key}`)}
+            style={{ paddingLeft: 0 }}
           >
             View
           </Button>
           <Button type="link"
-            style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/functions/${record.key}/edit`)}
+            style={{ paddingLeft: 0 }}
           >
             Edit
           </Button>
@@ -285,25 +283,29 @@ export function FunctionsList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-          <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
-            Delete
-          </Button>
-          {hasSelected ?
-            <>
-              <span style={{ marginLeft: 8 }}>
-                Selected {selectedRowKeys.length} items
-              </span>
-              <Download filename={'functions.json'} payload={selectedFunctions}>
-                <Button type="text" icon={<DownloadOutlined />} />
-              </Download>
-            </>
-            : null
-          }
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
+              Delete
+            </Button>
+            {hasSelected ?
+              <>
+                <span>
+                  Selected {selectedRowKeys.length} items
+                </span>
+                <Download filename={'functions.json'} payload={selectedFunctions}>
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
+                </Download>
+              </>
+              : null
+            }
+          </div>
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 16, width: 220 }}
+            style={{ width: 220 }}
           />
           <Select allowClear mode="multiple"
             options={modelOptions}
@@ -311,7 +313,7 @@ export function FunctionsList() {
             loading={modelsLoading}
             placeholder="select implementations"
             onChange={setSelectedImpls}
-            style={{ marginLeft: 8, width: 220 }}
+            style={{ width: 220 }}
             value={selectedImpls}
           />
           <Select allowClear mode="multiple"
@@ -320,31 +322,32 @@ export function FunctionsList() {
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 8, width: 220 }}
+            style={{ width: 220 }}
             value={selectedTags}
           />
-          <Switch
-            checked={filterSystem}
-            onChange={setFilterSystem}
-            style={{ marginLeft: 8 }}
-          />
-          <div style={{ marginLeft: 8 }}>Public</div>
-          <div style={{ marginLeft: 16 }}>
-            <Upload
-              name="upload"
-              showUploadList={false}
-              customRequest={dummyRequest}
-              beforeUpload={beforeUpload}
-              onChange={onUpload}
-            >
-              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
-            </Upload>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterSystem}
+              onChange={setFilterSystem}
+            />
+            <div>Public</div>
           </div>
+          <Upload
+            name="upload"
+            showUploadList={false}
+            customRequest={dummyRequest}
+            beforeUpload={beforeUpload}
+            onChange={onUpload}
+          >
+            <Button type="text" loading={uploading} icon={<UploadOutlined />}>
+              Upload
+            </Button>
+          </Upload>
           <div style={{ flex: 1 }}></div>
-          <Radio.Group
-            buttonStyle="solid"
-            onChange={(ev) => setLayout(ev.target.value)}
-            optionType="button"
+          <Segmented
+            onChange={setLayout}
+            value={layout}
+            style={{ background: 'rgba(0, 0, 0, 0.25)' }}
             options={[
               {
                 label: <UnorderedListOutlined />,
@@ -355,36 +358,35 @@ export function FunctionsList() {
                 value: 'grid'
               },
             ]}
-            value={layout}
           />
         </div>
         {layout === 'grid' ?
           <Space wrap size="large">
             {data.map(f =>
-              <Card key={f.key} title={f.name} style={{ width: 350, height: 200 }} loading={loading}>
-                <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
-                  <div style={{ height: 30 }}>
-                    <span style={{ marginRight: 8 }}>Implementations:</span>
-                    <Space size={[0, 8]} wrap>
-                      {f.implementations?.map((impl) => (
-                        impl.modelId && modelsLoaded && models[impl.modelId] ?
-                          <Tag key={impl.modelId}
-                            color={getColor(models[impl.modelId].type, isDarkMode)}
-                          >
-                            {models[impl.modelId].key}
-                          </Tag>
-                          : null
-                      ))}
-                    </Space>
-                  </div>
-                  <div style={{ height: 30 }}>
-                    <Typography.Text ellipsis>
-                      {f.description}
-                    </Typography.Text>
-                  </div>
-                  <Space wrap size="small">
-                    {(f.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
+              <Card key={f.key} className="function-card" title={f.name} style={{ width: 350, height: 225 }} loading={loading}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                  <Typography.Text ellipsis>
+                    {f.description}
+                  </Typography.Text>
+                  <Space size={8} wrap>
+                    <div className="inline-label">imps</div>
+                    {f.implementations?.map((impl) => (
+                      impl.modelId && modelsLoaded && models[impl.modelId] ?
+                        <Tag key={impl.modelId}
+                          color={getColor(models[impl.modelId].type, isDarkMode)}
+                        >
+                          {models[impl.modelId].key}
+                        </Tag>
+                        : null
+                    ))}
                   </Space>
+                  {f.tags?.length ?
+                    <Space size={8} wrap>
+                      <div className="inline-label">tags</div>
+                      {f.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                    </Space>
+                    : null
+                  }
                   <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
                     <Link to={`/functions/${f.key}/edit`}>Edit</Link>
                     <Link to={`/functions/${f.key}`}>View</Link>

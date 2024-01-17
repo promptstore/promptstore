@@ -56,7 +56,7 @@ export const getIndexAsync = (id) => async (dispatch) => {
   if (vectorStoreProvider) {
     try {
       const res1 = await http.get(`/api/index/${vectorStoreProvider}/${name}?nodeLabel=${nodeLabel}`);
-      // console.log('res1:', res1.data);
+      console.log('res1:', res1.data);
       if (vectorStoreProvider === 'redis') {
         const {
           attributes,
@@ -105,7 +105,7 @@ export const getIndexAsync = (id) => async (dispatch) => {
           embeddingNodeProperty,
           similarityMetric,
           nodeLabel,
-        } = metadata;
+        } = (metadata || {});
         index = {
           ...res.data,
           store: {
@@ -120,6 +120,7 @@ export const getIndexAsync = (id) => async (dispatch) => {
         };
       }
     } catch (err) {
+      console.error(err);
       // index probably doesn't exist
       index = res.data;
     }

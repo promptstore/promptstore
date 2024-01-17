@@ -333,7 +333,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onPromptEnrichmentStart({ args }: PromptEnrichmentOnStartResponse) {
+  onPromptEnrichmentStart({ args, isBatch }: PromptEnrichmentOnStartResponse) {
     // logger.debug('!! onPromptEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -342,6 +342,7 @@ export class TracingCallback extends Callback {
         id: uuid.v4(),
         type: 'enrichment-pipeline',
         args,
+        isBatch,
         startTime: startTime.getTime(),
       })
       .down();
@@ -379,7 +380,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onFeatureStoreEnrichmentStart({ args, featureStore }: FeatureStoreEnrichmentOnStartResponse) {
+  onFeatureStoreEnrichmentStart({ args, isBatch, featureStore }: FeatureStoreEnrichmentOnStartResponse) {
     // logger.debug('!! onFeatureStoreEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -389,6 +390,7 @@ export class TracingCallback extends Callback {
         type: 'feature-store-enrichment',
         featureStore,
         args,
+        isBatch,
         startTime: startTime.getTime(),
       })
       .down();
@@ -426,7 +428,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onSemanticSearchEnrichmentStart({ args, index }: SemanticSearchEnrichmentOnStartResponse) {
+  onSemanticSearchEnrichmentStart({ args, isBatch, index }: SemanticSearchEnrichmentOnStartResponse) {
     // logger.debug('!! onSemanticSearchEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -436,6 +438,7 @@ export class TracingCallback extends Callback {
         type: 'semantic-search-enrichment',
         index,
         args,
+        isBatch,
         startTime: startTime.getTime(),
       })
       .down();
@@ -616,7 +619,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onPromptTemplateStart({ args, messageTemplates }: PromptTemplateOnStartResponse) {
+  onPromptTemplateStart({ args, isBatch, messageTemplates }: PromptTemplateOnStartResponse) {
     // logger.debug('!! onPromptTemplateStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -626,6 +629,7 @@ export class TracingCallback extends Callback {
         type: 'call-prompt-template',
         messageTemplates,
         args,
+        isBatch,
         startTime: startTime.getTime(),
       })
       .down();

@@ -1,15 +1,33 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
-import { Button, Card, Descriptions, Divider, Layout, Space, Table, Tag, Typography } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
-import ReactMarkdown from 'react-markdown';
-import rehypeRaw from 'rehype-raw';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Divider,
+  Layout,
+  List,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
+import { DownloadOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import useLocalStorageState from 'use-local-storage-state';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
+
+import {
+  getFunctionsByPromptSetAsync,
+  selectFunctions,
+} from '../functions/functionsSlice';
 
 import {
   getPromptSetAsync,
@@ -25,12 +43,16 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 export function PromptSetView() {
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [versionsCollapsed, setVersionsCollapsed] = useLocalStorageState('ps-versions-collapsed', { defaultValue: true });
+  const [variablesCollapsed, setVariablesCollapsed] = useLocalStorageState('ps-variables-collapsed', { defaultValue: true });
 
+  const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const promptSets = useSelector(selectPromptSets);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
@@ -46,6 +68,15 @@ export function PromptSetView() {
     }));
     dispatch(getPromptSetAsync(id));
   }, []);
+
+  useEffect(() => {
+    if (ps) {
+      dispatch(getFunctionsByPromptSetAsync({
+        workspaceId: selectedWorkspace.id,
+        promptSetId: ps.id,
+      }));
+    }
+  }, [ps]);
 
   const versionColumns = [
     {
@@ -93,25 +124,40 @@ export function PromptSetView() {
     },
   ];
 
+  const getVars = (properties) => {
+    const list = Object.entries(properties).map(([k, v]) => {
+      let type;
+      if (v.type === 'array') {
+        type = `${v.type}[${v.items.type}]`
+      } else {
+        type = v.type;
+      }
+      return {
+        key: k,
+        type,
+      };
+    });
+    list.sort((a, b) => a.key < b.key ? -1 : 1);
+    return list;
+  };
+
   const data = useMemo(() => {
     if (ps && ps.arguments) {
-      const list = Object.entries(ps.arguments.properties).map(([k, v]) => {
-        let type;
-        if (v.type === 'array') {
-          type = `${v.type}[${v.items.type}]`
-        } else {
-          type = v.type;
-        }
-        return {
-          key: k,
-          type,
-        };
-      });
-      list.sort((a, b) => a.key < b.key ? -1 : 1);
-      return list;
+      // TODO show array
+      if (ps.arguments.type === 'array') {
+        return getVars(ps.arguments.items.properties);
+      }
+      return getVars(ps.arguments.properties);
     }
     return [];
   }, [ps]);
+
+  const functionsList = useMemo(() => {
+    return Object.values(functions).map(f => ({
+      id: f.id,
+      name: f.name,
+    }));
+  }, [functions]);
 
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -154,18 +200,35 @@ export function PromptSetView() {
     );
   }
   return (
-    <div style={{ marginTop: 20 }}>
+    <div id="promptset-view" style={{ marginTop: 20 }}>
       <Layout>
         <Sider
-          style={{ border: '1px solid #f0f0f0', marginRight: 16 }}
-          width={250}
+          collapsible
+          collapsed={versionsCollapsed}
+          collapsedWidth={0}
+          trigger={null}
+          style={{
+            borderRadius: '8px 8px 0 0',
+            border: versionsCollapsed ? '1px solid #f5f5f5' : '1px solid #f0f0f0',
+            marginRight: 16,
+          }}
           theme="light"
+          width={250}
         >
           <Table
             columns={versionColumns}
             dataSource={versions}
             loading={loading}
             pagination={false}
+          />
+          <List
+            header={<div>Semantic Functions</div>}
+            dataSource={functionsList}
+            renderItem={(item) => (
+              <List.Item>
+                <Link to={`/functions/${item.id}`}>{item.name}</Link>
+              </List.Item>
+            )}
           />
           {ps && ps.tags ?
             <div style={{ padding: '24px 8px 16px' }}>
@@ -178,14 +241,42 @@ export function PromptSetView() {
           }
         </Sider>
         <Content>
-          <Card title={ps.name}
+          <div>
+            <Button
+              type="text"
+              icon={versionsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setVersionsCollapsed(cur => !cur)}
+              style={{
+                fontSize: '14px',
+                width: 32,
+                height: 32,
+              }}
+            />
+            <span>Versions</span>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <Button
+              type="text"
+              icon={variablesCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setVariablesCollapsed(cur => !cur)}
+              style={{
+                fontSize: '14px',
+                width: 32,
+                height: 32,
+              }}
+            />
+            <span>Variables</span>
+          </div>
+          <Card className="ps-view-card" title={ps.name}
             extra={
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <Link to={`/prompt-sets`}>List</Link>
                 <Link to={`/prompt-sets/${id}/edit`}>Edit</Link>
                 <Link to={`/design/${id}`}>Design</Link>
                 <Download filename={snakeCase(ps.name) + '.json'} payload={ps}>
-                  <Button type="text" icon={<DownloadOutlined />} />
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
                 </Download>
               </div>
             }
@@ -214,22 +305,27 @@ export function PromptSetView() {
           </Card>
         </Content>
         <Sider
+          collapsible
+          collapsed={variablesCollapsed}
+          collapsedWidth={0}
+          trigger={null}
+          style={{
+            borderRadius: '8px 8px 0 0',
+            border: variablesCollapsed ? '1px solid #f5f5f5' : '1px solid #f0f0f0',
+          }}
           theme="light"
           width={350}
-          style={{ border: '1px solid #f0f0f0' }}
         >
-          <div style={{ margin: '24px 8px 16px' }}>
-            {loaded && ps.arguments ?
-              <Table
-                columns={columns}
-                dataSource={data}
-                pagination={false}
-                rowSelection={rowSelection}
-              />
-              :
-              <div>Schema not defined</div>
-            }
-          </div>
+          {loaded && ps.arguments ?
+            <Table
+              columns={columns}
+              dataSource={data}
+              pagination={false}
+              rowSelection={rowSelection}
+            />
+            :
+            <div>Schema not defined</div>
+          }
         </Sider>
       </Layout>
     </div>

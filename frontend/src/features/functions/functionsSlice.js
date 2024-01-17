@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
 import { runWithMinDelay } from '../../utils';
+import { setCredits } from '../users/usersSlice';
 
 export const functionsSlice = createSlice({
   name: 'functions',
@@ -64,6 +65,14 @@ export const getFunctionsAsync = ({ workspaceId, minDelay }) => async (dispatch)
   });
 };
 
+export const getFunctionsByPromptSetAsync = ({ promptSetId, workspaceId }) => async (dispatch) => {
+  dispatch(startLoad());
+  dispatch(resetFunctions());
+  const url = `/api/workspaces/${workspaceId}/functions-by-promptset/${promptSetId}`;
+  const res = await http.get(url);
+  dispatch(setFunctions({ functions: res.data }));
+};
+
 export const getFunctionsByTagAsync = ({ tag, workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   dispatch(resetFunctions());
@@ -104,7 +113,9 @@ export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => 
   dispatch(startTest());
   const url = `/api/executions/${name}`;
   const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
-  dispatch(setTestResult({ result: res.data.response }));
+  const { response, responseMetadata } = res.data;
+  dispatch(setTestResult({ result: response }));
+  dispatch(setCredits({ credits: responseMetadata.creditBalance }));
 };
 
 export const selectLoaded = (state) => state.functions.loaded;

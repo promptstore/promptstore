@@ -227,7 +227,6 @@ export function UploadsList({ workspaceId }) {
     {
       title: 'Name',
       dataIndex: 'name',
-      width: '100%',
       render: (_, { id, name }) => (
         <a href='#'
           onClick={() => showContent(id)}
@@ -239,6 +238,7 @@ export function UploadsList({ workspaceId }) {
     {
       title: 'Type',
       dataIndex: 'ext',
+      align: 'center',
       render: (_, { ext }) => (
         <div style={{ textAlign: 'center' }}>
           {getDocIcon(ext)}
@@ -249,6 +249,7 @@ export function UploadsList({ workspaceId }) {
     {
       title: 'Size',
       dataIndex: 'size',
+      align: 'right',
       render: (_, { size }) => (
         <span style={{ whiteSpace: 'nowrap' }}>{hr.fromBytes(size)}</span>
       ),
@@ -265,6 +266,8 @@ export function UploadsList({ workspaceId }) {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space direction="vertical">
           <Space size="middle">

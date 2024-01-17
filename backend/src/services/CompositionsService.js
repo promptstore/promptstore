@@ -31,6 +31,26 @@ export function CompositionsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getCompositionsByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (name === null || typeof name === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM compositions
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      AND name LIKE $2 || '%'
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getCompositionByName(workspaceId, name) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return null;
@@ -111,6 +131,7 @@ export function CompositionsService({ pg, logger }) {
 
   return {
     getCompositions,
+    getCompositionsByName,
     getCompositionByName,
     getComposition,
     upsertComposition,

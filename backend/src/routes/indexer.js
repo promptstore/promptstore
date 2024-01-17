@@ -8,6 +8,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     appsService,
     documentsService,
     indexesService,
+    modelsService,
     uploadsService,
   } = services;
 
@@ -49,7 +50,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       textNodeProperties,
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       endpoint,
@@ -60,6 +60,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
 
     const indexParams = {
       // Loader params
@@ -73,7 +78,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       // Indexer params
       indexId,
       newIndexName,
-      embeddingProvider,
+      embeddingModel,
       vectorStoreProvider,
       graphStoreProvider,
       nodeLabel,
@@ -176,7 +181,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const {
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       dataSourceName,
@@ -190,6 +194,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
 
     const indexParams = {
       // Loader params
@@ -208,7 +217,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       embeddingNodeProperty,
       textNodeProperties,
       similarityMetric,
-      embeddingProvider,
+      embeddingModel,
       vectorStoreProvider,
       graphStoreProvider,
 
@@ -245,7 +254,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       limit,
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       similarityMetric = 'cosine',
@@ -253,6 +261,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
       sourceIndexId,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
 
     try {
       let sourceIndexName;
@@ -274,7 +287,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         // Indexer params
         indexId,
         newIndexName,
-        embeddingProvider,
+        embeddingModel,
         vectorStoreProvider,
         graphStoreProvider,
         similarityMetric,
@@ -309,7 +322,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const {
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       textNodeProperties,
@@ -319,6 +331,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
+
 
     try {
       const objectNames = [];
@@ -344,7 +362,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         embeddingNodeProperty,
         textNodeProperties,
         similarityMetric,
-        embeddingProvider,
+        embeddingModel,
         vectorStoreProvider,
         graphStoreProvider,
         workspaceId,
@@ -378,7 +396,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const {
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       textNodeProperties,
@@ -393,6 +410,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
+
 
     try {
       const objectNames = [];
@@ -423,7 +446,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         embeddingNodeProperty,
         textNodeProperties,
         similarityMetric,
-        embeddingProvider,
+        embeddingModel,
         vectorStoreProvider,
         graphStoreProvider,
 
@@ -455,7 +478,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const {
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       nodeLabel = 'Chunk',
@@ -464,6 +486,13 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
+
+
     try {
       const docs = [];
       for (const uploadId of documents) {
@@ -496,7 +525,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         // Indexer params
         indexId,
         newIndexName,
-        embeddingProvider,
+        embeddingModel,
         vectorStoreProvider,
         graphStoreProvider,
         nodeLabel,
@@ -553,7 +582,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       query,
       indexId,
       newIndexName,
-      embeddingProvider,
       vectorStoreProvider,
       graphStoreProvider,
       textNodeProperties,
@@ -568,6 +596,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
+    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+    const embeddingModel = {
+      provider: model.provider,
+      model: model.key,
+    };
+
 
     const indexParams = {
       // Loader params
@@ -589,7 +623,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       embeddingNodeProperty,
       textNodeProperties,
       similarityMetric,
-      embeddingProvider,
+      embeddingModel,
       vectorStoreProvider,
       graphStoreProvider,
 
@@ -633,6 +667,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       createdBy: rec.createdBy,
       workspaceId: String(rec.workspaceId),
       metadata: {
+        embeddingProvider: rec.embeddingModel.provider,
+        embeddingModel: rec.embeddingModel.model,
         vectorStoreProvider: rec.vectorStoreProvider,
         graphStoreProvider: rec.graphStoreProvider,
         ...metadata,

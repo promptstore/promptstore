@@ -75,7 +75,7 @@ export function ContentService({ pg, logger }) {
     }
     const conditions = [];
     for (const key in params) {
-      conditions.push(`c.val->>'$${key}' = $${i++}`);
+      conditions.push(`c.val->>'${key}' = $${i++}`);
     }
     if (conditions.length) {
       q += username ? 'WHERE ' : 'AND ';

@@ -518,7 +518,6 @@ export default ({ app, auth, constants, logger, services }) => {
    *         description: Error
    */
   app.post('/api/invites', auth, async (req, res) => {
-    logger.debug('req.user:', req.user);
     const { workspaceId, invites } = req.body;
     const members = [];
     for (const email of invites) {

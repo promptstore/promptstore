@@ -6,8 +6,11 @@ import path from 'path';
 
 import logger from '../logger';
 import pg from '../db';
+import { CallLoggingService } from '../services/CallLoggingService';
+import { CreditCalculatorService } from '../services/CreditCalculatorService';
 import { DataSourcesService } from '../services/DataSourcesService';
 import { DestinationsService } from '../services/DestinationsService';
+import { EvaluationsService } from '../services/EvaluationsService';
 import { ExecutionsService } from '../services/ExecutionsService';
 import { ExtractorService } from '../services/ExtractorService';
 import { FeatureStoreService } from '../services/FeatureStoreService';
@@ -25,6 +28,7 @@ import { SqlSourceService } from '../services/SqlSourceService';
 import { ToolService } from '../services/ToolService';
 import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
+import { UsersService } from '../services/UsersService';
 import { VectorStoreService } from '../services/VectorStoreService';
 import { getPlugins } from '../utils';
 
@@ -40,7 +44,6 @@ const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
-const SEARCH_API = process.env.SEARCH_API;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 
@@ -86,8 +89,10 @@ const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
+const callLoggingService = CallLoggingService({ pg, logger });
 const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
+const evaluationsService = EvaluationsService({ pg, logger });
 const extractorService = ExtractorService({ logger, registry: extractorPlugins });
 const featureStoreService = FeatureStoreService({ logger, registry: featureStorePlugins });
 const functionsService = FunctionsService({ pg, logger });
@@ -101,13 +106,17 @@ const promptSetsService = PromptSetsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
+const usersService = UsersService({ pg });
 const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
+const creditCalculatorService = CreditCalculatorService({ logger });
+
 const executionsService = ExecutionsService({
   logger,
   services: {
+    creditCalculatorService,
     dataSourcesService,
     featureStoreService,
     functionsService,
@@ -120,6 +129,7 @@ const executionsService = ExecutionsService({
     promptSetsService,
     sqlSourceService,
     tracesService,
+    usersService,
     vectorStoreService,
   },
 });
@@ -142,123 +152,6 @@ const toolService = ToolService({ logger, registry: toolPlugins });
 
 executionsService.addServices({ guardrailsService, toolService });
 
-// async function runUploadsWorker() {
-//   const connectionOptions = {
-//     address: TEMPORAL_URL,
-//   };
-//   const connection = await NativeConnection.connect(connectionOptions);
-//   // Step 1: Register Workflows and Activities with the Worker and connect to
-//   // the Temporal server.
-//   const worker = await Worker.create({
-//     connection,
-//     workflowsPath: path.join(__dirname, 'workflows.js'),
-//     activities: createActivities({
-//       mc,
-//       dataSourcesService,
-//       destinationsService,
-//       executionsService,
-//       extractorService,
-//       functionsService,
-//       sqlSourceService,
-//       uploadsService,
-//       logger
-//     }),
-//     taskQueue: 'uploads',
-//     namespace: TEMPORAL_NAMESPACE || 'promptstore',
-//   });
-//   // Worker connects to localhost by default and uses console.error for logging.
-//   // Customize the Worker by passing more options to create():
-//   // https://typescript.temporal.io/api/classes/worker.Worker
-//   // If you need to configure server connection parameters, see docs:
-//   // https://docs.temporal.io/typescript/security#encryption-in-transit-with-mtls
-
-//   // Step 2: Start accepting tasks on the `hello-world` queue
-//   await worker.run();
-// }
-
-// runUploadsWorker().catch((err) => {
-//   console.error(err);
-//   process.exit(1);
-// });
-
-// async function runReloadsWorker() {
-//   const connectionOptions = {
-//     address: TEMPORAL_URL,
-//   };
-//   const connection = await NativeConnection.connect(connectionOptions);
-//   // Step 1: Register Workflows and Activities with the Worker and connect to
-//   // the Temporal server.
-//   const worker = await Worker.create({
-//     connection,
-//     workflowsPath: path.join(__dirname, 'workflows.js'),
-//     activities: createActivities({
-//       mc,
-//       dataSourcesService,
-//       destinationsService,
-//       executionsService,
-//       extractorService,
-//       functionsService,
-//       sqlSourceService,
-//       uploadsService,
-//       logger
-//     }),
-//     taskQueue: 'reloads',
-//     namespace: TEMPORAL_NAMESPACE || 'promptstore',
-//   });
-//   // Worker connects to localhost by default and uses console.error for logging.
-//   // Customize the Worker by passing more options to create():
-//   // https://typescript.temporal.io/api/classes/worker.Worker
-//   // If you need to configure server connection parameters, see docs:
-//   // https://docs.temporal.io/typescript/security#encryption-in-transit-with-mtls
-
-//   // Step 2: Start accepting tasks on the `hello-world` queue
-//   await worker.run();
-// }
-
-// runReloadsWorker().catch((err) => {
-//   console.error(err);
-//   process.exit(1);
-// });
-
-// async function runTransformsWorker() {
-//   const connectionOptions = {
-//     address: TEMPORAL_URL,
-//   };
-//   const connection = await NativeConnection.connect(connectionOptions);
-//   // Step 1: Register Workflows and Activities with the Worker and connect to
-//   // the Temporal server.
-//   const worker = await Worker.create({
-//     connection,
-//     workflowsPath: path.join(__dirname, 'workflows.js'),
-//     activities: createActivities({
-//       mc,
-//       dataSourcesService,
-//       destinationsService,
-//       executionsService,
-//       extractorService,
-//       functionsService,
-//       sqlSourceService,
-//       uploadsService,
-//       logger
-//     }),
-//     taskQueue: 'transforms',
-//     namespace: TEMPORAL_NAMESPACE || 'promptstore',
-//   });
-//   // Worker connects to localhost by default and uses console.error for logging.
-//   // Customize the Worker by passing more options to create():
-//   // https://typescript.temporal.io/api/classes/worker.Worker
-//   // If you need to configure server connection parameters, see docs:
-//   // https://docs.temporal.io/typescript/security#encryption-in-transit-with-mtls
-
-//   // Step 2: Start accepting tasks on the `hello-world` queue
-//   await worker.run();
-// }
-
-// runTransformsWorker().catch((err) => {
-//   console.error(err);
-//   process.exit(1);
-// });
-
 async function runWorker() {
   const connectionOptions = {
     address: TEMPORAL_URL,
@@ -272,8 +165,10 @@ async function runWorker() {
     activities: createActivities({
       mc,
       logger,
+      callLoggingService,
       dataSourcesService,
       destinationsService,
+      evaluationsService,
       executionsService,
       extractorService,
       functionsService,
@@ -281,6 +176,7 @@ async function runWorker() {
       indexesService,
       llmService,
       loaderService,
+      modelsService,
       sqlSourceService,
       uploadsService,
       vectorStoreService,

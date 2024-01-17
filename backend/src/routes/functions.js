@@ -20,6 +20,12 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json(functions);
   });
 
+  app.get('/api/workspaces/:workspaceId/functions-by-promptset/:promptSetId', auth, async (req, res, next) => {
+    const { promptSetId, workspaceId } = req.params;
+    const functions = await functionsService.getFunctionsByPromptSet(workspaceId, promptSetId);
+    res.json(functions);
+  });
+
   app.get('/api/functions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const func = await functionsService.getFunction(id);

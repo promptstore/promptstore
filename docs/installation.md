@@ -108,3 +108,29 @@ Prompt Store uses Helm for Kubernetes deployment.
 The Helm Chart doesn't specify ingress as this is usually specific to your Kubernetes setup. If you use
 Istio, which is what I use, then you can use the additional yaml files under k8s/. You will need to
 create ingress-cert if terminating TLS at Kubernetes.
+
+### Installing supporting infrastructure
+
+#### Chroma
+
+See https://github.com/amikos-tech/chromadb-chart
+
+    helm repo add chroma https://amikos-tech.github.io/chromadb-chart/
+    helm repo update
+    helm install chroma chroma/chromadb --set chromadb.allowReset="true" --set chromadb.dataVolumeStorageClass="local-path"
+
+This uses token authentication by default. To get the token and header key:
+
+    kubectl --namespace <chroma-namespace> get secret chromadb-auth -o jsonpath="{.data.token}" | base64 --decode
+    kubectl --namespace <chroma-namespace> get secret chromadb-auth -o jsonpath="{.data.header}" | base64 --decode
+
+For example, if installing into a namespace called "chroma", set the following 
+values in `values.yaml`:
+
+    ## Vector store plugins ########
+    vector_stores:
+
+    # Chroma
+    chroma:
+        host: "http://chroma-chromadb.chroma.svc.cluster.local:8000"
+        token: "<from above>"

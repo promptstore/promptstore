@@ -1,6 +1,6 @@
 import ReactJson from 'react-json-view';
 
-export function JsonView({ collapsed, src, style, theme }) {
+export function JsonView({ collapsed, enableClipboard = false, src, style, theme }) {
   if (src === null || typeof src === 'undefined') {
     return 'undefined';
   }
@@ -25,6 +25,7 @@ export function JsonView({ collapsed, src, style, theme }) {
       name={false}
       collapsed={collapsed}
       displayObjectSize={false}
+      enableClipboard={enableClipboard}
       theme={theme || 'grayscale:inverted'}
       iconStyle="square"
       style={{ backgroundColor: 'none', ...style }}

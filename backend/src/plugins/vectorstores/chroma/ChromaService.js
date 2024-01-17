@@ -9,8 +9,17 @@ function ChromaService({ __name, constants, logger }) {
 
   function getClient() {
     if (!_client) {
+      let auth;
+      if (constants.ENV !== 'dev') {
+        auth = {
+          provider: 'token',
+          credentials: constants.CHROMA_TOKEN,
+          providerOptions: { headerType: 'AUTHORIZATION' },
+        };
+      }
       _client = new ChromaClient({
-        path: constants.CHROMA_SERVER
+        path: constants.CHROMA_SERVER,
+        auth,
       });
     }
     return _client;
@@ -102,7 +111,7 @@ function ChromaService({ __name, constants, logger }) {
       const metadatas = chunks.map(c => flatten(omit(c, ['id', 'text'])));
       const collection = await getCollection(indexName);
       logger.debug('documents length:', documents.length);
-      logger.debug('embeddings length:', embeddings.length);
+      logger.debug('embeddings length:', embeddings?.length);
       return collection.upsert({
         documents,
         embeddings,
@@ -177,13 +186,18 @@ function ChromaService({ __name, constants, logger }) {
     try {
       const collection = await getCollection(indexName);
       if (collection) {
+        logger.debug('attrs:', attrs);
         let where;
-        if (attrs) {
+        if (!isEmpty(attrs)) {
           const filters = Object.entries(attrs).map(([k, v]) => ({
             [k]: { '$eq': v }
           }));
-          const op = '$' + logicalType;
-          where = { [op]: filters };
+          if (filters > 1) {
+            const op = '$' + logicalType;
+            where = { [op]: filters };
+          } else {
+            where = filters[0];
+          }
         }
         let res;
         if (queryEmbedding) {
@@ -199,32 +213,36 @@ function ChromaService({ __name, constants, logger }) {
             where,
           });
         }
-        return res.ids[0]
-          .map((id, i) => {
-            const dist = res.distances[0][i];
-            const metadata = res.metadatas[0][i];
-            const nodeLabel = metadata.nodeLabel;
-            delete metadata.nodeLabel;
-            let doc = {
-              id,
-              text: res.documents[0][i],
-              ...metadata,
-            };
-            doc = Object.entries(doc).reduce((a, [k, v]) => {
-              a[nodeLabel + '__' + k] = v;
+        logger.debug('res:', res);
+        if (res.ids.length) {
+          return res.ids[0]
+            .map((id, i) => {
+              const dist = res.distances[0][i];
+              const metadata = res.metadatas[0][i];
+              const nodeLabel = metadata.nodeLabel;
+              delete metadata.nodeLabel;
+              let doc = {
+                id,
+                text: res.documents[0][i],
+                ...metadata,
+              };
+              doc = Object.entries(doc).reduce((a, [k, v]) => {
+                a[nodeLabel + '__' + k] = v;
+                return a;
+              }, {});
+              return {
+                ...doc,
+                dist,
+              };
+            })
+            .map(d => Object.entries(d).reduce((a, [k, v]) => {
+              const key = k.replace(/__/g, '.');
+              a[key] = v;
               return a;
-            }, {});
-            return {
-              ...doc,
-              dist,
-            };
-          })
-          .map(d => Object.entries(d).reduce((a, [k, v]) => {
-            const key = k.replace(/__/g, '.');
-            a[key] = v;
-            return a;
-          }, {}))
-          .map(unflatten);
+            }, {}))
+            .map(unflatten);
+        }
+        return [];
       }
       logger.debug("collection '%s' not found", indexName);
       return [];

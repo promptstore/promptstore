@@ -1,28 +1,33 @@
 export function SqlSourceService({ logger, registry }) {
 
-  async function createTable(destination, data) {
+  function createTable(destination, data, schema, connectionString) {
     const instance = registry[destination.dialect];
-    return await instance.createTable(destination, data);
+    return instance.createTable(destination, data, schema, connectionString);
   };
 
-  async function getData(source, limit) {
+  function getData(source, limit, columns) {
     const instance = registry[source.dialect];
-    return await instance.getData(source, limit);
+    return instance.getData(source, limit, columns);
   };
 
-  async function getDDL(source) {
+  function getDataColumns(source, limit, columns) {
     const instance = registry[source.dialect];
-    return await instance.getDDL(source);
+    return instance.getDataColumns(source, limit, columns);
   };
 
-  async function getSample(source) {
+  function getDDL(source) {
     const instance = registry[source.dialect];
-    return await instance.getSample(source);
+    return instance.getDDL(source);
   };
 
-  async function getSchema(source) {
+  function getSample(source) {
     const instance = registry[source.dialect];
-    return await instance.getSchema(source);
+    return instance.getSample(source);
+  };
+
+  function getSchema(source) {
+    const instance = registry[source.dialect];
+    return instance.getSchema(source);
   };
 
   function getDialects() {
@@ -35,6 +40,7 @@ export function SqlSourceService({ logger, registry }) {
   return {
     createTable,
     getData,
+    getDataColumns,
     getDDL,
     getDialects,
     getSample,

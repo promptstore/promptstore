@@ -166,9 +166,14 @@ export default function Profile() {
                   {currentUser.displayName || currentUser.email}
                 </Typography.Paragraph>
                 {currentUser.displayName ?
-                  <Typography.Paragraph>
-                    {currentUser.email}
-                  </Typography.Paragraph>
+                  <>
+                    <Typography.Paragraph>
+                      {currentUser.email}
+                    </Typography.Paragraph>
+                    <div>
+                      Credits: {currentUser.credits}
+                    </div>
+                  </>
                   : null
                 }
               </div>

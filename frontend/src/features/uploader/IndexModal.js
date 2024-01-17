@@ -18,13 +18,13 @@ import {
   selectLoading as selectIndexesLoading,
   setIndexes,
 } from '../indexes/indexesSlice';
-
 import {
-  getEmbeddingProviders,
-  selectEmbeddingProviders,
-  selectLoaded as selectEmbeddingProvidersLoaded,
-  selectLoading as selectEmbeddingProvidersLoading,
-} from './embeddingSlice';
+  getModelsAsync,
+  selectModels,
+  selectLoaded as selectModelsLoaded,
+  selectLoading as selectModelsLoading,
+} from '../models/modelsSlice';
+
 import {
   getGraphStores,
   selectGraphStores,
@@ -72,9 +72,6 @@ export function IndexModal({
 
   const [newIndex, setNewIndex] = useState('');
 
-  const embeddingProvidersLoaded = useSelector(selectEmbeddingProvidersLoaded);
-  const embeddingProvidersLoading = useSelector(selectEmbeddingProvidersLoading);
-  const embeddingProviders = useSelector(selectEmbeddingProviders);
   const functions = useSelector(selectFunctions);
   const functionsLoaded = useSelector(selectFunctionsLoaded);
   const functionsLoading = useSelector(selectFunctionsLoading);
@@ -84,20 +81,25 @@ export function IndexModal({
   const indexes = useSelector(selectIndexes);
   const indexesLoaded = useSelector(selectIndexesLoaded);
   const indexesLoading = useSelector(selectIndexesLoading);
+  const models = useSelector(selectModels);
+  const modelsLoaded = useSelector(selectModelsLoaded);
+  const modelsLoading = useSelector(selectModelsLoading);
   const vectorStoresLoaded = useSelector(selectVectorStoresLoaded);
   const vectorStoresLoading = useSelector(selectVectorStoresLoading);
   const vectorStores = useSelector(selectVectorStores);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
-  const embeddingOptions = useMemo(() => {
-    const list = embeddingProviders.map(p => ({
-      label: p.name,
-      value: p.key,
-    }));
+  const embeddingModelOptions = useMemo(() => {
+    const list = Object.values(models)
+      .filter(m => m.type === 'embedding')
+      .map(m => ({
+        label: m.name,
+        value: m.key,
+      }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
-  }, [embeddingProviders]);
+  }, [models]);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions)
@@ -162,8 +164,8 @@ export function IndexModal({
 
   useEffect(() => {
     if (indexValue === 'new') {
-      if (!embeddingProvidersLoaded) {
-        dispatch(getEmbeddingProviders());
+      if (!modelsLoaded) {
+        dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id, type: 'embedding' }));
       }
       if (!vectorStoresLoaded) {
         dispatch(getVectorStores());
@@ -270,19 +272,19 @@ export function IndexModal({
             {vectorStoreProviderValue && vectorStoreProviderValue !== 'redis' ?
               <Form.Item
                 label="Embedding"
-                name="embeddingProvider"
+                name="embeddingModel"
                 rules={[
                   {
                     required: true,
-                    message: 'Please select the embedding provider',
+                    message: 'Please select the embedding model',
                   },
                 ]}
                 wrapperCol={{ span: 10 }}
               >
                 <Select
                   allowClear
-                  loading={embeddingProvidersLoading}
-                  options={embeddingOptions}
+                  loading={modelsLoading}
+                  options={embeddingModelOptions}
                   optionFilterProp="label"
                 />
               </Form.Item>

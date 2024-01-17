@@ -1,10 +1,11 @@
 import searchFunctions from '../searchFunctions';
+import { isTruthy } from '../utils';
 
 export default ({ app, auth, constants, logger, services }) => {
 
   const OBJECT_TYPE = 'destinations';
 
-  const { destinationsService } = services;
+  const { destinationsService, sqlSourceService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -234,8 +235,13 @@ export default ({ app, auth, constants, logger, services }) => {
    */
   app.get('/api/destinations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
-    const index = await destinationsService.getDestination(id);
-    res.json(index);
+    const { preview } = req.query;
+    const destination = await destinationsService.getDestination(id);
+    let content;
+    if (isTruthy(preview) || preview === '') {
+      content = await sqlSourceService.getData(destination, 10);
+    }
+    res.json({ ...destination, content });
   });
 
   /**

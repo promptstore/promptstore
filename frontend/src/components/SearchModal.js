@@ -192,10 +192,8 @@ export function SearchModal({
         </div>
         <div className={'panel' + (isHitOpen[hit.id] ? '' : ' closed')}>
           <Divider />
-          <div style={{ fontFamily: 'monospace', marginBottom: 10, whitespace: 'pre-wrap' }}>{hit.text}</div>
-          <JsonView collapsed src={hit}
-            theme={theme === 'dark' ? 'grayscale' : 'grayscale:inverted'}
-          />
+          <div style={{ fontFamily: 'monospace', marginBottom: 10, whiteSpace: 'pre-wrap' }}>{hit.text}</div>
+          <JsonView collapsed src={hit} theme={theme === 'dark' ? 'grayscale' : 'grayscale:inverted'} />
         </div>
       </article>
     );
@@ -212,7 +210,7 @@ export function SearchModal({
       onCancel={onCancel}
       onOk={onCancel}
       open={open}
-      title="Find"
+      title="Search"
       width={width}
       okButtonProps={{ style: { display: 'none' } }}
     >

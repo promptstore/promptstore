@@ -77,12 +77,13 @@ export function AppsList() {
     {
       title: 'Name',
       dataIndex: 'name',
-      width: '100%',
       render: (_, { key, name }) => <Link to={`/apps/${key}`}>{name}</Link>
     },
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <div className="row-actions">
           <Space>

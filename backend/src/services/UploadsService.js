@@ -67,6 +67,22 @@ export function UploadsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
+  async function getUploadByFilename(filename) {
+    if (filename === null || typeof filename === 'undefined') {
+      return null;
+    }
+    let q = `
+      SELECT id, workspace_id, user_id, filename, created, created_by, modified, modified_by, val
+      FROM file_uploads
+      WHERE filename = $1
+      `;
+    const { rows } = await pg.query(q, [filename]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
   async function upsertUpload(upload, username) {
     if (upload === null || typeof upload === 'undefined') {
       return null;
@@ -127,6 +143,7 @@ export function UploadsService({ pg, logger }) {
     getAppUploads,
     getUploads,
     getUpload,
+    getUploadByFilename,
     upsertUpload,
     deleteUploads,
     deleteWorkspaceFiles,

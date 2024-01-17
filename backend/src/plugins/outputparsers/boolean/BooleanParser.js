@@ -1,11 +1,24 @@
 function BooleanParser({ __name, __metadata, constants, logger, app, auth }) {
 
   async function parse(text) {
-    // logger.debug('Parsing:', text);
-    let { fixedStr, fixed } = fixBools(text);
-
-    // logger.debug('Formatted:', fixedStr);
-    return fixedStr === 'true';
+    logger.debug('parsing:', text);
+    if (!text) {
+      return {
+        error: 'Nothing to parse',
+        json: text,
+      };
+    }
+    try {
+      let { fixedStr, fixed } = fixBools(text);
+      // logger.debug('json string:', jsonStr);
+      return { json: fixedStr === 'true', fixed };
+    } catch (err) {
+      logger.error('Error parsing text:', err);
+      return {
+        error: String(err),
+        json: text,
+      };
+    }
   }
 
   // The model will relatively commonly return booleans as capitalized values because of the

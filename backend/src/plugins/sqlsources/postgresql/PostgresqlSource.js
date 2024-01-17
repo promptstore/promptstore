@@ -1,9 +1,10 @@
-import pg from 'pg';
 import Handlebars from 'handlebars';
 import fs from 'fs';
-import { inferSchema } from '@jsonhero/schema-infer';
 import path from 'path';
+import pg from 'pg';
+import format from 'pg-format';
 import { fileURLToPath } from 'url';
+import { JSONSchemaToDatabase } from 'jsonschema2ddl';
 
 const types = [
   'belongsTo',
@@ -22,6 +23,7 @@ function PostgresqlSource({ __name, constants, logger }) {
   const connections = {};
 
   async function getConnection(connectionString) {
+    logger.debug('connectionString:', connectionString);
     if (!connections[connectionString]) {
       connections[connectionString] = new pg.Client({ connectionString });
       await connections[connectionString].connect();
@@ -29,21 +31,51 @@ function PostgresqlSource({ __name, constants, logger }) {
     return connections[connectionString];
   }
 
-  async function getData(source, limit) {
-    const client = await getConnection();
-    const { dataset } = source;
-    const tables = source.tables.split(/\s*,\s*/);
-    const table = tables[0];
-    const template = 'SELECT * FROM `${dataset}`.`${table}` LIMIT @limit';
+  async function getData(source, limit, columns) {
+    logger.debug('columns:', columns);
+    const client = await getConnection(source.connectionString);
+    let table;
+    let dataset;
+    if (source.tableName) {
+      dataset = 'public';
+      table = source.tableName;
+    } else {
+      dataset = source.dataset;
+      const tables = source.tables.split(/\s*,\s*/);
+      table = tables[0];
+    }
+    let selection = '*';
+    if (columns) {
+      selection = columns.join(', ');
+    }
+    const template = `SELECT ${selection} FROM "${dataset}"."${table}" LIMIT $1`;
     const query = fillTemplate(template, { dataset, table });
     logger.debug('query:', query);
-    const [rows] = await client.query(
+    const { rows } = await client.query(
       query,
       [limit],
     );
     return rows;
   }
 
+  async function getDataColumns(source, limit, columns) {
+    const rows = await getData(source, limit, columns);
+    const data = {};
+    if (rows.length) {
+      const columns = Object.keys(rows[0]);
+      for (const col of columns) {
+        data[col] = [];
+      }
+      for (const row of rows) {
+        for (const col of columns) {
+          data[col].push(row[col]);
+        }
+      }
+    }
+    return data;
+  }
+
+  /*
   function getDDLOpts(val) {
     switch (val.type) {
       case 'int':
@@ -81,47 +113,62 @@ function PostgresqlSource({ __name, constants, logger }) {
       };
       loop();
     });
-  }
+  }*/
 
-  async function createTable(destination, data) {
+  async function createTable(destination, data, schema, connectionString) {
     if (!data.length) {
       return;
     }
-    const client = await getConnection();
+    // logger.debug('schema:', schema);
+    const client = await getConnection(connectionString);
     const { dataset, tableName } = destination;
-    const { inferredSchema } = inferSchema(data[0]);
-    logger.debug('inferredSchema:', inferredSchema);
-    const schema = Object.entries(inferredSchema.properties.required).map(([k, v]) => {
-      const opts = getDDLOpts(v);
-      return {
-        name: k,
-        ...opts,
-      };
-    });
-    logger.debug('schema:', schema);
-    try {
-      // delete table if exists
-      client.query(`DROP TABLE \`${dataset}\`.\`${tableName}\``);
-    } catch (err) {
-      console.error(err);
-      // ignore
-    }
-    const [table] = await client
-      .dataset(dataset)
-      .createTable(tableName, { schema });
 
-    await insertData(table, data, 60000);
+    const translator = new JSONSchemaToDatabase(schema, {
+      database_flavor: 'postgres',
+      db_schema_name: 'public',
+      root_table_name: tableName,
+    });
+    await translator.create_tables(client, { auto_commit: true, drop_tables: true });
+
+    // insert data
+    const keys = Object.keys(data[0]);
+    const rows = data.map(Object.values);
+    const q = `INSERT INTO public."${tableName}" (${keys.join(', ')}) VALUES %L`;
+    await client.query(format(q, rows));
+
+    // const schema = Object.entries(inferredSchema.properties.required).map(([k, v]) => {
+    //   const opts = getDDLOpts(v);
+    //   return {
+    //     name: k,
+    //     ...opts,
+    //   };
+    // });
+    // logger.debug('schema:', schema);
+
+    // // TODO - copied from `BigQuerySource`
+    // try {
+    //   // delete table if exists
+    //   client.query(`DROP TABLE "${dataset}"."${tableName}"`);
+    // } catch (err) {
+    //   console.error(err);
+    //   // ignore
+    // }
+    // const [table] = await client
+    //   .dataset(dataset)
+    //   .createTable(tableName, { schema });
+
+    // await insertData(table, data, 60000);
 
     logger.debug(`inserted ${data.length} rows`);
   }
 
-  async function getDDL(source) {
-    logger.debug('get schema for', source);
+  async function getMetadata(source) {
+    logger.debug('get metadata for', source);
+    const meta = {};
     try {
       const client = await getConnection(source.connectionString);
       // logger.debug('got client');
       const { rows } = await query(client, 'tables');
-      const meta = {};
       for (const { name } of rows) {
         const proms = [];
         for (const type of types) {
@@ -134,13 +181,10 @@ function PostgresqlSource({ __name, constants, logger }) {
         }, {});
       }
       logger.debug('meta:', meta);
-      const context = Object.entries(meta).map(([name, meta]) => schemaToDDL(name, meta)).join('\n\n');
-      logger.debug('context:', context);
-      return context;
     } catch (err) {
       logger.error(err);
-      return '';
     }
+    return meta;
   }
 
   function schemaToDDL(name, { schema }) {
@@ -155,6 +199,75 @@ function PostgresqlSource({ __name, constants, logger }) {
       logger.error(err);
       return '';
     }
+  }
+
+  async function getDDL(source) {
+    logger.debug('get schema for', source);
+    try {
+      const meta = await getMetadata(source);
+      const context = Object.entries(meta)
+        .map(([name, meta]) => schemaToDDL(name, meta))
+        .join('\n\n');
+      logger.debug('context:', context);
+      return context;
+    } catch (err) {
+      logger.error(err);
+      return '';
+    }
+  }
+
+  function getType(dataType) {
+    switch (dataType.toLowerCase()) {
+      case 'integer':
+      case 'serial':
+        return { type: 'integer' };
+
+      case 'text':
+        return { type: 'string' };
+
+      case 'boolean':
+      case 'bool':
+        return { type: 'boolean' };
+
+      case 'date':
+        return { type: 'string', format: 'date' };
+
+      case 'json':
+        return { type: {} };
+
+      default:
+        if (/^(var)?char.*/.test(dataType)) {
+          return { type: 'string' };
+        }
+        if (/^num.*/.test(dataType)) {
+          return { type: 'number' };
+        }
+        if (/^dec.*/.test(dataType)) {
+          return { type: 'number' };
+        }
+        return { type: 'string' };
+    }
+  }
+
+  async function getSchema(source) {
+    const meta = await getMetadata(source);
+    const schemas = {};
+    for (const [table, { schema }] of Object.entries(meta)) {
+      const properties = {};
+      for (const col of schema) {
+        properties[col.name] = {
+          ...getType(col.type),
+        };
+      }
+      schemas[table] = {
+        "$id": "https://promptstore.dev/table.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        properties,
+        required: schema.filter(col => !col.nullable).map(col => col.name),
+      };
+    }
+    return schemas;
   }
 
   async function getSample(source) {
@@ -192,9 +305,12 @@ function PostgresqlSource({ __name, constants, logger }) {
 
   return {
     __name,
+    createTable,
     getData,
+    getDataColumns,
     getSample,
     getDDL,
+    getSchema,
   };
 
 }

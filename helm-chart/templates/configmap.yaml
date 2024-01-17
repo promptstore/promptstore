@@ -69,7 +69,7 @@ data:
   TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira"
 
   # Vector store plugins
-  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j"
+  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j,chroma|Chroma Vector Store|./plugins/vectorstores/chroma"
 
   ########
 
@@ -177,6 +177,9 @@ data:
   ########
 
   ## Vector store plugins ########
+
+  # Chroma
+  CHROMA_SERVER: "{{ .Values.vector_stores.chroma.host }}"
 
   # Neo4j
   NEO4J_VECTOR_STORE_HOST: "{{ .Values.vector_stores.neo4j.host }}"

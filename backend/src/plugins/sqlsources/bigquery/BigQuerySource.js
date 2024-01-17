@@ -61,7 +61,7 @@ function BigQuerySource({ __name, constants, logger }) {
     }
   }
 
-  async function createTable(destination, data) {
+  async function createTable(destination, data, features, connectionString) {
     if (!data.length) {
       return;
     }

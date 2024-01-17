@@ -211,11 +211,11 @@ export function SearchService({ constants, logger, services }) {
       return [];
     }
     try {
-      if (vectorStoreProvider === 'neo4j') {
-        const { embeddingProvider } = params;
-        const queryEmbedding = await llmService.createEmbedding(embeddingProvider, q);
-        return vectorStoreService.search('neo4j', indexName, query, attrs, {
-          queryEmbedding,
+      if (vectorStoreProvider !== 'redis') {
+        const { embeddingProvider, embeddingModel } = params;
+        const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
+        return vectorStoreService.search('neo4j', indexName, query, attrs, 'and', {
+          queryEmbedding: response.data[0].embedding,
         });
       }
       const ps = Object.entries(attrs).map(([k, v]) => `${k}=${v}`).join('&');

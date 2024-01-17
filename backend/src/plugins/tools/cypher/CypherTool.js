@@ -1,6 +1,6 @@
 import neo4j from 'neo4j-driver';
 
-import { getInputString } from '../../../core/utils';
+import { getInput } from '../../../utils';
 import { createCypherQueryCorrector } from './CypherQueryCorrector';
 
 const nodesQuery = `
@@ -100,7 +100,7 @@ function CypherTool({ __key, __name, constants, logger, services }) {
       const relationships = await getRelationships();
       const schemas = relationships.map(rel => [rel.start, rel.type, rel.end]);
       const relTypes = schemas.map(rel => rel.join(' '));
-      const content = getInputString(args);
+      const content = getInput(args);
       let res;
       res = await executionsService.executeFunction({
         semanticFunctionName: 'extract_entities',

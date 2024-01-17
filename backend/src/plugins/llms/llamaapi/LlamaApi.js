@@ -40,12 +40,17 @@ function LlamaApi({ __name, constants, logger }) {
     throw new Error('Not implemented');
   }
 
+  function getNumberTokens(model, text) {
+    throw new Error('Not implemented');
+  }
+
   return {
     __name,
     createChatCompletion,
     createCompletion,
     createImage,
     generateImageVariant,
+    getNumberTokens,
   };
 
 }

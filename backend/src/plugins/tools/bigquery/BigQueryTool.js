@@ -1,7 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import isObject from 'lodash.isobject';
 
-import { getInputString } from '../../../core/utils';
+import { getInput } from '../../../utils';
 
 function BigQueryTool({ __key, __name, constants, logger, services }) {
 
@@ -23,13 +23,18 @@ function BigQueryTool({ __key, __name, constants, logger, services }) {
     try {
       const client = await getConnection();
       logger.debug('got client');
-      const content = getInputString(args);
-      let { response } = await executionsService.executeFunction({
+      const content = getInput(args);
+      let { response, errors } = await executionsService.executeFunction({
         semanticFunctionName: 'generate_sql',
         args: { content, dialect: 'BigQuery' },
         params: { maxTokens: 512 },
-        workspaceId: 2,
+        workspaceId: args.workspaceId,
+        username: args.username,
       });
+      if (errors) {
+        logger.error(errors);
+        return "I don't know how to answer that";
+      }
       const { ambiguities, query } = JSON.parse(response.choices[0].message.content);
       logger.debug('query:', query);
       let [rows] = await client.query({ query });

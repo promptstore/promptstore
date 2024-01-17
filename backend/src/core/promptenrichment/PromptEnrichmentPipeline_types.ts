@@ -1,20 +1,32 @@
 import { Callback } from '../callbacks/Callback';
 import { GraphStoreService } from '../indexers/GraphStore';
 import { PromptTemplate } from './PromptTemplate';
-import { Message, ModelParams } from '../conversions/RosettaStone';
-import { LLMService } from '../models/llm_types';
+import { Message, ModelParams, ResponseMetadata } from '../conversions/RosettaStone';
+import { LLMModel, LLMService } from '../models/llm_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 export interface PromptEnrichmentCallParams {
   args: any;
+  isBatch: boolean;
+  messages?: Message[];
   contextWindow?: number;
   maxTokens?: number;
   modelKey?: string;
   callbacks?: Callback[];
 }
 
+export interface EnrichmentPipelineResponse {
+  messages: Message[];
+  responseMetadata?: Partial<ResponseMetadata>;
+}
+
+export interface EnrichmentStepResponse {
+  args: any;
+  responseMetadata?: Partial<ResponseMetadata>;
+}
+
 export interface PromptEnrichmentStep {
-  call: (args: any) => Promise<object>;
+  call: (args: any) => Promise<EnrichmentStepResponse>;
   callbacks?: Callback[];
 }
 
@@ -25,6 +37,7 @@ export interface PromptEnrichmentOnEndParams {
 
 export interface PromptEnrichmentOnStartResponse {
   args: any;
+  isBatch: boolean;
 }
 
 export interface PromptEnrichmentOnEndResponse {
@@ -68,6 +81,7 @@ export interface OnFeatureStoreEnrichmentEndParams {
 export interface FeatureStoreEnrichmentOnStartResponse {
   featureStore: FeatureStore;
   args: any;
+  isBatch: boolean;
 }
 
 export interface FeatureStoreEnrichmentOnEndResponse {
@@ -94,7 +108,7 @@ export interface IndexParams {
   indexContentPropertyPath: string;
   indexContextPropertyPath: string;
   allResults: boolean;
-  embeddingProvider?: string,
+  embeddingModel?: Partial<LLMModel>,
   vectorStoreProvider?: string,
 }
 
@@ -111,6 +125,7 @@ export interface OnSemanticSearchEnrichmentEndParams {
 export interface SemanticSearchEnrichmentOnStartResponse {
   index: Index;
   args: any;
+  isBatch: boolean;
 }
 
 export interface SemanticSearchEnrichmentOnEndResponse {
@@ -145,6 +160,7 @@ export interface FunctionEnrichmentOnStartResponse {
   contentPropertyPath: string;
   contextPropertyPath: string;
   args: any;
+  isBatch: boolean;
 }
 
 export interface FunctionEnrichmentOnEndResponse {
@@ -179,6 +195,7 @@ export interface OnSqlEnrichmentEndParams {
 
 export interface SqlEnrichmentOnStartResponse {
   args: any;
+  isBatch: boolean;
 }
 
 export interface SqlEnrichmentOnEndResponse {
@@ -205,6 +222,7 @@ export interface OnGraphEnrichmentEndParams {
 
 export interface GraphEnrichmentOnStartResponse {
   args: any;
+  isBatch: boolean;
 }
 
 export interface GraphEnrichmentOnEndResponse {

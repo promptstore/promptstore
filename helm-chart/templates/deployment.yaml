@@ -295,6 +295,11 @@ spec:
                 configMapKeyRef:
                   key: SERPAPI_URL
                   name: "{{ .Values.appname }}"
+            - name: CHROMA_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  key: CHROMA_SERVER
+                  name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
                 configMapKeyRef:
@@ -465,6 +470,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: SERPAPI_KEY
+                  name: "{{ .Values.appname }}"
+            - name: CHROMA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: CHROMA_TOKEN
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:
@@ -767,6 +777,11 @@ spec:
                 configMapKeyRef:
                   key: SERPAPI_URL
                   name: "{{ .Values.appname }}"
+            - name: CHROMA_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  key: CHROMA_SERVER
+                  name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
                 configMapKeyRef:
@@ -937,6 +952,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: SERPAPI_KEY
+                  name: "{{ .Values.appname }}"
+            - name: CHROMA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: CHROMA_TOKEN
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:

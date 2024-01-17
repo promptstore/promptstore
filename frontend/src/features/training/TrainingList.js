@@ -1,13 +1,15 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
-import { Button, Table, message } from 'antd';
+import { Button, Form, Space, Table, Typography, message } from 'antd';
 import { CSVLink } from 'react-csv';
 import * as dayjs from 'dayjs';
 import useLocalStorageState from 'use-local-storage-state';
 
+import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { decodeEntities } from '../../utils';
 import {
   deleteTrainingDataAsync,
   getTrainingDataAsync,
@@ -16,6 +18,56 @@ import {
 } from './trainingSlice';
 
 import './TrainingList.css';
+
+const EditableContext = React.createContext(null);
+
+const EditableRow = ({ index, ...props }) => {
+
+  const [form] = Form.useForm();
+
+  return (
+    <Form form={form} component={false}>
+      <EditableContext.Provider value={form}>
+        <tr {...props} />
+      </EditableContext.Provider>
+    </Form>
+  );
+};
+
+const EditableCell = ({
+  title,
+  editable,
+  children,
+  dataIndex,
+  record,
+  handleSave,
+  ...restProps
+}) => {
+
+  const form = useContext(EditableContext);
+
+  const save = async () => {
+    try {
+      const values = await form.validateFields();
+      handleSave({
+        ...record,
+        ...values,
+      });
+    } catch (err) {
+      console.error('Save failed:', err);
+    }
+  };
+
+  return (
+    <td {...restProps}>
+      <Form.Item>
+        <Space direction="vertical">
+
+        </Space>
+      </Form.Item>
+    </td>
+  )
+};
 
 export function TrainingList() {
 
@@ -26,14 +78,28 @@ export function TrainingList() {
   const trainingData = useSelector(selectTrainingData);
 
   const data = useMemo(() => {
-    const list = Object.values(trainingData).map((row) => ({
-      key: row.id,
-      prompt: row.prompt,
-      response: row.response,
-    }));
+    const list = Object.values(trainingData).map((row) => {
+      const outputType = row.outputType;
+      let response;
+      if (outputType === 'function_call') {
+        response = row.modelOutput.function_call;
+      } else {
+        response = row.modelOutputText;
+      }
+      return {
+        key: row.id,
+        prompt: row.modelInput,
+        outputType,
+        response,
+        model: row.model,
+        functionName: row.functionName,
+      };
+    });
     list.sort((a, b) => a.key > b.key ? 1 : -1);
     return list;
   }, [trainingData]);
+
+  // console.log('data:', data);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -48,7 +114,7 @@ export function TrainingList() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Training Set',
+      title: 'Datasets',
     }));
   }, []);
 
@@ -81,21 +147,80 @@ export function TrainingList() {
       title: 'ID',
       dataIndex: 'id',
       width: '70px',
-      render: (_, { key }) => <span>{key}</span>
+      render: (_, { key }) => key,
+    },
+    {
+      title: 'Model',
+      dataIndex: 'model',
+      render: (_, { model }) => (
+        <div style={{ whiteSpace: 'nowrap' }}>
+          {model}
+        </div>
+      ),
+    },
+    {
+      title: 'Function',
+      dataIndex: 'functionName',
+      render: (_, { functionName }) => (
+        <div style={{ whiteSpace: 'nowrap' }}>
+          {functionName}
+        </div>
+      ),
     },
     {
       title: 'Prompt',
       dataIndex: 'prompt',
-      width: '50%',
-      className: "top",
-      render: (_, { prompt }) => <span>{prompt}</span>
+      className: 'top',
+      render: (_, { prompt }) => (
+        <Typography.Paragraph
+          ellipsis={{
+            expandable: true,
+            rows: 2,
+          }}
+          style={{ whiteSpace: 'pre-wrap' }}
+        >
+          {decodeEntities(prompt.messages[0].content.trim())}
+        </Typography.Paragraph>
+      ),
     },
     {
       title: 'Response',
       dataIndex: 'response',
-      width: '50%',
-      className: "top",
-      render: (_, { response }) => <span>{response}</span>
+      className: 'top',
+      render: (_, { outputType, response }) => {
+        if (outputType === 'function_call') {
+          return <JsonView src={response} />;
+        } else {
+          return (
+            <Typography.Paragraph
+              ellipsis={{
+                expandable: true,
+                rows: 2,
+              }}
+              style={{ whiteSpace: 'pre-wrap' }}
+            >
+              {response.trim()}
+            </Typography.Paragraph>
+          );
+        }
+      },
+    },
+    {
+      title: 'Evals',
+      dataIndex: 'evals',
+      width: 225,
+      render: (record) => <div>&nbsp;</div>
+      // render: (_, { outputType, response }) => {
+      //   if (outputType === 'function_call') {
+      //     return <JsonView src={response} />;
+      //   } else {
+      //     return (
+      //       <div style={{ whiteSpace: 'pre-wrap' }}>
+      //         {response}
+      //       </div>
+      //     );
+      //   }
+      // },
     },
   ];
 

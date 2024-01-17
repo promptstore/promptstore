@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 import { http } from '../../http';
+import { setCredits } from '../users/usersSlice';
 
 export const compositionsSlice = createSlice({
   name: 'compositions',
@@ -85,7 +86,9 @@ export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => 
   dispatch(startTest());
   const url = `/api/composition-executions/${name}`;
   const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
-  dispatch(setTestResult({ result: res.data }));
+  const { response, creditBalance } = res.data;
+  dispatch(setTestResult({ result: response }));
+  dispatch(setCredits({ credits: creditBalance }));
 };
 
 export const selectLoaded = (state) => state.compositions.loaded;

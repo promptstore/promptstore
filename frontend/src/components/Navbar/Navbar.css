@@ -18,12 +18,6 @@
   margin: 0 8px;
 }
 
-/* .navbar-menu li.active,
-.navbar-menu li:hover {
-  border-bottom: 2px solid #177ddc;
-  color: #177ddc;
-} */
-
 .navbar-menu li a {
   color: #177ddc;
 }
@@ -44,8 +38,6 @@
 
 .selected-entity>div {
   color: #177ddc;
-  /* box-shadow: inset -10px -10px 15px rgba(0, 0, 0, 0.55),
-    inset 10px 10px 15px rgba(96, 96, 96, 0.12); */
   padding: 0;
 }
 

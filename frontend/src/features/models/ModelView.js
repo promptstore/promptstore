@@ -9,7 +9,7 @@ import snakeCase from 'lodash.snakecase';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
-import { getBaseURL } from '../../utils';
+import { formatNumber, getBaseURL } from '../../utils';
 
 import {
   getModelAsync,
@@ -36,6 +36,8 @@ export function ModelView() {
   const id = location.pathname.match(/\/models\/(.*)/)[1];
   const model = models[id];
 
+  // console.log('model:', model);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -44,8 +46,6 @@ export function ModelView() {
     }));
     dispatch(getModelAsync(id));
   }, []);
-
-  console.log('model:', model);
 
   const columns = [
     {
@@ -117,7 +117,9 @@ export function ModelView() {
                 <Link to={`/models`}>List</Link>
                 <Link to={`/models/${id}/edit`}>Edit</Link>
                 <Download filename={snakeCase(model.name) + '.json'} payload={model}>
-                  <Button type="text" icon={<DownloadOutlined />} />
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
                 </Download>
               </div>
             }
@@ -142,14 +144,36 @@ export function ModelView() {
                   }
                 </Descriptions>
               </Descriptions.Item>
+              <Descriptions.Item label="description">
+                <Typography.Text className="prompttext">
+                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                    {model.description}
+                  </ReactMarkdown>
+                </Typography.Text>
+              </Descriptions.Item>
               {model.type === 'gpt' || model.type === 'completion' ?
-                <Descriptions.Item>
-                  <Descriptions column={6}>
-                    <Descriptions.Item label="context window" span={3}>
-                      {String(model.contextWindow)} tokens
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Descriptions.Item>
+                <>
+                  <Descriptions.Item>
+                    <Descriptions column={3}>
+                      <Descriptions.Item label="context window">
+                        {formatNumber(model.contextWindow)} tokens
+                      </Descriptions.Item>
+                      <Descriptions.Item label="credits per call">
+                        ~{formatNumber(model.creditsPerCall)}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Descriptions.Item>
+                  <Descriptions.Item>
+                    <Descriptions column={3}>
+                      <Descriptions.Item label="tokens per min.">
+                        {formatNumber(model.tokensPerMinute)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="requests per min.">
+                        {formatNumber(model.requestsPerMinute)}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Descriptions.Item>
+                </>
                 : null
               }
               {model.isPublic || model.disabled || model.tags?.length ?
@@ -180,13 +204,6 @@ export function ModelView() {
                 </Descriptions.Item>
                 : null
               }
-              <Descriptions.Item label="description">
-                <Typography.Text className="prompttext">
-                  <ReactMarkdown rehypePlugins={[rehypeRaw]}>
-                    {model.description}
-                  </ReactMarkdown>
-                </Typography.Text>
-              </Descriptions.Item>
               {model.url ?
                 <Descriptions.Item label="url">
                   <Link to={getBaseURL(model.url)} target="_blank" rel="noopener noreferrer">{model.url}</Link>
@@ -205,6 +222,7 @@ export function ModelView() {
         <Sider
           theme="light"
           width={350}
+          style={{ borderRadius: 8, border: '1px solid #f0f0f0' }}
         >
           <div style={{ margin: '24px 8px 16px' }}>
             {loaded && Object.keys(model.arguments?.properties || {}).length ?

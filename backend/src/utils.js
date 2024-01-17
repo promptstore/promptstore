@@ -2,9 +2,11 @@ import Handlebars from 'handlebars';
 import StackTrace from 'stacktrace-js/stacktrace.js';
 import axios from 'axios';
 import fs from 'fs';
+import get from 'lodash.get';
 import isObject from 'lodash.isobject';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getEncoding } from 'js-tiktoken';
 
 import logger from './logger';
 
@@ -48,6 +50,17 @@ Handlebars.registerHelper('ifmultiple', (conditional, options) => {
     return options.fn(this);
   }
   return options.inverse(this);
+});
+
+Handlebars.registerHelper('jsonTextList', (arr) => {
+  if (Array.isArray(arr)) {
+    return formatTextAsJson(arr);
+  }
+  return arr;
+});
+
+Handlebars.registerHelper('json', (json) => {
+  return JSON.stringify(json, null, 2);
 });
 
 export const delay = (t) => {
@@ -315,7 +328,26 @@ export const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export const formatAlgolia = (requests, rawResult, nodeLabel) => {
+const getFacets = (attributesForFacets, hits) => {
+  const facets = attributesForFacets.reduce((a, t) => {
+    a[t] = {};
+    return a;
+  }, {});
+  for (const hit of hits) {
+    for (const attr of attributesForFacets) {
+      const val = get(hit, attr);
+      if (val) {
+        if (!facets[attr][val]) {
+          facets[attr][val] = 0;
+        }
+        facets[attr][val] += 1;
+      }
+    }
+  }
+  return facets;
+};
+
+export const formatAlgolia = (requests, rawResult, nodeLabel, attributesForFacets = []) => {
   const documents = rawResult;
   const nbHits = documents.length;
   let hits = documents.map((val) => Object.entries(val).reduce((a, [k, v]) => {
@@ -336,6 +368,7 @@ export const formatAlgolia = (requests, rawResult, nodeLabel) => {
       };
     }
   });
+  const facets = getFacets(attributesForFacets, hits);
   return {
     exhaustive: {
       nbHits: true,
@@ -345,6 +378,7 @@ export const formatAlgolia = (requests, rawResult, nodeLabel) => {
     exhaustiveType: true,
     hits,
     hitsPerPage: nbHits,
+    facets,
     nbHits,
     nbPages: 1,
     page: 0,
@@ -368,3 +402,202 @@ export const formatAlgolia = (requests, rawResult, nodeLabel) => {
     serverTimeMS: 3,
   };
 };
+
+export const formatAttrs = (nodeLabel, facetFilters = []) => {
+  console.log('facet filters:', facetFilters);
+  return facetFilters.reduce((a, f) => {
+    const [facet, value] = f.split(':');
+    a[facet] = value;
+    return a;
+  }, {});
+};
+
+// export const formatAttrs = (nodeLabel, facetFilters = []) => {
+//   console.log('facet filters:', facetFilters);
+//   return facetFilters.reduce((a, f) => {
+//     const [facet, value] = f.split(':');
+//     const key = `${nodeLabel}__` + facet.replace('.', '__');
+//     a[key] = value;
+//     return a;
+//   }, {});
+// };
+
+/**
+ * Formats a list of texts into a single string to be used as a user message.
+ * Each text is assigned an ID, starting from 0. The returned JSON format
+ * helps the model distinguish between different texts, at the cost of
+ * increasing the number of tokens used.
+ *
+ * The token overhead for a single text that doesn't require escaping characters
+ * is 12 tokens. Escaping characters like quotes increases the overhead.
+ *
+ * The format is a JSON list of dictionaries, where each dictionary has an
+ * "id" key and a "text" key. The "id" key is an integer, and the "text" key
+ * is a string. This array of maps structure is easiest to parse by GPT models
+ * and handles edge cases like newlines in the text.
+ *
+ * @param {Array<string>} texts A list of texts to format.
+ * @returns A formatted string that can be used as a user message.
+ */
+export const formatTextAsJson = (texts) => {
+  const dicts = texts.map((text, i) => ({ id: i, text }));
+  return JSON.stringify(dicts);
+};
+
+export const formatTextAsProse = (texts) => {
+  return texts.join('\n');
+};
+
+const DEFAULT_CONTENT_PROPS = ['content', 'text', 'input'];
+
+export const getInput = (args, isBatch, options) => {
+  if (typeof args === 'string') {
+    return args;
+  }
+  if (Array.isArray(args) && args.length) {
+    if (isBatch) {
+      return args.map(a => getInput(a, isBatch, options));
+    }
+    return getInput(args[0]);
+  }
+  if (isObject(args)) {
+    let contentProp = options?.contentProp;
+    if (contentProp) {
+      if (contentProp === '__all') {
+        return getInput(JSON.stringify(args), isBatch, options);
+      }
+      return getInput(args[contentProp], isBatch, options);
+    }
+    contentProp = DEFAULT_CONTENT_PROPS.find(key => args[key]);
+    if (contentProp) {
+      return getInput(args[contentProp], isBatch, options);
+    }
+  }
+  return null;
+};
+
+const truncateTextByTokens = (text, maxTokens, encoding) => {
+  const tokens = encoding.encode(text);
+  const truncatedTokens = tokens.slice(0, maxTokens);
+  return encoding.decode(truncatedTokens);
+}
+
+/**
+ * Binpacks a list of texts into a list of lists of texts, such that each list of texts
+ * has a total number of tokens less than or equal to maxTokensPerBin and each list of texts
+ * has a number of texts less than or equal to maxTextsPerBin.
+ *
+ * The binpacking uses a naive greedy algorithm that maintains the order of the texts.
+ *
+ * @param {Array<string>} texts List of texts to binpack. Empty texts are accepted, 
+ *        counted as 0 tokens each and count against maxTextsPerBin.
+ * @param {number} maxTokensPerBin The maximum number of tokens per bin of formatted texts.
+ *        Leave some room for relative to the model's context size to account for the tokens in the
+ *        system message, function call, and function return.
+ * @param {number} maxTextsPerBin The maximum number of texts per list of texts. Defaults to None, which
+ *        means that there is no limit on the number of texts per list of texts.
+ * @param {Function} formatter A function that takes a list of texts and returns a single
+ *        text. Defaults to None, which means that the texts are joined with spaces.
+ *        This function is used to include the overhead of the formatter function in
+ *        the binpacking. It is not used to format the output. Make sure to use
+ *        the same formatter function when formatting the output for the model.
+ * @param {string} encodingName The name of the encoding to use. Defaults to "cl100k_base".
+ * @param {string} longTextHandling How to handle texts that are longer than max_tokens_per_bin. Defaults
+ *        to "error", which means that an error is raised. Can also be set to
+ *        "truncate", which means that the text is truncated to max_tokens_per_bin.
+ *        It is possible that more tokens are truncated than absolutely necessary
+ *        due to overhead of the formatter function caused by escaping characters.
+ * @returns A list of lists of texts. The order of the texts is preserved.
+ */
+export const binPackTextsInOrder = (texts, maxTokensPerBin, maxTextsPerBin, formatter, encodingName, longTextHandling) => {
+  if (!Array.isArray(texts)) {
+    throw new Error('texts must be a list.');
+  }
+  if (!formatter) {
+    formatter = formatTextAsJson;
+  }
+  if (!maxTextsPerBin) {
+    maxTextsPerBin = texts.length;
+  }
+  if (!encodingName) {
+    encodingName = 'cl100k_base';
+  }
+  if (!longTextHandling) {
+    longTextHandling = 'error';
+  }
+  const encoding = getEncoding(encodingName);
+  const bins = [];
+  let currentBin = [];
+  for (let i = 0; i < texts.length; i++) {
+    let text = texts[i];
+    if (currentBin.length === maxTextsPerBin) {
+      // start a new bin
+      bins.push(currentBin);
+      currentBin = [];
+    }
+    // calculate how many tokens would be in the current bin if we added the text
+    const binTokensWithNewText = encoding.encode(formatter([...currentBin, text])).length;
+    if (binTokensWithNewText > maxTokensPerBin) {
+      if (currentBin.length > 0) {
+        // start a new bin
+        bins.push(currentBin);
+        currentBin = [];
+      }
+      // check if the text fits in a bin by itself
+      const tokensTextWithFormatting = encoding.encode(formatter([text])).length;
+      if (tokensTextWithFormatting > maxTokensPerBin) {
+        // calculate the overhead of the formatter function
+        const tokensTextRaw = encoding.encode(text).length;
+        const overhead = tokensTextWithFormatting - tokensTextRaw;
+        if (overhead > maxTextsPerBin) {
+          throw new Error(
+            `The formatting function adds ${overhead} overhead tokens, ` +
+            `which exceeds the maximum number of tokens (${maxTokensPerBin}) permitted.`
+          );
+        }
+        if (binTokensWithNewText > maxTextsPerBin) {
+          // the formatted text is too long to fit in a bin
+          if (longTextHandling === 'error') {
+            throw new Error(
+              `The text at index ${i} has ${tokensTextWithFormatting} tokens, which ` +
+              `is greater than the maximum number of tokens (${maxTokensPerBin}). ` +
+              `Note that a formatting function added ${overhead} tokens to the text.`
+            );
+          } else if (longTextHandling === 'truncate') {
+            // Truncate the text, accounting for overhead
+            // It's possible that more is truncated than necessary
+            // in case the overhead was caused by escaping characters
+            // in the truncated part of the text
+            text = truncateTextByTokens(text, maxTokensPerBin - overhead, encoding);
+            // assert(encoding.encode(formatter([text]) <= maxTextsPerBin));
+          } else {
+            throw new Error(
+              `Invalid value for longTextHandling: ${longTextHandling}. ` +
+              `Must be one of "error" or "truncate".`
+            );
+          }
+        }
+      }
+    }
+    // add to the current bin
+    currentBin.push(text);
+  }
+  // add to the last bin
+  bins.push(currentBin);
+
+  return bins;
+}
+
+export function getTextStats(text) {
+  if (!text) {
+    return { wordCount: 0, length: 0, size: 0 };
+  }
+  text = text.trim();
+  if (!text.length) {
+    return { wordCount: 0, length: 0, size: 0 };
+  }
+  const wordCount = text.split(/\s+/).length;
+  const length = text.length;
+  const size = new Blob([text]).size;
+  return { wordCount, length, size };
+}

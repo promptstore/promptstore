@@ -23,12 +23,15 @@ import initSearchIndex from './initSearchIndex';
 import logger from './logger';
 import { AgentsService } from './services/AgentsService';
 import { AppsService } from './services/AppsService';
+import { CallLoggingService } from './services/CallLoggingService';
 import { ChatSessionsService } from './services/ChatSessionsService';
 import { CompositionsService } from './services/CompositionsService';
+import { CreditCalculatorService } from './services/CreditCalculatorService';
 import { DataSourcesService } from './services/DataSourcesService';
 import { DestinationsService } from './services/DestinationsService';
 import { DocumentsService } from './services/DocumentsService';
 import { EmailService } from './services/EmailService';
+import { EvaluationsService } from './services/EvaluationsService';
 import { ExecutionsService } from './services/ExecutionsService';
 import { ExtractorService } from './services/ExtractorService';
 import { FeatureStoreService } from './services/FeatureStoreService';
@@ -61,6 +64,7 @@ if (ENV === 'dev') {
   dotenv.config();
 }
 
+const SEARCH_EMBEDDING_PROVIDER = 'sentenceencoder';
 const SEARCH_INDEX_NAME = 'pssearch';
 const SEARCH_NODE_LABEL = 'Object';
 const SEARCH_VECTORSTORE_PROVIDER = 'redis';
@@ -176,6 +180,8 @@ const agentsService = AgentsService({ pg, logger });
 
 const appsService = AppsService({ pg, logger });
 
+const callLoggingService = CallLoggingService({ pg, logger });
+
 const chatSessionsService = ChatSessionsService({ pg, logger });
 
 const compositionsService = CompositionsService({ pg, logger });
@@ -189,6 +195,8 @@ const documentsService = DocumentsService({
   logger,
   mc,
 });
+
+const evaluationsService = EvaluationsService({ pg, logger });
 
 const emailService = EmailService({
   constants: {
@@ -236,6 +244,8 @@ const workspacesService = WorkspacesService({ pg, logger });
 
 const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
 
+const creditCalculatorService = CreditCalculatorService({ logger });
+
 const RedisStore = connectRedis(session);
 const sess = {
   cookie: {},
@@ -244,12 +254,6 @@ const sess = {
   secret: 'Data Science is a workspace sport!',
   store: new RedisStore({ client: rc }),
 };
-
-initSearchIndex({
-  constants: { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER },
-  logger,
-  services: { indexesService, vectorStoreService },
-});
 
 app.use(session(sess));
 
@@ -338,7 +342,7 @@ const VerifyToken = async (req, res, next) => {
   }
 
   // finally send 'Not authorized' if all validation approaches fail
-  return res.status(401).send('Not authorized');
+  return res.status(401).json('Not authorized');
 
 };
 
@@ -351,6 +355,7 @@ const executionsService = ExecutionsService({
   rc,
   services: {
     compositionsService,
+    creditCalculatorService,
     dataSourcesService,
     featureStoreService,
     functionsService,
@@ -363,6 +368,7 @@ const executionsService = ExecutionsService({
     promptSetsService,
     sqlSourceService,
     tracesService,
+    usersService,
     vectorStoreService,
   },
 });
@@ -397,6 +403,7 @@ const options = {
     MAILTRAP_INVITE_TEMPLATE_UUID,
     S3_ENDPOINT,
     S3_PORT,
+    SEARCH_EMBEDDING_PROVIDER,
     SEARCH_INDEX_NAME,
     SEARCH_NODE_LABEL,
     SEARCH_VECTORSTORE_PROVIDER,
@@ -409,12 +416,15 @@ const options = {
   services: {
     agentsService,
     appsService,
+    callLoggingService,
     chatSessionsService,
     compositionsService,
+    creditCalculatorService,
     dataSourcesService,
     destinationsService,
     documentsService,
     emailService,
+    evaluationsService,
     executionsService,
     extractorService,
     featureStoreService,
@@ -455,6 +465,17 @@ app.use(
 
 logger.debug('Installing routes');
 await installModules('routes', { ...options, agents });
+
+initSearchIndex({
+  constants: {
+    SEARCH_EMBEDDING_PROVIDER,
+    SEARCH_INDEX_NAME,
+    SEARCH_NODE_LABEL,
+    SEARCH_VECTORSTORE_PROVIDER,
+  },
+  logger,
+  services: { indexesService, llmService, vectorStoreService },
+});
 
 const parseQueryString = (str) => {
   const parts = str.split('?');

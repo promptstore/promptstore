@@ -175,7 +175,10 @@ export default ({ logger, rc, services }) => {
       indexContextPropertyPath: indexInfo.indexContextPropertyPath,
       allResults: indexInfo.allResults,
       nodeLabel: index.nodeLabel,
-      embeddingProvider: index.embeddingProvider,
+      embeddingModel: {
+        provider: index.embeddingProvider,
+        model: index.embeddingModel,
+      },
       vectorStoreProvider: index.vectorStoreProvider,
     };
     return semanticSearchEnrichment({
@@ -196,7 +199,7 @@ export default ({ logger, rc, services }) => {
     };
     return functionEnrichment({
       semanticFunction,
-      modelKey: 'gpt-3.5-turbo',
+      modelKey: 'gpt-3.5-turbo-0613',
       modelParams,
       contentPropertyPath: indexInfo.indexContentPropertyPath,
       contextPropertyPath: indexInfo.indexContextPropertyPath,
@@ -254,7 +257,9 @@ export default ({ logger, rc, services }) => {
     if (implInfo.indexes) {
       for (let indexInfo of implInfo.indexes) {
         indexInfo = { ...indexInfo, ...paths };
+        logger.debug('indexInfo:', indexInfo);
         const index = await indexesService.getIndex(indexInfo.indexId);
+        logger.debug('index:', index);
         steps.push(createSemanticSearchEnrichment(indexInfo, index, callbacks));
         if (indexInfo.summarizeResults) {
           const summarizer = await createFunctionEnrichment(workspaceId, indexInfo, callbacks);
@@ -348,7 +353,7 @@ export default ({ logger, rc, services }) => {
       callbacks,
       experiments: semanticFunctionInfo.experiments,
     };
-    return semanticFunction(semanticFunctionInfo.name, semanticFunctionInfo.description, options)(implementations);
+    return semanticFunction(semanticFunctionInfo.id, semanticFunctionInfo.name, semanticFunctionInfo.description, options)(implementations);
   }
 
   async function createComposition(workspaceId: number, compositionInfo: any, callbacks: Callback[]) {

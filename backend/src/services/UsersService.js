@@ -1,5 +1,7 @@
 import omit from 'lodash.omit';
 
+const DEFAULT_CREDITS = 2000;
+
 export function UsersService({ pg }) {
 
   function mapRow(row) {
@@ -94,7 +96,47 @@ export function UsersService({ pg }) {
     }
   }
 
+  async function deleteUsers(ids) {
+    if (ids === null || typeof ids === 'undefined') {
+      return [];
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return [];
+    }
+    await pg.query(`
+      DELETE FROM users WHERE id = ANY($1::INT[])
+      `, [ids]);
+    return ids;
+  }
+
+  const checkCredits = async (username) => {
+    const user = await getUser(username);
+    if (!user) {
+      const errors = [
+        {
+          message: `User "${username}" not recognized`,
+        },
+      ];
+      return { errors };
+    }
+    let credits = user.credits;
+    if (credits === null || typeof credits === 'undefined') {
+      credits = DEFAULT_CREDITS;
+    }
+    if (credits === 0) {
+      const errors = [
+        {
+          message: `No available credit`,
+        },
+      ];
+      return { errors };
+    }
+    return { credits };
+  };
+
   return {
+    checkCredits,
+    deleteUsers,
     getUsers,
     getUser,
     getUserByEmail,

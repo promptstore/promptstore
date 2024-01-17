@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form, Select } from 'antd';
@@ -78,7 +78,7 @@ export function TracesDashboard() {
       list = [...new Set(list)];
       list.sort((a, b) => a < b ? -1 : 1);
       return list.map(m => ({
-        label: m,
+        label: m + 1,
         value: m,
       }));
     }
@@ -213,8 +213,8 @@ export function TracesDashboard() {
   }
   return (
     <div style={{ marginTop: 20 }}>
-      <div style={{ display: 'flex' }}>
-        <Button
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Button type="text"
           icon={<UnorderedListOutlined />}
           onClick={() => navigate('/traces')}
         >

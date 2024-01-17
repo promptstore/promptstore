@@ -98,7 +98,7 @@ export function WorkspacesList() {
           </Typography.Text>
         </div>
       ),
-      width: '100px',
+      width: 100,
     },
     {
       title: 'Name',
@@ -116,7 +116,6 @@ export function WorkspacesList() {
       {
         title: 'Public',
         dataIndex: 'isPublic',
-        width: '100%',
         render: (_, { isPublic }) => (
           <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
             <span>{isPublic ? <CheckOutlined /> : ''}</span>
@@ -130,6 +129,8 @@ export function WorkspacesList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space size="middle">
           <Button type="link"

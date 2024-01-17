@@ -3,9 +3,12 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { default as dayjs } from 'dayjs';
 import { ValidatorResult, validate } from 'jsonschema';
 
+import logger from '../../logger';
+
 import { Validator } from '../common_types';
 import { SchemaError, SemanticFunctionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
+import { convertContentTypeToString } from '../conversions/RosettaStone';
 import {
   Experiment,
   SemanticFunctionParams,
@@ -18,6 +21,7 @@ dayjs.extend(relativeTime);
 
 export class SemanticFunction {
 
+  id: number;
   name: string;
   description: string;
   argsSchema: object;
@@ -30,6 +34,7 @@ export class SemanticFunction {
   currentCallbacks: Callback[];
 
   constructor({
+    id,
     name,
     description,
     argsSchema,
@@ -40,6 +45,7 @@ export class SemanticFunction {
     validator,
     callbacks,
   }: SemanticFunctionParams) {
+    this.id = id;
     this.name = name;
     this.description = description;
     this.argsSchema = argsSchema;
@@ -53,10 +59,14 @@ export class SemanticFunction {
 
   async call({
     args,
+    messages,
     history,
+    extraSystemPrompt,
     modelKey,
     modelParams,
+    functions,
     isBatch,
+    options,
     callbacks = []
   }: SemanticFunctionCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
@@ -67,15 +77,15 @@ export class SemanticFunction {
       }
 
       // validate args
-      let instance: object;
-      if (isBatch) {
-        this.assertBatch(args);
-        instance = args[0];
-      } else {
-        instance = args;
-      }
+      // let instance: object;
+      // if (Array.isArray(args)) {
+      //   instance = args[0];
+      // } else {
+      //   instance = args;
+      // }
       if (this.argsSchema) {
-        this.validate(instance, this.argsSchema);
+        // this.validate(instance, this.argsSchema);
+        this.validate(args, this.argsSchema);
       }
 
       // get implementation
@@ -85,17 +95,36 @@ export class SemanticFunction {
       }
 
       // call implementation
-      const { response, responseMetadata } = await impl.call({
+      let { response, responseMetadata } = await impl.call({
         args,
+        messages,
         history,
+        extraSystemPrompt,
         modelKey,
         modelParams,
+        functions,
         isBatch,
         returnTypeSchema: this.returnTypeSchema,
+        options,
         callbacks,
       });
+      const message = response.choices[0].message;
+      let systemOutputText: string;
+      if (!message.function_call) {
+        systemOutputText = convertContentTypeToString(message.content);
+      }
 
-      this.onEnd({ response, implementation: impl.model.model });
+      responseMetadata = {
+        ...responseMetadata,
+        implementation: impl.model.model,
+        systemInput: { args, messages, history, extraSystemPrompt },
+        systemOutput: message,  // could be content or function call
+        systemOutputText,
+        functionId: this.id,
+        functionName: this.name,
+      };
+      this.onEnd({ response, responseMetadata });
+
       return { response, responseMetadata };
 
     } catch (err) {
@@ -169,13 +198,13 @@ export class SemanticFunction {
     }
   }
 
-  onEnd({ response, errors, implementation }: SemanticFunctionOnEndParams) {
+  onEnd({ errors, response, responseMetadata }: Partial<SemanticFunctionOnEndParams>) {
     for (let callback of this.currentCallbacks) {
       callback.onSemanticFunctionEnd({
         name: this.name,
         response,
+        responseMetadata,
         errors,
-        implementation,
       });
     }
   }
@@ -221,11 +250,12 @@ interface SemanticFunctionOptions {
   callbacks: Callback[];
 }
 
-export const semanticFunction = (name: string, description: string, options: SemanticFunctionOptions) => (
+export const semanticFunction = (id: number, name: string, description: string, options: SemanticFunctionOptions) => (
   implementations: SemanticFunctionImplementation | SemanticFunctionImplementation[]
 ) => {
   return new SemanticFunction({
     ...options,
+    id,
     name,
     description,
     implementations: Array.isArray(implementations) ? implementations : [implementations],

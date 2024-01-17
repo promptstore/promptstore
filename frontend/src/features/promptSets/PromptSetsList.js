@@ -5,7 +5,7 @@ import {
   Button,
   Card,
   Input,
-  Radio,
+  Segmented,
   Select,
   Space,
   Switch,
@@ -23,12 +23,24 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
-import useLocalStorageState from 'use-local-storage-state';
+import difference from 'lodash.difference';
 import isEmpty from 'lodash.isempty';
+import useLocalStorageState from 'use-local-storage-state';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import usePrevious from '../../hooks/usePrevious';
+import { intersects } from '../../utils';
+import {
+  getFunctionsAsync,
+  createFunctionAsync,
+  selectFunctions,
+} from '../functions/functionsSlice';
+import {
+  getModelByKeyAsync,
+  selectModels,
+} from '../models/modelsSlice';
 import {
   objectUploadAsync,
   selectUploading,
@@ -48,11 +60,8 @@ import {
 
 const { Search } = Input;
 
+const DEFAULT_MODEL_KEY = 'gpt-3.5-turbo-0613';
 const TAGS_KEY = 'promptSetTags';
-
-const intersects = (arr1 = [], arr2 = []) => {
-  return arr1.filter(v => arr2.includes(v)).length > 0;
-};
 
 export function PromptSetsList() {
 
@@ -64,9 +73,12 @@ export function PromptSetsList() {
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', { defaultValue: [] });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [numItems, setNumItems] = useLocalStorageState('prompt-sets-num-items', { defaultValue: 12 });
+  const [createdFunctions, setCreatedFunctions] = useState({});
 
+  const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
+  const models = useSelector(selectModels);
   const promptSets = useSelector(selectPromptSets);
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
@@ -86,6 +98,7 @@ export function PromptSetsList() {
           .map((ps) => ({
             key: ps.id,
             name: ps.name,
+            description: ps.description,
             prompt: ps.prompts?.[0]?.prompt,
             summary: ps.summary,
             skill: ps.skill,
@@ -130,11 +143,17 @@ export function PromptSetsList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
       dispatch(getPromptSetsAsync({
-        workspaceId: selectedWorkspace.id,
-        minDelay: layout === 'grid' ? 2000 : 0,
+        workspaceId,
+        minDelay: layout === 'grid' ? 1000 : 0,
       }));
+      dispatch(getModelByKeyAsync({
+        workspaceId,
+        key: DEFAULT_MODEL_KEY,
+      }));
+      dispatch(getFunctionsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -152,6 +171,82 @@ export function PromptSetsList() {
       setNumItems(Object.keys(promptSets).length);
     }
   }, [loaded, promptSets]);
+
+  // const prevFunctions = usePrevious({ functions });
+
+  // useEffect(() => {
+  //   const a = Object.keys(functions);
+  //   if (a.length) {
+  //     const b = Object.keys(prevFunctions?.functions || {});
+  //     const diff = difference(a, b);
+  //     if (diff.length) {
+  //       const func = functions[diff[0]];
+  //       const key = func.implementations?.[0]?.promptSetId;
+  //       setCreatedFunctions(cur => ({
+  //         ...cur,
+  //         [key]: { func: func.id },
+  //       }));
+  //     }
+  //   }
+  // }, [functions]);
+
+  useEffect(() => {
+    const map = Object.values(functions).reduce((a, f) => {
+      const key = f.implementations?.[0]?.promptSetId;
+      a[key] = { func: f.id };
+      return a;
+    }, {});
+    setCreatedFunctions(cur => ({
+      ...cur,
+      ...map,
+    }));
+  }, [functions]);
+
+  const createFunction = (key) => {
+    const model = Object.values(models).find(m => m.key === DEFAULT_MODEL_KEY);
+    if (model) {
+      // console.log('model:', model);
+      const ps = promptSets[key];
+      if (ps) {
+        setCreatedFunctions(cur => ({
+          ...cur,
+          [key]: { loading: true },
+        }));
+        let mappingData;
+        if (ps.arguments) {
+          let properties;
+          if (ps.arguments.type === 'array') {
+            properties = ps.arguments.items.properties;
+          } else {
+            properties = ps.arguments.properties;
+          }
+          mappingData = Object.keys(properties).reduce((a, k) => {
+            a[k] = k;
+            return a;
+          }, {});
+          mappingData = JSON.stringify(mappingData, null, 2);
+        }
+        dispatch(createFunctionAsync({
+          values: {
+            name: ps.skill,
+            workspaceId: selectedWorkspace.id,
+            arguments: ps.arguments,
+            implementations: [
+              {
+                modelId: model.id,
+                promptSetId: ps.id,
+                mappingData,
+              }
+            ]
+          },
+        }));
+      } else {
+        console.error('Prompt template not found with key:', key);
+      }
+    } else {
+      console.error('Model not found with key:', DEFAULT_MODEL_KEY);
+    }
+  }
 
   const onDelete = () => {
     dispatch(deletePromptSetsAsync({ ids: selectedRowKeys }));
@@ -214,7 +309,6 @@ export function PromptSetsList() {
     {
       title: 'Tags',
       dataIndex: 'tags',
-      width: '100%',
       render: (_, { tags = [] }) => (
         <Space size={[0, 8]} wrap>
           {tags.map((tag) => (
@@ -226,26 +320,44 @@ export function PromptSetsList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
-        <Space size="middle">
+        <Space size="small" wrap>
           <Button type="link"
-            style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/prompt-sets/${record.key}`)}
+            style={{ paddingLeft: 0 }}
           >
             View
           </Button>
           <Button type="link"
-            style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/prompt-sets/${record.key}/edit`)}
+            style={{ paddingLeft: 0 }}
           >
             Edit
           </Button>
           <Button type="link"
-            style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/design/${record.key}`)}
+            style={{ paddingLeft: 0 }}
           >
             Design
           </Button>
+          {createdFunctions[record.key]?.func ?
+            <Button type="link"
+              onClick={() => navigate(`/functions/${createdFunctions[record.key].func}/edit`)}
+              style={{ paddingLeft: 0 }}
+            >
+              Link to function
+            </Button>
+            :
+            <Button type="link"
+              loading={createdFunctions[record.key]?.loading}
+              onClick={() => createFunction(record.key)}
+              style={{ paddingLeft: 0 }}
+            >
+              Create Function
+            </Button>
+          }
         </Space>
       ),
     },
@@ -280,25 +392,29 @@ export function PromptSetsList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-          <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
-            Delete
-          </Button>
-          {hasSelected ?
-            <>
-              <div style={{ marginLeft: 8 }}>
-                Selected {selectedRowKeys.length} items
-              </div>
-              <Download filename={'prompt_sets.json'} payload={selectedPromptSets}>
-                <Button type="text" icon={<DownloadOutlined />} />
-              </Download>
-            </>
-            : null
-          }
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
+              Delete
+            </Button>
+            {hasSelected ?
+              <>
+                <span>
+                  Selected {selectedRowKeys.length} items
+                </span>
+                <Download filename={'prompt_sets.json'} payload={selectedPromptSets}>
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
+                </Download>
+              </>
+              : null
+            }
+          </div>
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 8, width: 220 }}
+            style={{ width: 220 }}
           />
           <Select allowClear mode="multiple"
             options={tagOptions}
@@ -306,37 +422,42 @@ export function PromptSetsList() {
             loading={settingsLoading}
             placeholder="select tags"
             onChange={setSelectedTags}
-            style={{ marginLeft: 8, width: 220 }}
+            style={{ width: 220 }}
             value={selectedTags}
           />
-          <Switch
-            checked={filterTemplates}
-            onChange={setFilterTemplates}
-            style={{ marginLeft: 8 }}
-          />
-          <div style={{ marginLeft: 8 }}>Templates</div>
-          <Switch
-            checked={filterPublic}
-            onChange={setFilterPublic}
-            style={{ marginLeft: 8 }}
-          />
-          <div style={{ marginLeft: 8 }}>Public</div>
-          <div style={{ marginLeft: 16 }}>
-            <Upload
-              name="upload"
-              showUploadList={false}
-              customRequest={dummyRequest}
-              beforeUpload={beforeUpload}
-              onChange={onUpload}
-            >
-              <Button type="text" loading={uploading} icon={<UploadOutlined />} />
-            </Upload>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterTemplates}
+              onChange={setFilterTemplates}
+            />
+            <div>Templates</div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterPublic}
+              onChange={setFilterPublic}
+            />
+            <div>Public</div>
+          </div>
+          <Upload
+            name="upload"
+            showUploadList={false}
+            customRequest={dummyRequest}
+            beforeUpload={beforeUpload}
+            onChange={onUpload}
+          >
+            <Button type="text"
+              icon={<UploadOutlined />}
+              loading={uploading}
+            >
+              Upload
+            </Button>
+          </Upload>
           <div style={{ flex: 1 }}></div>
-          <Radio.Group
-            buttonStyle="solid"
-            onChange={(ev) => setLayout(ev.target.value)}
-            optionType="button"
+          <Segmented
+            onChange={setLayout}
+            value={layout}
+            style={{ background: 'rgba(0, 0, 0, 0.25)' }}
             options={[
               {
                 label: <UnorderedListOutlined />,
@@ -347,25 +468,24 @@ export function PromptSetsList() {
                 value: 'grid'
               },
             ]}
-            value={layout}
           />
         </div>
         {layout === 'grid' ?
           <Space wrap size="large">
             {data.map(p =>
-              <Card key={p.key} title={p.name} style={{ width: 350, height: 200 }} loading={loading}>
-                <div style={{ display: 'flex', flexDirection: 'column', height: 96 }}>
-                  <div style={{ height: 30 }}>
-                    Skill: <span style={{ color: '#177ddc' }}>{p.skill}</span>
+              <Card key={p.key} className="ps-card" title={p.name} style={{ width: 350, height: 225 }} loading={loading}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                  <Typography.Text ellipsis>{p.description || p.prompt || p.summary}</Typography.Text>
+                  <div>
+                    <span className="inline-label">skill</span> <span style={{ color: '#177ddc' }}>{p.skill}</span>
                   </div>
-                  <div style={{ height: 30 }}>
-                    <Typography.Text ellipsis>
-                      {p.description || p.prompt || p.summary}
-                    </Typography.Text>
-                  </div>
-                  <Space wrap size="small">
-                    {(p.tags || []).map(t => <Tag key={t}>{t}</Tag>)}
-                  </Space>
+                  {p.tags?.length ?
+                    <Space wrap size="small">
+                      <div className="inline-label">tags</div>
+                      {p.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                    </Space>
+                    : null
+                  }
                   <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
                     <Link to={`/design/${p.key}`}>Design</Link>
                     <Link to={`/prompt-sets/${p.key}/edit`}>Edit</Link>

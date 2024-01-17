@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, Space, Typography } from 'antd';
 
 import { JsonView } from '../../../components/JsonView';
-import { decodeEntities, getInputString, hashStr } from '../../../utils';
+import { decodeEntities, getInput, hashStr } from '../../../utils';
 
 function Choices({ step }) {
   return (
@@ -21,7 +21,7 @@ function Choices({ step }) {
           :
           <div key={'output-' + i}>
             <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
-              {choice.message.content}
+              {decodeEntities(choice.message.content)}
             </Typography.Paragraph>
             <Typography.Text type="secondary">
               finish reason: {choice.finish_reason}
@@ -55,8 +55,28 @@ function Errors({ step }) {
 function Content({ content }) {
   if (Array.isArray(content)) {
     return content.map((c, i) => {
+      if (!c) {
+        return (
+          <div key={'content-' + i}>
+            <Typography.Paragraph
+              className={i === 0 ? 'first' : ''}
+            >
+              None
+            </Typography.Paragraph>
+          </div>
+        );
+      }
       if (typeof c === 'string') {
-        return c;
+        return (
+          <div key={'content-' + i}>
+            <Typography.Paragraph
+              className={i === 0 ? 'first' : ''}
+              style={{ whiteSpace: 'pre-wrap' }}
+            >
+              {decodeEntities(c)}
+            </Typography.Paragraph>
+          </div>
+        );
       }
       if (c.type === 'image_url') {
         return (
@@ -67,8 +87,11 @@ function Content({ content }) {
       }
       return (
         <div key={'content-' + i}>
-          <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
-            {c.text}
+          <Typography.Paragraph
+            className={i === 0 ? 'first' : ''}
+            style={{ whiteSpace: 'pre-wrap' }}
+          >
+            {decodeEntities(c.text)}
           </Typography.Paragraph>
         </div>
       );
@@ -76,8 +99,11 @@ function Content({ content }) {
   }
   return (
     <div>
-      <Typography.Paragraph className="first" style={{ whiteSpace: 'pre-wrap' }}>
-        {content}
+      <Typography.Paragraph
+        className="first"
+        style={{ whiteSpace: 'pre-wrap' }}
+      >
+        {decodeEntities(content)}
       </Typography.Paragraph>
     </div>
   );
@@ -86,7 +112,7 @@ function Content({ content }) {
 export function Input({ step }) {
   let input;
   if (step.args) {
-    input = getInputString(step.args);
+    input = getInput(step.args, step.isBatch);
   } else if (step.messages) {
     input = step.messages[step.messages.length - 1].content;
   }
@@ -139,6 +165,7 @@ export function OutputMultiple({ step }) {
 
 export function Messages({ step }) {
   const messages = step.messages || step.prompt?.messages || [];
+  console.log('messages:', messages);
   return (
     <div>
       {messages.map((message, i) =>

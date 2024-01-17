@@ -3,16 +3,20 @@ import { Callback } from '../callbacks/Callback';
 import { InputGuardrails } from '../guardrails/InputGuardrails';
 import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPipeline';
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
-import { ChatResponse, Message, ModelParams } from '../conversions/RosettaStone';
+import { ChatResponse, Function, Message, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
 
 export interface SemanticFunctionImplementationCallParams {
   args: any;
+  messages?: Message[];
   history?: Message[];
+  extraSystemPrompt?: string;
   modelKey: string;
   modelParams: ModelParams;
+  functions?: Function[];
   isBatch?: boolean;
   returnTypeSchema?: object;
+  options: any;
   callbacks?: Callback[];
 }
 

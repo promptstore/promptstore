@@ -50,9 +50,12 @@ export const getDestinationsAsync = (params) => async (dispatch) => {
   dispatch(setDestinations({ destinations: res.data }));
 };
 
-export const getDestinationAsync = (id) => async (dispatch) => {
+export const getDestinationAsync = (id, preview) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/destinations/${id}`;
+  let url = `/api/destinations/${id}`;
+  if (preview) {
+    url += '?preview=true';
+  }
   const res = await http.get(url);
   dispatch(setDestinations({ destinations: [res.data] }));
 };

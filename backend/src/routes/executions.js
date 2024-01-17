@@ -1,5 +1,7 @@
 import { isTruthy } from '../utils';
 
+const DEFAULT_WORKSPACE = 1;  // system workspace
+
 export default ({ app, auth, logger, services }) => {
 
   const { executionsService } = services;
@@ -364,20 +366,21 @@ export default ({ app, auth, logger, services }) => {
     const { batch, stream } = req.query;
 
     // TODO
-    const { args, history, params = {}, workspaceId = 1, extraIndexes } = req.body;
+    const { args, messages, history, params, workspaceId, extraIndexes } = req.body;
 
-    const { response, responseMetadata, errors } = await executionsService.executeFunction({
-      workspaceId,
+    const { errors, response, responseMetadata } = await executionsService.executeFunction({
+      workspaceId: workspaceId || DEFAULT_WORKSPACE,
       username,
       semanticFunctionName,
       args,
+      messages,
       history,
-      params,
+      params: params || {},
       extraIndexes,
       batch: isTruthy(batch),
     });
     if (errors) {
-      return res.status(500).send({ errors });
+      return res.status(500).json({ errors });
     }
     if (isTruthy(stream)) {
       const headers = {
@@ -452,7 +455,7 @@ export default ({ app, auth, logger, services }) => {
     // logger.debug('body:', req.body);
     const { args, params = {}, workspaceId = 1 } = req.body;
 
-    const { response, errors } = await executionsService.executeComposition({
+    const { errors, response, responseMetadata } = await executionsService.executeComposition({
       workspaceId,
       username,
       compositionName,
@@ -461,9 +464,9 @@ export default ({ app, auth, logger, services }) => {
       batch,
     });
     if (errors) {
-      return res.status(500).send({ errors });
+      return res.status(500).json({ errors });
     }
-    res.json(response);
+    res.json({ response, responseMetadata });
   });
 
 };

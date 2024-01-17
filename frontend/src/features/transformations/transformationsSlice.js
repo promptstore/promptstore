@@ -1,5 +1,4 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
 
@@ -8,7 +7,6 @@ export const transformationsSlice = createSlice({
   initialState: {
     loaded: false,
     loading: false,
-    processing: false,
     transformations: {},
   },
   reducers: {
@@ -27,12 +25,6 @@ export const transformationsSlice = createSlice({
     startLoad: (state) => {
       state.loaded = false;
       state.loading = true;
-    },
-    startProcessing: (state, action) => {
-      state.processing = true;
-    },
-    endProcessing: (state, action) => {
-      state.processing = false;
     },
   }
 });
@@ -78,7 +70,6 @@ export const deleteTransformationsAsync = ({ ids }) => async (dispatch) => {
 };
 
 export const runTransformationAsync = ({ id, correlationId, workspaceId }) => async (dispatch, getState) => {
-  dispatch(startProcessing());
   const url = `/api/transformation-runs/${id}`;
   await http.post(url, { correlationId, workspaceId });
   const intervalId = setInterval(async () => {
@@ -89,7 +80,6 @@ export const runTransformationAsync = ({ id, correlationId, workspaceId }) => as
       const transformations = getState().transformations.transformations;
       const tx = transformations[id];
       dispatch(setTransformations({ transformations: [{ ...tx, correlationId }] }));
-      dispatch(endProcessing());
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -99,11 +89,24 @@ export const runTransformationAsync = ({ id, correlationId, workspaceId }) => as
   }, 2000);
 };
 
+export const pauseScheduleAsync = ({ scheduleId }) => async (dispatch) => {
+  const url = `/api/schedules/${scheduleId}/pause`;
+  await http.post(url);
+};
+
+export const unpauseScheduleAsync = ({ scheduleId }) => async (dispatch) => {
+  const url = `/api/schedules/${scheduleId}/unpause`;
+  await http.post(url);
+};
+
+export const deleteScheduleAsync = ({ scheduleId }) => async (dispatch) => {
+  const url = `/api/schedules/${scheduleId}/delete`;
+  await http.post(url);
+};
+
 export const selectLoaded = (state) => state.transformations.loaded;
 
 export const selectLoading = (state) => state.transformations.loading;
-
-export const selectProcessing = (state) => state.transformations.processing;
 
 export const selectTransformations = (state) => state.transformations.transformations;
 

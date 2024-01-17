@@ -29,10 +29,20 @@ function SentenceEncoder({ __name, __metadata, constants, logger }) {
     const embedding = await model.embed(request.input);
     const values = embedding.dataSync();
     return {
-      index: 0,
-      object: 'embedding',
-      embedding: Array.from(values),
-    }
+      object: 'list',
+      data: [
+        {
+          index: 0,
+          object: 'embedding',
+          embedding: Array.from(values),
+        },
+      ],
+      model: 'sentenceencoder',
+      usage: {
+        prompt_tokens: 0,
+        total_tokens: 0,
+      },
+    };
   }
 
   return {

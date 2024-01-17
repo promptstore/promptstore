@@ -3,7 +3,7 @@ import { JSONSchema7 } from 'json-schema';
 import logger from '../../logger';
 import { getExtension } from '../../utils';
 
-import { LLMService } from '../models/llm_types';
+import { LLMModel, LLMService } from '../models/llm_types';
 import { Document } from './Document';
 import {
   ExtendedDocument,
@@ -66,7 +66,7 @@ export class Pipeline {
   private loaderService: LoaderService;
   private vectorStoreService: VectorStoreService;
 
-  private _embeddingProvider: string;
+  private _embeddingModel: Partial<LLMModel>;
   private _vectorStoreProvider: string;
   private _graphStoreProvider: string;
 
@@ -84,7 +84,7 @@ export class Pipeline {
   }, {
     loaderProvider,
     extractorProviders,
-    embeddingProvider,
+    embeddingModel,
     vectorStoreProvider,
     graphStoreProvider,
   }) {
@@ -95,9 +95,11 @@ export class Pipeline {
     this.llmService = llmService;
     this.loaderService = loaderService;
     this.vectorStoreService = vectorStoreService;
+
+    // uses the setters
     this.loaderProvider = loaderProvider;
     this.extractorProviders = extractorProviders;
-    this.embeddingProvider = embeddingProvider;
+    this.embeddingModel = embeddingModel;
     this.vectorStoreProvider = vectorStoreProvider;
     this.graphStoreProvider = graphStoreProvider;
   }
@@ -137,17 +139,20 @@ export class Pipeline {
 
     // Check Embedding Provider
     if (!this._graphStoreProvider) {
-      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis') {
+      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis') {
         if (params.indexId === 'new') {
-          this.embeddingProvider = params.embeddingProvider;
+          this.embeddingModel = params.embeddingModel;
         } else {
           if (!index) {
             index = await this.getExistingIndex(params.indexId);
           }
-          this.embeddingProvider = index.embeddingProvider;
+          this.embeddingModel = {
+            provider: index.embeddingProvider,
+            model: index.embeddingModel,
+          };
         }
       }
-      if (!this._embeddingProvider && this._vectorStoreProvider !== 'redis') {
+      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis') {
         throw new Error('Missing embedding provider');
       }
     }
@@ -213,14 +218,15 @@ export class Pipeline {
         index = await indexer.index(chunks, {
           ...params,
           schema,
-          embeddingProvider: this._embeddingProvider,
+          embeddingModel: this._embeddingModel,
           vectorStoreProvider: this._vectorStoreProvider,
         });
       } else {
         await indexer.indexChunks(chunks, {
           indexName: index.name,
+          maxTokens: params.maxTokens,
           nodeLabel: params.nodeLabel,
-          embeddingProvider: this._embeddingProvider,
+          embeddingModel: this._embeddingModel,
           vectorStoreProvider: this._vectorStoreProvider,
         });
       }
@@ -276,8 +282,8 @@ export class Pipeline {
     }
   }
 
-  public set embeddingProvider(provider: string) {
-    this._embeddingProvider = provider;
+  public set embeddingModel(model: Partial<LLMModel>) {
+    this._embeddingModel = model;
   }
 
   public set vectorStoreProvider(provider: string) {

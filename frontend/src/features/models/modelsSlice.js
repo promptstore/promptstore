@@ -36,9 +36,12 @@ export const {
   startLoad,
 } = modelsSlice.actions;
 
-export const getModelsAsync = ({ workspaceId, minDelay }) => async (dispatch) => {
+export const getModelsAsync = ({ workspaceId, minDelay, type }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/workspace/${workspaceId}/models`;
+  let url = `/api/workspace/${workspaceId}/models`;
+  if (type) {
+    url += '?type=' + type;
+  }
   const startTime = new Date();
   const res = await http.get(url);
   runWithMinDelay(startTime, minDelay, () => {
@@ -49,6 +52,13 @@ export const getModelsAsync = ({ workspaceId, minDelay }) => async (dispatch) =>
 export const getModelAsync = (id) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/models/${id}`;
+  const res = await http.get(url);
+  dispatch(setModels({ models: [res.data] }));
+};
+
+export const getModelByKeyAsync = ({ key, workspaceId }) => async (dispatch) => {
+  dispatch(startLoad());
+  const url = `/api/workspace/${workspaceId}/models-by-key/${key}`;
   const res = await http.get(url);
   dispatch(setModels({ models: [res.data] }));
 };

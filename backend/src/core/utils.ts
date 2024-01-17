@@ -1,23 +1,6 @@
 import axios from 'axios';
-import isObject from 'lodash.isobject';
 
 import { ContentObject, ImageContent, Message } from './conversions/RosettaStone';
-
-export const getInputString = (args: any) => {
-  if (typeof args === 'string') {
-    return args;
-  }
-  if (Array.isArray(args) && args.length) {
-    return getInputString(args[0]);
-  }
-  if (isObject(args)) {
-    const input = args.content || args.text || args.input;
-    if (input) {
-      return getInputString(input);
-    }
-  }
-  return null;
-};
 
 export const convertImageToBase64 = (imageUrl: string) => {
   return new Promise((resolve, reject) => {

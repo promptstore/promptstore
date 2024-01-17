@@ -747,17 +747,28 @@ article.collapsible .panel.closed {
 .table-col {
   display: table-cell;
   padding: 0 10px 10px 0;
+  vertical-align: middle;
+}
+
+.table-col:first-child,
+.table-col:last-child,
+.table-col:nth-last-of-type(2) {
+  padding: 0 0 10px 0;
 }
 
 .table-col:first-child,
 .table-col:last-child {
-  padding: 0 0 10px 0;
+  width: 32px;
 }
 
 .table-col>.drag-handle {
   width: 32px;
   height: 32px;
   padding: 10px;
+}
+
+.dynamic-delete-button {
+  font-size: smaller;
 }
 
 .chat-actions {
@@ -774,7 +785,6 @@ article.collapsible .panel.closed {
 }
 
 .prompttext p {
-  font-size: 1.1em;
   margin-bottom: 0;
 }
 
@@ -788,7 +798,6 @@ article.collapsible .panel.closed {
 
 .prompttext code {
   color: chocolate;
-  font-size: 0.9em;
 }
 
 .prompttext code.promptcontrol {
@@ -895,6 +904,58 @@ article.collapsible .panel.closed {
 }
 
 .inline-label {
-  color: rgba(0, 0, 0, 0.45);
+  color: rgb(128, 127, 128);
+  display: inline-flex;
   font-size: 14px;
+  opacity: 0.8;
+}
+
+.function-card .inline-label,
+.ps-card .inline-label {
+  width: 36px;
+}
+
+.inline-label::after {
+  content: ":";
+  position: relative;
+  margin-block: 0;
+  margin-inline-start: auto;
+}
+
+.ant-layout-sider .ant-list-header {
+  background-color: rgb(250, 250, 250);
+  font-weight: 600;
+  padding: 16px 16px 16px 32px;
+}
+
+#promptset-view .ant-layout-sider .ant-list-header {
+  padding: 16px;
+}
+
+#promptset-form .ant-layout-sider .ant-list-item {
+  padding: 16px 16px 16px 32px;
+}
+
+#promptset-view .ant-layout-sider .ant-list-item {
+  padding: 16px;
+}
+
+.ant-layout-sider .ant-list .ant-list-item {
+  border-bottom: 1px solid rgb(240, 240, 240);
+}
+
+.ant-table-cell {
+  vertical-align: middle;
+}
+
+.ant-space-item>.ant-tag {
+  margin-right: 0;
+}
+
+.ps-view-card .ant-description-item {
+  padding-top: 8px;
+}
+
+.ps-view-card .ant-descriptions .ant-descriptions-row>th {
+  padding-bottom: 0;
 }

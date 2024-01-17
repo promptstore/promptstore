@@ -1,7 +1,10 @@
 import { default as dayjs } from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import set from 'lodash.set';  // mutable
 import clone from 'lodash.clonedeep';
+import set from 'lodash.set';  // mutable
+import trim from 'lodash.trim';
+
+import logger from '../../logger';
 
 import { GuardrailError, ParserError } from '../errors';
 import { Callback } from '../callbacks/Callback';
@@ -165,11 +168,11 @@ export class OutputParser implements OutputProcessingStep {
     this.onStart({ outputParser: this.outputParser, response });
     try {
       const content = this.getContent(response);
-      const res = await this.parserService.parse(this.outputParser, content);
-      if (res.error) {
-        this.throwParserError(res.error);
+      const { error, json } = await this.parserService.parse(this.outputParser, content);
+      if (error) {
+        this.throwParserError(error);
       }
-      response = this.updateContent(response, res.text);
+      response = this.updateContent(response, JSON.stringify(json));
       this.onEnd({ response })
       return response;
     } catch (err) {
@@ -184,6 +187,7 @@ export class OutputParser implements OutputProcessingStep {
   }
 
   updateContent(response: any, content: string) {
+    content = trim(content, '"');
     return set(clone(response), 'choices.0.message.content', content);
   }
 

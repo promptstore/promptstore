@@ -543,7 +543,12 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.get('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const dataSource = await dataSourcesService.getDataSource(id);
-    res.json(dataSource);
+    let schema;
+    if (dataSource.type === 'sql') {
+      schema = await sqlSourceService.getSchema(dataSource);
+      logger.debug('schema:', schema);
+    }
+    res.json({ ...dataSource, schema });
   });
 
   /**

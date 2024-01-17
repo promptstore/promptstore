@@ -2,11 +2,11 @@ import React from 'react';
 import { Descriptions, Space, Typography } from 'antd';
 
 import { JsonView } from '../../../components/JsonView';
-import { getInputString } from '../../../utils';
+import { getInput } from '../../../utils';
 
 export function FunctionCall({ step, title }) {
   const args = JSON.parse(step.call?.arguments || '{}');
-  const input = getInputString(args);
+  const input = getInput(args);
   return (
     <Descriptions className="trace-step" title={title} column={{ md: 1, lg: 3 }} layout="vertical">
       <Descriptions.Item label="tool" span={3}>

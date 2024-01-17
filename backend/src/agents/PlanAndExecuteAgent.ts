@@ -71,7 +71,7 @@ export default ({ logger, services }) => {
     }) {
       this.name = name;
       this.isChat = isChat;
-      this.model = model || (isChat ? 'gpt-3.5-turbo' : 'text-davinci-003');
+      this.model = model || (isChat ? 'gpt-3.5-turbo-0613' : 'text-davinci-003');
       this.modelParams = {
         max_tokens: 1024,
         ...(modelParams || {}),
@@ -243,6 +243,7 @@ export default ({ logger, services }) => {
         callback.onPromptTemplateStart({
           messageTemplates: promptSets[0].prompts,
           args,
+          isBatch: false,
         });
       }
       const rawMessages = utils.getMessages(promptSets[0].prompts, args, PROMPTSET_TEMPLATE_ENGINE);
@@ -256,11 +257,11 @@ export default ({ logger, services }) => {
     }
 
     async _parsePlanOutput(content: string) {
-      const plan = await parserService.parse(PLAN_OUTPUT_PARSER, content);
+      const { json } = await parserService.parse(PLAN_OUTPUT_PARSER, content);
       for (let callback of this.currentCallbacks) {
-        callback.onParsePlan({ content, plan });
+        callback.onParsePlan({ content, plan: json });
       }
-      return plan;
+      return json;
     }
 
     _getFunctions(allowedTools: string[]) {
@@ -442,10 +443,23 @@ export default ({ logger, services }) => {
           if (!index) {
             throw new Error('Index not found: ' + indexName);
           }
-          if (!index.vectorStoreProvider) {
+          const { embeddingProvider, embeddingModel, vectorStoreProvider } = index;
+          if (!vectorStoreProvider) {
             throw new Error('Only vector stores currently support search');
           }
-          const searchResponse = await vectorStoreService.search(index.vectorStoreProvider, indexName, args.input);
+          let queryEmbedding: number[];
+          if (vectorStoreProvider !== 'redis') {
+            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, { ...args, model: embeddingModel });
+            queryEmbedding = embeddingResponse.data[0].embedding;
+          }
+          const searchResponse = await vectorStoreService.search(
+            vectorStoreProvider,
+            indexName,
+            args.input,
+            null,
+            null,
+            { k: 5, queryEmbedding }
+          );
           response = searchResponse.hits.join(PARA_DELIM);
         } else if (call.name === this.semanticFunction?.name) {
           const functionResponse = await executionsService.executeFunction({

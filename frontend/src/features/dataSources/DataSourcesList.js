@@ -138,7 +138,7 @@ export function DataSourcesList() {
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
-          embeddingProvider: values.embeddingProvider,
+          embeddingModel: values.embeddingModel,
           vectorStoreProvider: values.vectorStoreProvider,
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
@@ -155,7 +155,7 @@ export function DataSourcesList() {
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
-          embeddingProvider: values.embeddingProvider,
+          embeddingModel: values.embeddingModel,
           vectorStoreProvider: values.vectorStoreProvider,
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
@@ -177,7 +177,7 @@ export function DataSourcesList() {
           params: {
             indexId: values.indexId,
             newIndexName: values.newIndexName,
-            embeddingProvider: values.embeddingProvider,
+            embeddingModel: values.embeddingModel,
             vectorStoreProvider: values.vectorStoreProvider,
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
@@ -194,7 +194,7 @@ export function DataSourcesList() {
           params: {
             indexId: values.indexId,
             newIndexName: values.newIndexName,
-            embeddingProvider: values.embeddingProvider,
+            embeddingModel: values.embeddingModel,
             vectorStoreProvider: values.vectorStoreProvider,
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
@@ -214,7 +214,7 @@ export function DataSourcesList() {
           params: {
             indexId: values.indexId,
             newIndexName: values.newIndexName,
-            embeddingProvider: values.embeddingProvider,
+            embeddingModel: values.embeddingModel,
             vectorStoreProvider: values.vectorStoreProvider,
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
@@ -230,7 +230,7 @@ export function DataSourcesList() {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
           graphstore: dataSource.graphstore,
-          embeddingProvider: values.embeddingProvider,
+          embeddingModel: values.embeddingModel,
           vectorStoreProvider: values.vectorStoreProvider,
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
@@ -248,7 +248,7 @@ export function DataSourcesList() {
         params: {
           indexId: values.indexId,
           newIndexName: values.newIndexName,
-          embeddingProvider: values.embeddingProvider,
+          embeddingModel: values.embeddingModel,
           vectorStoreProvider: values.vectorStoreProvider,
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
@@ -290,7 +290,6 @@ export function DataSourcesList() {
     {
       title: 'Name',
       dataIndex: 'name',
-      width: '100%',
       render: (_, { key, name }) => (
         <Link to={`/data-sources/${key}`}>{name}</Link>
       )
@@ -312,6 +311,8 @@ export function DataSourcesList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space size="middle">
           <Button type="link"

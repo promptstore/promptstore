@@ -1,15 +1,19 @@
 import logger from '../../logger';
 
-import { Message, ModelParams } from '../conversions/RosettaStone';
+import { Function, Message, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 interface RunFunctionParams {
   semanticFunction: SemanticFunction;
   args: any;
+  messages?: Message[];
   history?: Message[];
+  extraSystemPrompt?: string;
   modelKey: string;
   modelParams: ModelParams;
+  functions?: Function[];
   isBatch: boolean;
+  options?: any;
   workspaceId: number;
   username: string;
 }
@@ -19,10 +23,14 @@ export class LocalExecutor {
   async runFunction({
     semanticFunction,
     args,
+    messages,
     history,
+    extraSystemPrompt,
     modelKey,
     modelParams,
+    functions,
     isBatch,
+    options,
   }: RunFunctionParams) {
     logger.info('execute function', semanticFunction.name);
     if (!isBatch) logger.debug('args:', args);
@@ -32,7 +40,7 @@ export class LocalExecutor {
       history = this.fixMessages(history);
     }
 
-    return semanticFunction.call({ args, history, modelKey, modelParams, isBatch });
+    return semanticFunction.call({ args, messages, history, extraSystemPrompt, modelKey, modelParams, functions, isBatch, options });
   }
 
   async runComposition({
@@ -42,7 +50,7 @@ export class LocalExecutor {
     modelParams,
     isBatch,
   }) {
-    logger.info('execute composition', composition.name);
+    logger.info('execute composition:', composition.name);
     if (!isBatch) logger.debug('args:', args);
     logger.debug('model:', modelKey, modelParams);
     modelParams = this.fixModelParams(modelParams);

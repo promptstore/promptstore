@@ -2,6 +2,8 @@ import { infer } from 'tableschema';
 import { parse } from 'csv-parse/sync';
 import uuid from 'uuid';
 
+import { getTextStats } from '../../../utils';
+
 function CsvParser({ __name, constants, logger }) {
 
   const allowedExtensions = ['csv'];
@@ -238,20 +240,6 @@ function CsvParser({ __name, constants, logger }) {
 
   function matchDocument(doc) {
     return allowedExtensions.inlcudes(doc.ext);
-  }
-
-  function getTextStats(text) {
-    if (!text) {
-      return { wordCount: 0, length: 0, size: 0 };
-    }
-    text = text.trim();
-    if (!text.length) {
-      return { wordCount: 0, length: 0, size: 0 };
-    }
-    const wordCount = text.split(/\s+/).length;
-    const length = text.length;
-    const size = new Blob([text]).size;
-    return { wordCount, length, size };
   }
 
   return {

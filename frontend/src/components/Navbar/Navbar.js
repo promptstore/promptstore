@@ -1,5 +1,5 @@
 import { Suspense, useContext, useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Button, Divider, Dropdown, Modal } from 'antd';
 import { ExclamationCircleFilled, TeamOutlined } from '@ant-design/icons';
@@ -7,12 +7,17 @@ import { ExclamationCircleFilled, TeamOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContext';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { SearchModal } from '../SearchModal';
+import {
+  getCurrentUserAsync,
+  selectCurrentUser,
+} from '../../features/users/usersSlice';
 import {
   selectLoaded as selectWorkspacesLoaded,
   selectWorkspaces,
 } from '../../features/workspaces/workspacesSlice';
-import { getColor } from '../../utils';
+import { formatNumber, getColor } from '../../utils';
+
+import { SearchModal } from '../SearchModal';
 
 import './Navbar.css';
 
@@ -27,8 +32,10 @@ function Navbar() {
   const [firstName] = (currentUser.displayName || currentUser.email).split(' ');
   const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
 
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const currentUsr = useSelector(selectCurrentUser);
   const workspaces = useSelector(selectWorkspaces);
   const workspacesLoaded = useSelector(selectWorkspacesLoaded);
   const isWorkspacesEmpty = !Object.keys(workspaces).length;
@@ -44,10 +51,37 @@ function Navbar() {
       } else {
         lastPressTime = thisPressTime;
       }
+    } else if (ev.code === 'KeyA' && ev.ctrlKey) {
+      window.location.replace('/apps');
+    } else if (ev.code === 'KeyC' && ev.ctrlKey) {
+      window.location.replace('/compositions');
+    } else if (ev.code === 'KeyD' && ev.ctrlKey) {
+      window.location.replace('/design');
+    } else if (ev.code === 'KeyF' && ev.ctrlKey) {
+      window.location.replace('/functions');
+    } else if (ev.code === 'KeyG' && ev.ctrlKey) {
+      window.location.replace('/agents');
+    } else if (ev.code === 'KeyH' && ev.ctrlKey) {
+      window.location.replace('/home');
+    } else if (ev.code === 'KeyI' && ev.ctrlKey) {
+      window.location.replace('/indexes');
+    } else if (ev.code === 'KeyM' && ev.ctrlKey) {
+      window.location.replace('/models');
+    } else if (ev.code === 'KeyP' && ev.ctrlKey) {
+      window.location.replace('/prompt-sets');
+    } else if (ev.code === 'KeyS' && ev.ctrlKey) {
+      window.location.replace('/data-sources');
+    } else if (ev.code === 'KeyT' && ev.ctrlKey) {
+      window.location.replace('/traces');
+    } else if (ev.code === 'KeyU' && ev.ctrlKey) {
+      window.location.replace('/users');
+    } else if (ev.code === 'KeyW' && ev.ctrlKey) {
+      window.location.replace('/workspaces');
     }
   };
 
   useEffect(() => {
+    dispatch(getCurrentUserAsync());
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
@@ -229,8 +263,13 @@ function Navbar() {
                 <Button type="default"
                   onClick={openSearch}
                 >
-                  Find
+                  Search
                 </Button>
+              </li>
+              <li>
+                <div style={{ color: 'rgba(0, 0, 0, 0.88)' }}>
+                  Credits: {formatNumber(currentUsr?.credits) || '0'}
+                </div>
               </li>
             </ul>
           </div>

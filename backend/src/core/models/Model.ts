@@ -8,7 +8,13 @@ import logger from '../../logger';
 import { Model } from '../common_types';
 import { SemanticFunctionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
-import { ChatRequest, ChatResponse, MessageRole, convertContentTypeToString } from '../conversions/RosettaStone';
+import {
+  ChatRequest,
+  ChatResponse,
+  MessageRole,
+  convertContentTypeToString,
+  getText,
+} from '../conversions/RosettaStone';
 import SemanticCache from '../semanticcache/SemanticCache';
 import {
   CustomModelParams,
@@ -90,7 +96,6 @@ export class LLMChatModel implements LLMModel {
       model,
       model_params: modelParamsWithDefaults,
     };
-    // }
     this.onStart({ request });
     try {
       const response = await this.completionService(this.provider, request);
@@ -100,8 +105,41 @@ export class LLMChatModel implements LLMModel {
           await this.semanticCache.set(prompt, convertContentTypeToString(content), embedding);
         }
       }
+      let promptTokens = 0;
+      let completionTokens = 0;
+      let totalTokens = 0;
+      if (response.usage) {
+        const usage = response.usage;
+        promptTokens = usage.prompt_tokens || 0;
+        completionTokens = usage.completion_tokens || 0;
+        totalTokens = usage.total_tokens || 0;
+      }
+      const message = response.choices[0].message;
+      let outputType: string;
+      let modelOutputText: string;
+      if (message.function_call) {
+        outputType = 'function_call';
+      } else {
+        outputType = 'content';
+        modelOutputText = convertContentTypeToString(message.content);
+      }
+
+      const responseMetadata = {
+        modelInput: request.prompt,
+        modelUserInputText: getText(request.prompt.messages),
+        outputType,
+        modelOutput: message,
+        modelOutputText,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+      };
       this.onEnd({ model, response });
-      return response;
+
+      return {
+        response,
+        responseMetadata,
+      };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ model, errors });

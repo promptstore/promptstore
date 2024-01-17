@@ -340,7 +340,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         extraIndexes: values.extraIndexes,
       });
       if (errors) {
-        return res.status(500).send({ errors });
+        return res.status(500).json({ errors });
       }
       const name = response.choices[0].message.content;
       logger.debug('name:', name);
@@ -411,7 +411,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           extraIndexes: values.extraIndexes,
         });
         if (errors) {
-          res.status(500).send({ errors });
+          res.status(500).json({ errors });
         }
         const name = response.choices[0].message.content;
         logger.debug('name:', name);

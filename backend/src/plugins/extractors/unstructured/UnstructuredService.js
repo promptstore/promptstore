@@ -3,6 +3,8 @@ import axios from 'axios';
 import fs from 'fs';
 import uuid from 'uuid';
 
+import { getTextStats } from '../../../utils';
+
 function UnstructuredService({ __name, constants, logger }) {
 
   const allowedExtensions = [
@@ -302,20 +304,6 @@ function UnstructuredService({ __name, constants, logger }) {
     } catch (err) {
       logger.log('error', String(err), err.stack);
     }
-  }
-
-  function getTextStats(text) {
-    if (!text) {
-      return { wordCount: 0, length: 0, size: 0 };
-    }
-    text = text.trim();
-    if (!text.length) {
-      return { wordCount: 0, length: 0, size: 0 };
-    }
-    const wordCount = text.split(/\s+/).length;
-    const length = text.length;
-    const size = new Blob([text]).size;
-    return { wordCount, length, size };
   }
 
   return {

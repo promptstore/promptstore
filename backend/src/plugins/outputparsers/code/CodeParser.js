@@ -1,16 +1,25 @@
 function CodeParser({ __name, __metadata, constants, logger }) {
 
   async function parse(text) {
-    // logger.debug('Parsing:', text);
+    logger.debug('parsing:', text);
+    if (!text) {
+      return {
+        error: 'Nothing to parse',
+        json: text,
+      };
+    }
     try {
       if (text.includes('```')) {
         text = text.split(/```(?:\w+)?/)[1].trim();
       }
     } catch (err) {
       logger.error('Error parsing text:', err);
+      return {
+        error: String(err),
+        json: text,
+      };
     }
-    // logger.debug('text:', text);
-    return { text };
+    return { json: text };
   }
 
   return {

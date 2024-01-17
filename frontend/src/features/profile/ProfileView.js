@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Avatar, Card } from 'antd';
 
 import NavbarContext from '../../contexts/NavbarContext';
@@ -25,7 +25,7 @@ export function ProfileView() {
   const location = useLocation();
   const dispatch = useDispatch();
 
-  const match = location.pathname.match(/\/profile\/(.*)/);
+  const match = location.pathname.match(/\/users\/(.*)/);
   const id = match && match[1];
   const user = users[id];
 
@@ -59,6 +59,10 @@ export function ProfileView() {
   return (
     <div id="profile-view" style={{ marginTop: 40 }}>
       <Card
+        actions={[
+          <Link to={`/users`}>List</Link>,
+          <Link to={`/users/${id}/edit`}>Edit</Link>
+        ]}
         style={{
           width: 400,
         }}

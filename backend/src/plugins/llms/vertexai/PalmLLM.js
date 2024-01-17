@@ -129,6 +129,10 @@ function PalmLLM({ __name, constants, logger }) {
     throw new Error('Not implemented');
   }
 
+  function getNumberTokens(model, text) {
+    throw new Error('Not implemented');
+  }
+
   return {
     __name,
     createChatCompletion,
@@ -136,6 +140,7 @@ function PalmLLM({ __name, constants, logger }) {
     createEmbedding,
     createImage,
     generateImageVariant,
+    getNumberTokens,
   };
 
 }

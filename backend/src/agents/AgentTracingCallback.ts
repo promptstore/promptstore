@@ -95,7 +95,7 @@ export class AgentTracingCallback extends AgentCallback {
     });
   }
 
-  onPromptTemplateStart({ messageTemplates, args }: PromptTemplateOnStartResponse) {
+  onPromptTemplateStart({ messageTemplates, args, isBatch }: PromptTemplateOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -104,6 +104,7 @@ export class AgentTracingCallback extends AgentCallback {
         type: 'call-prompt-template',
         messageTemplates,
         args,
+        isBatch,
         startTime: startTime.getTime(),
       });
   }

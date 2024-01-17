@@ -3,6 +3,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
+import { setCompositions } from '../composer/compositionsSlice';
 import { setMessages } from '../designer/chatSlice';
 import { setFunctions } from '../functions/functionsSlice';
 import { setModels } from '../models/modelsSlice';
@@ -149,6 +150,8 @@ export const objectUploadAsync = ({ file, type, workspaceId }) => async (dispatc
     dispatch(setFunctions({ functions: res.data }));
   } else if (type === 'model') {
     dispatch(setModels({ models: res.data }));
+  } else if (type === 'composition') {
+    dispatch(setCompositions({ compositions: res.data }));
   }
   dispatch(uploaded());
 };

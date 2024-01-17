@@ -11,6 +11,8 @@ import {
 
 import background from '../../images/promptstore-background-blank.png';
 
+const DEFAULT_CREDITS = 2000;
+
 export default function Register() {
 
   const dispatch = useDispatch();
@@ -56,6 +58,7 @@ export default function Register() {
         firstName,
         lastName,
         email,
+        credits: DEFAULT_CREDITS,
       };
       dispatch(upsertUserAsync({ user }));
     } catch (e) {

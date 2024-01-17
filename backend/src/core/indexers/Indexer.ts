@@ -2,7 +2,7 @@ import { JSONSchema7 } from 'json-schema';
 
 import logger from '../../logger';
 
-import { LLMService } from '../models/llm_types';
+import { LLMModel, LLMService } from '../models/llm_types';
 import { Chunk } from './Chunk';
 import {
   EmbeddingProvider,
@@ -17,10 +17,11 @@ export interface IndexParams {
   newIndexName: string;
   index: any;
   schema: JSONSchema7;
+  maxTokens: number;
   nodeLabel: string;
   embeddingNodeProperty: string;
   similarityMetric: string;
-  embeddingProvider: string;
+  embeddingModel: Partial<LLMModel>;
   vectorStoreProvider: string;
   workspaceId: number;
   username: string;
@@ -42,8 +43,12 @@ export class Indexer {
     const index = params.index || await this.createOrGetIndex(params);
     await this.indexChunks(chunks, {
       indexName: index.name,
+      maxTokens: params.maxTokens,
       nodeLabel: params.nodeLabel,
-      embeddingProvider: index.embeddingProvider,
+      embeddingModel: {
+        provider: index.embeddingProvider,
+        model: index.embeddingModel,
+      },
       vectorStoreProvider: index.vectorStoreProvider,
     })
     return index;
@@ -54,7 +59,7 @@ export class Indexer {
       indexId,
       newIndexName,
       schema,
-      embeddingProvider,
+      embeddingModel,
       vectorStoreProvider,
       nodeLabel = 'Chunk',
       embeddingNodeProperty = 'embedding',
@@ -65,8 +70,8 @@ export class Indexer {
     let index: any;
     if (indexId === 'new') {
       const embeddingProviders = this.llmService.getEmbeddingProviders().map(p => p.key);
-      if (embeddingProvider && !embeddingProviders.includes(embeddingProvider)) {
-        throw new Error('Unsupported embedding provider: ' + embeddingProvider);
+      if (embeddingModel && !embeddingProviders.includes(embeddingModel.provider)) {
+        throw new Error('Unsupported embedding provider: ' + embeddingModel.provider);
       }
 
       const vectorStoreProviders = this.vectorStoreService.getVectorStores().map(p => p.key);
@@ -79,7 +84,7 @@ export class Indexer {
         schema,
         workspaceId,
         username,
-        embeddingProvider,
+        embeddingModel,
         vectorStoreProvider,
         nodeLabel,
         embeddingNodeProperty,
@@ -101,17 +106,17 @@ export class Indexer {
     schema,
     workspaceId,
     username,
-    embeddingProvider,
+    embeddingModel,
     vectorStoreProvider,
     nodeLabel,
     embeddingNodeProperty,
     similarityMetric,
   }) {
     let embeddingDimension: number;
-    if (embeddingProvider) {
-      const embedder = EmbeddingProvider.create(embeddingProvider, this.llmService);
-      const testEmbedding = await embedder.createEmbedding({ input: 'foo' });
-      embeddingDimension = testEmbedding.embedding.length;
+    if (embeddingModel) {
+      const embedder = EmbeddingProvider.create(embeddingModel, this.llmService);
+      const response = await embedder.createEmbedding({ input: 'foo', model: embeddingModel.model });
+      embeddingDimension = response.data[0].embedding.length;
     }
     let index = await this.indexesService.getIndexByName(workspaceId, name);
     if (!index) {
@@ -119,7 +124,8 @@ export class Indexer {
         name,
         schema,
         workspaceId,
-        embeddingProvider,
+        embeddingProvider: embeddingModel.provider,
+        embeddingModel: embeddingModel.model,
         embeddingDimension,
         vectorStoreProvider,
         nodeLabel,
@@ -146,16 +152,17 @@ export class Indexer {
 
   async indexChunks(chunks: Chunk[], {
     indexName,
+    maxTokens,
     nodeLabel,
-    embeddingProvider,
+    embeddingModel,
     vectorStoreProvider,
   }) {
     let embeddings: Array<number[]>;
     if (vectorStoreProvider !== 'redis') {
-      const embedder = EmbeddingProvider.create(embeddingProvider, this.llmService);
-      const proms = chunks.map((chunk: Chunk) => embedder.createEmbedding({ input: chunk.text }));
-      const responses = await Promise.all(proms);
-      embeddings = responses.map(r => r.embedding);
+      const embedder = EmbeddingProvider.create(embeddingModel, this.llmService);
+      const texts = chunks.map(c => c.text);
+      const responses = await embedder.createEmbeddings(texts, maxTokens);
+      embeddings = responses.map(r => r.data.embedding);
     }  // TODO - the Redis Vector Store calculates embeddings at the service end
     const vectorStore = VectorStore.create(vectorStoreProvider, this.vectorStoreService);
     await vectorStore.indexChunks(chunks, embeddings, {

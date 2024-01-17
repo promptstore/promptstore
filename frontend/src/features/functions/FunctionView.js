@@ -406,7 +406,7 @@ export function FunctionView() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Function',
+      title: 'Semantic Function',
     }));
     dispatch(getFunctionAsync(id));
   }, []);
@@ -496,11 +496,13 @@ export function FunctionView() {
         <Content>
           <Card title={func.name}
             extra={
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <Link to={`/functions`}>List</Link>
                 <Link to={`/functions/${id}/edit`}>Edit</Link>
                 <Download filename={snakeCase(func.name) + '.json'} payload={func}>
-                  <Button type="text" icon={<DownloadOutlined />} />
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
                 </Download>
               </div>
             }

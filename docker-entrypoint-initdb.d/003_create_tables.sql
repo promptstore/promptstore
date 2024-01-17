@@ -771,3 +771,115 @@ CREATE INDEX destinations_type_key
     ON public."destinations" USING btree
     (type)
     TABLESPACE pg_default;
+
+
+-- Table: public."call_log"
+
+DROP TABLE IF EXISTS public."call_log";
+
+-- Sequence: public."call_log_id_seq"
+
+DROP SEQUENCE IF EXISTS public."call_log_id_seq";
+
+CREATE SEQUENCE public."call_log_id_seq" AS bigint;
+
+CREATE TABLE public."call_log"
+(
+    id integer NOT NULL DEFAULT nextval('"call_log_id_seq"'::regclass),
+    workspace_id integer,
+    username character varying(255) COLLATE pg_catalog."default",
+    type character varying(255) COLLATE pg_catalog."default",
+    provider character varying(255) COLLATE pg_catalog."default",
+    model character varying(255) COLLATE pg_catalog."default",
+    function_id integer,
+    function_name character varying(255) COLLATE pg_catalog."default",
+    system_input json,
+    output_type character varying(255) COLLATE pg_catalog."default",
+    system_output json,
+    system_output_text text,
+    model_input json,
+    model_user_input_text text,
+    model_output json,
+    model_output_text text,
+    prompt_tokens integer,
+    completion_tokens integer,
+    total_tokens integer,
+    image_uploaded_count integer,
+    image_generated_count integer,
+    video_secs integer,
+    latency_ms integer,
+    success boolean,
+    error character varying(255) COLLATE pg_catalog."default",
+    val json,
+    start_date TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    end_date TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    CONSTRAINT "call_log_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."call_log"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."call_log_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."call_log_id_seq"
+    OWNED BY public."call_log"."id";
+
+-- Index: destinations_username_key
+
+DROP INDEX IF EXISTS public.call_log_username_key;
+
+CREATE INDEX call_log_username_key
+    ON public."call_log" USING btree
+    (username)
+    TABLESPACE pg_default;
+
+-- Index: destinations_model_key
+
+DROP INDEX IF EXISTS public.call_log_model_key;
+
+CREATE INDEX call_log_model_key
+    ON public."call_log" USING btree
+    (model)
+    TABLESPACE pg_default;
+
+
+-- Table: public."evaluations"
+
+DROP TABLE IF EXISTS public."evaluations";
+
+-- Sequence: public."evaluations_id_seq"
+
+DROP SEQUENCE IF EXISTS public."evaluations_id_seq";
+
+CREATE SEQUENCE public."evaluations_id_seq" AS bigint;
+
+CREATE TABLE public."evaluations"
+(
+    id integer NOT NULL DEFAULT nextval('"evaluations_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "evaluations_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."evaluations"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."evaluations_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."evaluations_id_seq"
+    OWNED BY public."evaluations"."id";

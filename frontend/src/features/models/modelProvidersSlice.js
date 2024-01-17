@@ -30,6 +30,13 @@ export const {
   startLoad,
 } = modelProvidersSlice.actions;
 
+export const getEmbeddingProvidersAsync = () => async (dispatch) => {
+  dispatch(startLoad());
+  const url = '/api/providers/embedding';
+  const res = await http.get(url);
+  dispatch(setProviders({ embedding: res.data }));
+};
+
 export const getChatProvidersAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/providers/chat';

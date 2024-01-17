@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { updateAppAsync } from '../apps/appsSlice';
 import { http } from '../../http';
+import { setCredits } from '../users/usersSlice';
 
 import { setChatSessions } from './chatSessionsSlice';
 
@@ -79,7 +80,7 @@ export const getResponseAsync = (req) => async (dispatch) => {
     messages: req.messages.map(cleanMessage),  // remove keys
   };
   const res = await http.post(url, payload);
-  const { completions, lastSession, traceId } = res.data;
+  const { completions, lastSession, traceId, creditBalance } = res.data;
   const messages = [];
   let cost = 0;
   let totalTokens = 0;
@@ -109,6 +110,7 @@ export const getResponseAsync = (req) => async (dispatch) => {
   dispatch(setMessages({ messages: allMessages.map((m, index) => ({ ...m, index })) }));
   dispatch(setChatSessions({ chatSessions: [lastSession] }));
   dispatch(setTraceId({ traceId }));
+  dispatch(setCredits({ credits: creditBalance }));
   const app = req.app;
   if (app) {
     dispatch(updateAppAsync({

@@ -95,18 +95,17 @@ function OpenAILLM({ __name, constants, logger }) {
     }
   }
 
-  async function createEmbedding(request) {
+  function createEmbedding(request) {
     logger.debug('embedding request:', request);
-    const res = await openai.embeddings.create({ ...request, model: 'text-embedding-ada-002' });
-    return res.data[0];
+    return openai.embeddings.create(request);
   }
 
-  async function createImage(prompt, { n = 1, quality = 'standard' }) {
+  async function createImage(prompt, { model = 'dall-e-3', n = 1, quality = 'standard', size = '1024x1024' }) {
     const res = await openai.images.generate({
       prompt,
       n,
-      model: 'dall-e-3',
-      size: '1024x1024',
+      model,
+      size,
       quality,
       response_format: 'url',
     });
@@ -114,7 +113,7 @@ function OpenAILLM({ __name, constants, logger }) {
   }
 
   // DALL-E 2 only
-  async function generateImageVariant(imageUrl, { n = 1 }) {
+  async function generateImageVariant(imageUrl, { n = 1, size = '1024x1024' }) {
     const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
     const localFilePath = '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);
@@ -123,9 +122,9 @@ function OpenAILLM({ __name, constants, logger }) {
     const res = await openai.images.create_variation(
       fs.createReadStream(localFilePath),
       n,
-      "1024x1024"
+      size
     );
-    return res.data;
+    return res;
   }
 
   async function downloadImage(url, filepath) {
@@ -141,6 +140,10 @@ function OpenAILLM({ __name, constants, logger }) {
     });
   }
 
+  function getNumberTokens(model, text) {
+    throw new Error('Not implemented');
+  }
+
   return {
     __name,
     createChatCompletion,
@@ -148,6 +151,7 @@ function OpenAILLM({ __name, constants, logger }) {
     createEmbedding,
     createImage,
     generateImageVariant,
+    getNumberTokens,
   };
 
 }

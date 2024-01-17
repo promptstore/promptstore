@@ -148,6 +148,8 @@ export function FunctionForm() {
   const func = functions[id];
   const isNew = id === 'new';
 
+  // console.log('func:', func);
+
   const uiSchema = {
     "ui:submitButtonOptions": {
       "props": {
@@ -447,7 +449,7 @@ export function FunctionForm() {
           okButtonProps={{ style: { display: 'none' } }}
         >
           <div>
-            <div style={{ float: 'right' }}>
+            <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
               <Button type="default"
                 disabled={isEmpty(formData)}
                 onClick={() => { setFormData(null); }}
@@ -492,7 +494,9 @@ export function FunctionForm() {
               {!isNew ?
                 <>
                   <Download filename={snakeCase(func.name) + '.json'} payload={func}>
-                    <Button type="text" icon={<DownloadOutlined />} />
+                    <Button type="text" icon={<DownloadOutlined />}>
+                      Download
+                    </Button>
                   </Download>
                   <Link to={`/functions/${id}`}>View</Link>
                 </>

@@ -1,7 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import isObject from 'lodash.isobject';
 
-import { getInputString } from '../../../core/utils';
+import { getInput } from '../../../utils';
 
 function BigQuerySQLTool({ __key, __name, constants, logger, services }) {
 
@@ -21,7 +21,7 @@ function BigQuerySQLTool({ __key, __name, constants, logger, services }) {
     try {
       const client = await getConnection();
       logger.debug('got client');
-      const query = getInputString(args);
+      const query = getInput(args);
       logger.debug('query:', query);
       let [rows] = await client.query({ query });
       const recs = rows.map(row => {

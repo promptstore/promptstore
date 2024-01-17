@@ -12,8 +12,8 @@ import {
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import isEmpty from 'lodash.isempty';
-import { v4 as uuidv4 } from 'uuid';
 import useLocalStorageState from 'use-local-storage-state';
+import { v4 as uuidv4 } from 'uuid';
 
 import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -305,18 +305,16 @@ export function Designer() {
   }
 
   const handleChatSubmit = async (values) => {
+    console.log('values:', values);
     let sp;
     let history = [];
     let messages = values.messages;
     const originalMessages = messages;
     let args;
     let engine;
-    let index;
-    if (messages.length > 1) {
-      index = messages.findLastIndex(m => m.role !== 'user') + 1;
-      history = messages.slice(0, index);
-      messages = messages.slice(index);
-    }
+    const index = messages.findLastIndex(m => m.role !== 'user') + 1;
+    history = messages.slice(0, index);
+    messages = messages.slice(index);
     const {
       promptSet,
       systemPrompt,
@@ -703,7 +701,12 @@ export function Designer() {
             collapsed={sessionsCollapsed}
             collapsedWidth={0}
             trigger={null}
-            style={{ height: '100%', marginRight: 20 }}
+            style={{
+              borderRadius: 8,
+              border: sessionsCollapsed ? '1px solid #f5f5f5' : '1px solid #f0f0f0',
+              height: '100%',
+              marginRight: 20,
+            }}
             width={250}
             theme="light"
           >
@@ -727,7 +730,12 @@ export function Designer() {
             collapsed={promptsCollapsed}
             collapsedWidth={0}
             trigger={null}
-            style={{ height: '100%', marginRight: 20 }}
+            style={{
+              borderRadius: 8,
+              border: promptsCollapsed ? '1px solid #f5f5f5' : '1px solid #f0f0f0',
+              height: '100%',
+              marginRight: 20,
+            }}
             width={250}
             theme="light"
           >
@@ -825,7 +833,7 @@ export function Designer() {
               <Button
                 type="text"
                 icon={sessionsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setSessionsCollapsed(!sessionsCollapsed)}
+                onClick={() => setSessionsCollapsed(cur => !cur)}
                 style={{
                   fontSize: '14px',
                   width: 32,
@@ -838,7 +846,7 @@ export function Designer() {
               <Button
                 type="text"
                 icon={promptsCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={() => setPromptsCollapsed(!promptsCollapsed)}
+                onClick={() => setPromptsCollapsed(cur => !cur)}
                 style={{
                   fontSize: '14px',
                   width: 32,

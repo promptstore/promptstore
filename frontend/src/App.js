@@ -16,6 +16,8 @@ import Icon, {
   BookOutlined,
   CodeOutlined,
   CodepenOutlined,
+  ControlOutlined,
+  DatabaseOutlined,
   DeploymentUnitOutlined,
   EyeOutlined,
   FileOutlined,
@@ -30,8 +32,10 @@ import Icon, {
   NodeIndexOutlined,
   NotificationOutlined,
   RobotOutlined,
+  SafetyCertificateOutlined,
   SketchOutlined,
   TeamOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import useLocalStorageState from 'use-local-storage-state';
 import { ReactFlowProvider } from 'reactflow';
@@ -56,6 +60,8 @@ import { DataSourcesList } from './features/dataSources/DataSourcesList';
 import { Designer } from './features/designer/Designer';
 import { DestinationForm } from './features/destinations/DestinationForm';
 import { DestinationsList } from './features/destinations/DestinationsList';
+import { EvaluationForm } from './features/evaluations/EvaluationForm';
+import { EvaluationsList } from './features/evaluations/EvaluationsList';
 import { FileUploader } from './features/uploader/FileUploader';
 import { FunctionForm } from './features/functions/FunctionForm';
 import { FunctionView } from './features/functions/FunctionView';
@@ -79,6 +85,7 @@ import { TracesList } from './features/traces/TracesList';
 import { TrainingList } from './features/training/TrainingList';
 import { TransformationForm } from './features/transformations/TransformationForm';
 import { TransformationsList } from './features/transformations/TransformationsList';
+import { UserForm } from './features/users/UserForm';
 import { UsersList } from './features/users/UsersList';
 import OAuth2Popup from './features/Login/OAuth2Popup';
 import {
@@ -266,13 +273,6 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           <NavLink to="/agents">Agents</NavLink>
         ),
       },
-      // {
-      //   key: 'training',
-      //   icon: <DatabaseOutlined />,
-      //   label: (
-      //     <NavLink to="/training">Training Set</NavLink>
-      //   ),
-      // },
       {
         key: 'prompt-engineering',
         icon: <CodeOutlined />,
@@ -349,13 +349,6 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             ),
           },
           {
-            key: 'transformations',
-            icon: <SketchOutlined />,
-            label: (
-              <NavLink to="/transformations">Transformations</NavLink>
-            ),
-          },
-          {
             key: 'indexes',
             icon: <InfoCircleOutlined />,
             label: (
@@ -363,10 +356,38 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             ),
           },
           {
+            key: 'transformations',
+            icon: <SketchOutlined />,
+            label: (
+              <NavLink to="/transformations">Transformations</NavLink>
+            ),
+          },
+          {
             key: 'ragtester',
             icon: <FileSearchOutlined />,
             label: (
               <NavLink to="/rag">RAG Tester</NavLink>
+            ),
+          },
+        ],
+      },
+      {
+        key: 'evals',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Evals',
+        children: [
+          {
+            key: 'datasets',
+            icon: <DatabaseOutlined />,
+            label: (
+              <NavLink to="/datasets">Datasets</NavLink>
+            ),
+          },
+          {
+            key: 'evaluations',
+            icon: <SafetyCertificateOutlined />,
+            label: (
+              <NavLink to="/evaluations">Evaluations</NavLink>
             ),
           },
         ],
@@ -449,6 +470,28 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
       ],
     },
   ]];
+
+  if (currentUser?.roles?.includes('admin')) {
+
+    const settingsMenuItems = [
+      {
+        key: 'users',
+        icon: <UserOutlined />,
+        label: (
+          <NavLink to="/users">User Management</NavLink>
+        ),
+      },
+    ];
+
+    sideMenuItems = [...sideMenuItems, ...[
+      {
+        key: 'settings',
+        icon: <ControlOutlined />,
+        label: 'Settings',
+        children: settingsMenuItems,
+      },
+    ]];
+  }
 
   return sideMenuItems;
 };
@@ -652,6 +695,8 @@ function App() {
                     <Route path="/design" element={<Designer />} />
                     <Route path="/destinations/:id" element={<DestinationForm />} />
                     <Route path="/destinations" element={<DestinationsList />} />
+                    <Route path="/evaluations/:id" element={<EvaluationForm />} />
+                    <Route path="/evaluations" element={<EvaluationsList />} />
                     <Route path="/functions/:id/edit" element={<FunctionForm />} />
                     <Route path="/functions/:id" element={<FunctionView />} />
                     <Route path="/functions" element={<FunctionsList />} />
@@ -669,17 +714,19 @@ function App() {
                     <Route path="/traces/:id" element={<TraceView />} />
                     <Route path="/traces" element={<TracesList />} />
                     <Route path="/traces-dash" element={<TracesDashboard />} />
-                    <Route path="/training" element={<TrainingList />} />
+                    <Route path="/datasets" element={<TrainingList />} />
                     <Route path="/transformations/:id" element={<TransformationForm />} />
                     <Route path="/transformations" element={<TransformationsList />} />
                     <Route path="/uploads" element={<FileUploader />} />
+                    <Route path="/users/:id/edit" element={<UserForm />} />
+                    <Route path="/users/:id" element={<ProfileView />} />
                     <Route path="/users" element={<UsersList />} />
                     <Route path="/workspaces/:id" element={<WorkspaceForm />} />
                     <Route path="/workspaces" element={<WorkspacesList />} />
                     <Route path="/" element={<Home />} />
                   </Routes>
                 </Content>
-                <Footer style={{ textAlign: 'center' }}>Prompt Store ©2023</Footer>
+                <Footer style={{ textAlign: 'center' }}>Prompt Store ©2024</Footer>
               </Layout>
             </Layout>
           </WithPrivateRoute>

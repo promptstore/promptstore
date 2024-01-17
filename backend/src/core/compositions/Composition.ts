@@ -70,12 +70,13 @@ export class Composition {
         if (node.type === 'functionNode') {
           let functionNode = node as IFunctionNode;
           let func = functionNode.func;
-          let { response } = await func.call({
+          let response = await func.call({
             args: myargs,
             modelKey,
             modelParams,
           });
-          const message = response.choices[0].message;
+          logger.debug('response:', response);
+          const message = response.response.choices[0].message;
           logger.debug(node.type, 'message:', message);
           if (func.returnType === 'application/json') {
             let json: any;
@@ -108,7 +109,7 @@ export class Composition {
           let toolNode = node as IToolNode;
           let tool = toolNode.tool;
           let response = await tool.call(myargs, true);
-          res = merge(res, { response });
+          res = merge(res, response);
         } else if (node.type === 'mapperNode') {
           let mapperNode = node as IMapperNode;
           let mappingTemplate = mapperNode.mappingTemplate;

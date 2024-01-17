@@ -80,3 +80,35 @@ export function columnsToFields(columns: Column[]) {
     return a;
   }, {})
 }
+
+function getDestinationType(transformationDataType: string) {
+  switch (transformationDataType) {
+    case 'String':
+    case 'Vector':
+      return 'string';
+
+    case 'Integer':
+    case 'Float':
+      return 'number';
+
+    case 'Boolean':
+      return 'boolean';
+
+    default:
+      return 'string';
+  }
+}
+
+export function getDestinationSchema(features: IndexField[]) {
+  return {
+    "$id": "https://promptstore.dev/destination.schema.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": features.reduce((a, f) => {
+      a[f.name] = {
+        type: getDestinationType(f.dataType),
+      };
+      return a;
+    }, {}),
+  };
+}

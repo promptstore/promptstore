@@ -11,6 +11,7 @@ import contentReducer from '../features/apps/Playground/contentSlice';
 import dataSourcesReducer from '../features/dataSources/dataSourcesSlice';
 import destinationsReducer from '../features/destinations/destinationsSlice';
 import embeddingReducer from '../features/uploader/embeddingSlice';
+import evaluationsReducer from '../features/evaluations/evaluationsSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
 import graphStoresReducer from '../features/uploader/graphStoresSlice';
@@ -45,6 +46,7 @@ export const store = configureStore({
     dataSources: dataSourcesReducer,
     destinations: destinationsReducer,
     embedding: embeddingReducer,
+    evaluations: evaluationsReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
     graphStores: graphStoresReducer,

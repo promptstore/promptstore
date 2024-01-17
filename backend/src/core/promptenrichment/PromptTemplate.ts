@@ -24,6 +24,7 @@ import {
   Message,
   MessageRole,
   convertContentTypeToString,
+  fillContent,
 } from '../conversions/RosettaStone';
 
 dayjs.extend(relativeTime);
@@ -55,10 +56,11 @@ export class PromptTemplate {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
+  async call({ args, isBatch, messages, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    await this.onStart({ args, contextWindow, maxTokens, modelKey });
+    await this.onStart({ args, isBatch, contextWindow, maxTokens, modelKey });
     try {
+      // logger.debug('args:', args);
       if (this.schema) {
         this.validate(args, this.schema);
       }
@@ -67,12 +69,19 @@ export class PromptTemplate {
         args = this.checkContextLength(args, contextWindow, maxTokens, modelKey);
         // logger.debug('new args:', args);
       }
-      const messages = this.messages.map((message) => ({
+      const _messages = this.messages.map((message) => ({
         role: message.role,
-        content: this.templateFiller(convertContentTypeToString(message.content), args),
+        content: fillContent(this.templateFiller, args, message.content),
       }));
-      this.onEnd({ messages: await convertMessagesWithImages(messages) });
-      return messages;
+      // append the enriched messages to the enriched prompts
+      if (messages) {
+        _messages.push(...messages.map((message) => ({
+          role: message.role,
+          content: fillContent(this.templateFiller, args, message.content),
+        })));
+      }
+      this.onEnd({ messages: await convertMessagesWithImages(_messages) });
+      return _messages;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -123,11 +132,12 @@ export class PromptTemplate {
     }
   }
 
-  async onStart({ args }: PromptTemplateCallParams) {
+  async onStart({ args, isBatch }: PromptTemplateCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onPromptTemplateStart({
         messageTemplates: await convertMessagesWithImages(this.messages),
         args,
+        isBatch,
       });
     }
   }

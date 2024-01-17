@@ -5,8 +5,9 @@ import isEqual from 'lodash.isequal';
 import omit from 'lodash.omit';
 
 import { http } from '../../../http';
+// import { setCredits } from '../../users/usersSlice';
 
-import { updateAppAsync } from '../appsSlice';
+// import { updateAppAsync } from '../appsSlice';
 
 export const contentSlice = createSlice({
   name: 'content',
@@ -250,6 +251,7 @@ export const deleteContentsAsync = ({ keys }) => async (dispatch, getState) => {
   dispatch(removeContents({ keys }));
 };
 
+/*
 export const getResponseAsync = ({ appId, app, contentId, service, userId }) => async (dispatch) => {
   dispatch(startLoad());
   let res, url;
@@ -276,19 +278,16 @@ export const getResponseAsync = ({ appId, app, contentId, service, userId }) => 
 
   url = '/api/completion';
   res = await http.post(url, { app, service });
+  const { response, responseMetadata } = res.data;
   let contents, tokenCount;
   if (app.variations?.key) {
-    contents = res.data.flatMap(getContents({ appId, contentId, userId }));
-    tokenCount = res.data.reduce((a, c) => a + c.usage.total_tokens, 0);
+    contents = response.flatMap(getContents({ appId, contentId, userId }));
+    tokenCount = response.reduce((a, c) => a + c.usage.total_tokens, 0);
   } else {
-    contents = getContents({ appId, contentId, userId })(res.data);
-    tokenCount = res.data.usage.total_tokens;
+    contents = getContents({ appId, contentId, userId })(response);
+    tokenCount = response.usage.total_tokens;
   }
   const cost = tokenCount / 1000 * 0.002;
-
-  // if (app.toneFileName) {
-  //   contents = contents.slice(1);
-  // }
 
   dispatch(setContents({ contents }));
   dispatch(updateAppAsync({
@@ -298,6 +297,7 @@ export const getResponseAsync = ({ appId, app, contentId, service, userId }) => 
       tokenCount: (app.tokenCount || 0) + tokenCount,
     }
   }));
+  dispatch(setCredits({ credits: responseMetadata.creditBalance }));
 };
 
 const getContents = ({ appId, contentId, userId }) => ({ choices, model, usage }) => choices.map((completion) => ({
@@ -337,6 +337,7 @@ export const generateCopyImageAsync = (appId, contentId, params) => async (dispa
   }));
   dispatch(setExpandedRowKeys({ key: contentId }));
 };
+*/
 
 export const searchClient = (indexParams, workspaceId) => ({
   async search(requests) {
@@ -345,7 +346,7 @@ export const searchClient = (indexParams, workspaceId) => ({
     if (indexParams.indexName) {
       attrs = { 'Object__workspaceId': workspaceId, 'Object__isPublic': true };
     }
-    const res = await http.post(url, { requests, indexParams, attrs, logicalType: 'or' });
+    const res = await http.post(url, { requests, indexParams, attrs, logicalType: 'or', workspaceId });
     return res.data;
   },
   async searchForFacetValues(requests) {

@@ -4,19 +4,34 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const OBJECT_TYPE = 'models';
 
-  const { modelsService } = services;
+  const { creditCalculatorService, modelsService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   app.get('/api/workspace/:workspaceId/models', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
-    const models = await modelsService.getModels(workspaceId);
-    res.json(models);
+    const { type } = req.query;
+    let models;
+    if (type) {
+      models = await modelsService.getModelsByType(workspaceId, type);
+    } else {
+      models = await modelsService.getModels(workspaceId);
+    }
+    const creditsPerCall = creditCalculatorService.getCreditsPerCall();
+    const ret = models.map(m => ({ ...m, creditsPerCall: creditsPerCall[m.key] }));
+    res.json(ret);
   });
 
   app.get('/api/models/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const model = await modelsService.getModel(id);
+    const creditsPerCall = creditCalculatorService.getCreditsPerCall();
+    res.json({ ...model, creditsPerCall: creditsPerCall[model.key] });
+  });
+
+  app.get('/api/workspace/:workspaceId/models-by-key/:key', auth, async (req, res, next) => {
+    const { key, workspaceId } = req.params;
+    const model = await modelsService.getModelByKey(workspaceId, key);
     res.json(model);
   });
 

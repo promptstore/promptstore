@@ -43,7 +43,7 @@ VALUES
     ;
 
 INSERT INTO public.models (workspace_id, name, created_by, modified_by, val)
-VALUES (1, 'OpenAI GPT 3.5-turbo', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"key":"gpt-3.5-turbo","description":"The most capable GPT-3.5 model and optimized for chat at 1/10th the cost of text-davinci-003.","type":"gpt","isTypesDefined":true,"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Text input."}},"title":"Request","required":["content"]},"returnTypeSchema":{"type":"object","properties":{}},"provider":"openai"}');
+VALUES (1, 'OpenAI GPT 3.5-turbo', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"key":"gpt-3.5-turbo-0613","description":"The most capable GPT-3.5 model and optimized for chat at 1/10th the cost of text-davinci-003.","type":"gpt","isTypesDefined":true,"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Text input."}},"title":"Request","required":["content"]},"returnTypeSchema":{"type":"object","properties":{}},"provider":"openai"}');
 
 INSERT INTO public.functions (workspace_id, name, created_by, modified_by, val)
 VALUES 

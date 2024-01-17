@@ -423,9 +423,10 @@ export function Composer() {
             maxHeight: 600,
             overflowY: 'auto',
           }}
+          okButtonProps={{ style: { display: 'none' } }}
         >
-          <div style={{ width: 720 }}>
-            <div style={{ float: 'right' }}>
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
               <Button type="default"
                 disabled={isEmpty(formData)}
                 onClick={() => { setFormData(null); }}

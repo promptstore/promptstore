@@ -13,6 +13,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
   const {
     appsService,
+    compositionsService,
     dataSourcesService,
     documentsService,
     extractorService,
@@ -245,7 +246,34 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
   async function importObject(workspaceId, username, type, obj) {
     let r;
-    if (type === 'function') {
+    if (type === 'composition') {
+      delete obj.id;
+      const name = obj.name.trim();
+      const compositions = await compositionsService.getCompositionsByName(workspaceId, name);
+      logger.debug('existing compositions found:', compositions.length);
+      if (compositions.length) {
+        let version = 0;
+        let exactMatch = false;
+        for (const comp of compositions) {
+          const match = comp.name.match(/(.*?)(\d+)$/);
+          if (match && match[1].trim() === name) {
+            const ver = parseInt(match[2], 10);
+            version = Math.max(version, ver);
+          } else if (comp.name.trim() === name) {
+            exactMatch = true;
+          }
+        }
+        if (version > 0 || exactMatch) {
+          obj = { ...obj, name: name + ' ' + (version + 1), workspaceId };
+        } else {
+          obj = { ...obj, name, workspaceId };
+        }
+      } else {
+        obj = { ...obj, name, workspaceId };
+      }
+      logger.debug('obj:', obj);
+      r = await compositionsService.upsertComposition(obj, username);
+    } else if (type === 'function') {
       delete obj.id;
       const name = obj.name.trim();
       const functions = await functionsService.getFunctionsByName(workspaceId, name);
@@ -360,14 +388,14 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
-      return res.status(400).send({
+      return res.status(400).json({
         error: { message: 'Invalid workspace' },
       });
     }
     if (appId) {
       appId = parseInt(appId, 10);
       if (isNaN(appId)) {
-        return res.status(400).send({
+        return res.status(400).json({
           error: { message: 'Invalid app' },
         });
       }
@@ -388,7 +416,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
             mc.presignedUrl('GET', constants.FILE_BUCKET, result.name, 24 * 60 * 60, (err, presignedUrl) => {
               if (err) {
                 logger.error(err);
-                return res.status(400).send({
+                return res.status(400).json({
                   error: { message: 'Error getting presigned url: ' + err.message },
                 });
               }
@@ -426,7 +454,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {
-      return res.status(400).send({
+      return res.status(400).json({
         error: { message: 'Invalid workspace' },
       });
     }
@@ -454,7 +482,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     const names = req.query.names.split(',');
     const workspaceId = parseInt(req.query.workspace, 10);
     if (isNaN(workspaceId)) {
-      return res.status(400).send({
+      return res.status(400).json({
         error: 'Invalid workspace',
       });
     }

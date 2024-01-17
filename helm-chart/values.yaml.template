@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.43"
+version: "0.6.48"
 
 port: "5000"
 
@@ -198,6 +198,11 @@ serpapi:
 
 ## Vector store plugins ########
 vector_stores:
+
+  # Chroma
+  chroma:
+    host:
+    token:
 
   # Neo4j
   neo4j:

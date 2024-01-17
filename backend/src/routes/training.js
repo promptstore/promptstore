@@ -1,11 +1,12 @@
 export default ({ app, auth, logger, services }) => {
 
-  const { trainingService } = services;
+  const { callLoggingService, trainingService } = services;
 
   app.get('/api/workspaces/:workspaceId/training', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
     const { limit, start } = req.query;
-    const data = await trainingService.getTrainingData(workspaceId, limit, start);
+    // const data = await trainingService.getTrainingData(workspaceId, limit, start);
+    const data = await callLoggingService.getCallLogs(workspaceId, limit, start);
     res.json(data);
   });
 

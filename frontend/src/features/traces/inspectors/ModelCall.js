@@ -17,7 +17,7 @@ export function ModelCall({ messages, step, title }) {
         {step.model}
       </Descriptions.Item>
       <Descriptions.Item label="params" span={2}>
-        <JsonView src={step.modelParams} />
+        <JsonView collapsed src={step.modelParams} />
       </Descriptions.Item>
       <Descriptions.Item label="batch" span={1}>
         <Boolean step={step.isBatch} />

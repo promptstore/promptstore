@@ -102,7 +102,6 @@ export function IndexesList() {
     {
       title: 'Store Type',
       dataIndex: 'storeType',
-      width: '100px',
       render: (_, { storeType }) => (
         <div>{storeType}</div>
       )
@@ -110,7 +109,6 @@ export function IndexesList() {
     {
       title: 'Store',
       dataIndex: 'store',
-      width: '100%',
       render: (_, { store }) => (
         <Tag>{store}</Tag>
       )
@@ -118,6 +116,8 @@ export function IndexesList() {
     {
       title: 'Action',
       key: 'action',
+      fixed: 'right',
+      width: 225,
       render: (_, record) => (
         <Space size="middle">
           {record.storeType === 'Vector' ?
@@ -155,7 +155,7 @@ export function IndexesList() {
   if (index) {
     indexParams = {
       nodeLabel: index.nodeLabel,
-      embeddingProvider: index.embeddingProvider,
+      embeddingModel: index.embeddingModel,
       vectorStoreProvider: index.vectorStoreProvider,
     };
   }

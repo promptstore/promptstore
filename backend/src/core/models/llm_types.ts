@@ -20,6 +20,8 @@ export interface LLMService {
 
   generateImageVariant?(provider: string, imageUrl: string, options: any): Promise<any>;
 
+  getNumberTokens(provider: string, model: string, text: string): number;
+
   getChatProviders(): Array<any>
 
   getCompletionProviders(): Array<any>
@@ -41,6 +43,8 @@ export interface LLM {
   createImage(prompt: string, options: any): Promise<any>;
 
   generateImageVariant(imageUrl: string, options: any): Promise<any>;
+
+  getNumberTokens(model: string, text: string): number;
 
 }
 

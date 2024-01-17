@@ -66,19 +66,30 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
       throw new Error(`model provider ${provider} not supported.`);
     }
 
-    logger.debug('provider request:', providerRequest);
+    // logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
-    logger.debug('provider response:', response);
+    // logger.debug('provider response:', response);
 
     if ([...OPENAI_COMPATIBLE_PROVIDERS, 'mistral'].includes(provider)) {
-      return fromOpenAIChatResponse(response);
+      // because the OpenAI GPT-4V model only accepts the key `gpt-4-vision-preview`,
+      // but returns the key `gpt-4-1106-vision-preview`
+      const universalResponse = await fromOpenAIChatResponse(response, parserService);
+      return {
+        ...universalResponse,
+        model: request.model,
+      };
     }
     if (provider === 'bedrock') {
       if (request.model.startsWith('anthropic')) {
         const universalResponse = await fromAnthropicChatResponse(response, parserService);
+        const model = request.model;
+        const prompt_tokens = instance.getNumberTokens(model, providerRequest.body.prompt);
+        const completion_tokens = instance.getNumberTokens(model, response.completion);
+        const total_tokens = prompt_tokens + completion_tokens;
         return {
           ...universalResponse,
-          model: request.model,
+          model,
+          usage: { prompt_tokens, completion_tokens, total_tokens },
         };
 
       } else if (request.model.startsWith('cohere')) {
@@ -102,7 +113,11 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     }
 
     if (provider === 'llamaapi') {
-      return fromLlamaApiChatResponse(response);
+      const universalResponse = fromLlamaApiChatResponse(response);
+      return {
+        ...universalResponse,
+        model: request.model,
+      };
     }
 
     if (provider === 'vertexai') {
@@ -203,6 +218,11 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     return await instance.generateImageVariant(imageUrl, options);
   }
 
+  function getNumberTokens(provider: string, model: string, text: string) {
+    const instance = registry[provider] as LLM;
+    return instance.getNumberTokens(model, text);
+  }
+
   function getChatProviders(): PluginMetadata[] {
     return Object.entries(registry)
       .filter(([_, p]) => 'createChatCompletion' in p)
@@ -239,6 +259,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     getEmbeddingProviders,
     createImage,
     generateImageVariant,
+    getNumberTokens,
   }
 
 }

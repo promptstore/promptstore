@@ -47,6 +47,7 @@ function Neo4jService({ __name, constants, logger }) {
   }
 
   async function addGraph(indexName, graph) {
+    // logger.debug('graph:', graph);
     const g = cleanGraph(indexName, graph);
     const q1 = `
       UNWIND $data AS row
@@ -65,20 +66,23 @@ function Neo4jService({ __name, constants, logger }) {
       RETURN distinct 'done'
     `;
     const session = getClient().session();
+    logger.debug('g:', g);
     try {
       await session.run(q1, {
         data: g.nodes,
       });
-      await session.run(q2, {
-        data: g.relationships.map(rel => ({
-          source: rel.source.id,
-          source_label: rel.source.type,
-          target: rel.target.id,
-          target_label: rel.target.type,
-          type: rel.type.replace(' ', '_').toUpperCase(),
-          properties: rel.properties,
-        })),
-      });
+      if (g.relationships?.length) {
+        await session.run(q2, {
+          data: g.relationships.map(rel => ({
+            source: rel.source.id,
+            source_label: rel.source.type,
+            target: rel.target.id,
+            target_label: rel.target.type,
+            type: rel.type.replace(' ', '_').toUpperCase(),
+            properties: rel.properties,
+          })),
+        });
+      }
     } catch (err) {
       logger.error(err, err.stack);
       throw err;
@@ -88,10 +92,15 @@ function Neo4jService({ __name, constants, logger }) {
   }
 
   function cleanGraph(indexName, graph) {
-    const g = JSON.parse(graph);
+    let g;
+    if (typeof graph === 'string') {
+      g = JSON.parse(graph);
+    } else {
+      g = graph;
+    }
     return {
       nodes: g.nodes.map(node => cleanNode(indexName, node)),
-      relationships: g.rels.map(rel => cleanRel(indexName, rel)),
+      relationships: g.relationships?.map(rel => cleanRel(indexName, rel)),
     };
   }
 
@@ -104,14 +113,27 @@ function Neo4jService({ __name, constants, logger }) {
     };
   }
 
+  // TODO - is `id` a label from the model
+  // function cleanNode(indexName, node) {
+  //   const name = startCase(node.id);
+  //   return {
+  //     id: name,
+  //     type: capitalize(node.type),
+  //     properties: {
+  //       ...propsToDict(node.properties),
+  //       name,
+  //       indexName,
+  //     },
+  //   };
+  // }
   function cleanNode(indexName, node) {
-    const name = startCase(node.id);
+    const props = propsToDict(node.properties);
     return {
-      id: name,
+      id: node.id,
       type: capitalize(node.type),
       properties: {
-        ...propsToDict(node.properties),
-        name,
+        ...props,
+        name: props.name || node.id,  // the display name
         indexName,
       },
     };

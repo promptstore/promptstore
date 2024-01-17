@@ -100,6 +100,8 @@ export function ModelForm() {
   const model = models[id];
   const isNew = id === 'new';
 
+  // console.log('model:', model);
+
   const chatProviderOptions = useMemo(() => {
     const list = (providers.chat || []).map(p => ({
       label: p.name,
@@ -111,6 +113,15 @@ export function ModelForm() {
 
   const completionProviderOptions = useMemo(() => {
     const list = (providers.completion || []).map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [providers]);
+
+  const embeddingProviderOptions = useMemo(() => {
+    const list = (providers.embedding || []).map(p => ({
       label: p.name,
       value: p.key,
     }));
@@ -188,7 +199,9 @@ export function ModelForm() {
             {!isNew ?
               <>
                 <Download filename={snakeCase(model.name) + '.json'} payload={model}>
-                  <Button type="text" icon={<DownloadOutlined />} />
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
                 </Download>
                 <Link to={`/models/${id}`}>View</Link>
               </>
@@ -256,7 +269,21 @@ export function ModelForm() {
         >
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
-        {typeValue === 'gpt' || typeValue === 'embedding' ?
+        {typeValue === 'embedding' ?
+          <Form.Item
+            label="Provider"
+            name="provider"
+            wrapperCol={{ span: 10 }}
+          >
+            <Select
+              loading={providersLoading}
+              options={embeddingProviderOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          : null
+        }
+        {typeValue === 'gpt' ?
           <Form.Item
             label="Provider"
             name="provider"
@@ -285,13 +312,36 @@ export function ModelForm() {
           : null
         }
         {typeValue === 'gpt' || typeValue === 'completion' ?
-          <Form.Item
-            name="contextWindow"
-            label="Context Window"
-            wrapperCol={{ span: 5 }}
-          >
-            <Input />
-          </Form.Item>
+          <>
+            <Form.Item
+              name="contextWindow"
+              label="Context window"
+              wrapperCol={{ span: 4 }}
+            >
+              <Input type="number" />
+            </Form.Item>
+            <Form.Item
+              name="tokensPerMinute"
+              label="Tokens per min."
+              wrapperCol={{ span: 4 }}
+            >
+              <Input type="number" />
+            </Form.Item>
+            <Form.Item
+              name="requestsPerMinute"
+              label="Requests per min."
+              wrapperCol={{ span: 4 }}
+            >
+              <Input type="number" />
+            </Form.Item>
+            <Form.Item
+              name="multimodal"
+              label="Multimodal"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+          </>
           : null
         }
         {typeValue === 'api' ?
@@ -328,7 +378,7 @@ export function ModelForm() {
           <>
             <Form.Item
               colon={false}
-              label="Typesafe"
+              label="Schema"
               name="isTypesDefined"
               valuePropName="checked"
             >

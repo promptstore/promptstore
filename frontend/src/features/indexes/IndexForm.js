@@ -65,14 +65,7 @@ export function IndexForm() {
   const index = indexes[id] || {};
   const isNew = id === 'new';
 
-  const vectorStoreOptions = useMemo(() => {
-    const list = vectorStores.map(p => ({
-      label: p.name,
-      value: p.key,
-    }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [vectorStores]);
+  // console.log('index:', index);
 
   const graphStoreOptions = useMemo(() => {
     const list = graphStores.map(p => ({
@@ -82,6 +75,15 @@ export function IndexForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [graphStores]);
+
+  const vectorStoreOptions = useMemo(() => {
+    const list = vectorStores.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [vectorStores]);
 
   useEffect(() => {
     setNavbarState((state) => ({
@@ -142,6 +144,7 @@ export function IndexForm() {
       params = {
         nodeLabel: index.nodeLabel,
         embeddingProvider: index.embeddingProvider,
+        embeddingModel: index.embeddingModel,
       };
     } else if (index.vectorStoreProvider === 'redis') {
       params = {
@@ -194,6 +197,7 @@ export function IndexForm() {
     indexParams = {
       nodeLabel: index.nodeLabel,
       embeddingProvider: index.embeddingProvider,
+      embeddingModel: index.embeddingModel,
       vectorStoreProvider: index.vectorStoreProvider,
     };
   }
