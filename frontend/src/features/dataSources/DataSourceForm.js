@@ -419,7 +419,7 @@ export function DataSourceForm() {
                 valuePropName="checked"
                 style={{ display: 'inline-block', margin: 0 }}
               >
-                <Switch />
+                <Switch disabled />
               </Form.Item>
               {extractMetadataValue ?
                 <Form.Item

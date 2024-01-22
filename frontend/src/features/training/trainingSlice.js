@@ -15,6 +15,9 @@ export const trainingSlice = createSlice({
         delete state.data[id];
       }
     },
+    resetData: (state) => {
+      state.data = {};
+    },
     setData: (state, action) => {
       for (const row of action.payload.data) {
         state.data[row.id] = row;
@@ -31,6 +34,7 @@ export const trainingSlice = createSlice({
 
 export const {
   removeData,
+  resetData,
   setData,
   startLoad,
 } = trainingSlice.actions;
@@ -39,6 +43,14 @@ export const getTrainingDataAsync = ({ workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/workspaces/${workspaceId}/training`;
   const res = await http.get(url);
+  dispatch(setData({ data: res.data }));
+};
+
+export const getTrainingDataByIdAsync = ({ ids }) => async (dispatch) => {
+  dispatch(startLoad());
+  dispatch(resetData());
+  const url = `/api/logs-request`;
+  const res = await http.post(url, { ids });
   dispatch(setData({ data: res.data }));
 };
 

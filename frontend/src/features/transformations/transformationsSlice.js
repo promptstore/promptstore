@@ -72,6 +72,8 @@ export const deleteTransformationsAsync = ({ ids }) => async (dispatch) => {
 export const runTransformationAsync = ({ id, correlationId, workspaceId }) => async (dispatch, getState) => {
   const url = `/api/transformation-runs/${id}`;
   await http.post(url, { correlationId, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     try {
       const res = await http.get('/api/transformation-status/' + correlationId);
@@ -84,9 +86,15 @@ export const runTransformationAsync = ({ id, correlationId, workspaceId }) => as
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const pauseScheduleAsync = ({ scheduleId }) => async (dispatch) => {

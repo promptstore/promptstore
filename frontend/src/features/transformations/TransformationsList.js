@@ -211,7 +211,7 @@ export function TransformationsList() {
             style={{ paddingLeft: 0 }}
             onClick={() => runTransformation(record.key)}
           >
-            Run
+            Run Now
           </Button>
         </Space>
       ),

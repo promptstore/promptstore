@@ -883,3 +883,40 @@ ALTER SEQUENCE public."evaluations_id_seq"
 
 ALTER SEQUENCE public."evaluations_id_seq"
     OWNED BY public."evaluations"."id";
+
+
+-- Table: public."secrets"
+
+DROP TABLE IF EXISTS public."secrets";
+
+-- Sequence: public."secrets_id_seq"
+
+DROP SEQUENCE IF EXISTS public."secrets_id_seq";
+
+CREATE SEQUENCE public."secrets_id_seq" AS bigint;
+
+CREATE TABLE public."secrets"
+(
+    id integer NOT NULL DEFAULT nextval('"secrets_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    value character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    CONSTRAINT "secrets_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."secrets"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."secrets_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."secrets_id_seq"
+    OWNED BY public."secrets"."id";

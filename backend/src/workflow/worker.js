@@ -24,6 +24,7 @@ import { ModelProviderService } from '../services/ModelProviderService';
 import { ModelsService } from '../services/ModelsService';
 import { ParserService } from '../services/ParserService';
 import { PromptSetsService } from '../services/PromptSetsService';
+import { SecretsService } from '../services/SecretsService';
 import { SqlSourceService } from '../services/SqlSourceService';
 import { ToolService } from '../services/ToolService';
 import { TracesService } from '../services/TracesService';
@@ -103,6 +104,7 @@ const modelProviderService = ModelProviderService({ logger, registry: modelProvi
 const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 const promptSetsService = PromptSetsService({ pg, logger });
+const secretsService = SecretsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
@@ -177,6 +179,7 @@ async function runWorker() {
       llmService,
       loaderService,
       modelsService,
+      secretsService,
       sqlSourceService,
       uploadsService,
       vectorStoreService,

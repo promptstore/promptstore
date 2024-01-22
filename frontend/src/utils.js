@@ -281,3 +281,12 @@ export const formatNumber = (num, precision = 0) => {
   }
   return null;
 }
+
+export const formatPercentage = (number) => {
+  const numberFormatter = new Intl.NumberFormat('en-US', {
+    style: 'percent',
+    maximumFractionDigits: 2,
+  });
+
+  return numberFormatter.format(number);
+};

@@ -1,13 +1,14 @@
+import OpenAI from 'openai';
 import trim from 'lodash.trim';
 import uuid from 'uuid';
 
 import {
   PARA_DELIM,
-  ChatRequest,
-  ChatResponse,
+  Function,
   FunctionCall,
   Message,
   ModelParams,
+  getText,
 } from '../core/conversions/RosettaStone';
 import {
   FunctionMessage,
@@ -31,7 +32,17 @@ const STOP = [
   '	Observation:'
 ];
 
-export default ({ logger, services }) => {
+class RunError extends Error {
+
+  run: any;
+
+  constructor(message: string, run: any) {
+    super(message);
+    this.run = run;
+  }
+}
+
+export default ({ constants, logger, services }) => {
 
   const {
     indexesService,
@@ -41,7 +52,12 @@ export default ({ logger, services }) => {
     vectorStoreService,
   } = services;
 
-  class SimpleAgent {
+  interface CustomTool {
+    type: string;
+    function: Function;
+  }
+
+  class OpenAIAssistantAgent {
 
     name: string;
     model: string;
@@ -57,6 +73,7 @@ export default ({ logger, services }) => {
     currentCallbacks: AgentCallback[];
     useFunctions: boolean;
     promptSetSkill: string;
+    openai: any;
 
     constructor({
       isChat = false,
@@ -88,11 +105,61 @@ export default ({ logger, services }) => {
       this.useFunctions = useFunctions;
 
       // TODO
-      this.promptSetSkill = useFunctions ? 'simple_agent' : 'simple_agent';
+      this.promptSetSkill = useFunctions ? 'math_tutor' : 'math_tutor';
+
+      this.openai = new OpenAI({
+        apiKey: constants.OPENAI_API_KEY,
+      });
+
     }
 
     reset() {
       this.history = [];
+    }
+
+    createAssistant(systemPrompt: string, tools: CustomTool[]) {
+      logger.debug('creating assistant');
+      return this.openai.beta.assistants.create({
+        name: this.name,
+        instructions: systemPrompt,
+        tools,
+        model: this.model,
+      });
+    }
+
+    runAssistant(assistant, thread) {
+      logger.debug('running assistant');
+      return new Promise(async (resolve, reject) => {
+        let run = await this.openai.beta.threads.runs.create(
+          thread.id,
+          { assistant_id: assistant.id }
+        );
+        const self = this;
+
+        async function waitForJob(iterationsRemaining: number = 100) {
+          if (!iterationsRemaining) {
+            return reject(new RunError("Run didn't complete: timeout", run));
+          }
+          run = await self.openai.beta.threads.runs.retrieve(
+            thread.id,
+            run.id
+          );
+          const { status } = run;
+          logger.debug('waiting for job - status:', status);
+          if (!['queued', 'in_progress'].includes(status)) {
+            logger.debug('job ended - status:', status);
+            if (['cancelling', 'cancelled', 'failed', 'expired'].includes(status)) {
+              return reject(new RunError("Run didn't complete: " + status, run));
+            }
+            return resolve(run);
+          }
+          setTimeout(() => {
+            waitForJob(iterationsRemaining - 1);
+          }, 5000);  // poll every 5 seconds
+        }
+
+        waitForJob();
+      });
     }
 
     async run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
@@ -110,40 +177,62 @@ export default ({ logger, services }) => {
       let iterations = 0;
       let elapsedTime = 0.0;
 
-      const functions = this._getFunctions(allowedTools);
+      const functions: Function[] = this._getFunctions(allowedTools);
+      const tools = functions.map(func => ({
+        type: 'function',
+        function: func,
+      }));
+      const toolDescriptions: string = toolService.getToolsList(allowedTools);
+      const toolNames: string = toolService.getToolNames(allowedTools);
       const args = {
         content: goal,
         agent_scratchpad: '',  // TODO variables should be optional by default
 
         // deprecated - using universal model calling instead
-        tools: toolService.getToolsList(allowedTools),
-        tool_names: toolService.getToolNames(allowedTools),
+        tools: toolDescriptions,
+        tool_names: toolNames,
       };
       try {
-        let messages = await this._getSetupPrompts(args);
+        const prompts: Message[] = await this._getSetupPrompts(args);
+        logger.debug('prompts:', prompts);
+        let idx = -1;
+        for (let i = 0; i < prompts.length; i++) {
+          if (prompts[i].role !== 'system') {
+            break;
+          }
+          idx = i;
+        }
+        logger.debug('idx:', idx);
+        const systemMessages = prompts.slice(0, idx + 1);
+        logger.debug('systemMessages:', systemMessages);
+        let messages = prompts.slice(idx + 1);
+        messages.push(new UserMessage(goal));
+        logger.debug('messages:', messages);
+        const systemPrompt = getText(systemMessages);
+        logger.debug('systemPrompt:', systemPrompt);
+
+        // TODO - do once when saving/updating agent
+        const assistant = await this.createAssistant(systemPrompt, tools);
+        logger.debug('assistant id:', assistant.id);
+ 
+        logger.debug('creating thread');
+        const thread = await this.openai.beta.threads.create();
+        logger.debug('thread id:', thread.id);
+        const proms = messages.map(m => {
+          return this.openai.beta.threads.messages.create(thread.id, m);
+        });
+        const asstmsgs = await Promise.all(proms);
 
         // enter the agent loop
         while (this._shouldContinue(iterations, elapsedTime)) {
-          const request: ChatRequest = {
-            model: this.model,
-            model_params: this.modelParams,
-            prompt: {
-              history: [...this.history],
-              messages: [...messages],
-            },
-          };
-
-          if (this.useFunctions) {
-            request.functions = functions;
-          }
-
           for (let callback of this.currentCallbacks) {
             callback.onEvaluateTurnStart({
               index: iterations,
-              request,
+              // request,
             });
           }
-          const { done, content, name } = await this._next(request, extraFunctionCallParams);
+          const { done, content, name } = await this._next(assistant, thread, extraFunctionCallParams);
+
           for (let callback of this.currentCallbacks) {
             callback.onEvaluateTurnEnd({
               model: this.model,
@@ -179,14 +268,15 @@ export default ({ logger, services }) => {
       if (!promptSets.length) {
         this._throwAgentError('Prompt not found');
       }
+      const ps = promptSets[0];
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateStart({
-          messageTemplates: promptSets[0].prompts,
+          messageTemplates: ps.prompts,
           args,
           isBatch: false,
         });
       }
-      const rawMessages = utils.getMessages(promptSets[0].prompts, args, PROMPTSET_TEMPLATE_ENGINE);
+      const rawMessages = utils.getMessages(ps.prompts, args, PROMPTSET_TEMPLATE_ENGINE);
       let messages = this._mapMessagesToTypes(rawMessages);
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateEnd({
@@ -231,24 +321,35 @@ export default ({ logger, services }) => {
       return true;
     }
 
-    async _next(request: ChatRequest, extraFunctionCallParams: any) {
-      for (let callback of this.currentCallbacks) {
-        callback.onObserveModelStart({ request });
-      }
-      let response: ChatResponse;
-      if (this.isChat) {
-        response = await llmService.createChatCompletion(this.provider, request);
-      } else {
-        response = await llmService.createCompletion(this.provider, request);
-      }
-      for (let callback of this.currentCallbacks) {
-        callback.onObserveModelEnd({
-          model: this.model,
-          response: { ...response },
-        });
+    async _next(assistant, thread, extraFunctionCallParams: any) {
+      // for (let callback of this.currentCallbacks) {
+      //   callback.onObserveModelStart({ request });
+      // }
+      let run: any;
+      try {
+        run = await this.runAssistant(assistant, thread);
+        logger.debug('run id:', run.id);
+      } catch (err) {
+        logger.debug('Error running assistant:', err.message);
+        if (err instanceof RunError) {
+          logger.debug('run:', err.run);
+          const messages = await this.openai.beta.threads.messages.list(thread.id);
+          logger.debug('messages:', messages);
+        }
+        this._throwAgentError(err);
       }
 
-      const { content, final, function_call: call, } = response.choices[0].message;
+      const messages = await this.openai.beta.threads.messages.list(thread.id);
+      logger.debug('messages:', messages);
+
+      // for (let callback of this.currentCallbacks) {
+      //   callback.onObserveModelEnd({
+      //     model: this.model,
+      //     response: { ...response },
+      //   });
+      // }
+
+      const { content, final, function_call: call, } = messages.body.data.slice(-1)[0];
       if (this.useFunctions) {
         if (call) {
           const functionOutput = await this._callFunction(call, extraFunctionCallParams);
@@ -461,6 +562,6 @@ export default ({ logger, services }) => {
 
   }
 
-  return SimpleAgent;
+  return OpenAIAssistantAgent;
 
 }

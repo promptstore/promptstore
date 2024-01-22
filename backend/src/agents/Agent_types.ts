@@ -54,7 +54,7 @@ export interface EvaluateStepOnStartResponse {
 
 export interface EvaluateTurnOnStartResponse {
   index: number;
-  request: ChatRequest;
+  request?: ChatRequest;
 }
 
 export interface EvaluateTurnOnEndResponse {

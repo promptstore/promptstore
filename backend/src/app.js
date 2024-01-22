@@ -45,6 +45,7 @@ import { ModelProviderService } from './services/ModelProviderService';
 import { ModelsService } from './services/ModelsService';
 import { ParserService } from './services/ParserService';
 import { PromptSetsService } from './services/PromptSetsService';
+import { SecretsService } from './services/SecretsService';
 import { SettingsService } from './services/SettingsService';
 import { SqlSourceService } from './services/SqlSourceService';
 import { ToolService } from './services/ToolService';
@@ -225,6 +226,8 @@ const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 
 const promptSetsService = PromptSetsService({ pg, logger });
+
+const secretsService = SecretsService({ pg, logger });
 
 const settingsService = SettingsService({ pg, logger });
 
@@ -438,6 +441,7 @@ const options = {
     modelsService,
     parserService,
     promptSetsService,
+    secretsService,
     settingsService,
     sqlSourceService,
     toolService,

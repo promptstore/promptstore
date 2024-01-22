@@ -295,5 +295,6 @@ export function ScheduleModalInput({
 }
 
 const hasValue = (value) => {
+  if (!value) return false;
   return Object.values(value).some(v => !(v === null || typeof v === 'undefined'));
 };

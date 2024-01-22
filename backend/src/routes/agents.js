@@ -326,11 +326,17 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     let agent;
     if (agentType === 'plan') {
       agent = new agents.PlanAndExecuteAgent(options);
-    } else {
+    } else if (agentType === 'openai') {
+      agent = new agents.OpenAIAssistantAgent(options);
+    } else if (agentType === 'react') {
       agent = new agents.MKRLAgent(options);
-    }
-    if (!agent) {
-      return res.sendStatus(400);
+    } else {
+      const errors = [
+        {
+          message: 'Unsupported agent type: ' + agentType,
+        },
+      ];
+      return res.status(400).json({ errors });
     }
     const extraFunctionCallParams = {
       email: process.env.EMAIL_OVERRIDE || email,

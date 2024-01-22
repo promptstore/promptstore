@@ -316,7 +316,7 @@ export const isTruthy = (str) => {
 export const makePromiseFromObject = (obj) => {
   const keys = Object.keys(obj);
   const values = Object.values(obj);
-  logger.debug('obj:', keys, values);
+  // logger.debug('obj:', keys, values);
   return Promise.all(values)
     .then((resolved) => resolved.reduce((a, v, i) => {
       a[keys[i]] = v;
@@ -601,3 +601,7 @@ export function getTextStats(text) {
   const size = new Blob([text]).size;
   return { wordCount, length, size };
 }
+
+export const hasValue = (value) => {
+  return Object.values(value).some(v => !(v === null || typeof v === 'undefined'));
+};

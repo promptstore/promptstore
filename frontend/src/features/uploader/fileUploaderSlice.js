@@ -93,6 +93,8 @@ export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, 
   form.append('file', file.originFileObj);
   form.append('isImage', isImage);
   await http.post('/api/upload', form);
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -132,9 +134,15 @@ export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, 
       // 423 - locked ~ not ready
       if (err.response?.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const objectUploadAsync = ({ file, type, workspaceId }) => async (dispatch) => {
@@ -161,6 +169,8 @@ export const reloadContentAsync = ({ workspaceId, uploadId, filepath }) => async
   const correlationId = uuidv4();
   const url = '/api/reload';
   await http.post(url, { correlationId, workspaceId, uploadId, filepath });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -182,9 +192,15 @@ export const reloadContentAsync = ({ workspaceId, uploadId, filepath }) => async
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 const fetchUploads = async (workspaceId) => {
@@ -238,6 +254,8 @@ export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (disp
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   await http.post('/api/index/crawler', { correlationId, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -249,9 +267,15 @@ export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (disp
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
@@ -259,6 +283,8 @@ export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (d
   const correlationId = uuidv4();
   const url = '/api/index/api';
   await http.post(url, { correlationId, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -270,9 +296,15 @@ export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (d
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
@@ -280,6 +312,8 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
   const correlationId = uuidv4();
   const url = '/api/index/csv';
   await http.post(url, { correlationId, documents, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -291,9 +325,15 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
@@ -301,6 +341,8 @@ export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, wor
   const correlationId = uuidv4();
   const url = '/api/index/document';
   await http.post(url, { appId, correlationId, documents, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -312,9 +354,15 @@ export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, wor
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
@@ -322,6 +370,8 @@ export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async 
   const correlationId = uuidv4();
   const url = '/api/index/graph';
   await http.post(url, { correlationId, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -333,9 +383,15 @@ export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async 
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexTextDocumentAsync = ({ dataSourceId, documents, params, workspaceId }) => async (dispatch) => {
@@ -343,6 +399,8 @@ export const indexTextDocumentAsync = ({ dataSourceId, documents, params, worksp
   const correlationId = uuidv4();
   const url = '/api/index/text';
   await http.post(url, { correlationId, documents, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -354,9 +412,15 @@ export const indexTextDocumentAsync = ({ dataSourceId, documents, params, worksp
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
@@ -364,20 +428,28 @@ export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => as
   const correlationId = uuidv4();
   const url = '/api/index/wikipedia';
   await http.post(url, { correlationId, params, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
-      // console.log('index status res:', res);
+      // console.log('index status res:', res.data);
       dispatch(indexed({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const selectLoaded = (state) => state.fileUploader.loaded;

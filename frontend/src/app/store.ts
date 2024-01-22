@@ -11,6 +11,7 @@ import contentReducer from '../features/apps/Playground/contentSlice';
 import dataSourcesReducer from '../features/dataSources/dataSourcesSlice';
 import destinationsReducer from '../features/destinations/destinationsSlice';
 import embeddingReducer from '../features/uploader/embeddingSlice';
+import evaluationRunsReducer from '../features/evaluations/evaluationRunsSlice';
 import evaluationsReducer from '../features/evaluations/evaluationsSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
@@ -22,6 +23,7 @@ import modelProvidersReducer from '../features/models/modelProvidersSlice';
 import modelsReducer from '../features/models/modelsSlice';
 import outputParsersReducer from '../features/functions/outputParsersSlice';
 import promptSetsReducer from '../features/promptSets/promptSetsSlice';
+import secretsReducer from '../features/secrets/secretsSlice';
 import settingsReducer from '../features/promptSets/settingsSlice';
 import templatesReducer from '../features/promptSets/templatesSlice';
 import toolsReducer from '../features/agents/toolsSlice';
@@ -46,6 +48,7 @@ export const store = configureStore({
     dataSources: dataSourcesReducer,
     destinations: destinationsReducer,
     embedding: embeddingReducer,
+    evaluationRuns: evaluationRunsReducer,
     evaluations: evaluationsReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
@@ -57,6 +60,7 @@ export const store = configureStore({
     models: modelsReducer,
     outputParsers: outputParsersReducer,
     promptSets: promptSetsReducer,
+    secrets: secretsReducer,
     settings: settingsReducer,
     templates: templatesReducer,
     tools: toolsReducer,

@@ -65,6 +65,8 @@ export const fileUploadAsync = (workspaceId, appId, file) => async (dispatch, ge
   form.append('correlationId', correlationId);
   form.append('file', file.originFileObj);
   await http.post('/api/upload', form);
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     let res;
     try {
@@ -85,9 +87,15 @@ export const fileUploadAsync = (workspaceId, appId, file) => async (dispatch, ge
       // 423 - locked ~ not ready
       if (err.response?.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 const fetchUploads = async (appId) => {

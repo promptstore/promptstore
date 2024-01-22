@@ -125,7 +125,7 @@ export function EvaluationsList() {
       fixed: 'right',
       width: 225,
       render: (_, record) => (
-        <Space>
+        <Space wrap>
           <Button type="link"
             style={{ paddingLeft: 0 }}
             onClick={() => navigate(`/evaluations/${record.key}`)}
@@ -137,7 +137,13 @@ export function EvaluationsList() {
             style={{ paddingLeft: 0 }}
             onClick={() => runEvaluation(record.key)}
           >
-            Run
+            Run Now
+          </Button>
+          <Button type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => navigate(`/evaluation-runs/${record.key}`)}
+          >
+            Past Runs
           </Button>
         </Space>
       ),

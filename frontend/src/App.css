@@ -959,3 +959,8 @@ article.collapsible .panel.closed {
 .ps-view-card .ant-descriptions .ant-descriptions-row>th {
   padding-bottom: 0;
 }
+
+.editable-cell-value-wrap {
+  cursor: pointer;
+  line-height: 32px;
+}

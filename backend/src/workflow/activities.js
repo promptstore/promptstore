@@ -47,6 +47,7 @@ export const createActivities = ({
   llmService,
   loaderService,
   modelsService,
+  secretsService,
   sqlSourceService,
   uploadsService,
   vectorStoreService,
@@ -54,7 +55,7 @@ export const createActivities = ({
 
   async evaluate(evaluation, workspaceId, username) {
     const filter = {};
-    const { model, completionFunction, dateRange, criteria } = evaluation;
+    const { id, model, completionFunction, dateRange, criteria } = evaluation;
     if (model) {
       filter.model = model;
     }
@@ -127,7 +128,43 @@ export const createActivities = ({
     const serializedJson = response.choices[0].message.function_call.arguments;
     const json = JSON.parse(serializedJson);
     logger.debug('json:', json);
-    return json;
+    const failed = [];
+    const proms = [];
+    for (let i = 0; i < json.length; i++) {
+      const evaluation = {
+        evaluationId: id,
+        criteria,
+        result: json[i],
+      };
+      const log = logs[i];
+      const logId = log.id;
+      if (json[i] === 'N') {
+        failed.push({
+          ...evaluation,
+          logId,
+          input: log.modelUserInputText,
+          completion: log.systemOutputText,
+        });
+      }
+      proms.push(callLoggingService.updateCallLog(logId, evaluation));
+    }
+    const updatedLogs = await Promise.all(proms);
+    const run = {
+      runDate: new Date(),
+      logIds: logs.map(l => l.id),
+      failed,
+      allTestsPassed: !failed.length,
+      numberTests: logs.length,
+      numberFailed: failed.length,
+      percentPassed: (logs.length - failed.length) / logs.length,
+    };
+    const updatedEvaluation = await evaluationsService.upsertEvaluation(({
+      ...evaluation,
+      runs: [...(evaluation.runs || []), run],
+    }));
+    logger.debug('updated evaluation:', updatedEvaluation);
+
+    return updatedEvaluation;
   },
 
   async index(params, loaderProvider, extractorProviders) {
@@ -165,7 +202,8 @@ export const createActivities = ({
     // logger.info('transformation:', transformation);
     // logger.info('workspaceId:', workspaceId);
     // logger.info('username:', username);
-    const source = await dataSourcesService.getDataSource(transformation.dataSourceId);
+    const dataSource = await dataSourcesService.getDataSource(transformation.dataSourceId);
+    const source = await secretsService.interpolateSecretsInObject(workspaceId, dataSource, ['connectionString']);
     const all = transformation.features.some(f => f.column === '__all');
     let cols;
     if (!all) {

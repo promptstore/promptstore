@@ -49,12 +49,13 @@ const agentTypeOptions = [
     value: 'plan',
   },
   {
-    label: 'ReAct Zero-shot Learning',
-    value: 'react',
+    label: 'OpenAI Assistant',
+    value: 'openai',
+    disabled: true,
   },
   {
-    label: 'Simple',
-    value: 'simple',
+    label: 'ReAct Zero-shot Learning',
+    value: 'react',
   },
 ];
 

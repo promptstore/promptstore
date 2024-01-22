@@ -33,8 +33,6 @@ export const {
   removeEvaluations,
   setEvaluations,
   startLoad,
-  startProcessing,
-  endProcessing,
 } = evaluationsSlice.actions;
 
 export const getEvaluationsAsync = (params) => async (dispatch) => {
@@ -72,6 +70,8 @@ export const deleteEvaluationsAsync = ({ ids }) => async (dispatch) => {
 export const runEvaluationAsync = ({ id, correlationId, workspaceId }) => async (dispatch, getState) => {
   const url = `/api/evaluation-runs/${id}`;
   await http.post(url, { correlationId, workspaceId });
+  const timeout = 120000;
+  const start = new Date();
   const intervalId = setInterval(async () => {
     try {
       const res = await http.get('/api/evaluation-status/' + correlationId);
@@ -84,9 +84,15 @@ export const runEvaluationAsync = ({ id, correlationId, workspaceId }) => async 
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
         clearInterval(intervalId);
+      } else {
+        const now = new Date();
+        const diff = now - start;
+        if (diff > timeout) {
+          clearInterval(intervalId);
+        }
       }
     }
-  }, 2000);
+  }, 5000);
 };
 
 export const selectLoaded = (state) => state.evaluations.loaded;

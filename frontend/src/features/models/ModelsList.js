@@ -421,47 +421,48 @@ export function ModelsList() {
     <>
       {contextHolder}
       <div style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-          <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
-            Delete
-          </Button>
-          {hasSelected ?
-            <>
-              <div style={{ marginLeft: 8 }}>
-                Selected {selectedRowKeys.length} items
-              </div>
-              <Download filename={'models.json'} payload={selectedModels}>
-                <Button type="text" icon={<DownloadOutlined />}>
-                  Download
-                </Button>
-              </Download>
-            </>
-            : null
-          }
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
+              Delete
+            </Button>
+            {hasSelected ?
+              <>
+                <span>
+                  Selected {selectedRowKeys.length} items
+                </span>
+                <Download filename={'models.json'} payload={selectedModels}>
+                  <Button type="text" icon={<DownloadOutlined />}>
+                    Download
+                  </Button>
+                </Download>
+              </>
+              : null
+            }
+          </div>
           <Search allowClear
             placeholder="find entries"
             onSearch={onSearch}
-            style={{ marginLeft: 16, width: 220 }}
+            style={{ width: 220 }}
           />
-          <Switch
-            checked={filterPublic}
-            onChange={setFilterPublic}
-            style={{ marginLeft: 8 }}
-          />
-          <div style={{ marginLeft: 8 }}>Public</div>
-          <div style={{ marginLeft: 16 }}>
-            <Upload
-              name="upload"
-              showUploadList={false}
-              customRequest={dummyRequest}
-              beforeUpload={beforeUpload}
-              onChange={onUpload}
-            >
-              <Button type="text" loading={uploading} icon={<UploadOutlined />}>
-                Upload
-              </Button>
-            </Upload>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterPublic}
+              onChange={setFilterPublic}
+            />
+            <div>Public</div>
           </div>
+          <Upload
+            name="upload"
+            showUploadList={false}
+            customRequest={dummyRequest}
+            beforeUpload={beforeUpload}
+            onChange={onUpload}
+          >
+            <Button type="text" loading={uploading} icon={<UploadOutlined />}>
+              Upload
+            </Button>
+          </Upload>
           <div style={{ flex: 1 }}></div>
           <Segmented
             onChange={setLayout}

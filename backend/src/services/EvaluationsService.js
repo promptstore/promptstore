@@ -15,6 +15,39 @@ export function EvaluationsService({ pg, logger }) {
     };
   }
 
+  function mapEvalRun(row) {
+    const runs = row.val.runs;
+    if (runs?.length) {
+      const latest = runs[runs.length - 1];
+      const val = row.val;
+      let selectionStartDate, selectionEndDate;
+      const [start, end] = row.dateRange || [];
+      if (start) {
+        selectionStartDate = start;
+      }
+      if (end) {
+        selectionEndDate = end;
+      }
+      return {
+        evaluationId: row.id,
+        name: row.name,
+        model: val.model,
+        evalFunction: val.evalFunction,
+        completionFunction: val.completionFunction,
+        criterion: val.criterion,
+        selectionStartDate,
+        selectionEndDate,
+        runDate: latest.runDate,
+        allTestsPassed: latest.allTestsPassed,
+        numberFailed: latest.numberFailed,
+        numberTests: latest.numberTests,
+        percentPassed: latest.percentPassed,
+        workspaceId: row.workspace_id,
+      };
+    }
+    return null;
+  }
+
   async function getEvaluations(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -31,6 +64,24 @@ export function EvaluationsService({ pg, logger }) {
       return [];
     }
     return rows.map(mapRow);
+  }
+
+  async function getEvalRuns(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM evaluations
+      WHERE workspace_id = $1
+      ORDER BY created DESC
+      LIMIT 100
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapEvalRun).filter(v => v);
   }
 
   async function getEvaluation(id) {
@@ -94,6 +145,7 @@ export function EvaluationsService({ pg, logger }) {
   return {
     getEvaluations,
     getEvaluation,
+    getEvalRuns,
     upsertEvaluation,
     deleteEvaluations,
   };

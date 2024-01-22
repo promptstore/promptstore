@@ -105,8 +105,63 @@ export function CallLoggingService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getCallLogsById(ids) {
+    let q = `
+      SELECT id, workspace_id, username, provider, model,
+      function_id, function_name, system_input,
+      output_type, system_output, system_output_text, model_input, 
+      model_user_input_text, model_output, model_output_text, val, start_date
+      FROM call_log
+      WHERE id = ANY($1::INT[])
+    `;
+    const { rows } = await pg.query(q, [ids]);
+    return rows.map(mapRow);
+  }
+
+  async function getCallLog(id) {
+    if (id === null || typeof id === 'undefined') {
+      return null;
+    }
+    let q = `
+      SELECT id, workspace_id, username, provider, model,
+      function_id, function_name, system_input,
+      output_type, system_output, system_output_text, model_input, 
+      model_user_input_text, model_output, model_output_text, val, start_date
+      FROM call_log
+      WHERE id = $1
+    `;
+    const { rows } = await pg.query(q, [id]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
+  async function updateCallLog(id, evaluation) {
+    const savedLog = await getCallLog(id);
+    if (savedLog) {
+      const modified = new Date();
+      const evaluations = savedLog.evaluations || [];
+      evaluations.push({ ...evaluation, modified });
+      const val = { evaluations };
+      const { rows } = await pg.query(`
+        UPDATE call_log
+        SET val = $1
+        WHERE id = $2
+        RETURNING *
+        `,
+        [val, id]
+      );
+      return mapRow(rows[0]);
+    }
+    return null;
+  }
+
   return {
     createCallLog,
     getCallLogs,
+    getCallLogsById,
+    getCallLog,
+    updateCallLog,
   };
 }

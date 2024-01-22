@@ -1,4 +1,5 @@
 import searchFunctions from '../searchFunctions';
+import { hasValue } from '../utils';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
@@ -28,6 +29,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     res.json(evaluations);
   });
 
+  app.get('/api/workspaces/:workspaceId/evaluation-runs', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const runs = await evaluationsService.getEvalRuns(workspaceId);
+    res.json(runs);
+  });
+
   app.get('/api/evaluations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const evaluation = await evaluationsService.getEvaluation(id);
@@ -39,7 +46,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const values = req.body;
 
     let scheduleId;
-    if (values.schedule) {
+    if (hasValue(values.schedule)) {
       scheduleId = await workflowClient.scheduleEvaluation(values, values.workspaceId, username, {
         address: constants.TEMPORAL_URL,
       });
@@ -62,7 +69,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { username } = req.user;
     const values = req.body;
     let scheduleId;
-    if (values.schedule) {
+    if (hasValue(values.schedule)) {
       logger.debug('scheduling transformation:', values);
       scheduleId = await workflowClient.scheduleEvaluation(values, values.workspaceId, username, {
         address: constants.TEMPORAL_URL,

@@ -263,7 +263,7 @@ export class AgentTracingCallback extends AgentCallback {
         type: 'evaluate-turn',
         index,
         ...request,
-        modelParams: request.model_params,
+        modelParams: request?.model_params,
         startTime: startTime.getTime(),
       })
       .down();

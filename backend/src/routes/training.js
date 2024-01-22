@@ -10,6 +10,12 @@ export default ({ app, auth, logger, services }) => {
     res.json(data);
   });
 
+  app.post('/api/logs-request', auth, async (req, res) => {
+    const { ids } = req.body;
+    const data = await callLoggingService.getCallLogsById(ids);
+    res.json(data);
+  });
+
   app.get('/api/training/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     const row = await trainingService.getTrainingRow(id);
