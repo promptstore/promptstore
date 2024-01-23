@@ -19,6 +19,7 @@ import {
   indexDocumentAsync,
   indexTextDocumentAsync,
   indexWikipediaAsync,
+  resetIndexStatus,
   selectLoaded as selectUploadsLoaded,
   selectIndexed,
   selectIndexing,
@@ -88,7 +89,7 @@ export function DataSourcesList() {
     if (location.state?.message) {
       messageApi.info({
         content: location.state.message,
-        duration: 3,
+        duration: 5,
       });
     }
   }, [location]);
@@ -105,9 +106,10 @@ export function DataSourcesList() {
     if (selectedId && indexed?.[selectedId]) {
       messageApi.info({
         content: 'Finished indexing ' + dataSource.name,
-        duration: 3,
+        duration: 5,
       });
       setSelectedId(null);
+      dispatch(resetIndexStatus({ dataSourceId: selectedId }));
     }
   }, [indexed, selectedId]);
 

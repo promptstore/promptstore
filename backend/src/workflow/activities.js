@@ -32,6 +32,11 @@ const supportedMimetypes = [
   'text/xml',
 ];
 
+const imageMimetypes = [
+  'image/png',
+  'image/jpeg',
+];
+
 export const createActivities = ({
   mc,
   logger,
@@ -423,7 +428,12 @@ export const createActivities = ({
             data = await extractorService.extract('unstructured', file.path, file.originalname, file.mimetype);
           }
         }
-        const { width, height } = sizeOf(file.path);
+        let width, height;
+        if (imageMimetypes.includes(file.mimetype)) {
+          const dims = sizeOf(file.path);
+          width = dims.width;
+          height = dims.height;
+        }
 
         try {
           const upload = await uploadsService.getUploadByFilename(file.originalname);

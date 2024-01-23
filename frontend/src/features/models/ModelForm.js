@@ -19,6 +19,7 @@ import {
 import {
   getChatProvidersAsync,
   getCompletionProvidersAsync,
+  getEmbeddingProvidersAsync,
   selectLoading as selectProvidersLoading,
   selectProviders,
 } from './modelProvidersSlice';
@@ -141,10 +142,13 @@ export function ModelForm() {
   }, []);
 
   useEffect(() => {
-    if (!providers.chat && (typeValue === 'gpt' || typeValue === 'embedding')) {
+    console.log('typeValue:', typeValue)
+    if (!providers.chat && (typeValue === 'gpt')) {
       dispatch(getChatProvidersAsync());
     } else if (!providers.completion && typeValue === 'completion') {
       dispatch(getCompletionProvidersAsync());
+    } else if (!providers.embedding && typeValue === 'embedding') {
+      dispatch(getEmbeddingProvidersAsync());
     }
   }, [typeValue]);
 

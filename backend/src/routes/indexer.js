@@ -486,12 +486,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
+    let embeddingModel;
+    if (params.embeddingModel) {
+      const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+      embeddingModel = {
+        provider: model.provider,
+        model: model.key,
+      };
+    }
 
     try {
       const docs = [];
@@ -667,8 +669,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       createdBy: rec.createdBy,
       workspaceId: String(rec.workspaceId),
       metadata: {
-        embeddingProvider: rec.embeddingModel.provider,
-        embeddingModel: rec.embeddingModel.model,
+        embeddingProvider: rec.embeddingModel?.provider,
+        embeddingModel: rec.embeddingModel?.model,
         vectorStoreProvider: rec.vectorStoreProvider,
         graphStoreProvider: rec.graphStoreProvider,
         ...metadata,

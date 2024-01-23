@@ -1,4 +1,4 @@
-import { flatten } from 'flat';
+import { flatten, unflatten } from 'flat';
 import isObject from 'lodash.isobject';
 import neo4j from 'neo4j-driver';
 
@@ -162,7 +162,7 @@ function Neo4jService({ __name, constants, logger }) {
         const embedding = embeddings[i];
         if (embedding.length) {
           const props = Object.entries(flatten(chunk)).reduce((a, [k, v]) => {
-            if (!['name'].includes(k) && !isObject(v)) {
+            if (!['name', 'nodeLabel'].includes(k) && !isObject(v)) {
               const key = k.replace(/\./g, '__');
               a[nodeLabel + '__' + key] = v;
             }
@@ -171,7 +171,9 @@ function Neo4jService({ __name, constants, logger }) {
           return {
             id: chunk.id,
             name: chunk.name,
+            text: chunk.text,
             embedding,
+            nodeLabel,
             props,
           };
         }
@@ -186,6 +188,7 @@ function Neo4jService({ __name, constants, logger }) {
         CALL db.create.setVectorProperty(c, 'embedding', row.embedding)
         YIELD node
         SET c.name = row.name
+        SET c.nodeLabel = row.nodeLabel
         SET c += row.props
       } IN TRANSACTIONS OF toInteger($batchSize) ROWS
     `;
@@ -253,6 +256,7 @@ function Neo4jService({ __name, constants, logger }) {
   }
 
   async function search(indexName, query, attrs, logicalType, params) {
+    // logger.debug('search params:', params);
     const {
       queryEmbedding,
       keywordIndexName,
@@ -288,11 +292,13 @@ function Neo4jService({ __name, constants, logger }) {
       RETURN
         node.text AS text,
         node.id AS id,
+        node.nodeLabel AS nodeLabel,
         node {
           .*,
           id: Null,
           text: Null,
-          embedding: Null
+          embedding: Null,
+          nodeLabel: Null
         } AS metadata,
         score
     `;
@@ -306,17 +312,29 @@ function Neo4jService({ __name, constants, logger }) {
     const session = getClient().session();
     try {
       const r = await session.run(q, searchParams);
-      return r.records.map(r => ({
-        id: r.get('id'),
-        text: r.get('text'),
-        score: r.get('score'),
-        ...Object.entries(r.get('metadata')).reduce((a, [k, v]) => {
-          if (v !== null && typeof v !== 'undefined') {
-            a[k] = v;
-          }
+      let results = r.records
+        .map(r => ({
+          id: r.get('id'),
+          text: r.get('text'),
+          nodeLabel: r.get('nodeLabel'),
+          score: r.get('score'),
+          ...Object.entries(r.get('metadata')).reduce((a, [k, v]) => {
+            if (v !== null && typeof v !== 'undefined') {
+              a[k] = v;
+            }
+            return a;
+          }, {}),
+        }));
+      // logger.debug('results1:', results);
+      results = results
+        .map(d => Object.entries(d).reduce((a, [k, v]) => {
+          const key = k.replace(/__/g, '.');
+          a[key] = v;
           return a;
-        }, {}),
-      }));
+        }, {}))
+        .map(unflatten);
+      // logger.debug('results2:', results);
+      return results;
     } catch (err) {
       logger.error(err, err.stack);
       return [];

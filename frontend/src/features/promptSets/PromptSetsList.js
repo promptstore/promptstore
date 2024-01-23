@@ -161,7 +161,7 @@ export function PromptSetsList() {
     if (location.state && location.state.message) {
       messageApi.info({
         content: location.state.message,
-        duration: 3,
+        duration: 5,
       });
     }
   }, [location]);

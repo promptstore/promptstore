@@ -315,7 +315,7 @@ export function UploadsList({ workspaceId }) {
         width={'75%'}
         bodyStyle={{ height: 500, overflowY: 'auto' }}
         onCancel={onCancel}
-        onOk={onCancel}
+        okButtonProps={{ style: { display: 'none' } }}
       >
         <ContentView upload={upload} loading={dataSourcesLoading} />
       </Modal>

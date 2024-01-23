@@ -56,7 +56,7 @@ export function EvaluationsList() {
     if (location.state && location.state.message) {
       messageApi.info({
         content: location.state.message,
-        duration: 3,
+        duration: 5,
       });
     }
   }, [location]);
@@ -80,7 +80,7 @@ export function EvaluationsList() {
     if (selectedKey && !correlationId[selectedKey]) {
       messageApi.info({
         content: 'Evaluation run complete',
-        duration: 3,
+        duration: 5,
       });
       setSelectedKey(null);
     }

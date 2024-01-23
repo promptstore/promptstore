@@ -384,7 +384,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   });
 
   app.post('/api/upload', upload.single('file'), auth, (req, res) => {
-    let { correlationId, workspaceId, appId, isImage } = req.body;
+    let { correlationId, workspaceId, appId } = req.body;
+    const isImage = req.body.isImage === 'true';
     const { username } = req.user;
     workspaceId = parseInt(workspaceId, 10);
     if (isNaN(workspaceId)) {

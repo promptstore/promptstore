@@ -31,6 +31,7 @@ import {
   OpenAIChatCompletionResponse,
 } from '../models/openai_types';
 import {
+  PaLMBatchEmbeddingResponse,
   PaLMChatResponse,
   PaLMCompletionResponse,
   PaLMEmbeddingResponse,
@@ -800,10 +801,6 @@ export function toMistralEmbeddingRequest(request: EmbeddingRequest) {
   };
 }
 
-export function fromMistralEmbeddingResponse(response: MistralEmbeddingResponse) {
-  return response.data[0];
-}
-
 /*** ************/
 
 /*** translate to openai ************/
@@ -1312,20 +1309,32 @@ export async function fromVertexAICompletionResponse(response: PaLMCompletionRes
 
 export function toVertexAIEmbeddingRequest(request: EmbeddingRequest) {
   const { model, input } = request;
-  let text: string;
   if (Array.isArray(input)) {
-    text = input.join(PARA_DELIM);
-  } else {
-    text = input;
+    return { model, texts: input };
   }
-  return { model, text };
+  return { model, text: input };
 }
 
-export function fromVertexAIEmbeddingResponse(response: PaLMEmbeddingResponse) {
+export function fromVertexAIEmbeddingResponse(response: PaLMEmbeddingResponse | PaLMBatchEmbeddingResponse) {
+  let data: EmbeddingObject[];
+  if ('embeddings' in response) {
+    data = response.embeddings.map((e, index) => ({
+      index,
+      object: 'embedding',
+      embedding: e.value,
+    }));
+  } else {
+    data = [
+      {
+        index: 0,
+        object: 'embedding',
+        embedding: response.embedding.value,
+      }
+    ];
+  }
   return {
-    index: 0,
-    object: 'embedding',
-    embedding: response.embedding.value,
+    object: 'list',
+    data,
   };
 }
 

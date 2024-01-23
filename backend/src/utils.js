@@ -7,6 +7,7 @@ import isObject from 'lodash.isobject';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getEncoding } from 'js-tiktoken';
+import { unflatten } from 'flat';
 
 import logger from './logger';
 
@@ -347,14 +348,21 @@ const getFacets = (attributesForFacets, hits) => {
   return facets;
 };
 
-export const formatAlgolia = (requests, rawResult, nodeLabel, attributesForFacets = []) => {
-  const documents = rawResult;
-  const nbHits = documents.length;
-  let hits = documents.map((val) => Object.entries(val).reduce((a, [k, v]) => {
-    const key = k.replace(/__/g, '.');
-    a[key] = v;
-    return a;
-  }, {}));
+export const formatAlgolia = (requests, hits, nodeLabel, attributesForFacets = []) => {
+  // const nbHits = rawResult.length;
+
+  // TODO should be redundant as unflattening moved to plugin
+  // but should be idempotent
+  // let hits = rawResult.map((val) => Object.entries(val).reduce((a, [k, v]) => {
+  //   const key = k.replace(/__/g, '.');
+  //   a[key] = v;
+  //   return a;
+  // }, {}));
+  // hits = hits.map(unflatten);
+  // -----------
+
+  const nbHits = hits.length;
+
   hits = hits.map((val) => {
     if (val.dist) {
       return {

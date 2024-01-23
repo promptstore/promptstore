@@ -97,7 +97,7 @@ export function TransformationsList() {
     if (location.state && location.state.message) {
       messageApi.info({
         content: location.state.message,
-        duration: 3,
+        duration: 5,
       });
     }
   }, [location]);
@@ -122,7 +122,7 @@ export function TransformationsList() {
     if (selectedKey && !correlationId[selectedKey]) {
       messageApi.info({
         content: 'Transformation run complete',
-        duration: 3,
+        duration: 5,
       });
       setSelectedKey(null);
     }

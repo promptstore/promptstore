@@ -26,17 +26,20 @@ function SentenceEncoder({ __name, __metadata, constants, logger }) {
     // logger.debug('request:', request);
     const model = await getModel();
     // logger.debug('model:', model);
-    const embedding = await model.embed(request.input);
-    const values = embedding.dataSync();
+    // logger.debug('input len:', request.input.length);
+    const res = await model.embed(request.input);
+    const values = res.dataSync();
+    const embeddings = split(Array.from(values), 512);
+    // logger.debug('embeddings len:', embeddings.length);
+    // logger.debug('embeddings:', embeddings);
+    const data = embeddings.map((embedding, index) => ({
+      index,
+      object: 'embedding',
+      embedding,
+    }));
     return {
       object: 'list',
-      data: [
-        {
-          index: 0,
-          object: 'embedding',
-          embedding: Array.from(values),
-        },
-      ],
+      data,
       model: 'sentenceencoder',
       usage: {
         prompt_tokens: 0,
@@ -44,6 +47,16 @@ function SentenceEncoder({ __name, __metadata, constants, logger }) {
       },
     };
   }
+
+  const split = (arr, len) => {
+    const splits = [];
+    let j = 0;
+    while (j < arr.length) {
+      splits.push(arr.slice(j, j + len));
+      j += len;
+    }
+    return splits;
+  };
 
   return {
     __name,

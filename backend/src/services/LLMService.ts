@@ -10,7 +10,6 @@ import {
   fromLlamaApiChatResponse,
   toMistralChatRequest,
   toMistralEmbeddingRequest,
-  fromMistralEmbeddingResponse,
   toOpenAIChatRequest,
   toOpenAICompletionRequest,
   toVertexAIChatRequest,
@@ -149,9 +148,9 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
       throw new Error(`model provider ${provider} not supported.`);
     }
 
-    logger.debug('provider request:', providerRequest);
+    // logger.debug('provider request:', providerRequest);
     const response = await instance.createCompletion(providerRequest);
-    logger.debug('provider response:', response);
+    // logger.debug('provider response:', response);
 
     if (provider === 'openai' || provider === 'llama2' || provider === 'localai') {
       return fromOpenAICompletionResponse(response, parserService);
@@ -193,16 +192,17 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     const response = await instance.createEmbedding(providerRequest);
     // logger.debug('provider response:', response);
 
-    if ([...OPENAI_COMPATIBLE_PROVIDERS, 'sentenceencoder'].includes(provider)) {
+    if ([...OPENAI_COMPATIBLE_PROVIDERS, 'sentenceencoder', 'mistral'].includes(provider)) {
       return response;
     }
 
-    if (provider === 'mistral') {
-      return fromMistralEmbeddingResponse(response);
-    }
-
     if (provider === 'vertexai') {
-      return fromVertexAIEmbeddingResponse(response);
+      const universalResponse = fromVertexAIEmbeddingResponse(response);
+      return {
+        ...universalResponse,
+        model: request.model,
+      };
+
     }
 
     throw new Error('should not be able to get here');

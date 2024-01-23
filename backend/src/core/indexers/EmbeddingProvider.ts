@@ -1,5 +1,7 @@
 import { binPackTextsInOrder, formatTextAsProse, hashStr } from '../../utils';
 
+import logger from '../../logger';
+
 import { EmbeddingRequest, EmbeddingResponse, EmbeddingUsage } from '../conversions/RosettaStone';
 import { LLMModel, LLMService } from '../models/llm_types';
 
@@ -46,38 +48,46 @@ export abstract class EmbeddingProvider {
         // logger.debug('bins:', bins);
 
         const data = Array(originalHashes.length).fill(null);
-        const proms = bins.map((text: string[]) => {
+        const usage = { prompt_tokens: 0, total_tokens: 0 };
+        const proms = bins.map((texts: string[]) => {
           const request = {
-            input: text,
+            input: texts,
             model: model.model,
           };
           return this.createEmbedding(request);
         });
-        const res = await Promise.all(proms);  // preserves order
+        const responses = await Promise.all(proms);  // preserves order
         let i = 0;  // bin iteration
         const usageHashMap = {};  // avoid double counting duplicate text
-        for (const response of res) {
-          for (let j = 0; j < response.data.length; j++) {
+        for (const res of responses) {
+          for (let j = 0; j < res.data.length; j++) {
             const hash = hashStr(bins[i][j]);
-            let usage: EmbeddingUsage;
-            if (usageHashMap[hash]) {
-              usage = { prompt_tokens: 0, total_tokens: 0 };
-            } else {
-              usage = usageHashMap[hash] = response.usage;
+            if (!usageHashMap[hash]) {
+              const u = usageHashMap[hash] = res.usage;
+              if (u) {
+                usage.prompt_tokens += u.prompt_tokens;
+                usage.total_tokens += u.total_tokens;
+              }
             }
             let k = -1;
             while ((k = originalHashes.indexOf(hash, k + 1)) !== -1) {
               data[k] = {
                 object: 'list',
-                data: response.data[j],
+                data: res.data[j],
                 model: model.model,
                 usage,
               };
+              data[k] = res.data[j];
             }
           }
           i += 1;
         }
-        return data;
+        return {
+          object: 'list',
+          data,
+          model: model.model,
+          usage,
+        };
       }
 
     }(model, llmService);
@@ -85,6 +95,6 @@ export abstract class EmbeddingProvider {
 
   abstract createEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse>
 
-  abstract createEmbeddings(texts: string[], maxTokens: number): Promise<EmbeddingResponse[]>
+  abstract createEmbeddings(texts: string[], maxTokens: number): Promise<EmbeddingResponse>
 
 }

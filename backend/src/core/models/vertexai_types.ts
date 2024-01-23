@@ -71,10 +71,19 @@ export interface PaLMEmbeddingRequest {
   text: string;
 }
 
+export interface PaLMBatchEmbeddingRequest {
+  model: string;
+  texts: string[];
+}
+
 interface PaLMEmbedding {
   value: number[];
 }
 
 export interface PaLMEmbeddingResponse {
   embedding: PaLMEmbedding;  // Output only. The embedding generated from the input text.
+}
+
+export interface PaLMBatchEmbeddingResponse {
+  embeddings: PaLMEmbedding[];  // Output only. The embeddings generated from the input texts.
 }

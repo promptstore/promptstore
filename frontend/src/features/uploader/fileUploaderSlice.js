@@ -64,8 +64,12 @@ export const fileUploaderSlice = createSlice({
       state.indexing[action.payload.dataSourceId] = true;
       state.indexed[action.payload.dataSourceId] = false;
     },
-    indexed: (state, action) => {
+    endIndex: (state, action) => {
       state.indexed[action.payload.dataSourceId] = true;
+      state.indexing[action.payload.dataSourceId] = false;
+    },
+    resetIndexStatus: (state, action) => {
+      state.indexed[action.payload.dataSourceId] = false;
       state.indexing[action.payload.dataSourceId] = false;
     },
   }
@@ -80,8 +84,9 @@ export const {
   uploaded,
   startReload,
   reloaded,
+  resetIndexStatus,
   startIndex,
-  indexed,
+  endIndex,
 } = fileUploaderSlice.actions;
 
 export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, getState) => {
@@ -262,7 +267,7 @@ export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (disp
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -291,7 +296,7 @@ export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (d
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -320,7 +325,7 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -349,7 +354,7 @@ export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, wor
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -378,7 +383,7 @@ export const indexGraphAsync = ({ dataSourceId, params, workspaceId }) => async 
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -407,7 +412,7 @@ export const indexTextDocumentAsync = ({ dataSourceId, documents, params, worksp
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {
@@ -436,7 +441,7 @@ export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => as
       res = await http.get('/api/index-status/' + correlationId);
       clearInterval(intervalId);
       // console.log('index status res:', res.data);
-      dispatch(indexed({ dataSourceId }));
+      dispatch(endIndex({ dataSourceId }));
     } catch (err) {
       // 423 - locked ~ not ready
       if (err.response.status !== 423) {

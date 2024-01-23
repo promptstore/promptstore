@@ -32,6 +32,7 @@ export function IndexesList() {
       nodeLabel: index.nodeLabel,
       storeType: index.vectorStoreProvider ? 'Vector' : 'Graph',
       store: index.vectorStoreProvider || index.graphStoreProvider,
+      embeddingProvider: index.embeddingProvider,
     }));
     list.sort((a, b) => a.name > b.name ? 1 : -1);
     return list;
@@ -65,7 +66,7 @@ export function IndexesList() {
     if (location.state && location.state.message) {
       messageApi.info({
         content: location.state.message,
-        duration: 3,
+        duration: 5,
       });
     }
   }, [location]);
@@ -111,6 +112,13 @@ export function IndexesList() {
       dataIndex: 'store',
       render: (_, { store }) => (
         <Tag>{store}</Tag>
+      )
+    },
+    {
+      title: 'Embedding Provider',
+      dataIndex: 'embeddingProvider',
+      render: (_, { embeddingProvider }) => (
+        <Tag>{embeddingProvider}</Tag>
       )
     },
     {

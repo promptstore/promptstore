@@ -112,13 +112,26 @@ function PalmLLM({ __name, constants, logger }) {
    */
 
   async function createEmbedding(request) {
+    const { model } = request;
     const client = getCompletionClient();
-    const res = await client.embedText({ text: request.input, model: 'models/embedding-gecko-001' });
-    return {
-      index: 0,
-      object: 'embedding',
-      embedding: res[0].embedding.value,
-    };
+    if ('texts' in request) {
+      const { texts } = request;
+      const proms = [];
+      let i = 0;
+      while (i < texts.length) {
+        proms.push(client.batchEmbedText({ texts: texts.slice(i, i + 100), model }));
+        i += 100;
+      }
+      const responses = await Promise.all(proms);
+      const embeddings = responses.reduce((a, r) => {
+        a.push(...r[0].embeddings);
+        return a;
+      }, []);
+      return { embeddings };
+    }
+    // returns an unexpected array
+    const response = await client.embedText({ text: request.text, model });
+    return response[0];
   }
 
   function createImage(prompt, options) {

@@ -2,6 +2,7 @@ import { JSONSchema7 } from 'json-schema';
 
 import logger from '../../logger';
 
+import { EmbeddingResponse } from '../conversions/RosettaStone';
 import { LLMModel, LLMService } from '../models/llm_types';
 import { Chunk } from './Chunk';
 import {
@@ -70,6 +71,8 @@ export class Indexer {
     let index: any;
     if (indexId === 'new') {
       const embeddingProviders = this.llmService.getEmbeddingProviders().map(p => p.key);
+      // logger.debug('embedding providers:', embeddingProviders);
+      // logger.debug('embedding model:', embeddingModel);
       if (embeddingModel && !embeddingProviders.includes(embeddingModel.provider)) {
         throw new Error('Unsupported embedding provider: ' + embeddingModel.provider);
       }
@@ -124,8 +127,8 @@ export class Indexer {
         name,
         schema,
         workspaceId,
-        embeddingProvider: embeddingModel.provider,
-        embeddingModel: embeddingModel.model,
+        embeddingProvider: embeddingModel?.provider,
+        embeddingModel: embeddingModel?.model,
         embeddingDimension,
         vectorStoreProvider,
         nodeLabel,
@@ -161,8 +164,8 @@ export class Indexer {
     if (vectorStoreProvider !== 'redis') {
       const embedder = EmbeddingProvider.create(embeddingModel, this.llmService);
       const texts = chunks.map(c => c.text);
-      const responses = await embedder.createEmbeddings(texts, maxTokens);
-      embeddings = responses.map(r => r.data.embedding);
+      const res = await embedder.createEmbeddings(texts, maxTokens);
+      embeddings = res.data.map(e => e.embedding);
     }  // TODO - the Redis Vector Store calculates embeddings at the service end
     const vectorStore = VectorStore.create(vectorStoreProvider, this.vectorStoreService);
     await vectorStore.indexChunks(chunks, embeddings, {
