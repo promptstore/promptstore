@@ -169,7 +169,7 @@ export function ExecutionsService({ logger, rc, services }) {
           creditBalance,
           costs,
         };
-        logger.debug('response metadata:', responseMetadata);
+        // logger.debug('response metadata:', responseMetadata);
 
         return { response, responseMetadata };
       };

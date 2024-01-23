@@ -192,7 +192,7 @@ const typeOptions = [
     value: 'featurestore',
   },
   {
-    label: 'Graph Store',
+    label: 'Knowledge Graph',
     value: 'graphstore',
   },
   {
@@ -654,11 +654,11 @@ export function DataSourceForm() {
           <>
             <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
               <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Graph Store Connection Info
+                Knowledge Graph Connection Info
               </div>
             </Form.Item>
             <Form.Item
-              label="Graph Store"
+              label="Knowledge Graph"
               name="graphstore"
               wrapperCol={{ span: 10 }}
             >

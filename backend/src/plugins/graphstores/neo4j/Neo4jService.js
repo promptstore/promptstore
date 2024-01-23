@@ -47,8 +47,9 @@ function Neo4jService({ __name, constants, logger }) {
   }
 
   async function addGraph(indexName, graph) {
-    // logger.debug('graph:', graph);
+    logger.debug('raw graph:', graph);
     const g = cleanGraph(indexName, graph);
+    logger.debug('cleaned graph:', graph);
     const q1 = `
       UNWIND $data AS row
       CALL apoc.merge.node([row.type], {id: row.id}, row.properties, {})
@@ -105,11 +106,15 @@ function Neo4jService({ __name, constants, logger }) {
   }
 
   function cleanRel(indexName, rel) {
+    const props = propsToDict(rel.properties);
     return {
       source: cleanNode(indexName, rel.source),
       target: cleanNode(indexName, rel.target),
       type: rel.type,
-      properties: propsToDict(rel.properties),
+      properties: {
+        ...props,
+        indexName,
+      },
     };
   }
 
@@ -129,11 +134,11 @@ function Neo4jService({ __name, constants, logger }) {
   function cleanNode(indexName, node) {
     const props = propsToDict(node.properties);
     return {
-      id: node.id,
+      id: `${indexName}_${node.id}`,
       type: capitalize(node.type),
       properties: {
         ...props,
-        name: props.name || node.id,  // the display name
+        name: node.name || node.id,  // the display name
         indexName,
       },
     };

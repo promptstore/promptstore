@@ -68,7 +68,7 @@ export default ({ app, auth, constants, logger, services }) => {
       }
     } else if (graphStoreProvider) {
       try {
-        await graphStoreService.dropData(graphStoreProvider);
+        await graphStoreService.dropData(graphStoreProvider, name);
       } catch (err) {
         logger.error(`Error dropping data from %s:%s:`, graphStoreProvider, name, err);
         // maybe no such store

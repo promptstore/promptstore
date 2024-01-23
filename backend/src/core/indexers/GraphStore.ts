@@ -1,5 +1,7 @@
 import { JSONSchema7 } from 'json-schema';
 
+import logger from '../../logger';
+
 import { Neo4jSchemaParams } from './Extractor';
 import { Chunk } from './Chunk';
 import { PluginMetadata } from './common_types';
@@ -126,6 +128,7 @@ export abstract class GraphStore {
         errors.map((e: any) => e.message).join(', - ')
       );
     }
+    logger.debug('response:', response);
     const graph = response.choices[0].message.function_call.arguments;
     this.addGraph(this.__name, graph);
   }

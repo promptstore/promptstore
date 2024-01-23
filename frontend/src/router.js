@@ -118,6 +118,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     <Route path="/functions/:id/edit" element={<FunctionForm />} />
                     <Route path="/functions/:id" element={<FunctionView />} />
                     <Route path="/functions" element={<FunctionsList />} />
+                    <Route path="/graphs" element={<IndexesList />} />
                     <Route path="/home" element={<Home />} />
                     <Route path="/indexes/:id" element={<IndexForm />} />
                     <Route path="/indexes" element={<IndexesList />} />

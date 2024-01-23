@@ -89,7 +89,7 @@ export function IndexForm() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Semantic Index',
+      title: 'New Index or Graph',
     }));
     if (!isNew) {
       dispatch(getIndexAsync(id));
@@ -358,7 +358,7 @@ export function IndexForm() {
             />
           </Form.Item>
           <Form.Item
-            label="Graph Store"
+            label="Knowledge Graph"
             name="graphStoreProvider"
             wrapperCol={{ span: 10 }}
           >

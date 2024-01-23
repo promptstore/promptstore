@@ -7,7 +7,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
   const mc = new Minio.Client({
     endPoint: constants.S3_ENDPOINT,
     port: parseInt(constants.S3_PORT, 10),
-    useSSL: false,
+    useSSL: constants.ENV !== 'dev',
     accessKey: constants.AWS_ACCESS_KEY,
     secretKey: constants.AWS_SECRET_KEY,
   });

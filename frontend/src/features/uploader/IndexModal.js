@@ -291,7 +291,7 @@ export function IndexModal({
               : null
             }
             <Form.Item
-              label="Graph Store"
+              label="Knowledge Graph"
               name="graphStoreProvider"
               wrapperCol={{ span: 10 }}
             >

@@ -60,39 +60,44 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
-    const indexParams = {
-      // Loader params
-      endpoint,
-      schema: jsonSchema,
-
-      // Extractor params
-      jsonSchema,
-      textNodeProperties,
-
-      // Indexer params
-      indexId,
-      newIndexName,
-      embeddingModel,
-      vectorStoreProvider,
-      graphStoreProvider,
-      nodeLabel,
-      embeddingNodeProperty,
-      similarityMetric,
-      workspaceId,
-      username,
-
-      // Addtl Graph Store params
-      allowedNodes,
-      allowedRels,
-    };
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
+      const indexParams = {
+        // Loader params
+        endpoint,
+        schema: jsonSchema,
+
+        // Extractor params
+        jsonSchema,
+        textNodeProperties,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingModel,
+        vectorStoreProvider,
+        graphStoreProvider,
+        nodeLabel,
+        embeddingNodeProperty,
+        similarityMetric,
+        workspaceId,
+        username,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
       workflowClient.index(indexParams, 'api', ['json'], {
         address: constants.TEMPORAL_URL,
       }).then((results) => {
@@ -194,39 +199,44 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
-    const indexParams = {
-      // Loader params
-      dataSourceName,
-      url,
-      crawlerSpec,
-      maxRequestsPerCrawl,
-
-      // Extractor params
-      nodeLabel,
-      chunkElement,
-
-      // Indexer params
-      indexId,
-      newIndexName,
-      embeddingNodeProperty,
-      textNodeProperties,
-      similarityMetric,
-      embeddingModel,
-      vectorStoreProvider,
-      graphStoreProvider,
-
-      // Addtl Graph Store params
-      allowedNodes,
-      allowedRels,
-    };
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
+      const indexParams = {
+        // Loader params
+        dataSourceName,
+        url,
+        crawlerSpec,
+        maxRequestsPerCrawl,
+
+        // Extractor params
+        nodeLabel,
+        chunkElement,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingNodeProperty,
+        textNodeProperties,
+        similarityMetric,
+        embeddingModel,
+        vectorStoreProvider,
+        graphStoreProvider,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
       workflowClient.index(indexParams, 'crawler', ['crawler'], {
         address: constants.TEMPORAL_URL,
       }).then(results => {
@@ -261,13 +271,18 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedRels,
       sourceIndexId,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
       let sourceIndexName;
       if (sourceIndexId) {
         const sourceIndex = await indexesService.getIndex(sourceIndexId);
@@ -331,14 +346,18 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
       const objectNames = [];
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
@@ -410,14 +429,18 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
       const objectNames = [];
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
@@ -486,16 +509,18 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    let embeddingModel;
-    if (params.embeddingModel) {
-      const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-      embeddingModel = {
-        provider: model.provider,
-        model: model.key,
-      };
-    }
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
       const docs = [];
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
@@ -598,43 +623,47 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       allowedNodes,
       allowedRels,
     } = params;
-    const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
-
-
-    const indexParams = {
-      // Loader params
-      query,
-
-      // Extractor params
-      nodeLabel,
-      splitter,
-      characters,
-      functionId,
-      chunkSize,
-      chunkOverlap,
-      workspaceId,
-      username,
-
-      // Indexer params
-      indexId,
-      newIndexName,
-      embeddingNodeProperty,
-      textNodeProperties,
-      similarityMetric,
-      embeddingModel,
-      vectorStoreProvider,
-      graphStoreProvider,
-
-      // Addtl Graph Store params
-      allowedNodes,
-      allowedRels,
-    };
-
     try {
+      let embeddingModel;
+      if (params.embeddingModel) {
+        const model = await modelsService.getModelByKey(workspaceId, params.embeddingModel);
+        if (model) {
+          embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+        }
+      }
+
+      const indexParams = {
+        // Loader params
+        query,
+
+        // Extractor params
+        nodeLabel,
+        splitter,
+        characters,
+        functionId,
+        chunkSize,
+        chunkOverlap,
+        workspaceId,
+        username,
+
+        // Indexer params
+        indexId,
+        newIndexName,
+        embeddingNodeProperty,
+        textNodeProperties,
+        similarityMetric,
+        embeddingModel,
+        vectorStoreProvider,
+        graphStoreProvider,
+
+        // Addtl Graph Store params
+        allowedNodes,
+        allowedRels,
+      };
+
       workflowClient.index(indexParams, 'wikipedia', ['text'], {
         address: constants.TEMPORAL_URL,
       }).then(results => {

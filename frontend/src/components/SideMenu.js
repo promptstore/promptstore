@@ -29,6 +29,7 @@ import Icon, {
   PlaySquareOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
+  ShareAltOutlined,
   SketchOutlined,
   TeamOutlined,
   UserOutlined,
@@ -183,6 +184,13 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             icon: <InfoCircleOutlined />,
             label: (
               <NavLink to="/indexes">Semantic Indexes</NavLink>
+            ),
+          },
+          {
+            key: 'graphs',
+            icon: <ShareAltOutlined />,
+            label: (
+              <NavLink to="/graphs">Knowledge Graphs</NavLink>
             ),
           },
           {

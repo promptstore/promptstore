@@ -2,7 +2,6 @@ import { JSONSchema7 } from 'json-schema';
 
 import logger from '../../logger';
 
-import { EmbeddingResponse } from '../conversions/RosettaStone';
 import { LLMModel, LLMService } from '../models/llm_types';
 import { Chunk } from './Chunk';
 import {

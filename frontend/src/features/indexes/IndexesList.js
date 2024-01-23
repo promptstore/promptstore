@@ -25,19 +25,6 @@ export function IndexesList() {
   const loading = useSelector(selectLoading);
   const indexes = useSelector(selectIndexes);
 
-  const data = useMemo(() => {
-    const list = Object.values(indexes).map((index) => ({
-      key: index.id,
-      name: index.name,
-      nodeLabel: index.nodeLabel,
-      storeType: index.vectorStoreProvider ? 'Vector' : 'Graph',
-      store: index.vectorStoreProvider || index.graphStoreProvider,
-      embeddingProvider: index.embeddingProvider,
-    }));
-    list.sort((a, b) => a.name > b.name ? 1 : -1);
-    return list;
-  }, [indexes]);
-
   const { isDarkMode, setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
@@ -47,13 +34,35 @@ export function IndexesList() {
 
   const [messageApi, contextHolder] = message.useMessage();
 
+  const isGraphList = location.pathname.match(/\/graphs\/?/);
+
+  const data = useMemo(() => {
+    const list = Object.values(indexes)
+      .filter((index) => {
+        if (isGraphList) {
+          return !index.vectorStoreProvider;
+        }
+        return !!index.vectorStoreProvider;
+      })
+      .map((index) => ({
+        key: index.id,
+        name: index.name,
+        nodeLabel: index.nodeLabel,
+        storeType: index.vectorStoreProvider ? 'Vector' : 'Graph',
+        store: index.vectorStoreProvider || index.graphStoreProvider,
+        embeddingProvider: index.embeddingProvider,
+      }));
+    list.sort((a, b) => a.name > b.name ? 1 : -1);
+    return list;
+  }, [indexes, isGraphList]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
       createLink: '/indexes/new',
-      title: 'Semantic Indexes',
+      title: isGraphList ? 'Knowledge Graphs' : 'Semantic Indexes',
     }));
-  }, []);
+  }, [isGraphList]);
 
   useEffect(() => {
     if (selectedWorkspace) {

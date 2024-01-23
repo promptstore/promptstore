@@ -806,7 +806,7 @@ export function TransformationForm() {
           : null
         }
         <Form.Item
-          label="Graph Store"
+          label="Knowledge Graph"
           wrapperCol={{ span: 14 }}
         >
           <Form.Item
