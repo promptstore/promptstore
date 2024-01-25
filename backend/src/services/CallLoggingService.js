@@ -1,4 +1,5 @@
 import isEmpty from 'lodash.isempty';
+import omit from 'lodash.omit';
 
 export function CallLoggingService({ pg, logger }) {
 
@@ -61,7 +62,7 @@ export function CallLoggingService({ pg, logger }) {
     await pg.query(q, keys.map(k => params[k]));
   }
 
-  async function getCallLogs(workspaceId, filter, limit = 10, start = 0) {
+  async function getCallLogs(workspaceId, filter, limit = 100, start = 0) {
     let q = `
       SELECT id, workspace_id, username, provider, model,
       function_id, function_name, system_input,
@@ -99,8 +100,8 @@ export function CallLoggingService({ pg, logger }) {
       q += ' AND ' + criteria;
     }
     q += ` LIMIT $1 OFFSET $2`;
-    logger.debug('query:', q);
-    logger.debug('values:', [limit, start, ...values]);
+    // logger.debug('query:', q);
+    // logger.debug('values:', [limit, start, ...values]);
     const { rows } = await pg.query(q, [limit, start, ...values]);
     return rows.map(mapRow);
   }
@@ -137,20 +138,30 @@ export function CallLoggingService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function updateCallLog(id, evaluation) {
+  async function updateCallLog(id, values) {
     const savedLog = await getCallLog(id);
     if (savedLog) {
-      const modified = new Date();
-      const evaluations = savedLog.evaluations || [];
-      evaluations.push({ ...evaluation, modified });
-      const val = { evaluations };
+      const val = omit(savedLog, [
+        'id', 'workspaceId', 'username', 'provider', 'model', 'functionId',
+        'functionName', 'systemInput', 'outputType', 'systemOutput',
+        'systemOutputText', 'modelInput', 'modelUserInputText', 'modelOutput',
+        'modelOutputText', 'startDate'
+      ]);
+      if (values.evaluations) {
+        const modified = new Date();
+        const evaluations = savedLog.evaluations || [];
+        const evals = values.evaluations.map(e => ({ ...e, modified }));
+        evaluations.push(...evals);
+        values = { ...values, evaluations };
+      }
+      values = { ...val, ...values };
       const { rows } = await pg.query(`
         UPDATE call_log
         SET val = $1
         WHERE id = $2
         RETURNING *
         `,
-        [val, id]
+        [values, id]
       );
       return mapRow(rows[0]);
     }

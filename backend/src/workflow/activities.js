@@ -151,7 +151,8 @@ export const createActivities = ({
           completion: log.systemOutputText,
         });
       }
-      proms.push(callLoggingService.updateCallLog(logId, evaluation));
+      const evaluations = [evaluation];
+      proms.push(callLoggingService.updateCallLog(logId, { evaluations }));
     }
     const updatedLogs = await Promise.all(proms);
     const run = {

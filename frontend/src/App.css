@@ -964,3 +964,31 @@ article.collapsible .panel.closed {
   cursor: pointer;
   line-height: 32px;
 }
+
+.ant-checkbox-group.eval-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 278px;
+}
+
+.ant-checkbox-group.eval-options .ant-checkbox-group-item {
+  margin: 0;
+  width: 135px;
+}
+
+.ant-checkbox-group.eval-options .ant-checkbox-group-item span:first-child {
+  width: 16px;
+}
+
+.ant-form.eval-form .ant-form-item {
+  margin-bottom: 8px;
+}
+
+.ant-form.eval-form .ant-form-item:first-child {
+  margin-bottom: 24px;
+}
+
+.ant-form.eval-form .ant-form-item:last-child {
+  margin-bottom: 0;
+}

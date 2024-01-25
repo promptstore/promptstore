@@ -152,6 +152,7 @@ export function TracesList() {
               setSelectedKeys([ev.target.value]);
             } else {
               clearFilters && handleReset(clearFilters);
+              handleSearch(selectedKeys, confirm, dataIndex);
               setSelectedKeys([]);
             }
           }}

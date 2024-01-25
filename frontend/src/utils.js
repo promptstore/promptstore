@@ -26,13 +26,13 @@ export const decodeEntities = (() => {
       element.innerHTML = str;
       str = element.textContent;
       element.textContent = '';
-    }
 
-    // TODO can double encoding be prevented - occurs when
-    // message content included in another message - handlebars maybe
-    if (str.includes('&#') && !doubleDecoded) {
-      doubleDecoded = true;
-      return decodeHTMLEntities(str);
+      // TODO can double encoding be prevented - occurs when
+      // message content included in another message - handlebars maybe
+      if (str.includes('&#') && !doubleDecoded) {
+        doubleDecoded = true;
+        return decodeHTMLEntities(str);
+      }
     }
 
     return str;

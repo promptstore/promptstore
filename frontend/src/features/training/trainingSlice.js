@@ -69,8 +69,8 @@ export const createTrainingRowAsync = (req) => async (dispatch) => {
 
 export const updateTrainingRowAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/training/${id}`;
-  await http.put(url, values);
-  dispatch(setData({ data: [{ ...values, id }] }));
+  const res = await http.put(url, values);
+  dispatch(setData({ data: [res.data] }));
 };
 
 export const deleteTrainingDataAsync = ({ ids }) => async (dispatch) => {

@@ -7,6 +7,11 @@ import JsonInput from '../../components/JsonInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
+  getEmbeddingProvidersAsync,
+  selectEmbeddingProviders,
+  selectLoading as selectEmbeddingProvidersLoading,
+} from '../uploader/embeddingSlice';
+import {
   getGraphStores,
   selectGraphStores,
   selectLoading as selectGraphStoresLoading,
@@ -44,6 +49,8 @@ export function IndexForm() {
   const [error, setError] = useState(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
+  const embeddingProviders = useSelector(selectEmbeddingProviders);
+  const embeddingProvidersLoading = useSelector(selectEmbeddingProvidersLoading);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const indexes = useSelector(selectIndexes);
@@ -67,6 +74,15 @@ export function IndexForm() {
 
   // console.log('index:', index);
 
+  const embeddingProviderOptions = useMemo(() => {
+    const list = embeddingProviders.map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [embeddingProviders]);
+
   const graphStoreOptions = useMemo(() => {
     const list = graphStores.map(p => ({
       label: p.name,
@@ -89,11 +105,12 @@ export function IndexForm() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'New Index or Graph',
+      title: 'Index/Graph',
     }));
     if (!isNew) {
       dispatch(getIndexAsync(id));
     }
+    dispatch(getEmbeddingProvidersAsync());
     dispatch(getVectorStores());
     dispatch(getGraphStores());
   }, []);
@@ -354,6 +371,19 @@ export function IndexForm() {
               disabled={!!index?.graphStoreProvider}
               loading={vectorStoresLoading}
               options={vectorStoreOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          <Form.Item
+            label="Embedding"
+            name="embeddingProvider"
+            wrapperCol={{ span: 10 }}
+          >
+            <Select
+              allowClear
+              disabled={!!index?.graphStoreProvider}
+              loading={embeddingProvidersLoading}
+              options={embeddingProviderOptions}
               optionFilterProp="label"
             />
           </Form.Item>

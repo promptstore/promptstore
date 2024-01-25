@@ -31,8 +31,9 @@ export default ({ app, auth, logger, services }) => {
   app.put('/api/training/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const values = req.body;
-    await trainingService.upsertTrainingRow({ id, ...values });
-    res.json({ status: 'OK' });
+    // await trainingService.upsertTrainingRow({ id, ...values });
+    const log = await callLoggingService.updateCallLog(id, values);
+    res.json(log);
   });
 
   app.delete('/api/training/:id', auth, async (req, res, next) => {

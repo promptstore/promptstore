@@ -27,7 +27,7 @@ export const {
   startLoad,
 } = embeddingSlice.actions;
 
-export const getEmbeddingProviders = () => async (dispatch) => {
+export const getEmbeddingProvidersAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/embedding-providers';
   const res = await http.get(url);

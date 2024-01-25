@@ -36,9 +36,9 @@ export default ({ app, auth, constants, logger, services }) => {
   });
 
   app.post('/api/embeddings/:embeddingProvider', auth, async (req, res, next) => {
-    const { embeddingProvider, embeddingModel } = req.params;
+    // const { embeddingProvider, embeddingModel } = req.params;
+    const { chunks, embeddingModel, embeddingProvider } = req.body;
     logger.debug('create embeddings using %s:', embeddingProvider, req.body);
-    const { chunks } = req.body;
     const embeddings = [];
     for (const chunk of chunks) {
       const response = await llmService.createEmbedding(embeddingProvider, { input: chunk, model: embeddingModel });

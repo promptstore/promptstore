@@ -37,4 +37,4 @@ EXPOSE 5000
 
 ENV NODE_OPTIONS="--experimental-modules --es-module-specifier-resolution=node"
 
-CMD [ "node", "--loader", "ts-node/esm", "app.js" ]
+CMD [ "node", "--loader", "ts-node/esm", "--enable-source-maps", "app.js" ]

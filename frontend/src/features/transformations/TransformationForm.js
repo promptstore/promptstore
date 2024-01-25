@@ -49,7 +49,7 @@ import {
   setIndexes,
 } from '../indexes/indexesSlice';
 // import {
-//   getEmbeddingProviders,
+//   getEmbeddingProvidersAsync,
 //   selectEmbeddingProviders,
 //   selectLoading as selectEmbeddingProvidersLoading,
 // } from '../uploader/embeddingSlice';
@@ -388,7 +388,7 @@ export function TransformationForm() {
   useEffect(() => {
     if (indexValue === 'new' && !vectorStoresLoaded) {
       dispatch(getVectorStores());
-      // dispatch(getEmbeddingProviders());
+      // dispatch(getEmbeddingProvidersAsync());
       dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id, type: 'embedding' }));
     }
   }, [indexValue]);

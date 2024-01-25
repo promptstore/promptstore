@@ -218,7 +218,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             key: 'datasets',
             icon: <DatabaseOutlined />,
             label: (
-              <NavLink to="/datasets">Datasets</NavLink>
+              <NavLink to="/datasets">Call Logs</NavLink>
             ),
           },
           {
