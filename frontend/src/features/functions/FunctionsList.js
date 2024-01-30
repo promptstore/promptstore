@@ -42,7 +42,7 @@ import {
   selectModels,
 } from '../models/modelsSlice';
 import {
-  getSettingAsync,
+  getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
 } from '../promptSets/settingsSlice';
@@ -147,7 +147,7 @@ export function FunctionsList() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ workspaceId, key: TAGS_KEY }));
       dispatch(getFunctionsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,

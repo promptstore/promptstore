@@ -63,11 +63,13 @@ function TextParser({ __name, constants, logger }) {
           text,
           imageURI: null,
           metadata: {
-            author: null,
+            author: doc.author,
             mimetype: 'text/plain',
+            dataSourceId: doc.dataSourceId,
+            dataSourceName: doc.dataSourceName,
             objectName: doc.objectName,
-            endpoint: null,
-            database: null,
+            endpoint: doc.endpoint,
+            database: doc.database,
             subtype: null,
             parentIds: [],
             page: null,
@@ -125,9 +127,13 @@ function TextParser({ __name, constants, logger }) {
               "type": "string",
               "description": "The document MIME (Multipurpose Internet Mail Extension) type"
             },
-            "objectName": {
+            "dataSourceId": {
               "type": "string",
-              "description": "The document object name"
+              "description": "The data source id"
+            },
+            "dataSourceName": {
+              "type": "string",
+              "description": "The data source name"
             },
             "endpoint": {
               "type": "string",

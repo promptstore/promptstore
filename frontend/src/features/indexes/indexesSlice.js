@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { flatten } from 'flat';
 
 import { http } from '../../http';
 
@@ -56,7 +57,6 @@ export const getIndexAsync = (id) => async (dispatch) => {
   if (vectorStoreProvider) {
     try {
       const res1 = await http.get(`/api/index/${vectorStoreProvider}/${name}?nodeLabel=${nodeLabel}`);
-      console.log('res1:', res1.data);
       if (vectorStoreProvider === 'redis') {
         const {
           attributes,
@@ -116,6 +116,26 @@ export const getIndexAsync = (id) => async (dispatch) => {
             similarityMetric,
             nodeLabel,
             numDocs,
+          },
+        };
+      } else if (vectorStoreProvider === 'elasticsearch') {
+        // TODO - move to server
+        const {
+          mappings,
+          settings,
+        } = res1.data[name];
+        const attributes = Object.entries(flatten(getProperties(mappings.properties)))
+          .map(([k, v]) => {
+            const attribute = nodeLabel + '__' + k.replace('.', '__');
+            return { attribute, type: v };
+          });
+        index = {
+          ...res.data,
+          store: {
+            indexId: settings.index.uuid,
+            indexName: name,
+            attributes,
+            numDocs: res1.data.numDocs.count,
           },
         };
       }
@@ -195,3 +215,16 @@ export const selectLoading = (state) => state.indexes.loading;
 export const selectIndexes = (state) => state.indexes.indexes;
 
 export default indexesSlice.reducer;
+
+const getProperties = (props) => {
+  if (!props) return {};
+  const a = {};
+  for (const [k, v] of Object.entries(props)) {
+    if (v.properties) {
+      a[k] = getProperties(v.properties);
+    } else {
+      a[k] = v.type;
+    }
+  }
+  return a;
+};

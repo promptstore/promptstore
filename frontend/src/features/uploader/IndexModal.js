@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Button, Divider, Form, Input, Modal, Select, Space } from 'antd';
+import { Button, Divider, Form, Input, InputNumber, Modal, Select, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 
 import { TagsInput } from '../../components/TagsInput';
@@ -269,7 +269,7 @@ export function IndexModal({
                 optionFilterProp="label"
               />
             </Form.Item>
-            {vectorStoreProviderValue && vectorStoreProviderValue !== 'redis' ?
+            {vectorStoreProviderValue && vectorStoreProviderValue !== 'redis' && vectorStoreProviderValue !== 'elasticsearch' ?
               <Form.Item
                 label="Embedding"
                 name="embeddingModel"
@@ -356,7 +356,7 @@ export function IndexModal({
                   initialValue="2048"
                   wrapperCol={{ span: 5 }}
                 >
-                  <Input type="number" />
+                  <InputNumber />
                 </Form.Item>
                 <Form.Item
                   label="Chunk Overlap"
@@ -364,7 +364,7 @@ export function IndexModal({
                   initialValue="24"
                   wrapperCol={{ span: 5 }}
                 >
-                  <Input type="number" />
+                  <InputNumber />
                 </Form.Item>
               </>
               : null

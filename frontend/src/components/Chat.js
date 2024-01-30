@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { Avatar, Button, Checkbox, Divider, Image, Input, Radio, Space, Spin, Typography } from 'antd';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Avatar,
+  Button,
+  Checkbox,
+  Divider,
+  Image,
+  Input,
+  Radio,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+} from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -35,7 +47,7 @@ export function Chat({
     placeholder = 'Ask away...';
   }
 
-  // console.log('messages:', messages);
+  console.log('messages:', messages);
 
   const [indeterminate, setIndeterminate] = useState(false);
   const [selected, setSelected] = useState({});
@@ -53,6 +65,7 @@ export function Chat({
   const hasMessages = messages.length > 0;
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const findMessage = (key) => {
     for (const m of messages) {
@@ -255,15 +268,57 @@ export function Chat({
         <div className="chatline assistant">
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
-          <div className="content">
-            <Space size="large">
+          <div className="content" style={{ maxWidth: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {message.content.map((c, i) => (
                 <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
-                  <Typography.Text copyable style={{ whiteSpace: 'pre-wrap' }}>{c.content}</Typography.Text>
-                  <div className="text-secondary" style={{ marginTop: 8 }}>{c.model}</div>
+                  <Typography.Paragraph copyable
+                    style={{ whiteSpace: 'pre-wrap' }}
+                  >
+                    {c.content}
+                  </Typography.Paragraph>
+                  {c.citation_metadata?.citation_sources?.length ?
+                    <div style={{ display: 'flex', alignItems: 'flex-start', fontSize: '14px', gap: 5, lineHeight: '22px' }}>
+                      <div>Citations:</div>
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                        {c.citation_metadata.citation_sources.map((s, i) => (
+                          <div key={c.key + '-source-' + i}
+                            style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}
+                          >
+                            {s.uri?.startsWith('http') ?
+                              <Link to={s.uri} target="_blank" rel="noopener noreferrer">
+                                {s.uri}
+                              </Link>
+                              :
+                              <div>{s.uri}</div>
+                            }
+                            {s.page || s.row ?
+                              <div>({s.page ? 'page' : 'chunk'} {s.page || s.row})</div>
+                              : null
+                            }
+                            {s.dataSourceName ?
+                              <Tag
+                                onClick={() => navigate(`/data-sources/${s.dataSourceId}`)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {s.dataSourceName}
+                              </Tag>
+                              : null
+                            }
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    : null
+                  }
+                  <div className="text-secondary"
+                    style={{ marginTop: 8 }}
+                  >
+                    {c.model}
+                  </div>
                 </div>
               ))}
-            </Space>
+            </div>
           </div>
         </div>
       );

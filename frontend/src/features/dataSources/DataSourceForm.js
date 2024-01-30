@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Divider, Form, Input, Radio, Select, Space, Switch } from 'antd';
+import { Button, Divider, Form, Input, InputNumber, Radio, Select, Space, Switch } from 'antd';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 import { TagsInput } from '../../components/TagsInput';
@@ -519,7 +519,7 @@ export function DataSourceForm() {
                   initialValue="2048"
                   wrapperCol={{ span: 5 }}
                 >
-                  <Input type="number" />
+                  <InputNumber />
                 </Form.Item>
                 <Form.Item
                   label="Chunk Overlap"
@@ -527,7 +527,7 @@ export function DataSourceForm() {
                   initialValue="24"
                   wrapperCol={{ span: 5 }}
                 >
-                  <Input type="number" />
+                  <InputNumber />
                 </Form.Item>
               </>
               : null
@@ -740,7 +740,7 @@ export function DataSourceForm() {
               initialValue={1000}
               wrapperCol={{ span: 10 }}
             >
-              <Input type="number" style={{ width: 100 }} />
+              <InputNumber style={{ width: 100 }} />
             </Form.Item>
           </>
           : null
@@ -858,7 +858,7 @@ export function DataSourceForm() {
                       name="sampleRows"
                       wrapperCol={{ span: 2 }}
                     >
-                      <Input type="number" />
+                      <InputNumber />
                     </Form.Item>
                   </>
                   : null
@@ -901,7 +901,7 @@ export function DataSourceForm() {
                       name="sampleRows"
                       wrapperCol={{ span: 2 }}
                     >
-                      <Input type="number" />
+                      <InputNumber />
                     </Form.Item>
                   </>
                   : null

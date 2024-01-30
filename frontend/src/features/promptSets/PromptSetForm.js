@@ -63,7 +63,7 @@ import {
 } from './promptSetsSlice';
 import {
   createSettingAsync,
-  getSettingAsync,
+  getSettingsAsync,
   selectSettings,
   updateSettingAsync,
 } from './settingsSlice';
@@ -300,11 +300,11 @@ export function PromptSetForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getSettingAsync({
+      dispatch(getSettingsAsync({
         workspaceId,
         key: 'skills',
       }));
-      dispatch(getSettingAsync({
+      dispatch(getSettingsAsync({
         workspaceId,
         key: TAGS_KEY,
       }));
@@ -312,11 +312,11 @@ export function PromptSetForm() {
   }, [selectedWorkspace]);
 
   useEffect(() => {
-    const skillsSetting = settings['skills'];
+    const skillsSetting = Object.values(settings).find(s => s.key === 'skills');
     if (skillsSetting) {
       setSkills(skillsSetting.value || []);
     }
-    const tagsSetting = settings[TAGS_KEY];
+    const tagsSetting = Object.values(settings).find(s => s.key === TAGS_KEY);
     if (tagsSetting) {
       setExistingTags(tagsSetting.value || []);
     }
@@ -335,7 +335,7 @@ export function PromptSetForm() {
       const newSkills = [...skills, newSkill];
       setSkills(newSkills);
       setNewSkill('');
-      const setting = settings['skills'];
+      const setting = Object.values(settings).find(s => s.key === 'skills');
       const values = {
         workspaceId: selectedWorkspace.id,
         key: 'skills',
@@ -442,7 +442,7 @@ export function PromptSetForm() {
   };
 
   const updateExistingTags = (tags) => {
-    const setting = settings[TAGS_KEY];
+    const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
     const newTags = [...new Set([...existingTags, ...tags])];
     newTags.sort((a, b) => a < b ? -1 : 1);
     const values = {

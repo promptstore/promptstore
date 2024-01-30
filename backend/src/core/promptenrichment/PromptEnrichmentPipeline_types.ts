@@ -145,6 +145,7 @@ export interface SearchIndexEnrichmentParams {
   indexParams: IndexParams;
   llmService: LLMService;
   vectorStoreService: any;
+  rerankerModel: any;
   callbacks?: Callback[];
 }
 
@@ -156,7 +157,7 @@ export interface OnFunctionEnrichmentEndParams {
 export interface FunctionEnrichmentOnStartResponse {
   functionName: string;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
   args: any;
@@ -166,7 +167,7 @@ export interface FunctionEnrichmentOnStartResponse {
 export interface FunctionEnrichmentOnEndResponse {
   functionName: string;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
   enrichedArgs?: any;
@@ -182,7 +183,7 @@ export type FunctionEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 export interface FunctionEnrichmentParams {
   semanticFunction: SemanticFunction;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
   callbacks?: Callback[];

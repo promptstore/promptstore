@@ -4,21 +4,23 @@ export default ({ app, auth, logger, services }) => {
 
   app.get('/api/workspaces/:workspaceId/settings/:key', auth, async (req, res, next) => {
     const { workspaceId, key } = req.params;
-    logger.debug('key: ', key);
-    const setting = await settingsService.getSettingByKey(key);
-    res.json(setting);
+    logger.debug('key:', key);
+    const settings = await settingsService.getSettingsByKey(workspaceId, key);
+    res.json(settings);
   });
 
   app.post('/api/settings', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const id = await settingsService.upsertSetting(values);
+    const id = await settingsService.upsertSetting(values, username);
     res.json(id);
   });
 
   app.put('/api/settings/:id', auth, async (req, res, next) => {
     const { id } = req.params;
+    const { username } = req.user;
     const values = req.body;
-    await settingsService.upsertSetting({ id, ...values });
+    await settingsService.upsertSetting({ id, ...values }, username);
     res.json({ status: 'OK' });
   });
 

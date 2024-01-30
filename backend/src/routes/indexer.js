@@ -6,6 +6,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const {
     appsService,
+    dataSourcesService,
     documentsService,
     indexesService,
     modelsService,
@@ -604,7 +605,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/wikipedia', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, params, workspaceId } = req.body;
+    const { correlationId, dataSourceId, params, workspaceId } = req.body;
+    const dataSource = await dataSourcesService.getDataSource(dataSourceId);
     const {
       query,
       indexId,
@@ -637,6 +639,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       const indexParams = {
         // Loader params
+        dataSourceId,
+        dataSourceName: dataSource.name,
         query,
 
         // Extractor params

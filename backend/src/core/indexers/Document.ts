@@ -1,4 +1,6 @@
 export interface DocumentParams {
+  dataSourceId: number;
+  dataSourceName: string;
   filepath: string;
   filename: string;
   endpoint: string;
@@ -14,6 +16,8 @@ export interface DocumentParams {
 
 export class Document {
 
+  dataSourceId: number;
+  dataSourceName: string;
   filepath: string;
   filename: string;
   endpoint: string;

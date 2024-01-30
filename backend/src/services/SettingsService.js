@@ -33,20 +33,23 @@ export function SettingsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
-  async function getSettingByKey(key) {
+  async function getSettingsByKey(workspaceId, key) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return null;
+    }
     if (key === null || typeof key === 'undefined') {
       return null;
     }
     let q = `
       SELECT id, workspace_id, key, created, created_by, modified, modified_by, val
       FROM settings
-      WHERE key = $1
+      WHERE workspace_id = $1 AND key = $2
       `;
-    const { rows } = await pg.query(q, [key]);
+    const { rows } = await pg.query(q, [workspaceId, key]);
     if (rows.length === 0) {
-      return null;
+      return [];
     }
-    return mapRow(rows[0]);
+    return rows.map(mapRow);
   }
 
   async function getSetting(id) {
@@ -65,27 +68,29 @@ export function SettingsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertSetting(setting) {
+  async function upsertSetting(setting, username) {
     if (setting === null || typeof setting === 'undefined') {
       return null;
     }
     const val = omit(setting, ['id', 'workspaceId', 'key', 'created', 'createdBy', 'modified', 'modifiedBy']);
     const savedSetting = await getSetting(setting.id);
     if (savedSetting) {
+      const modified = new Date();
       await pg.query(`
         UPDATE settings
-        SET val = $1
-        WHERE id = $2
+        SET val = $1, modified_by = $2, modified = $3
+        WHERE id = $4
         `,
-        [val, setting.id]
+        [val, username, modified, setting.id]
       );
       return setting.id;
     } else {
+      const created = new Date();
       const { rows } = await pg.query(`
-        INSERT INTO settings (workspace_id, key, val)
-        VALUES ($1, $2, $3) RETURNING id
+        INSERT INTO settings (workspace_id, key, val, created_by, created, modified_by, modified)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `,
-        [setting.workspaceId, setting.key, val]
+        [setting.workspaceId, setting.key, val, username, created, username, created]
       );
       return rows[0].id;
     }
@@ -106,7 +111,7 @@ export function SettingsService({ pg, logger }) {
 
   return {
     getSettings,
-    getSettingByKey,
+    getSettingsByKey,
     getSetting,
     upsertSetting,
     deleteSettings,

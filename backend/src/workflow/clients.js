@@ -308,6 +308,7 @@ function getSpec(schedule) {
       }
     }
   }
+  return spec;
 }
 
 export async function pauseSchedule(scheduleId, connectionOptions) {

@@ -55,7 +55,7 @@ export interface CompositionOnEndResponse extends CompositionOnEndParams {
 export interface CompositionCallParams {
   args: any;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   isBatch?: boolean;
   callbacks?: Callback[];
 }

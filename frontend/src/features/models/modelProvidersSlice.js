@@ -51,6 +51,13 @@ export const getCompletionProvidersAsync = () => async (dispatch) => {
   dispatch(setProviders({ completion: res.data }));
 };
 
+export const getRerankerProvidersAsync = () => async (dispatch) => {
+  dispatch(startLoad());
+  const url = '/api/providers/reranker';
+  const res = await http.get(url);
+  dispatch(setProviders({ reranker: res.data }));
+};
+
 export const selectLoaded = (state) => state.modelProviders.loaded;
 
 export const selectLoading = (state) => state.modelProviders.loading;

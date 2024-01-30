@@ -1,6 +1,11 @@
 import { Document } from './Document';
 import { PluginMetadata } from './common_types';
 
+interface CommonLoaderParams {
+  dataSourceId: number;
+  dataSourceName: string;
+}
+
 export interface ApiLoaderParams {
   endpoint: string;
   schema: object;
@@ -15,7 +20,7 @@ export interface WikipediaLoaderParams {
   query: string;
 }
 
-export type LoaderParams = ApiLoaderParams | MinioLoaderParams | WikipediaLoaderParams;
+export type LoaderParams = CommonLoaderParams | ApiLoaderParams | MinioLoaderParams | WikipediaLoaderParams;
 
 export interface LoaderService {
 

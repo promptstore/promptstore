@@ -10,7 +10,7 @@ interface RunFunctionParams {
   history?: Message[];
   extraSystemPrompt?: string;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   functions?: Function[];
   isBatch: boolean;
   options?: any;
@@ -65,7 +65,7 @@ export class LocalExecutor {
     }));
   }
 
-  fixModelParams(modelParams: ModelParams) {
+  fixModelParams(modelParams: Partial<ModelParams>) {
     return {
       ...modelParams,
       max_tokens: this.fixNumber(modelParams.max_tokens, 140),

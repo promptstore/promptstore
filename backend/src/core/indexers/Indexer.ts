@@ -160,7 +160,7 @@ export class Indexer {
     vectorStoreProvider,
   }) {
     let embeddings: Array<number[]>;
-    if (vectorStoreProvider !== 'redis') {
+    if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
       const embedder = EmbeddingProvider.create(embeddingModel, this.llmService);
       const texts = chunks.map(c => c.text);
       const res = await embedder.createEmbeddings(texts, maxTokens);

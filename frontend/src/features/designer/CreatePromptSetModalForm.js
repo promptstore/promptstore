@@ -6,7 +6,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   createSettingAsync,
-  getSettingAsync,
+  getSettingsAsync,
   selectSettings,
   updateSettingAsync,
 } from '../promptSets/settingsSlice';
@@ -32,7 +32,7 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getSettingAsync({
+      dispatch(getSettingsAsync({
         workspaceId: selectedWorkspace.id,
         key: 'skills',
       }));
@@ -40,7 +40,7 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
   }, [selectedWorkspace]);
 
   useEffect(() => {
-    const skillsSetting = settings['skills'];
+    const skillsSetting = Object.values(settings).find(s => s.key === 'skills');
     if (skillsSetting) {
       setSkills(skillsSetting.value || []);
     }
@@ -68,7 +68,7 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
       const newSkills = [...skills, newSkill];
       setSkills(newSkills);
       setNewSkill('');
-      const setting = settings['skills'];
+      const setting = Object.values(settings).find(s => s.key === 'skills');
       const values = {
         workspaceId: selectedWorkspace.id,
         key: 'skills',

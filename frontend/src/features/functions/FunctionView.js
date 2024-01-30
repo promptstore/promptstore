@@ -293,23 +293,25 @@ export function FunctionView() {
             y += 100;
           }
           const model = models[impl.modelId];
-          const id = 'md' + i;
-          nds.push({
-            id,
-            data: {
-              label: (
-                <div className="funcstep">
-                  <div>model:</div>
-                  <div>{model.name}</div>
-                </div>
-              ),
-              type: 'models',
-              id: impl.modelId,
-            },
-            position: { x, y },
-            type: sources.length ? 'default' : 'input',
-            ...nodeProps,
-          });
+          if (model) {
+            const id = 'md' + i;
+            nds.push({
+              id,
+              data: {
+                label: (
+                  <div className="funcstep">
+                    <div>model:</div>
+                    <div>{model.name}</div>
+                  </div>
+                ),
+                type: 'models',
+                id: impl.modelId,
+              },
+              position: { x, y },
+              type: sources.length ? 'default' : 'input',
+              ...nodeProps,
+            });
+          }
           if (sources.length) {
             for (const source of sources) {
               eds.push({

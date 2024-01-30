@@ -48,7 +48,7 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini,cohere|Cohere|./plugins/llms/cohere"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia"
@@ -69,7 +69,7 @@ data:
   TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira"
 
   # Vector store plugins
-  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j,chroma|Chroma Vector Store|./plugins/vectorstores/chroma"
+  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j,chroma|Chroma Vector Store|./plugins/vectorstores/chroma,elasticsearch|Elasticsearch|./plugins/vectorstores/elasticsearch"
 
   ########
 
@@ -181,6 +181,12 @@ data:
   # Chroma
   CHROMA_SERVER: "{{ .Values.vector_stores.chroma.host }}"
 
+  # Elasticsearch
+  ES_SERVER: "{{ .Values.elasticsearch.host }}"
+  ES_PORT: "{{ .Values.elasticsearch.port }}"
+  ES_SSL: "{{ .Values.elasticsearch.use_ssl }}"
+  ES_USER: "{{ .Values.elasticsearch.username }}"
+
   # Neo4j
   NEO4J_VECTOR_STORE_HOST: "{{ .Values.vector_stores.neo4j.host }}"
   NEO4J_VECTOR_STORE_PORT: "{{ .Values.vector_stores.neo4j.port }}"
@@ -204,6 +210,12 @@ data:
   NEO4J_server_config_strict__validation_enabled: "false"
 
   ########
+
+  SEARCH_EMBEDDING_PROVIDER: "{{ .Values.promptstore.search_embedding_provider }}"
+  SEARCH_INDEX_NAME: "{{ .Values.promptstore.search_index_name }}"
+  SEARCH_NODE_LABEL: "{{ .Values.promptstore.search_node_label }}"
+  SEARCH_WORKSPACE: "{{ .Values.promptstore.search_workspace }}"
+  SEARCH_VECTORSTORE_PROVIDER: "{{ .Values.promptstore.search_vectorstore_provider }}"
 
 kind: ConfigMap
 metadata:

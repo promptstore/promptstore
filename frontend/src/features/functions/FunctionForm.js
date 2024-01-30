@@ -42,6 +42,7 @@ import {
 import {
   getModelsAsync,
   selectLoaded as selectModelsLoaded,
+  selectLoading as selectModelsLoading,
   selectModels,
 } from '../models/modelsSlice';
 import {
@@ -51,7 +52,7 @@ import {
 } from '../promptSets/promptSetsSlice';
 import {
   createSettingAsync,
-  getSettingAsync,
+  getSettingsAsync,
   selectSettings,
   updateSettingAsync,
 } from '../promptSets/settingsSlice';
@@ -120,6 +121,7 @@ export function FunctionForm() {
   const loaded = useSelector(selectLoaded);
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
+  const modelsLoading = useSelector(selectModelsLoading);
   const outputParsers = useSelector(selectOutputParsers);
   const outputParsersLoading = useSelector(selectOutputParsersLoading);
   const promptSets = useSelector(selectPromptSets);
@@ -205,7 +207,19 @@ export function FunctionForm() {
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
-      .filter(m => m.type !== 'embedding')
+      .filter(m => m.type !== 'embedding' && m.type !== 'reranker')
+      .map((m) => ({
+        label: m.name,
+        value: m.id,
+        disabled: !!m.disabled,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [models]);
+
+  const rerankerModelOptions = useMemo(() => {
+    const list = Object.values(models)
+      .filter(m => m.type === 'reranker')
       .map((m) => ({
         label: m.name,
         value: m.id,
@@ -300,12 +314,12 @@ export function FunctionForm() {
       dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
-      dispatch(getSettingAsync({ key: TAGS_KEY, workspaceId }));
+      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId }));
     }
   }, [selectedWorkspace]);
 
   useEffect(() => {
-    const tagsSetting = settings[TAGS_KEY];
+    const tagsSetting = Object.values(settings).find(s => s.key === TAGS_KEY);
     if (tagsSetting) {
       setExistingTags(tagsSetting.value || []);
     }
@@ -360,7 +374,7 @@ export function FunctionForm() {
 
   const updateExistingTags = (tags) => {
     // console.log('settings:', settings);
-    const setting = settings[TAGS_KEY];
+    const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
     // console.log('setting:', setting, TAGS_KEY);
     const newTags = [...new Set([...existingTags, ...tags])];
     newTags.sort((a, b) => a < b ? -1 : 1);
@@ -983,6 +997,22 @@ export function FunctionForm() {
                             wrapperCol={{ span: 24 }}
                           >
                             <Switch />
+                          </Form.Item>
+                          <Form.Item
+                            colon={false}
+                            name={[field.name, 'rerankerModelId']}
+                            label="Reranker Model"
+                            extra="Rerank search results"
+                            labelCol={{ span: 24 }}
+                            wrapperCol={{ span: 24 }}
+                            style={{ flex: 1 }}
+                          >
+                            <Select allowClear
+                              loading={modelsLoading}
+                              options={rerankerModelOptions}
+                              optionFilterProp="label"
+                              placeholder="Select model"
+                            />
                           </Form.Item>
                         </>
                         : null

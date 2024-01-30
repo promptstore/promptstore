@@ -19,6 +19,7 @@ export const decodeEntities = (() => {
   let doubleDecoded = false;
 
   function decodeHTMLEntities(str) {
+    return str;
     if (str && typeof str === 'string') {
       // strip script/html tags
       str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');

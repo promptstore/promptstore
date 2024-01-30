@@ -218,7 +218,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const enhanced = [];
     for (const s of sessions) {
       const messages = [];
-      for (const m of s.messages) {
+      for (const m of (s.messages || [])) {
         if (m.role === 'user' && Array.isArray(m.content)) {
           const content = [];
           for (const c of m.content) {

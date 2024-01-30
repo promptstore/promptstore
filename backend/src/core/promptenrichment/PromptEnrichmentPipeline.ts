@@ -206,6 +206,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
   indexParams: IndexParams;
   llmService: LLMService;
   vectorStoreService: any;
+  rerankerModel: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
@@ -214,12 +215,14 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     indexParams,
     llmService,
     vectorStoreService,
+    rerankerModel,
     callbacks,
   }: SearchIndexEnrichmentParams) {
     this.indexName = indexName;
     this.indexParams = indexParams;
     this.llmService = llmService;
     this.vectorStoreService = vectorStoreService;
+    this.rerankerModel = rerankerModel;
     this.callbacks = callbacks || [];
   }
 
@@ -233,7 +236,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         throw new Error('Only vector stores currently support search');
       }
       let queryEmbedding: number[];
-      if (vectorStoreProvider !== 'redis') {
+      if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
         const { provider, model } = embeddingModel;
         const response = await this.llmService.createEmbedding(provider, { input: query, model });
         queryEmbedding = response.data[0].embedding;
@@ -244,34 +247,77 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         query,
         null,  // attrs
         null,  // logicalType
-        { k: 5, queryEmbedding }  // params
+        { k: 10, queryEmbedding, nodeLabel }  // params
       );
       logger.debug('results:', results);
-      let hits = results
-        .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
-          const key = k.replace(/__/g, '.');
-          a[key] = v;
-          return a;
-        }, {}))
-      hits = hits.map(unflatten);
-      hits = hits.map((val: any) => {
-        if (val.dist) {
-          return {
-            ...val[nodeLabel],
-            dist: val.dist,
-          };
+
+      let hits = [];
+      let enrichedArgs: any;
+      if (results.length) {
+        hits = results
+          .map((val: any) => Object.entries(val).reduce((a, [k, v]) => {
+            const key = k.replace(/__/g, '.');
+            a[key] = v;
+            return a;
+          }, {}));
+        hits = hits.map(hit => unflatten(hit));
+        hits = hits.map((val: any) => {
+          if (val.dist) {
+            return {
+              ...val[nodeLabel],
+              dist: parseFloat(val.dist),
+            };
+          } else {
+            return {
+              ...val[nodeLabel],
+              score: parseFloat(val.score),
+            };
+          }
+        });
+        const isDistMetric = 'dist' in hits[0];
+        if (isDistMetric) {
+          hits.sort((a, b) => a.dist < b.dist ? -1 : 1);
         } else {
-          return {
-            ...val[nodeLabel],
-            score: parseFloat(val.score),
-          };
+          hits.sort((a, b) => a.score > b.score ? -1 : 1);
         }
-      });
-      const contextLines = hits.map(this.getHitText);
-      const context = contextLines.join('\n\n');
-      const enrichedArgs = this.enrich(args, context);
+        logger.debug('hits:', hits);
+
+        if (this.rerankerModel) {
+          const { model, provider } = this.rerankerModel;
+          const rerank = await this.llmService.rerank(
+            provider,
+            model,
+            hits.map((h: any) => h.text),
+            query,
+            3,
+          );
+          logger.debug('rerank:', rerank);
+          const ranked = [];
+          for (const result of rerank.results) {
+            ranked.push({
+              ...hits[result.index],
+              rerankerScore: result.relevanceScore,
+            });
+          }
+          hits = ranked;
+          logger.debug('ranked:', ranked);
+        }
+
+        const getHitText = this.getHitText.bind(this);
+        const contextLines = hits.map(getHitText);
+        logger.debug('contextLines:', contextLines);
+
+        const context = contextLines.join('\n\n');
+
+        enrichedArgs = this.enrich(args, context);
+      } else {
+        enrichedArgs = args;
+      }
+
       this.onEnd({ enrichedArgs });
+
       return { args: enrichedArgs };
+
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -279,11 +325,31 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     }
   }
 
+  getCitationSource(metadata: any) {
+    if (!metadata) return null;
+    return metadata.objectName || metadata.endpoint || metadata.database;
+  }
+
   getHitText({ metadata, text }) {
-    if (metadata?.filename) {
-      text += `\nCitation: ${metadata.filename}, page: ${metadata.page}`;
+    let result = `Context:\n***${text}***`;
+    const citation = this.getCitationSource(metadata);
+    if (citation) {
+      result += `\nCitation: {"source": "${citation}"`;
+      if (metadata.page) {
+        result += `, "page": ${metadata.page}`;
+      }
+      if (metadata.row) {
+        result += `, "row": ${metadata.row}`;
+      }
+      if (metadata.dataSourceId) {
+        result += `, "dataSourceId": ${metadata.dataSourceId}`;
+      }
+      if (metadata.dataSourceName) {
+        result += `, "dataSourceName": ${metadata.dataSourceName}`;
+      }
+      result += '}';
     }
-    return text;
+    return result;
   }
 
   enrich(args: any, context: string) {
@@ -349,7 +415,7 @@ export class FunctionEnrichment implements PromptEnrichmentStep {
 
   semanticFunction: SemanticFunction;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
   callbacks: Callback[];
@@ -637,6 +703,7 @@ interface SemanticSearchEnrichmentOptions {
   indexParams: IndexParams;
   llmService: LLMService;
   vectorStoreService: any;
+  rerankerModel: any;
   callbacks?: Callback[];
 }
 
@@ -647,7 +714,7 @@ export const semanticSearchEnrichment = (options: SemanticSearchEnrichmentOption
 interface FunctionEnrichmentOptions {
   semanticFunction: SemanticFunction;
   modelKey: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
   callbacks?: Callback[];

@@ -10,6 +10,7 @@ import {
   downloadImage,
   fillTemplate,
   getMessages,
+  isTruthy,
 } from '../utils';
 
 // const DEFAULT_CHAT_MODEL = 'chat-3.5-turbo';
@@ -24,6 +25,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   const {
     chatSessionsService,
     creditCalculatorService,
+    executionsService,
     indexesService,
     llmService,
     modelsService,
@@ -161,6 +163,110 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const promptSuggestion = messages.map((message) => ({ message }));
     res.send(promptSuggestion);
   });*/
+
+  app.post('/api/rag/:name', auth, async (req, res) => {
+    const semanticFunctionName = req.params.name;
+    const { username } = req.user;
+    const { batch, stream } = req.query;
+
+    // TODO
+    const {
+      args,
+      messages,
+      history,
+      params,
+      workspaceId,
+      extraIndexes,
+      functionId,
+      modelId,
+    } = req.body;
+
+    const { errors, response, responseMetadata } = await executionsService.executeFunction({
+      workspaceId: workspaceId || DEFAULT_WORKSPACE,
+      username,
+      semanticFunctionName,
+      args,
+      messages,
+      history,
+      params: params || {},
+      extraIndexes,
+      batch: isTruthy(batch),
+    });
+    if (errors) {
+      return res.status(500).json({ errors });
+    }
+
+    const argsFormData = { ...args };
+    delete argsFormData.content;
+    const newMessages = [...(history || []), ...(messages || [])];
+    if (args.content) {
+      newMessages.push({
+        role: 'user',
+        content: args.content,
+      });
+    }
+    newMessages.push(...response.choices.map(({ message }) => ({
+      role: message.role,
+      content: [
+        {
+          content: message.content,
+          citation_metadata: message.citation_metadata,
+          model: response.model,
+        },
+      ],
+    })));
+
+    const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'rag');
+    let session;
+    if (lastSession) {
+      session = await chatSessionsService.upsertChatSession({
+        ...lastSession,
+        argsFormData,
+        messages: newMessages,
+        modelParams: params || {},
+        functionId,
+        modelId,
+      }, username);
+    } else {
+      session = await chatSessionsService.upsertChatSession({
+        argsFormData,
+        messages: newMessages,
+        modelParams: params || {},
+        name: LAST_SESSION_NAME,
+        type: 'rag',
+        workspaceId,
+        functionId,
+        modelId,
+      }, username);
+    }
+
+    if (isTruthy(stream)) {
+      const headers = {
+        'Content-Type': 'text/event-stream',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+      };
+      res.writeHead(200, headers);
+      response.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(line => line.trim() !== '');
+        for (const line of lines) {
+          const message = line.replace(/^data: /, '');
+          if (message === '[DONE]') {
+            // Stream finished
+            res.close();
+          }
+          try {
+            const parsed = JSON.parse(message);
+            res.write('data: ' + parsed.choices[0].text + '\n\n');
+          } catch (error) {
+            console.error('Could not JSON parse stream message', message, error);
+          }
+        }
+      });
+    } else {
+      res.json({ response, responseMetadata });
+    }
+  });
 
   app.post('/api/chat', auth, async (req, res) => {
     // logger.debug('body:', req.body);
@@ -306,7 +412,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       if (index && index.vectorStoreProvider) {
         const { embeddingProvider, embeddingModel, vectorStoreProvider } = index;
         const searchParams = {};
-        if (vectorStoreProvider !== 'redis') {
+        if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
           const response =
             await llmService.createEmbedding(embeddingProvider, { input: content, model: embeddingModel });
           searchParams.queryEmbedding = response.data[0].embedding;
@@ -491,7 +597,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     // to make sure the message used as an argument is also included
     const curMessages = [...history, ...userMessages];
 
-    const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username);
+    const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'design');
     let session;
     if (lastSession) {
       session = await chatSessionsService.upsertChatSession({
@@ -573,6 +679,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.get('/api/providers/completion', auth, (req, res, next) => {
     const providers = llmService.getCompletionProviders();
+    res.json(providers);
+  });
+
+  app.get('/api/providers/reranker', auth, (req, res, next) => {
+    const providers = llmService.getRerankerProviders();
     res.json(providers);
   });
 

@@ -1,7 +1,7 @@
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Space } from 'antd';
+import { Button, Form, Input, InputNumber, Space } from 'antd';
 
 import NavbarContext from '../../contexts/NavbarContext';
 
@@ -134,7 +134,7 @@ export function UserForm() {
               initialValue={2000}
               wrapperCol={{ span: 4 }}
             >
-              <Input type="number" />
+              <InputNumber />
             </Form.Item>
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>

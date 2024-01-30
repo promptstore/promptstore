@@ -22,11 +22,15 @@ export interface LLMService {
 
   getNumberTokens(provider: string, model: string, text: string): number;
 
+  rerank(provider: string, model: string, documents: string[], query: string, topN: number): any;
+
   getChatProviders(): Array<any>
 
   getCompletionProviders(): Array<any>
 
   getEmbeddingProviders(): Array<any>
+
+  getRerankerProviders(): Array<any>
 
 }
 
@@ -45,6 +49,8 @@ export interface LLM {
   generateImageVariant(imageUrl: string, options: any): Promise<any>;
 
   getNumberTokens(model: string, text: string): number;
+
+  rerank(model: string, documents: string[], query: string, topN: number): any;
 
 }
 

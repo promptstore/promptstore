@@ -39,8 +39,8 @@ import {
 const { TextArea } = Input;
 
 const layout = {
-  labelCol: { span: 4 },
-  wrapperCol: { span: 20 },
+  labelCol: { span: 5 },
+  wrapperCol: { span: 19 },
 };
 
 export function IndexForm() {
@@ -163,7 +163,7 @@ export function IndexForm() {
         embeddingProvider: index.embeddingProvider,
         embeddingModel: index.embeddingModel,
       };
-    } else if (index.vectorStoreProvider === 'redis') {
+    } else if (index.vectorStoreProvider === 'redis' || index.vectorStoreProvider === 'elasticsearch') {
       params = {
         nodeLabel: index.nodeLabel,
       };
@@ -260,7 +260,49 @@ export function IndexForm() {
             <Descriptions.Item label="Average number of records per document">{getInt(store.recordsPerDocAvg)}</Descriptions.Item>
           </Descriptions>
         </Form.Item>
-        <Form.Item wrapperCol={{ offset: 4, span: 10 }}>
+        <Form.Item wrapperCol={{ offset: 4, span: 12 }}>
+          <Descriptions layout="vertical">
+            <Descriptions.Item label="Attributes">
+              <Table columns={columns} dataSource={data} pagination={false} size="small" loading={loading} style={{ minWidth: 500 }} />
+            </Descriptions.Item>
+          </Descriptions>
+        </Form.Item>
+      </>
+    );
+  }
+
+  function ElasticsearchStoreInfo({ store }) {
+
+    const columns = [
+      {
+        title: 'Name',
+        dataIndex: 'attribute',
+      },
+      {
+        title: 'Type',
+        dataIndex: 'type',
+      },
+    ];
+
+    const data = useMemo(() => {
+      if (!store) return [];
+      const list = store.attributes.map((a) => ({
+        key: a.attribute,
+        attribute: a.attribute,
+        type: a.type,
+      }));
+      list.sort((a, b) => a.attribute > b.attribute ? 1 : -1);
+      return list;
+    }, [store]);
+
+    return (
+      <>
+        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+          <Descriptions title="Physical Index Info">
+            <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
+          </Descriptions>
+        </Form.Item>
+        <Form.Item wrapperCol={{ offset: 4, span: 12 }}>
           <Descriptions layout="vertical">
             <Descriptions.Item label="Attributes">
               <Table columns={columns} dataSource={data} pagination={false} size="small" loading={loading} style={{ minWidth: 500 }} />
@@ -316,6 +358,11 @@ export function IndexForm() {
           <ChromaStoreInfo store={store} />
         );
       }
+      if (vectorStoreProvider === 'elasticsearch') {
+        return (
+          <ElasticsearchStoreInfo store={store} />
+        );
+      }
     }
     return (
       <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
@@ -357,14 +404,21 @@ export function IndexForm() {
                 message: 'Please enter an index name',
               },
             ]}
-            wrapperCol={{ span: 14 }}
+            wrapperCol={{ span: 16 }}
           >
             <Input />
           </Form.Item>
           <Form.Item
+            label="Description"
+            name="description"
+            wrapperCol={{ span: 16 }}
+          >
+            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+          </Form.Item>
+          <Form.Item
             label="Vector Store"
             name="vectorStoreProvider"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Select
               allowClear
@@ -374,23 +428,26 @@ export function IndexForm() {
               optionFilterProp="label"
             />
           </Form.Item>
-          <Form.Item
-            label="Embedding"
-            name="embeddingProvider"
-            wrapperCol={{ span: 10 }}
-          >
-            <Select
-              allowClear
-              disabled={!!index?.graphStoreProvider}
-              loading={embeddingProvidersLoading}
-              options={embeddingProviderOptions}
-              optionFilterProp="label"
-            />
-          </Form.Item>
+          {!['redis', 'elasticsearch'].includes(index?.vectorStoreProvider) ?
+            <Form.Item
+              label="Embedding"
+              name="embeddingProvider"
+              wrapperCol={{ span: 12 }}
+            >
+              <Select
+                allowClear
+                disabled={!!index?.graphStoreProvider}
+                loading={embeddingProvidersLoading}
+                options={embeddingProviderOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+            : null
+          }
           <Form.Item
             label="Knowledge Graph"
             name="graphStoreProvider"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Select
               allowClear
@@ -399,13 +456,6 @@ export function IndexForm() {
               options={graphStoreOptions}
               optionFilterProp="label"
             />
-          </Form.Item>
-          <Form.Item
-            label="Description"
-            name="description"
-            wrapperCol={{ span: 14 }}
-          >
-            <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
           </Form.Item>
           {index?.vectorStoreProvider ?
             <Form.Item

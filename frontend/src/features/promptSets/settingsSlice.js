@@ -11,8 +11,8 @@ export const settingsSlice = createSlice({
   },
   reducers: {
     removeSettings: (state, action) => {
-      for (const key of action.payload.keys) {
-        delete state.settings[key];
+      for (const id of action.payload.ids) {
+        delete state.settings[id];
       }
     },
     resetSettings: (state, action) => {
@@ -20,7 +20,7 @@ export const settingsSlice = createSlice({
     },
     setSettings: (state, action) => {
       for (const item of action.payload.settings) {
-        state.settings[item.key] = item;
+        state.settings[item.id] = item;
       }
       state.loaded = true;
       state.loading = false;
@@ -39,12 +39,11 @@ export const {
   startLoad,
 } = settingsSlice.actions;
 
-export const getSettingAsync = ({ workspaceId, key }) => async (dispatch) => {
+export const getSettingsAsync = ({ workspaceId, key }) => async (dispatch) => {
   dispatch(startLoad());
   const url = `/api/workspaces/${workspaceId}/settings/${key}`;
   const res = await http.get(url);
-  const setting = res.data;
-  dispatch(setSettings({ settings: setting ? [setting] : [] }));
+  dispatch(setSettings({ settings: res.data }));
 };
 
 export const createSettingAsync = ({ values }) => async (dispatch) => {
@@ -59,14 +58,13 @@ export const updateSettingAsync = ({ id, values }) => async (dispatch) => {
   dispatch(setSettings({ settings: [values] }));
 };
 
-export const deleteSettingsAsync = ({ keys }) => async (dispatch, getState) => {
+export const deleteSettingsAsync = ({ ids }) => async (dispatch, getState) => {
   const { settings } = getState().settings;
-  const ids = keys.map((key) => settings[key]?.id).filter((id) => typeof id !== 'undefined');
   if (ids.length) {
     const url = `/api/settings?ids=${ids.join(',')}`;
     await http.delete(url);
   }
-  dispatch(removeSettings({ keys }));
+  dispatch(removeSettings({ ids }));
 };
 
 export const selectLoaded = (state) => state.settings.loaded;

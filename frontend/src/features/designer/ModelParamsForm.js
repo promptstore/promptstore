@@ -12,7 +12,9 @@ import {
 import {
   Button,
   Form,
+  Input,
   InputNumber,
+  Popover,
   Select,
   Slider,
   Space,
@@ -33,6 +35,13 @@ import {
   getPromptSetsAsync,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
+import {
+  createSettingAsync,
+  getSettingsAsync,
+  selectLoading as selectSettingsLoading,
+  selectSettings,
+  updateSettingAsync,
+} from '../promptSets/settingsSlice';
 
 import { VariationModalForm } from './VariationModalForm';
 import {
@@ -40,7 +49,7 @@ import {
 } from './options';
 
 export const initialValues = {
-  maxTokens: 64,
+  maxTokens: 1024,
   n: 1,
   temperature: 1,
   topP: 1,
@@ -53,6 +62,7 @@ export const initialValues = {
 };
 
 export function ModelParamsForm({
+  hasImage,
   includes,
   onChange,
   tourRefs,
@@ -67,16 +77,23 @@ export function ModelParamsForm({
       topP: true,
       promptSet: true,
       allowEmojis: true,
+      jsonMode: true,
+      seed: true,
     };
   }
 
+  const [isLoadFormOpen, setLoadFormOpen] = useState(false);
+  const [isSaveFormOpen, setSaveFormOpen] = useState(false);
   const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
+  const [selectedConfig, setSelectedConfig] = useState(null);
   const [selectedVariationKey, setSelectedVariationKey] = useState(null);
   const [selectedVariationValues, setSelectedVariationValues] = useState([]);
 
   const models = useSelector(selectModels);
   const modelsLoading = useSelector(selectModelsLoading);
   const promptSets = useSelector(selectPromptSets);
+  const settingsLoading = useSelector(selectSettingsLoading);
+  const settings = useSelector(selectSettings);
 
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
@@ -92,6 +109,7 @@ export function ModelParamsForm({
       dispatch(getPromptSetsAsync({ key: 'copy', workspaceId }));
     }
     dispatch(getModelsAsync({ workspaceId }));
+    dispatch(getSettingsAsync({ key: 'model_configs', workspaceId }));
   }, [selectedWorkspace]);
 
   useEffect(() => {
@@ -107,7 +125,7 @@ export function ModelParamsForm({
   const modelOptions = useMemo(() => {
     if (models) {
       const list = Object.values(models)
-        .filter((m) => m.type === 'gpt' && !m.disabled)
+        .filter((m) => m.type === 'gpt' && !m.disabled && (hasImage ? m.multimodal : true))
         .map((m) => ({
           key: m.id,
           label: m.name,
@@ -117,7 +135,21 @@ export function ModelParamsForm({
       return list;
     }
     return [];
-  }, [models]);
+  }, [models, hasImage]);
+
+  const modelConfigOptions = useMemo(() => {
+    if (settings) {
+      const configs = Object.values(settings).filter(s => s.key === 'model_configs');
+      const list = configs.map(c => ({
+        key: c.id,
+        label: c.name,
+        value: c.id,
+      }));
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      return list;
+    }
+    return [];
+  }, [settings]);
 
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
@@ -208,6 +240,47 @@ export function ModelParamsForm({
     </Space>
   );
 
+  const handleLoad = ({ modelConfig }) => {
+    // console.log('modelConfig:', modelConfig);
+    if (modelConfig) {
+      const setting = settings[modelConfig];
+      // console.log('setting:', setting);
+      form.setFieldsValue(setting.params);
+      setLoadFormOpen(false);
+      setSelectedConfig(setting);
+    } else {
+      setLoadFormOpen(false);
+      setSelectedConfig(null);
+    }
+  };
+
+  const handleLoadFormReset = () => {
+    form.resetFields();
+    setLoadFormOpen(false);
+    setSelectedConfig(null);
+  };
+
+  const handleSave = async ({ name }) => {
+    // console.log('name:', name);
+    const params = await form.validateFields();
+    if (selectedConfig && !name) {
+      const values = { params };
+      dispatch(updateSettingAsync({
+        id: selectedConfig.id,
+        values,
+      }));
+    } else {
+      const values = {
+        workspaceId: selectedWorkspace.id,
+        key: 'model_configs',
+        name,
+        params,
+      };
+      dispatch(createSettingAsync({ values }));
+    }
+    setSaveFormOpen(false);
+  };
+
   return (
     <>
       <VariationModalForm
@@ -227,6 +300,31 @@ export function ModelParamsForm({
       >
         <div id="params-form">
           <div>
+            <Form.Item>
+              <Popover
+                open={isLoadFormOpen}
+                title="Load model config"
+                content={
+                  <LoadForm
+                    loading={settingsLoading}
+                    onCancel={() => setLoadFormOpen(false)}
+                    onLoad={handleLoad}
+                    onReset={() => handleLoadFormReset()}
+                    options={modelConfigOptions}
+                  />
+                }
+              >
+                <Space>
+                  <Button type="primary"
+                    size="small"
+                    onClick={() => setLoadFormOpen(true)}
+                  >
+                    Load config
+                  </Button>
+                  <div>{selectedConfig?.name}</div>
+                </Space>
+              </Popover>
+            </Form.Item>
             <Form.Item
               extra="Only the first 3 will be used"
               label="Use/Compare Models"
@@ -342,6 +440,27 @@ export function ModelParamsForm({
               </Form.Item>
               : null
             }
+            {includes['jsonMode'] ?
+              <Form.Item
+                label="JSON"
+                name="jsonMode"
+                valuePropName="checked"
+                tooltip="Force the model to return in JSON format. You should also set formatting instructions in your prompt."
+              >
+                <Switch />
+              </Form.Item>
+              : null
+            }
+            {includes['seed'] ?
+              <Form.Item
+                label="Seed"
+                name="seed"
+                tooltip="Make the model behave deterministically so it returns the same result every time."
+              >
+                <InputNumber />
+              </Form.Item>
+              : null
+            }
             {includes['promptSet'] ?
               <Form.Item
                 label="Prompt"
@@ -364,12 +483,128 @@ export function ModelParamsForm({
               </Form.Item>
               : null
             }
-            <Button onClick={clearFields} type="default" size="small">
-              Reset
-            </Button>
+            <Space>
+              <Button onClick={clearFields} type="default" size="small">
+                Reset
+              </Button>
+              <Popover
+                open={isSaveFormOpen}
+                title="Save model config"
+                content={
+                  <SaveForm
+                    isConfigLoaded={!!selectedConfig}
+                    onCancel={() => setSaveFormOpen(false)}
+                    onSave={handleSave}
+                  />
+                }
+              >
+                <Button type="primary"
+                  size="small"
+                  onClick={() => setSaveFormOpen(true)}
+                >
+                  Save config
+                </Button>
+              </Popover>
+            </Space>
           </div>
         </div>
       </Form>
     </>
+  );
+}
+
+function LoadForm({ loading, onCancel, onLoad, onReset, options }) {
+
+  const [form] = Form.useForm();
+
+  const handleReset = () => {
+    form.resetFields();
+    onReset();
+  };
+
+  return (
+    <div style={{ width: 275 }}>
+      <Form
+        form={form}
+        onFinish={onLoad}
+      >
+        <Form.Item
+          name="modelConfig"
+        >
+          <Select allowClear
+            loading={loading}
+            options={options}
+            optionFilterProp="label"
+          />
+        </Form.Item>
+        <Form.Item
+          style={{ marginBottom: 0 }}
+        >
+          <Space>
+            <Button type="default"
+              size="small"
+              onClick={() => onCancel()}
+            >
+              Cancel
+            </Button>
+            <Button type="default"
+              size="small"
+              onClick={() => handleReset()}
+            >
+              Reset
+            </Button>
+            <Button type="primary"
+              size="small"
+              htmlType="submit"
+            >
+              OK
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+    </div>
+  )
+}
+
+function SaveForm({ isConfigLoaded, onCancel, onSave }) {
+  return (
+    <div style={{ width: 275 }}>
+      <Form
+        onFinish={onSave}
+      >
+        <Form.Item
+          name="name"
+          rules={[
+            {
+              required: true,
+              message: 'Please enter a name',
+            },
+          ]}
+        >
+          <Input
+            autoComplete="off"
+            placeholder={isConfigLoaded ? 'Leave blank to update current config' : 'Enter name'}
+          />
+        </Form.Item>
+        <Form.Item
+          style={{ marginBottom: 0 }}
+        >
+          <Space>
+            <Button type="default"
+              size="small"
+              onClick={() => onCancel()}
+            >
+              Cancel
+            </Button>
+            <Button type="primary"
+              size="small"
+              htmlType="submit"
+            >
+              OK
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+    </div>
   );
 }

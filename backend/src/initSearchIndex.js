@@ -1,6 +1,6 @@
 export default async ({ constants, logger, services }) => {
 
-  const { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_VECTORSTORE_PROVIDER } = constants;
+  const { SEARCH_INDEX_NAME, SEARCH_NODE_LABEL, SEARCH_WORKSPACE, SEARCH_VECTORSTORE_PROVIDER } = constants;
 
   const { indexesService, vectorStoreService } = services;
 
@@ -70,14 +70,13 @@ export default async ({ constants, logger, services }) => {
     ]
   };
 
-  let index = await indexesService.getIndexByName(1, SEARCH_INDEX_NAME);
+  let index = await indexesService.getIndexByName(SEARCH_WORKSPACE, SEARCH_INDEX_NAME);
   if (!index) {
     index = await indexesService.upsertIndex({
       name: SEARCH_INDEX_NAME,
       schema: searchSchema,
-      workspaceId: 1,
-      embeddingProvider: 'sentenceencoder',
-      vectorStoreProvider: 'redis',
+      workspaceId: SEARCH_WORKSPACE,
+      vectorStoreProvider: SEARCH_VECTORSTORE_PROVIDER,
       nodeLabel: SEARCH_NODE_LABEL,
     }, 'system');
     logger.debug("Created new index '%s' [%s]", SEARCH_INDEX_NAME, index.id);

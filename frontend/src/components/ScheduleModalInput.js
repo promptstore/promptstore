@@ -3,7 +3,7 @@ import {
   Button,
   DatePicker,
   Form,
-  Input,
+  InputNumber,
   Modal,
   Segmented,
   Space,
@@ -170,10 +170,7 @@ export function ScheduleModalInput({
                     extra="Every"
                     style={{ width: 214 }}
                   >
-                    <Input
-                      suffix={`${frequencyValue}(s)`}
-                      type="number"
-                    />
+                    <InputNumber suffix={`${frequencyValue}(s)`} />
                   </Form.Item>
                   {frequencyValue === 'week' ?
                     <Form.Item
@@ -217,10 +214,7 @@ export function ScheduleModalInput({
                       extra="Length"
                       style={{ width: 214 }}
                     >
-                      <Input
-                        suffix="occurrence(s)"
-                        type="number"
-                      />
+                      <InputNumber suffix="occurrence(s)" />
                     </Form.Item>
                     : null
                   }

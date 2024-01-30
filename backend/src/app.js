@@ -65,10 +65,11 @@ if (ENV === 'dev') {
   dotenv.config();
 }
 
-const SEARCH_EMBEDDING_PROVIDER = 'sentenceencoder';
-const SEARCH_INDEX_NAME = 'pssearch';
-const SEARCH_NODE_LABEL = 'Object';
-const SEARCH_VECTORSTORE_PROVIDER = 'redis';
+const SEARCH_EMBEDDING_PROVIDER = process.env.SEARCH_EMBEDDING_PROVIDER;
+const SEARCH_INDEX_NAME = process.env.SEARCH_INDEX_NAME;
+const SEARCH_NODE_LABEL = process.env.SEARCH_NODE_LABEL;
+const SEARCH_WORKSPACE = +process.env.SEARCH_WORKSPACE;
+const SEARCH_VECTORSTORE_PROVIDER = process.env.SEARCH_VECTORSTORE_PROVIDER;
 
 const BASE_URL = process.env.BASE_URL;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
@@ -409,6 +410,7 @@ const options = {
     SEARCH_EMBEDDING_PROVIDER,
     SEARCH_INDEX_NAME,
     SEARCH_NODE_LABEL,
+    SEARCH_WORKSPACE,
     SEARCH_VECTORSTORE_PROVIDER,
     TEMPORAL_URL,
   },
@@ -475,6 +477,7 @@ initSearchIndex({
     SEARCH_EMBEDDING_PROVIDER,
     SEARCH_INDEX_NAME,
     SEARCH_NODE_LABEL,
+    SEARCH_WORKSPACE,
     SEARCH_VECTORSTORE_PROVIDER,
   },
   logger,

@@ -53,7 +53,7 @@ import {
   selectPromptSets,
 } from './promptSetsSlice';
 import {
-  getSettingAsync,
+  getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
 } from './settingsSlice';
@@ -144,7 +144,7 @@ export function PromptSetsList() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getSettingAsync({ workspaceId, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ workspaceId, key: TAGS_KEY }));
       dispatch(getPromptSetsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,

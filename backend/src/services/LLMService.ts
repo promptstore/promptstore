@@ -223,6 +223,11 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     return instance.getNumberTokens(model, text);
   }
 
+  function rerank(provider: string, model: string, documents: string[], query: string, topN: number) {
+    const instance = registry[provider] as LLM;
+    return instance.rerank(model, documents, query, topN);
+  }
+
   function getChatProviders(): PluginMetadata[] {
     return Object.entries(registry)
       .filter(([_, p]) => 'createChatCompletion' in p)
@@ -250,13 +255,24 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
       }));
   }
 
+  function getRerankerProviders() {
+    return Object.entries(registry)
+      .filter(([_, p]) => 'rerank' in p)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
+  }
+
   return {
     createChatCompletion,
     createCompletion,
     createEmbedding,
+    rerank,
     getChatProviders,
     getCompletionProviders,
     getEmbeddingProviders,
+    getRerankerProviders,
     createImage,
     generateImageVariant,
     getNumberTokens,

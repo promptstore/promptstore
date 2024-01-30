@@ -97,6 +97,7 @@ export const getResponseAsync = (req) => async (dispatch) => {
       messages[i].content.push({
         model,
         content: message.content,
+        citation_metadata: message.citation_metadata,
         key: uuidv4(),
       });
       i += 1;
@@ -131,10 +132,27 @@ const cleanHistory = (history) => {
   }));
 };
 
-export const getFunctionResponseAsync = ({ functionName, args, history, params, workspaceId, extraIndexes }) => async (dispatch) => {
+export const getFunctionResponseAsync = ({
+  functionName,
+  args,
+  history,
+  params,
+  workspaceId,
+  extraIndexes,
+  functionId,
+  modelId,
+}) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/executions/${functionName}`;
-  const res = await http.post(url, { args, history: cleanHistory(history), params, workspaceId, extraIndexes });
+  const url = `/api/rag/${functionName}`;
+  const res = await http.post(url, {
+    args,
+    history: cleanHistory(history),
+    params,
+    workspaceId,
+    extraIndexes,
+    functionId,
+    modelId,
+  });
   const { choices, model, usage } = res.data.response;
   const messages = choices.map(({ message }) => ({
     key: uuidv4(),
@@ -143,6 +161,7 @@ export const getFunctionResponseAsync = ({ functionName, args, history, params, 
       {
         key: uuidv4(),
         content: message.content,
+        citation_metadata: message.citation_metadata,
         model,
       },
     ],

@@ -341,6 +341,7 @@ export class SemanticFunctionImplementation {
 
     if (this.rewriteQuery) {
       const content = args[this.indexContentPropertyPath];
+      logger.debug('rewriteQuery before:', content);
       if (content) {
         const { response, responseMetadata } = await this.queryRewriteFunction.call({
           args: { content },
@@ -355,6 +356,7 @@ export class SemanticFunctionImplementation {
           totalTokens += responseMetadata.totalTokens || 0;
         }
         args[this.indexContentPropertyPath] = response.choices[0].message.content;
+        logger.debug('rewriteQuery after:', args[this.indexContentPropertyPath]);
       }
     }
 

@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.51"
+version: "0.6.53"
 
 port: "5000"
 
@@ -12,6 +12,11 @@ base_url:
 
 promptstore:
   email:
+  search_embedding_provider:
+  search_index_name: "pssearch"
+  search_node_label: "Object"
+  search_workspace: "1"
+  search_vectorstore_provider:
 
 ingress:
   domain:
@@ -24,6 +29,13 @@ db:
   name: "promptstore"
   user: "psadmin"
   pass: "changeme"
+
+elasticsearch:
+  host:
+  port: "9200"
+  use_ssl:
+  username:
+  password:
 
 # Redis
 redis:
@@ -110,7 +122,11 @@ bedrock:
   secret_access_key:
   session_token:
 
-# gemini - ./plugins/llms/gemini
+# Cohere - ./plugins/llms/cohere
+cohere:
+  api_key:
+
+# Gemini - ./plugins/llms/gemini
 gemini:
   project_id:
   project_location:
@@ -193,6 +209,10 @@ openweather:
 serpapi:
   api_url: "https://google.serper.dev/search"
   api_key:
+
+# Trello
+trello:
+  api_token:
 
 ########
 

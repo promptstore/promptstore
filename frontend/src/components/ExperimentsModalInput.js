@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Input, Modal, Space } from 'antd';
+import { Button, InputNumber, Modal, Space } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
 
@@ -75,7 +75,7 @@ export function ExperimentsModalInput({
                     {impl.modelId ? models[impl.modelId].key : 'Implementation ' + (i + 1)}
                   </div>
                   <div style={{ marginLeft: 24, width: 48 }}>
-                    <Input type="number"
+                    <InputNumber
                       value={state[i].percentage}
                       onChange={(ev) => {
                         setState((curr) => {

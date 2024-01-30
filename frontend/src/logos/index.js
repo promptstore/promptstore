@@ -1,5 +1,6 @@
 export { AnthropicLogo } from './AnthropicLogo';
 export { BedrockLogo } from './BedrockLogo';
+export { CohereLogo } from './CohereLogo';
 export { EuropaLabsLogo } from './EuropaLabsLogo';
 export { GeminiLogo } from './GeminiLogo';
 export { HuggingFaceLogo } from './HuggingFaceLogo';

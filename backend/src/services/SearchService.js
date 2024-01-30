@@ -211,7 +211,7 @@ export function SearchService({ constants, logger, services }) {
       return [];
     }
     try {
-      if (vectorStoreProvider !== 'redis') {
+      if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
         const { embeddingProvider, embeddingModel } = params;
         const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
         return vectorStoreService.search('neo4j', indexName, query, attrs, 'and', {

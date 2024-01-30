@@ -9,7 +9,7 @@ export interface SemanticFunctionCallParams {
   history?: Message[],
   extraSystemPrompt?: string;
   modelKey?: string;
-  modelParams: ModelParams;
+  modelParams: Partial<ModelParams>;
   functions?: Function[];
   isBatch?: boolean;
   options?: any;

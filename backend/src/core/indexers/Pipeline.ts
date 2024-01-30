@@ -21,13 +21,10 @@ import {
   Indexer,
 } from './Indexer';
 import {
-  ApiLoader,
   ApiLoaderParams,
   Loader,
   LoaderService,
-  MinioLoader,
   MinioLoaderParams,
-  WikipediaLoader,
   WikipediaLoaderParams,
 } from './Loader';
 import {
@@ -139,7 +136,7 @@ export class Pipeline {
 
     // Check Embedding Provider
     if (!this._graphStoreProvider) {
-      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis') {
+      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis' && this._vectorStoreProvider !== 'elasticsearch') {
         if (params.indexId === 'new') {
           this.embeddingModel = params.embeddingModel;
         } else {
@@ -152,7 +149,7 @@ export class Pipeline {
           };
         }
       }
-      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis') {
+      if (!this._embeddingModel && this._vectorStoreProvider !== 'redis' && this._vectorStoreProvider !== 'elasticsearch') {
         throw new Error('Missing embedding provider');
       }
     }

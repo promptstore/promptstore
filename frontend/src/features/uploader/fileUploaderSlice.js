@@ -432,7 +432,7 @@ export const indexWikipediaAsync = ({ dataSourceId, params, workspaceId }) => as
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/wikipedia';
-  await http.post(url, { correlationId, params, workspaceId });
+  await http.post(url, { correlationId, dataSourceId, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {

@@ -191,13 +191,14 @@ export default ({ app, auth, constants, logger, services }) => {
       return res.status(200).json({ results: [result] });
     }
     let queryEmbedding;
-    if (vectorStoreProvider !== 'redis') {
+    if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
       const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
       queryEmbedding = response.data[0].embedding;
     }
     const attrs = { ...req.body.attrs, ...formatAttrs(nodeLabel, facetFilters.flat()) };
     // logger.debug('attrs:', attrs);
     const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, logicalType, {
+      nodeLabel,
       queryEmbedding,
     });
     // logger.debug('rawResults:', rawResults);

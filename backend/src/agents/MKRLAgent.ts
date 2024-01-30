@@ -46,7 +46,7 @@ export default ({ logger, services }) => {
 
     name: string;
     model: string;
-    modelParams: ModelParams;
+    modelParams: Partial<ModelParams>;
     provider: string;
     isChat: boolean;
     maxIterations: number;
@@ -335,7 +335,7 @@ export default ({ logger, services }) => {
             throw new Error('Only vector stores currently support search');
           }
           let queryEmbedding: number[];
-          if (vectorStoreProvider !== 'redis') {
+          if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
             const embeddingResponse = await llmService.createEmbedding(embeddingProvider, { ...args, model: embeddingModel });
             queryEmbedding = embeddingResponse.data[0].embedding;
           }

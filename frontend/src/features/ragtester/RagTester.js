@@ -51,7 +51,7 @@ import {
   selectModels,
 } from '../models/modelsSlice';
 import {
-  getSettingAsync,
+  getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
 } from '../promptSets/settingsSlice';
@@ -70,6 +70,19 @@ const uiSchema = {
   },
 };
 
+const defaultModelParams = {
+  maxTokens: 1024,
+  n: 1,
+  temperature: 1,
+  topP: 1,
+  topK: 40,
+  models: [],
+  criticModels: [],
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  stop: [],
+};
+
 export function RagTester() {
 
   const [argsFormData, setArgsFormData] = useState(null);
@@ -80,8 +93,8 @@ export function RagTester() {
   const [selectedMessages, setSelectedMessages] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [sessionsCollapsed, setSessionsCollapsed] = useState(true);
-  const [copyParams, setCopyParams] = useState({});
+  const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('rag-sessions-collapsed', { defaultValue: true });
+  const [modelParams, setModelParams] = useState(defaultModelParams);
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-rag-tags', { defaultValue: [] });
 
   const chatLoading = useSelector(selectChatLoading);
@@ -96,11 +109,39 @@ export function RagTester() {
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
 
-  const func = functions[selectedFunction];
-  const impl = func?.implementations.find((impl) => impl.modelId === selectedImplementation);
-  const idxs = (impl?.indexes || []).map((idx) => indexes[idx.indexId]);
-  const featureStoreSource = dataSources[impl?.dataSourceId];
-  const sqlSource = dataSources[impl?.sqlSourceId];
+  const func = useMemo(() => {
+    return functions[selectedFunction];
+  }, [functions, selectedFunction]);
+
+  const impl = useMemo(() => {
+    if (func) {
+      return func.implementations.find((impl) => impl.modelId === selectedImplementation);
+    }
+    return null;
+  }, [func, selectedImplementation]);
+
+  const idxs = useMemo(() => {
+    if (impl) {
+      return (impl.indexes || [])
+        .map((idx) => indexes[idx.indexId])
+        .filter(v => v);
+    }
+    return null;
+  }, [impl, indexes]);
+
+  const featureStoreSource = useMemo(() => {
+    if (impl) {
+      return dataSources[impl.dataSourceId];
+    }
+    return null;
+  }, [impl, dataSources]);
+
+  const sqlSource = useMemo(() => {
+    if (impl) {
+      return dataSources[impl.sqlSourceId];
+    }
+    return null;
+  }, [impl, dataSources]);
 
   // console.log('func:', func);
   // console.log('impl:', impl);
@@ -147,7 +188,7 @@ export function RagTester() {
       // dispatch(getFunctionsByTagAsync({ tag: 'rag', workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getChatSessionsAsync({ workspaceId, type: 'rag' }));
-      dispatch(getSettingAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
     }
   }, [selectedWorkspace]);
 
@@ -160,6 +201,25 @@ export function RagTester() {
       }
     }
   }, [chatSessions, createdUuid]);
+
+  useEffect(() => {
+    if (loaded) {
+      const sessions = Object.values(chatSessions);
+      if (sessions.length) {
+        const lastSession = sessions.find(s => s.name === 'last session');
+        console.log('lastSession:', lastSession);
+        if (lastSession) {
+          setSelectedTags(lastSession.selectedTags);
+          setSelectedFunction(lastSession.functionId);
+          setSelectedImplementation(lastSession.modelId);
+          setModelParams(lastSession.modelParams);
+          dispatch(setMessages({ messages: lastSession.messages.filter(m => m).map(formatMessage) }));
+          setArgsFormData(lastSession.argsFormData);
+          setSelectedSession(lastSession);
+        }
+      }
+    }
+  }, [loaded]);
 
   const columns = [
     {
@@ -199,7 +259,7 @@ export function RagTester() {
     }
     const list = Object.values(func.implementations).map((impl) => ({
       value: impl.modelId,
-      label: models[impl.modelId].name,
+      label: models[impl.modelId]?.name,
     }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
@@ -221,9 +281,12 @@ export function RagTester() {
   const openSession = (id) => {
     const session = chatSessions[id];
     // console.log('session:', session);
+    setSelectedTags(session.selectedTags || []);
     setSelectedFunction(session.functionId);
     setSelectedImplementation(session.modelId);
+    setModelParams(session.modelParams || {});
     dispatch(setMessages(session));
+    setArgsFormData(session.argsFormData);
     setSelectedSession(session);
   };
 
@@ -238,10 +301,15 @@ export function RagTester() {
       args = { ...args, ...argsFormData };
     }
     dispatch(getChatResponseAsync({
+      functionId: selectedFunction,
+      modelId: selectedImplementation,
       functionName: func.name,
       args,
       history: messages.slice(0, messages.length - 1),
-      params: { model: model.key },
+      params: {
+        ...modelParams,
+        model: model.key,
+      },
       workspaceId: selectedWorkspace.id,
     }));
   };
@@ -255,15 +323,25 @@ export function RagTester() {
   };
 
   const onReset = () => {
+    setSelectedTags([]);
+    setSelectedFunction(null);
+    setSelectedImplementation(null);
+    setArgsFormData(null);
+    setModelParams(defaultModelParams);
     dispatch(setMessages({ messages: [] }));
-    dispatch(resetChatSessions());
   };
 
   const onSave = () => {
-    if (selectedSession) {
+    if (selectedSession && !(selectedSession.name === 'last session')) {
       dispatch(updateChatSessionAsync({
         id: selectedSession.id,
-        values: { ...selectedSession, messages },
+        values: {
+          ...selectedSession,
+          messages,
+          selectedTags,
+          functionId: selectedFunction,
+          modelId: selectedImplementation,
+        },
       }));
     } else {
       const uuid = uuidv4();
@@ -273,6 +351,7 @@ export function RagTester() {
           messages,
           workspaceId: selectedWorkspace.id,
           type: 'rag',
+          selectedTags,
           functionId: selectedFunction,
           modelId: selectedImplementation,
         },
@@ -482,8 +561,19 @@ export function RagTester() {
             width={250}
           >
             <ModelParamsForm
-              includes={{ maxTokens: true, temperature: true, topP: true }}
-              onChange={setCopyParams}
+              includes={{
+                maxTokens: true,
+                temperature: true,
+                topP: true,
+                stopSequences: true,
+                frequencyPenalty: true,
+                presencePenalty: true,
+                topK: true,
+                jsonMode: true,
+                seed: true,
+              }}
+              onChange={setModelParams}
+              value={modelParams}
             />
           </Sider>
         </Layout>
@@ -491,6 +581,28 @@ export function RagTester() {
     </>
   );
 }
+
+const formatMessage = (m) => {
+  if (Array.isArray(m.content)) {
+    if (m.role === 'assistant') {
+      return {
+        key: uuidv4(),
+        role: m.role,
+        content: m.content.map(msg => ({
+          key: uuidv4(),
+          content: msg.content,
+          model: msg.model,
+          citation_metadata: msg.citation_metadata,
+        })),
+      };
+    }
+  }
+  return {
+    key: uuidv4(),
+    role: m.role,
+    content: m.content,
+  };
+};
 
 const inputTerms = ['input', 'text', 'content', 'query', 'question'];
 

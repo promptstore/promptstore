@@ -34,6 +34,7 @@ import { formatNumber } from '../../utils';
 import {
   AnthropicLogo,
   BedrockLogo,
+  CohereLogo,
   EuropaLabsLogo,
   GeminiLogo,
   HuggingFaceLogo,
@@ -178,6 +179,11 @@ export function ModelsList() {
           <BedrockLogo />
         );
 
+      case 'cohere':
+        return (
+          <CohereLogo />
+        );
+
       case 'gemini':
         return (
           <GeminiLogo />
@@ -233,6 +239,14 @@ export function ModelsList() {
           <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} />
             <div>Bedrock</div>
+          </Space>
+        );
+
+      case 'cohere':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} />
+            <div>Cohere</div>
           </Space>
         );
 

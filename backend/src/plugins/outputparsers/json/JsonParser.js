@@ -7,27 +7,39 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     if (!text) {
       return {
         error: 'Nothing to parse',
-        json: text,
+        json: text,  // TODO remove
+        nonJsonStr: text,
       };
     }
-    try {
-      if (text.includes('```')) {
-        text = text.split(/```(?:json)?/)[1].trim();
+    let maybeJsonStr = text;
+    let nonJsonStr;
+    if (maybeJsonStr.includes('```')) {
+      try {
+        // text = text.split(/```(?:json)?/)[1].trim();
+        const RE = /(```(json)?)([\s\S]*?)(```)/;
+        const match = RE.exec(maybeJsonStr);
+        if (match) {
+          maybeJsonStr = match[3].trim();
+          const i = match.index;
+          const j = i + match[0].length;
+          nonJsonStr = text.slice(0, i) + ' ' + text.slice(j);
+        }
+      } catch (err) {
+        // keep trying
       }
-    } catch (err) {
-      // keep trying
     }
     // logger.debug('text:', text);
     try {
-      const { jsonStr, fixed } = fixTruncatedJson(text);
+      const { jsonStr, fixed } = fixTruncatedJson(maybeJsonStr);
       // logger.debug('json string:', jsonStr);
       const json = JSON.parse(jsonStr);
-      return { json, fixed };
+      return { fixed, json, nonJsonStr };
     } catch (err) {
       logger.error('Error parsing text:', err);
       return {
         error: String(err),
-        json: text,
+        json: text,  // TODO remove
+        nonJsonStr: text,
       };
     }
   }

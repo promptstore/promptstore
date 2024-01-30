@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Select, Space, Switch } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import debounce from 'lodash.debounce';
 import snakeCase from 'lodash.snakecase';
@@ -20,6 +20,7 @@ import {
   getChatProvidersAsync,
   getCompletionProvidersAsync,
   getEmbeddingProvidersAsync,
+  getRerankerProvidersAsync,
   selectLoading as selectProvidersLoading,
   selectProviders,
 } from './modelProvidersSlice';
@@ -34,7 +35,7 @@ import {
 const { TextArea } = Input;
 
 const layout = {
-  labelCol: { span: 4 },
+  labelCol: { span: 5 },
   wrapperCol: { span: 16 },
 };
 
@@ -62,6 +63,10 @@ const typeOptions = [
   {
     label: 'LLM - Embedding',
     value: 'embedding',
+  },
+  {
+    label: 'LLM - Reranker',
+    value: 'reranker',
   },
   {
     label: 'Hugging Face',
@@ -130,6 +135,15 @@ export function ModelForm() {
     return list;
   }, [providers]);
 
+  const rerankerProviderOptions = useMemo(() => {
+    const list = (providers.reranker || []).map(p => ({
+      label: p.name,
+      value: p.key,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [providers]);
+
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
@@ -149,6 +163,8 @@ export function ModelForm() {
       dispatch(getCompletionProvidersAsync());
     } else if (!providers.embedding && typeValue === 'embedding') {
       dispatch(getEmbeddingProvidersAsync());
+    } else if (!providers.reranker && typeValue === 'reranker') {
+      dispatch(getRerankerProvidersAsync());
     }
   }, [typeValue]);
 
@@ -198,7 +214,7 @@ export function ModelForm() {
         onFinish={onFinish}
         initialValues={model}
       >
-        <Form.Item wrapperCol={{ span: 20 }}>
+        <Form.Item wrapperCol={{ span: 21 }}>
           <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
             {!isNew ?
               <>
@@ -269,7 +285,7 @@ export function ModelForm() {
         <Form.Item
           label="Type"
           name="type"
-          wrapperCol={{ span: 10 }}
+          wrapperCol={{ span: 12 }}
         >
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
@@ -277,7 +293,7 @@ export function ModelForm() {
           <Form.Item
             label="Provider"
             name="provider"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Select
               loading={providersLoading}
@@ -291,7 +307,7 @@ export function ModelForm() {
           <Form.Item
             label="Provider"
             name="provider"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Select
               loading={providersLoading}
@@ -305,11 +321,25 @@ export function ModelForm() {
           <Form.Item
             label="Provider"
             name="provider"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Select
               loading={providersLoading}
               options={completionProviderOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          : null
+        }
+        {typeValue === 'reranker' ?
+          <Form.Item
+            label="Provider"
+            name="provider"
+            wrapperCol={{ span: 12 }}
+          >
+            <Select
+              loading={providersLoading}
+              options={rerankerProviderOptions}
               optionFilterProp="label"
             />
           </Form.Item>
@@ -322,21 +352,21 @@ export function ModelForm() {
               label="Context window"
               wrapperCol={{ span: 4 }}
             >
-              <Input type="number" />
+              <InputNumber />
             </Form.Item>
             <Form.Item
               name="tokensPerMinute"
               label="Tokens per min."
               wrapperCol={{ span: 4 }}
             >
-              <Input type="number" />
+              <InputNumber />
             </Form.Item>
             <Form.Item
               name="requestsPerMinute"
               label="Requests per min."
               wrapperCol={{ span: 4 }}
             >
-              <Input type="number" />
+              <InputNumber />
             </Form.Item>
             <Form.Item
               name="multimodal"
@@ -353,14 +383,14 @@ export function ModelForm() {
             <Form.Item
               name="url"
               label="URL"
-              wrapperCol={{ span: 10 }}
+              wrapperCol={{ span: 12 }}
             >
               <Input />
             </Form.Item>
             <Form.Item
               name="batchEndpoint"
               label="Batch Endpoint"
-              wrapperCol={{ span: 10 }}
+              wrapperCol={{ span: 12 }}
             >
               <Input />
             </Form.Item>
@@ -371,7 +401,7 @@ export function ModelForm() {
           <Form.Item
             name="modelName"
             label="Model Name"
-            wrapperCol={{ span: 10 }}
+            wrapperCol={{ span: 12 }}
           >
             <Input />
           </Form.Item>
@@ -399,7 +429,7 @@ export function ModelForm() {
                 <Form.Item
                   label="Return Type"
                   name="returnType"
-                  wrapperCol={{ span: 10 }}
+                  wrapperCol={{ span: 12 }}
                 >
                   <Select options={returnTypeOptions} optionFilterProp="label" />
                 </Form.Item>
@@ -447,7 +477,7 @@ export function ModelForm() {
                 name="minScale"
                 style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
               >
-                <Input type="number" />
+                <InputNumber />
               </Form.Item>
               <Form.Item
                 label="Max"
@@ -455,7 +485,7 @@ export function ModelForm() {
                 name="maxScale"
                 style={{ display: 'inline-block', width: 'calc(50% - 8px)', margin: '0 8px' }}
               >
-                <Input type="number" />
+                <InputNumber />
               </Form.Item>
             </Form.Item>
           </>

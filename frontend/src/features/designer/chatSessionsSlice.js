@@ -43,6 +43,7 @@ export const {
 
 export const getChatSessionsAsync = ({ workspaceId, type }) => async (dispatch) => {
   dispatch(startLoad());
+  dispatch(resetChatSessions());
   const url = `/api/workspaces/${workspaceId}/chat-sessions?type=${type}`;
   const res = await http.get(url);
   dispatch(setChatSessions({ chatSessions: res.data }));

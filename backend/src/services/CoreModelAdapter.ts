@@ -13,7 +13,6 @@ import {
   requestNode,
   outputNode,
 } from '../core/compositions/Composition';
-import { EmbeddingRequest } from '../core/conversions/RosettaStone';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
 import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
@@ -169,7 +168,7 @@ export default ({ logger, rc, services }) => {
     });
   }
 
-  function createSemanticSearchEnrichment(indexInfo: any, index: any, callbacks: Callback[]) {
+  function createSemanticSearchEnrichment(indexInfo: any, index: any, rerankerModel: any, callbacks: Callback[]) {
     const indexParams = {
       indexContentPropertyPath: indexInfo.indexContentPropertyPath,
       indexContextPropertyPath: indexInfo.indexContextPropertyPath,
@@ -186,6 +185,7 @@ export default ({ logger, rc, services }) => {
       indexParams,
       llmService,
       vectorStoreService,
+      rerankerModel,
       callbacks,
     });
   }
@@ -254,13 +254,21 @@ export default ({ logger, rc, services }) => {
       indexContentPropertyPath: implInfo.indexContentPropertyPath || 'content',
       indexContextPropertyPath: implInfo.indexContextPropertyPath || 'context',
     };
+    let rerankerModel: any;
+    if (implInfo.rerankerModelId) {
+      const model = await modelsService.getModel(implInfo.rerankerModelId);
+      rerankerModel = {
+        provider: model.provider,
+        model: model.key,
+      };
+    }
     if (implInfo.indexes) {
       for (let indexInfo of implInfo.indexes) {
         indexInfo = { ...indexInfo, ...paths };
         logger.debug('indexInfo:', indexInfo);
         const index = await indexesService.getIndex(indexInfo.indexId);
         logger.debug('index:', index);
-        steps.push(createSemanticSearchEnrichment(indexInfo, index, callbacks));
+        steps.push(createSemanticSearchEnrichment(indexInfo, index, rerankerModel, callbacks));
         if (indexInfo.summarizeResults) {
           const summarizer = await createFunctionEnrichment(workspaceId, indexInfo, callbacks);
           steps.push(summarizer);
@@ -274,7 +282,7 @@ export default ({ logger, rc, services }) => {
           allResults: false,
         };
         const index = await indexesService.getIndex(indexId);
-        steps.push(createSemanticSearchEnrichment(indexInfo, index, callbacks));
+        steps.push(createSemanticSearchEnrichment(indexInfo, index, rerankerModel, callbacks));
       }
     }
     const promptTemplateInfo = await promptSetsService.getPromptSet(implInfo.promptSetId);

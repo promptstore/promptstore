@@ -32,7 +32,7 @@ export default ({ constants, logger, services }) => {
   async function indexObject(obj) {
     try {
       let embeddings;
-      if (SEARCH_VECTORSTORE_PROVIDER !== 'redis') {
+      if (SEARCH_VECTORSTORE_PROVIDER !== 'redis' && SEARCH_VECTORSTORE_PROVIDER !== 'elasticsearch') {
         const response = await llmService.createEmbedding(SEARCH_EMBEDDING_PROVIDER, { input: obj.text });
         embeddings = [response.data[0].embedding];
       }

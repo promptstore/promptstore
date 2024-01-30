@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, DatePicker, Form, Input, Select, Space, Switch } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import * as dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 
@@ -375,7 +375,7 @@ export function EvaluationForm() {
             extra="Sample size"
             style={{ display: 'inline-block', marginRight: 16, width: 250 }}
           >
-            <Input type="number" />
+            <InputNumber />
           </Form.Item>
         </Form.Item>
         <Form.Item

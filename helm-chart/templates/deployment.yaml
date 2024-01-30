@@ -300,6 +300,26 @@ spec:
                 configMapKeyRef:
                   key: CHROMA_SERVER
                   name: "{{ .Values.appname }}"
+            - name: ES_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_SERVER
+                  name: "{{ .Values.appname }}"
+            - name: ES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_PORT
+                  name: "{{ .Values.appname }}"
+            - name: ES_SSL
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_SSL
+                  name: "{{ .Values.appname }}"
+            - name: ES_USER
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_USER
+                  name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
                 configMapKeyRef:
@@ -314,6 +334,31 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: SEARCH_API
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_EMBEDDING_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_EMBEDDING_PROVIDER
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_INDEX_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_INDEX_NAME
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_NODE_LABEL
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_NODE_LABEL
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_WORKSPACE
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_WORKSPACE
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_VECTORSTORE_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_VECTORSTORE_PROVIDER
                   name: "{{ .Values.appname }}"
 
             - name: PGUSER
@@ -380,6 +425,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: AWS_SESSION_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: COHERE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: COHERE_API_KEY
                   name: "{{ .Values.appname }}"
             - name: GOOGLE_APPLICATION_CREDENTIALS
               valueFrom:
@@ -471,10 +521,20 @@ spec:
                 secretKeyRef:
                   key: SERPAPI_KEY
                   name: "{{ .Values.appname }}"
+            - name: TRELLO_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: TRELLO_API_TOKEN
+                  name: "{{ .Values.appname }}"
             - name: CHROMA_TOKEN
               valueFrom:
                 secretKeyRef:
                   key: CHROMA_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: ES_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: ES_PASS
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:
@@ -782,6 +842,26 @@ spec:
                 configMapKeyRef:
                   key: CHROMA_SERVER
                   name: "{{ .Values.appname }}"
+            - name: ES_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_SERVER
+                  name: "{{ .Values.appname }}"
+            - name: ES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_PORT
+                  name: "{{ .Values.appname }}"
+            - name: ES_SSL
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_SSL
+                  name: "{{ .Values.appname }}"
+            - name: ES_USER
+              valueFrom:
+                configMapKeyRef:
+                  key: ES_USER
+                  name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_HOST
               valueFrom:
                 configMapKeyRef:
@@ -796,6 +876,31 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: SEARCH_API
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_EMBEDDING_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_EMBEDDING_PROVIDER
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_INDEX_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_INDEX_NAME
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_NODE_LABEL
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_NODE_LABEL
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_WORKSPACE
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_WORKSPACE
+                  name: "{{ .Values.appname }}"
+            - name: SEARCH_VECTORSTORE_PROVIDER
+              valueFrom:
+                configMapKeyRef:
+                  key: SEARCH_VECTORSTORE_PROVIDER
                   name: "{{ .Values.appname }}"
 
             - name: PGUSER
@@ -862,6 +967,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: AWS_SESSION_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: COHERE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: COHERE_API_KEY
                   name: "{{ .Values.appname }}"
             - name: GOOGLE_APPLICATION_CREDENTIALS
               valueFrom:
@@ -953,10 +1063,20 @@ spec:
                 secretKeyRef:
                   key: SERPAPI_KEY
                   name: "{{ .Values.appname }}"
+            - name: TRELLO_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: TRELLO_API_TOKEN
+                  name: "{{ .Values.appname }}"
             - name: CHROMA_TOKEN
               valueFrom:
                 secretKeyRef:
                   key: CHROMA_TOKEN
+                  name: "{{ .Values.appname }}"
+            - name: ES_PASS
+              valueFrom:
+                secretKeyRef:
+                  key: ES_PASS
                   name: "{{ .Values.appname }}"
             - name: NEO4J_VECTOR_STORE_USERNAME
               valueFrom:

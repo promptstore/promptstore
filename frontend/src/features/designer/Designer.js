@@ -685,6 +685,9 @@ export function Designer() {
   };
 
   const hasSelected = selectedRowKeys.length > 0;
+  const hasImage = messages
+    .filter(m => m.role === 'user')
+    .some(m => m.content?.some(c => c.type === 'image_url'));
 
   return (
     <>
@@ -916,6 +919,7 @@ export function Designer() {
             width={250}
           >
             <ModelParamsForm
+              hasImage={hasImage}
               includes={{
                 maxTokens: true,
                 temperature: true,
@@ -924,6 +928,8 @@ export function Designer() {
                 frequencyPenalty: true,
                 presencePenalty: true,
                 topK: true,
+                jsonMode: true,
+                seed: true,
               }}
               onChange={setModelParams}
               // value={initialModelParams}

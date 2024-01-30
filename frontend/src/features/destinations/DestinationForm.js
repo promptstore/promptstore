@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Radio, Select, Space } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Space } from 'antd';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
@@ -197,7 +197,7 @@ export function DestinationForm() {
                       name="sampleRows"
                       wrapperCol={{ span: 2 }}
                     >
-                      <Input type="number" />
+                      <InputNumber />
                     </Form.Item>
                   </>
                   : null
@@ -233,7 +233,7 @@ export function DestinationForm() {
                       name="sampleRows"
                       wrapperCol={{ span: 2 }}
                     >
-                      <Input type="number" />
+                      <InputNumber />
                     </Form.Item>
                   </>
                   : null
