@@ -95,6 +95,8 @@ export function ModelParamsForm({
   const settingsLoading = useSelector(selectSettingsLoading);
   const settings = useSelector(selectSettings);
 
+  // console.log('models:', models);
+
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
@@ -118,7 +120,12 @@ export function ModelParamsForm({
 
   useEffect(() => {
     if (value) {
-      form.setFieldsValue(value);
+      const val = {
+        ...value,
+        models: (value.models || []).map(m => m.id),
+        criticModels: (value.criticModels || []).map(m => m.id),
+      };
+      form.setFieldsValue(val);
     }
   }, [value]);
 
@@ -325,30 +332,36 @@ export function ModelParamsForm({
                 </Space>
               </Popover>
             </Form.Item>
-            <Form.Item
-              extra="Only the first 3 will be used"
-              label="Use/Compare Models"
-              name="models"
-            >
-              <Select allowClear
-                loading={modelsLoading}
-                mode="multiple"
-                options={modelOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            <Form.Item
-              extra="Only the first 3 will be used"
-              label="Critic Models"
-              name="criticModels"
-            >
-              <Select allowClear
-                loading={modelsLoading}
-                mode="multiple"
-                options={modelOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
+            {includes['models'] ?
+              <Form.Item
+                extra="Only the first 3 will be used"
+                label="Use/Compare Models"
+                name="models"
+              >
+                <Select allowClear
+                  loading={modelsLoading}
+                  mode="multiple"
+                  options={modelOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['criticModels'] ?
+              <Form.Item
+                extra="Only the first 3 will be used"
+                label="Eval Models"
+                name="criticModels"
+              >
+                <Select allowClear
+                  loading={modelsLoading}
+                  mode="multiple"
+                  options={modelOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
             {includes['variation'] ?
               <div className="fields-container">
                 <label>Variation</label>

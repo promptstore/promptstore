@@ -14,6 +14,13 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json(functions);
   });
 
+  app.get('/api/workspaces/:workspaceId/functions/tags', auth, async (req, res, next) => {
+    const { workspaceId } = req.params;
+    const tags = req.query.tags.split(',').map(decodeURIComponent);
+    const functions = await functionsService.getFunctionsByTags(workspaceId, tags);
+    res.json(functions);
+  });
+
   app.get('/api/workspaces/:workspaceId/functions/tags/:tag', auth, async (req, res, next) => {
     const { tag, workspaceId } = req.params;
     const functions = await functionsService.getFunctionsByTag(workspaceId, tag);

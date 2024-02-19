@@ -49,10 +49,11 @@ export function AppsService({ pg, logger }) {
     if (app === null || typeof app === 'undefined') {
       return null;
     }
-    const val = omit(app, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedApp = await getApp(app.id);
     if (savedApp) {
       app = { ...savedApp, ...app };
+      const val = omit(app, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE apps
@@ -60,10 +61,12 @@ export function AppsService({ pg, logger }) {
         WHERE id = $5
         RETURNING *
         `,
-        [app.name, app, username, modified, app.id]
+        [app.name, val, username, modified, app.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(app, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO apps (workspace_id, name, val, created_by, created, modified_by, modified)

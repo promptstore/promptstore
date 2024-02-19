@@ -54,7 +54,7 @@ data:
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia"
 
   # Model Provider plugins
-  MODEL_PROVIDER_PLUGINS: "huggingface|Huggingface|./plugins/modelproviders/huggingface"
+  MODEL_PROVIDER_PLUGINS: "huggingface|Hugging Face|./plugins/modelproviders/huggingface"
 
   # Output Parser plugins
   OUTPUT_PARSER_PLUGINS: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime,action|Action|./plugins/outputparsers/action"
@@ -170,6 +170,9 @@ data:
   # Mailtrap - ./plugins/tools/email
 
   # OpenWeather - ./plugins/tools/openweather
+
+  # Playwright
+  WORKSPACE_ID: "{{ .Values.playwright.workspace_id }}"
 
   # SERP API - ./plugins/tools/serpapi
   SERPAPI_URL: "{{ .Values.serpapi.api_url }}"

@@ -124,6 +124,12 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     }
   });
 
+  app.get('/api/uploads', auth, async (req, res) => {
+    const objectName = decodeURIComponent(req.query.objectName);
+    const upload = await uploadsService.getUploadByObjectName(objectName);
+    res.json(upload);
+  });
+
   function getOnesourceType(itemType) {
     switch (itemType) {
       case 'Title':
@@ -515,8 +521,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
                   await deleteObject('data-sources:' + doc.dataSource);
                 }
                 delete newDocuments[uploadId];
+                newIndexes = newIndexes.filter(x => x !== doc.index);
               }
-              newIndexes = newIndexes.filter(x => x !== doc.index);
             }
           }
           const app = await appsService.upsertApp({
@@ -524,7 +530,10 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
             documents: newDocuments,
             indexes: newIndexes,
           });
-          await deleteObjects(ids.map(objectId));
+
+          // TODO
+          // await deleteObjects(ids.map(objectId));
+
           return res.json(app);
         }
 

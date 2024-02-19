@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import logger from '../../logger';
 
@@ -44,7 +44,7 @@ export interface GraphStoreService {
 
   dropData(graphstore: string, indexName: string): void;
 
-  getSchema(graphstore: string, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  getSchema(graphstore: string, params?: Partial<SchemaParams>): Promise<Schema>;
 
   getGraphStores(): PluginMetadata[];
 
@@ -137,6 +137,6 @@ export abstract class GraphStore {
 
   abstract dropData(indexName: string): void;
 
-  abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  abstract getSchema(params?: Partial<SchemaParams>): Promise<Schema>;
 
 }

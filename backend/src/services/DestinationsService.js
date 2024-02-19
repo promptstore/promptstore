@@ -72,9 +72,11 @@ export function DestinationsService({ pg, logger }) {
     if (destination === null || typeof destination === 'undefined') {
       return null;
     }
-    const val = omit(destination, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedDestination = await getDestination(destination.id);
     if (savedDestination) {
+      destination = { ...savedDestination, ...destination };
+      const val = omit(destination, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE destinations
@@ -85,7 +87,9 @@ export function DestinationsService({ pg, logger }) {
         [destination.name, destination.type, val, username, modified, destination.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(destination, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO destinations (workspace_id, name, type, val, created_by, created, modified_by, modified)

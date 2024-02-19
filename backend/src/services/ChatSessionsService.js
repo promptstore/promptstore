@@ -70,9 +70,11 @@ export function ChatSessionsService({ pg, logger }) {
     if (session === null || typeof session === 'undefined') {
       return null;
     }
-    const val = omit(session, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedChatSession = await getChatSession(session.id);
     if (savedChatSession) {
+      session = { ...savedChatSession, ...session };
+      const val = omit(session, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE chat_sessions
@@ -83,7 +85,9 @@ export function ChatSessionsService({ pg, logger }) {
         [session.name, val, username, modified, session.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(session, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO chat_sessions (workspace_id, name, type, val, created_by, created, modified_by, modified)

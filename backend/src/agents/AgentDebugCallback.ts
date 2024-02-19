@@ -132,8 +132,8 @@ export class AgentDebugCallback extends AgentCallback {
     // logger.debug('messages:', prompt.messages);
   }
 
-  onObserveModelEnd({ model, response, errors }: ModelOnEndResponse) {
-    logger.debug('end model:', model);
+  onObserveModelEnd({ response, errors }: ModelOnEndResponse) {
+    logger.debug('end model:', response.model);
     // logger.debug('output:', response);
   }
 

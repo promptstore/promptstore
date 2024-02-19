@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.53"
+version: "0.6.68"
 
 port: "5000"
 
@@ -204,6 +204,10 @@ mailtrap:
 # OpenWeather - ./plugins/tools/openweather
 openweather:
   api_key:
+
+# Playwright
+playwright:
+  workspace_id: "1"
 
 # SERP API - ./plugins/tools/serpapi
 serpapi:

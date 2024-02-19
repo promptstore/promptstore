@@ -268,15 +268,17 @@ export default ({ constants, logger, services }) => {
       if (!promptSets.length) {
         this._throwAgentError('Prompt not found');
       }
-      const ps = promptSets[0];
+      const { id, name, prompts } = promptSets[0];
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateStart({
-          messageTemplates: ps.prompts,
+          promptSetId: id,
+          promptSetName: name,
+          messageTemplates: prompts,
           args,
           isBatch: false,
         });
       }
-      const rawMessages = utils.getMessages(ps.prompts, args, PROMPTSET_TEMPLATE_ENGINE);
+      const rawMessages = utils.getMessages(prompts, args, PROMPTSET_TEMPLATE_ENGINE);
       let messages = this._mapMessagesToTypes(rawMessages);
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateEnd({

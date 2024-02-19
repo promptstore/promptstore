@@ -183,14 +183,17 @@ export default ({ logger, services }) => {
       if (!promptSets.length) {
         this._throwAgentError('Prompt not found');
       }
+      const { id, name, prompts } = promptSets[0];
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateStart({
-          messageTemplates: promptSets[0].prompts,
+          promptSetId: id,
+          promptSetName: name,
+          messageTemplates: prompts,
           args,
           isBatch: false,
         });
       }
-      const rawMessages = utils.getMessages(promptSets[0].prompts, args, PROMPTSET_TEMPLATE_ENGINE);
+      const rawMessages = utils.getMessages(prompts, args, PROMPTSET_TEMPLATE_ENGINE);
       let messages = this._mapMessagesToTypes(rawMessages);
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateEnd({
@@ -245,7 +248,7 @@ export default ({ logger, services }) => {
 
     async _next(request: ChatRequest, extraFunctionCallParams: any) {
       for (let callback of this.currentCallbacks) {
-        callback.onObserveModelStart({ request });
+        callback.onObserveModelStart({ provider: this.provider, request });
       }
       let response: ChatResponse;
       if (this.isChat) {
@@ -255,7 +258,6 @@ export default ({ logger, services }) => {
       }
       for (let callback of this.currentCallbacks) {
         callback.onObserveModelEnd({
-          model: this.model,
           response: { ...response },
         });
       }

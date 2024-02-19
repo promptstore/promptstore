@@ -6,6 +6,7 @@ import { createOpenAIMessages } from '../../../utils/formats';
 import { Agent } from './Agent';
 import { AgentStepEvaluation } from './AgentStepEvaluation';
 import { AgentTurn } from './AgentTurn';
+import { BatchBin } from './BatchBin';
 import { CacheLookup } from './CacheLookup';
 import { Chat } from './Chat';
 import { CustomModelCall } from './CustomModelCall';
@@ -27,6 +28,9 @@ import { Validation } from './Validation';
 
 export function Inspector({ step }) {
   switch (step.type) {
+    case 'batch-bin':
+      return <BatchBin step={step} title="Batch Bin" />
+
     case 'call-function':
       return <ExecutionUnit step={step} title="Call Function" />
 

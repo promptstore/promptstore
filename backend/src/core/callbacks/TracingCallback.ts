@@ -73,17 +73,27 @@ export class TracingCallback extends Callback {
   tracesService: any;
   callDepth: number;
 
-  constructor({ workspaceId, username, tracesService }: TraceCallbackParams) {
+  constructor({ workspaceId, username, tracesService, tracer }: TraceCallbackParams) {
     super();
     this.workspaceId = workspaceId;
     this.username = username;
     this.tracesService = tracesService;
+    this.tracer = tracer;
     this.startTime = [];
     this.callDepth = 0;
   }
 
-  onCompositionStart({ name, args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
-    // logger.debug('!! onCompositionStart');
+  clone() {
+    return new TracingCallback({
+      workspaceId: this.workspaceId,
+      username: this.username,
+      tracesService: this.tracesService,
+      tracer: this.tracer.clone(),
+    });
+  }
+
+  onCompositionStart({ name, args, model, modelParams, isBatch }: CompositionOnStartResponse) {
+    logger.debug('!! onCompositionStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     if (!this.tracer) {
@@ -98,7 +108,7 @@ export class TracingCallback extends Callback {
         type: 'call-composition',
         function: name,
         model: {
-          model: modelKey,
+          model: model,
           modelParams,
         },
         isBatch,
@@ -109,7 +119,7 @@ export class TracingCallback extends Callback {
   }
 
   onCompositionEnd({ response, errors }: CompositionOnEndResponse) {
-    // logger.debug('!! onCompositionEnd');
+    logger.debug('!! onCompositionEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -137,15 +147,15 @@ export class TracingCallback extends Callback {
   }
 
   onCompositionError(errors: any) {
-    // logger.debug('!! onCompositionError');
+    logger.debug('!! onCompositionError');
     this.tracer.push({
       type: 'error',
       errors,
     });
   }
 
-  onSemanticFunctionStart({ name, args, history, modelKey, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
-    // logger.debug('!! onSemanticFunctionStart');
+  onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
+    logger.debug('!! onSemanticFunctionStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     if (!this.tracer && !this.isComposition) {
@@ -159,7 +169,7 @@ export class TracingCallback extends Callback {
         type: 'call-function',
         function: name,
         implementation: {
-          model: modelKey,
+          model: model,
           modelParams,
         },
         isBatch,
@@ -171,7 +181,7 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionEnd({ response, errors }: SemanticFunctionOnEndResponse) {
-    // logger.debug('!! onSemanticFunctionEnd');
+    logger.debug('!! onSemanticFunctionEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -199,7 +209,7 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionError(errors: any) {
-    // logger.debug('!! onSemanticFunctionError');
+    logger.debug('!! onSemanticFunctionError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -208,7 +218,7 @@ export class TracingCallback extends Callback {
   }
 
   onValidateArguments(validatorResult: ValidatorResult) {
-    // logger.debug('!! onValidateArguments');
+    logger.debug('!! onValidateArguments');
     this.tracer.push({
       id: uuid.v4(),
       type: 'validate-args',
@@ -220,7 +230,7 @@ export class TracingCallback extends Callback {
   }
 
   onMapArguments({ args, mapped, mappingTemplate, isBatch, source, errors }: MapArgumentsResponse) {
-    // logger.debug('!! onMapArguments');
+    logger.debug('!! onMapArguments');
     if (isBatch) {
       this.tracer.push({
         id: uuid.v4(),
@@ -247,7 +257,7 @@ export class TracingCallback extends Callback {
   }
 
   onMapReturnType({ response, mapped, mappingTemplate, isBatch, errors }: MapReturnTypeResponse) {
-    // logger.debug('!! onMapReturnType');
+    logger.debug('!! onMapReturnType');
     if (isBatch) {
       this.tracer.push({
         id: uuid.v4(),
@@ -271,7 +281,7 @@ export class TracingCallback extends Callback {
   }
 
   onExperiment({ experiments, implementation }: ExperimentResponse) {
-    // logger.debug('!! onExperiment');
+    logger.debug('!! onExperiment');
     this.tracer.push({
       id: uuid.v4(),
       type: 'select-experiment',
@@ -280,8 +290,8 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onSemanticFunctionImplementationStart({ args, history, modelType, modelKey, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
-    // logger.debug('!! onSemanticFunctionImplementationStart');
+  onSemanticFunctionImplementationStart({ args, history, modelType, model, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
+    logger.debug('!! onSemanticFunctionImplementationStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -290,7 +300,7 @@ export class TracingCallback extends Callback {
         type: 'call-implementation',
         implementation: {
           modelType,
-          model: modelKey,
+          model: model,
           modelParams,
         },
         isBatch,
@@ -302,7 +312,7 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionImplementationEnd({ response, errors }: SemanticFunctionImplementationOnEndResponse) {
-    // logger.debug('!! onSemanticFunctionImplementationEnd');
+    logger.debug('!! onSemanticFunctionImplementationEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -325,7 +335,7 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionImplementationError(errors: any) {
-    // logger.debug('!! onSemanticFunctionImplementationError');
+    logger.debug('!! onSemanticFunctionImplementationError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -333,8 +343,44 @@ export class TracingCallback extends Callback {
     });
   }
 
+  onBatchBinStart(params) {
+    logger.debug('!! onBatchBinStart');
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        id: uuid.v4(),
+        type: 'batch-bin',
+        startTime: startTime.getTime(),
+        ...params,
+      })
+      .down();
+  }
+
+  onBatchBinEnd({ errors }) {
+    logger.debug('!! onBatchBinEnd');
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('success', true)
+        ;
+    }
+  }
+
   onPromptEnrichmentStart({ args, isBatch }: PromptEnrichmentOnStartResponse) {
-    // logger.debug('!! onPromptEnrichmentStart');
+    logger.debug('!! onPromptEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -349,7 +395,7 @@ export class TracingCallback extends Callback {
   }
 
   onPromptEnrichmentEnd({ messages, errors }: PromptEnrichmentOnEndResponse) {
-    // logger.debug('!! onPromptEnrichmentEnd');
+    logger.debug('!! onPromptEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -372,7 +418,7 @@ export class TracingCallback extends Callback {
   }
 
   onPromptEnrichmentError(errors: any) {
-    // logger.debug('!! onPromptEnrichmentError');
+    logger.debug('!! onPromptEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -381,7 +427,7 @@ export class TracingCallback extends Callback {
   }
 
   onFeatureStoreEnrichmentStart({ args, isBatch, featureStore }: FeatureStoreEnrichmentOnStartResponse) {
-    // logger.debug('!! onFeatureStoreEnrichmentStart');
+    logger.debug('!! onFeatureStoreEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -397,7 +443,7 @@ export class TracingCallback extends Callback {
   }
 
   onFeatureStoreEnrichmentEnd({ enrichedArgs, errors }: FeatureStoreEnrichmentOnEndResponse) {
-    // logger.debug('!! onFeatureStoreEnrichmentEnd');
+    logger.debug('!! onFeatureStoreEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -420,7 +466,7 @@ export class TracingCallback extends Callback {
   }
 
   onFeatureStoreEnrichmentError(errors: any) {
-    // logger.debug('!! onFeatureStoreEnrichmentError');
+    logger.debug('!! onFeatureStoreEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -429,7 +475,7 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticSearchEnrichmentStart({ args, isBatch, index }: SemanticSearchEnrichmentOnStartResponse) {
-    // logger.debug('!! onSemanticSearchEnrichmentStart');
+    logger.debug('!! onSemanticSearchEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -444,8 +490,8 @@ export class TracingCallback extends Callback {
       .down();
   }
 
-  onSemanticSearchEnrichmentEnd({ enrichedArgs, errors }: SemanticSearchEnrichmentOnEndResponse) {
-    // logger.debug('!! onSemanticSearchEnrichmentEnd');
+  onSemanticSearchEnrichmentEnd({ enrichedArgs, sources, errors }: SemanticSearchEnrichmentOnEndResponse) {
+    logger.debug('!! onSemanticSearchEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -462,13 +508,14 @@ export class TracingCallback extends Callback {
     } else {
       this.tracer
         .addProperty('enrichedArgs', enrichedArgs)
+        .addProperty('sources', sources)
         .addProperty('success', true)
         ;
     }
   }
 
   onSemanticSearchEnrichmentError(errors: any) {
-    // logger.debug('!! onSemanticSearchEnrichmentError');
+    logger.debug('!! onSemanticSearchEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -476,8 +523,8 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onFunctionEnrichmentStart({ args, functionName, modelKey, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
-    // logger.debug('!! onFunctionEnrichmentStart');
+  onFunctionEnrichmentStart({ args, functionName, model, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
+    logger.debug('!! onFunctionEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -485,7 +532,7 @@ export class TracingCallback extends Callback {
         id: uuid.v4(),
         type: 'function-enrichment',
         functionName,
-        modelKey,
+        model,
         modelParams,
         contentPropertyPath,
         contextPropertyPath,
@@ -496,7 +543,7 @@ export class TracingCallback extends Callback {
   }
 
   onFunctionEnrichmentEnd({ enrichedArgs, errors }: FunctionEnrichmentOnEndResponse) {
-    // logger.debug('!! onFunctionEnrichmentEnd');
+    logger.debug('!! onFunctionEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -519,7 +566,7 @@ export class TracingCallback extends Callback {
   }
 
   onFunctionEnrichmentError(errors: any) {
-    // logger.debug('!! onFunctionEnrichmentError');
+    logger.debug('!! onFunctionEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -528,7 +575,7 @@ export class TracingCallback extends Callback {
   }
 
   onSqlEnrichmentStart({ args }: SqlEnrichmentOnStartResponse) {
-    // logger.debug('!! onSqlEnrichmentStart');
+    logger.debug('!! onSqlEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -542,7 +589,7 @@ export class TracingCallback extends Callback {
   }
 
   onSqlEnrichmentEnd({ enrichedArgs, errors }: SqlEnrichmentOnEndResponse) {
-    // logger.debug('!! onSqlEnrichmentEnd');
+    logger.debug('!! onSqlEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -565,7 +612,7 @@ export class TracingCallback extends Callback {
   }
 
   onSqlEnrichmentError(errors: any) {
-    // logger.debug('!! onSqlEnrichmentError');
+    logger.debug('!! onSqlEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -574,7 +621,7 @@ export class TracingCallback extends Callback {
   }
 
   onGraphEnrichmentStart({ args }: GraphEnrichmentOnStartResponse) {
-    // logger.debug('!! onGraphEnrichmentStart');
+    logger.debug('!! onGraphEnrichmentStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -588,7 +635,7 @@ export class TracingCallback extends Callback {
   }
 
   onGraphEnrichmentEnd({ enrichedArgs, errors }: GraphEnrichmentOnEndResponse) {
-    // logger.debug('!! onGraphEnrichmentEnd');
+    logger.debug('!! onGraphEnrichmentEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -611,7 +658,7 @@ export class TracingCallback extends Callback {
   }
 
   onGraphEnrichmentError(errors: any) {
-    // logger.debug('!! onGraphEnrichmentError');
+    logger.debug('!! onGraphEnrichmentError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -619,8 +666,8 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onPromptTemplateStart({ args, isBatch, messageTemplates }: PromptTemplateOnStartResponse) {
-    // logger.debug('!! onPromptTemplateStart');
+  onPromptTemplateStart({ args, isBatch, messageTemplates, promptSetId, promptSetName }: PromptTemplateOnStartResponse) {
+    logger.debug('!! onPromptTemplateStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -631,12 +678,14 @@ export class TracingCallback extends Callback {
         args,
         isBatch,
         startTime: startTime.getTime(),
+        promptSetId,
+        promptSetName,
       })
       .down();
   }
 
   onPromptTemplateEnd({ messages, errors }: PromptTemplateOnEndResponse) {
-    // logger.debug('!! onPromptTemplateEnd');
+    logger.debug('!! onPromptTemplateEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -659,7 +708,7 @@ export class TracingCallback extends Callback {
   }
 
   onPromptTemplateError(errors: any) {
-    // logger.debug('!! onPromptTemplateError');
+    logger.debug('!! onPromptTemplateError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -668,7 +717,7 @@ export class TracingCallback extends Callback {
   }
 
   onInputGuardrailStart({ guardrails, messages }: InputGuardrailsOnStartResponse) {
-    // logger.debug('!! onInputGuardrailStart');
+    logger.debug('!! onInputGuardrailStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -683,7 +732,7 @@ export class TracingCallback extends Callback {
   }
 
   onInputGuardrailEnd({ valid, errors }: InputGuardrailsOnEndResponse) {
-    // logger.debug('!! onInputGuardrailEnd');
+    logger.debug('!! onInputGuardrailEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -699,7 +748,7 @@ export class TracingCallback extends Callback {
   }
 
   onInputGuardrailError(errors: any) {
-    // logger.debug('!! onInputGuardrailError');
+    logger.debug('!! onInputGuardrailError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -707,13 +756,16 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onModelStart({ request }: ModelOnStartResponse) {
-    // logger.debug('!! onModelStart');
+  onModelStart({ modelId, modelName, provider, request }: ModelOnStartResponse) {
+    logger.debug('!! onModelStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
       .push({
         id: uuid.v4(),
+        modelId,
+        modelName,
+        provider,
         ...request,
         modelParams: request.model_params,
         type: 'call-model',
@@ -723,7 +775,7 @@ export class TracingCallback extends Callback {
   }
 
   onLookupCache({ model, prompt, hit, response }: CacheResponse) {
-    // logger.debug('!! onLookupCache');
+    logger.debug('!! onLookupCache');
     this.tracer.push({
       id: uuid.v4(),
       type: 'lookup-cache',
@@ -734,8 +786,8 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onModelEnd({ response, errors }: ModelOnEndResponse) {
-    // logger.debug('!! onModelEnd');
+  onModelEnd({ errors, response }: ModelOnEndResponse) {
+    logger.debug('!! onModelEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -758,7 +810,7 @@ export class TracingCallback extends Callback {
   }
 
   onModelError(errors: any) {
-    // logger.debug('!! onModelError');
+    logger.debug('!! onModelError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -767,7 +819,7 @@ export class TracingCallback extends Callback {
   }
 
   onCompletionModelStart({ request }: ModelOnStartResponse) {
-    // logger.debug('!! onCompletionModelStart');
+    logger.debug('!! onCompletionModelStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -780,8 +832,8 @@ export class TracingCallback extends Callback {
       .down();
   }
 
-  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
-    // logger.debug('!! onCompletionModelEnd');
+  onCompletionModelEnd({ response, errors }: ModelOnEndResponse) {
+    logger.debug('!! onCompletionModelEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -804,7 +856,7 @@ export class TracingCallback extends Callback {
   }
 
   onCompletionModelError(errors: any) {
-    // logger.debug('!! onCompletionModelError');
+    logger.debug('!! onCompletionModelError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -813,7 +865,7 @@ export class TracingCallback extends Callback {
   }
 
   onCustomModelStart({ args, isBatch, model, url }: CustomModelOnStartResponse) {
-    // logger.debug('!! onCustomModelStart');
+    logger.debug('!! onCustomModelStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -830,7 +882,7 @@ export class TracingCallback extends Callback {
   }
 
   onCustomModelEnd({ response, errors }: CustomModelOnEndResponse) {
-    // logger.debug('!! onCustomModelEnd');
+    logger.debug('!! onCustomModelEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -853,7 +905,7 @@ export class TracingCallback extends Callback {
   }
 
   onCustomModelError(errors: any) {
-    // logger.debug('!! onCustomModelError');
+    logger.debug('!! onCustomModelError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -862,7 +914,7 @@ export class TracingCallback extends Callback {
   }
 
   onHuggingfaceModelStart({ args, model }: HuggingfaceModelOnStartResponse) {
-    // logger.debug('!! onHuggingfaceModelStart');
+    logger.debug('!! onHuggingfaceModelStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -877,7 +929,7 @@ export class TracingCallback extends Callback {
   }
 
   onHuggingfaceModelEnd({ response, errors }: HuggingfaceModelOnEndResponse) {
-    // logger.debug('!! onHuggingfaceModelEnd');
+    logger.debug('!! onHuggingfaceModelEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -900,7 +952,7 @@ export class TracingCallback extends Callback {
   }
 
   onHuggingfaceModelError(errors: any) {
-    // logger.debug('!! onHuggingfaceModelError');
+    logger.debug('!! onHuggingfaceModelError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -909,7 +961,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputProcessingStart({ response }: OutputProcessingResponse) {
-    // logger.debug('!! onOutputProcessingStart');
+    logger.debug('!! onOutputProcessingStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -923,7 +975,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputProcessingEnd({ response, errors }: OutputProcessingResponse) {
-    // logger.debug('!! onOutputProcessingEnd');
+    logger.debug('!! onOutputProcessingEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -946,7 +998,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputProcessingError(errors: any) {
-    // logger.debug('!! onOutputProcessingError');
+    logger.debug('!! onOutputProcessingError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -955,7 +1007,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputGuardrailStart({ guardrail, response }: OutputGuardrailStartResponse) {
-    // logger.debug('!! onOutputGuardrailStart');
+    logger.debug('!! onOutputGuardrailStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -970,7 +1022,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputGuardrailEnd({ response, errors }: OutputProcessingResponse) {
-    // logger.debug('!! onOutputGuardrailEnd');
+    logger.debug('!! onOutputGuardrailEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -993,7 +1045,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputGuardrailError(errors: any) {
-    // logger.debug('!! onOutputGuardrailError');
+    logger.debug('!! onOutputGuardrailError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -1002,7 +1054,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputParserStart({ outputParser, response }: OutputParserStartResponse) {
-    // logger.debug('!! onOutputParserStart');
+    logger.debug('!! onOutputParserStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     this.tracer
@@ -1017,7 +1069,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputParserEnd({ response, errors }: OutputProcessingResponse) {
-    // logger.debug('!! onOutputParserEnd');
+    logger.debug('!! onOutputParserEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -1040,7 +1092,7 @@ export class TracingCallback extends Callback {
   }
 
   onOutputParserError(errors: any) {
-    // logger.debug('!! onOutputParserError');
+    logger.debug('!! onOutputParserError');
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',

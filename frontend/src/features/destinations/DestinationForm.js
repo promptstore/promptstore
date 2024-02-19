@@ -171,7 +171,7 @@ export function DestinationForm() {
             </Form.Item>
             {dialectValue === 'postgresql' ?
               <>
-                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '0 0 5px' }}>
                   <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
                     Connection Info
                   </div>
@@ -207,7 +207,7 @@ export function DestinationForm() {
             }
             {dialectValue === 'bigquery' ?
               <>
-                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '0 0 5px' }}>
                   <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
                     Connection Info
                   </div>

@@ -124,6 +124,7 @@ function CustomSearchBox(props) {
 }
 
 export function SearchModal({
+  container,
   hitsPerPage = 10,
   indexName,
   onCancel,
@@ -206,13 +207,14 @@ export function SearchModal({
   }
   return (
     <Modal
-      getContainer={false}
+      getContainer={container || false}
       onCancel={onCancel}
       onOk={onCancel}
       open={open}
       title="Search"
       width={width}
       okButtonProps={{ style: { display: 'none' } }}
+      cancelText="Close"
     >
       <InstantSearch
         searchClient={searchClient(indexParams, selectedWorkspace.id)}
@@ -233,9 +235,9 @@ export function SearchModal({
               :
               <>
                 <Hits hitComponent={Hit} />
-                <div className="pagination">
+                {/* <div className="pagination">
                   <Pagination />
-                </div>
+                </div> */}
               </>
             }
           </div>

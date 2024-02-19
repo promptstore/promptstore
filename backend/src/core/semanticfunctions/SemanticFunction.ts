@@ -9,6 +9,7 @@ import { Validator } from '../common_types';
 import { SchemaError, SemanticFunctionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
 import { convertContentTypeToString } from '../conversions/RosettaStone';
+import { convertResponseWithImages } from '../utils';
 import {
   Experiment,
   SemanticFunctionParams,
@@ -31,7 +32,6 @@ export class SemanticFunction {
   implementations: SemanticFunctionImplementation[]
   validator: Validator;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     id,
@@ -62,18 +62,23 @@ export class SemanticFunction {
     messages,
     history,
     extraSystemPrompt,
-    modelKey,
+    model,
     modelParams,
     functions,
     isBatch,
     options,
-    callbacks = []
+    callbacks,
   }: SemanticFunctionCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args, history, modelKey, modelParams, isBatch });
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ args, history, model, modelParams, isBatch }, _callbacks);
     try {
       if (isEmpty(this.implementations)) {
-        this.throwSemanticFunctionError('no implementations');
+        this.throwSemanticFunctionError('no implementations', _callbacks);
       }
 
       // validate args
@@ -85,13 +90,13 @@ export class SemanticFunction {
       // }
       if (this.argsSchema) {
         // this.validate(instance, this.argsSchema);
-        this.validate(args, this.argsSchema);
+        this.validate(args, this.argsSchema, _callbacks);
       }
 
       // get implementation
-      const impl = this.getImplementation(modelKey);
+      const impl = this.getImplementation(_callbacks, model?.model);
       if (!impl) {
-        this.throwSemanticFunctionError('implementation not found. check if `modelKey` is correct: ' + modelKey);
+        this.throwSemanticFunctionError('implementation not found.', _callbacks);
       }
 
       // call implementation
@@ -100,13 +105,13 @@ export class SemanticFunction {
         messages,
         history,
         extraSystemPrompt,
-        modelKey,
+        model,
         modelParams,
         functions,
         isBatch,
         returnTypeSchema: this.returnTypeSchema,
         options,
-        callbacks,
+        callbacks: _callbacks,
       });
       const message = response.choices[0].message;
       let systemOutputText: string;
@@ -123,19 +128,22 @@ export class SemanticFunction {
         functionId: this.id,
         functionName: this.name,
       };
-      this.onEnd({ response, responseMetadata });
+      this.onEnd({
+        response: await convertResponseWithImages(response),
+        responseMetadata,
+      }, _callbacks);
 
       return { response, responseMetadata };
 
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
   // https://stackoverflow.com/questions/44915948/a-better-way-to-do-random-sampling-with-a-probability-distribution
-  getImplementationFromExperiment() {
+  getImplementationFromExperiment(callbacks: Callback[]) {
     // sample using probability distribution
     const sum = this.experiments.reduce((a: number, { percentage }: Experiment) => a + percentage, 0);
     let sample = Math.random() * sum;
@@ -148,58 +156,45 @@ export class SemanticFunction {
     }));
     const impl = this.implementations[index];
     const implementation = impl.model.model;
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onExperiment({ experiments, implementation });
     }
 
     return impl;
   }
 
-  getImplementation(modelKey?: string) {
+  getImplementation(callbacks: Callback[], model?: string) {
     let impl: SemanticFunctionImplementation;
-    if (modelKey) {
-      impl = this.implementations.find((impl: SemanticFunctionImplementation) => impl.model.model === modelKey);
-    } else if (this.experiments) {
-      impl = this.getImplementationFromExperiment();
-    } else {
-      impl = this.implementations.find((impl: SemanticFunctionImplementation) => impl.isDefault);
-      if (!impl) {
-        impl = this.implementations[0];
-      }
+    if (model) {
+      impl = this.implementations.find(impl => impl.model.model === model);
+      if (impl) return impl;
+    }
+    if (this.experiments) {
+      return this.getImplementationFromExperiment(callbacks);
+    }
+    impl = this.implementations.find(impl => impl.isDefault);
+    if (!impl) {
+      impl = this.implementations[0];
     }
     return impl;
   }
 
-  // getImplementation(modelKey: string) {
-  //   const finder = modelKey ?
-  //     (impl: SemanticFunctionImplementation) => impl.model.model === modelKey :
-  //     (impl: SemanticFunctionImplementation) => impl.isDefault;
-  //   let impl = this.implementations.find(finder) as SemanticFunctionImplementation;
-  //   if (!impl && this.implementations) {
-  //     impl = this.implementations[0];
-  //   }
-  //   if (!impl) {
-  //     this.throwSemanticFunctionError('implementation not found');
-  //   }
-  //   return impl;
-  // }
-
-  onStart({ args, history, modelKey, modelParams, isBatch }: SemanticFunctionCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ args, history, model, modelParams, isBatch }: SemanticFunctionCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionStart({
         name: this.name,
         args,
         history,
         experiments: this.experiments,
-        modelKey,
+        model,
         modelParams,
         isBatch,
       });
     }
   }
 
-  onEnd({ errors, response, responseMetadata }: Partial<SemanticFunctionOnEndParams>) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ errors, response, responseMetadata }: Partial<SemanticFunctionOnEndParams>, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionEnd({
         name: this.name,
         response,
@@ -209,32 +204,32 @@ export class SemanticFunction {
     }
   }
 
-  assertBatch(args: any) {
+  assertBatch(args: any, callbacks: Callback[]) {
     if (!Array.isArray(args)) {
-      this.throwSemanticFunctionError('Array input expected');
+      this.throwSemanticFunctionError('Array input expected', callbacks);
     }
   }
 
-  validate(instance: object, schema: object) {
+  validate(instance: object, schema: object, callbacks: Callback[]) {
     const validatorResult = this.validator(instance, schema, { required: true });
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onValidateArguments(validatorResult);
     }
     if (!validatorResult.valid) {
-      this.throwSchemaError(validatorResult);
+      this.throwSchemaError(validatorResult, callbacks);
     }
   }
 
-  throwSchemaError(validatorResult: ValidatorResult) {
-    for (let callback of this.currentCallbacks) {
+  throwSchemaError(validatorResult: ValidatorResult, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionError(validatorResult.errors);
     }
     throw new SchemaError(validatorResult);
   }
 
-  throwSemanticFunctionError(message: string) {
+  throwSemanticFunctionError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionError(errors);
     }
     throw new SemanticFunctionError(message);

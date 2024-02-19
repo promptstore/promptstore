@@ -104,9 +104,11 @@ export function EvaluationsService({ pg, logger }) {
     if (evaluation === null || typeof evaluation === 'undefined') {
       return null;
     }
-    const val = omit(evaluation, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedEvaluation = await getEvaluation(evaluation.id);
     if (savedEvaluation) {
+      const evaluation = { ...savedEvaluation, ...evaluation };
+      const val = omit(evaluation, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE evaluations
@@ -117,7 +119,9 @@ export function EvaluationsService({ pg, logger }) {
         [evaluation.name, val, evaluation.id, modified, evaluation.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(evaluation, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO evaluations (workspace_id, name, val, created_by, created, modified_by, modified)

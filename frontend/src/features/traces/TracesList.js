@@ -26,8 +26,10 @@ import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   deleteTracesAsync,
   getTracesAsync,
+  selectCount,
   selectTraces,
   selectLoading,
+  setTraces,
 } from './tracesSlice';
 
 dayjs.extend(isSameOrAfter);
@@ -39,25 +41,24 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 export function TracesList() {
 
-  const [page, setPage] = useLocalStorageState('traces-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [tableParams, setTableParams] = useState({
-    pagination: {
-      current: 1,
-      pageSize: 10,
-    },
+  const [tableParams, setTableParams] = useLocalStorageState('traces-list-table-params', {
+    defaultValue: {
+      pagination: {
+        current: 1,
+        pageSize: 10,
+      },
+    }
   });
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
 
+  const count = useSelector(selectCount);
   const traces = useSelector(selectTraces);
   const loading = useSelector(selectLoading);
 
   // console.log('traces:', traces);
-
-  const fetchData = () => {
-    // onRefresh();
-  };
+  // console.log('searchText:', searchText);
 
   const data = useMemo(() => {
     const list = Object.values(traces).map((trace) => ({
@@ -91,13 +92,11 @@ export function TracesList() {
       createLink: null,
       title: 'Traces',
     }));
-  }, []);
-
-  useEffect(() => {
-    if (selectedWorkspace) {
-      onRefresh();
+    if (tableParams.filters.name?.[0]) {
+      setSearchText(tableParams.filters.name[0]);
+      setSearchedColumn('name');
     }
-  }, [selectedWorkspace]);
+  }, []);
 
   useEffect(() => {
     if (location.state && location.state.message) {
@@ -117,9 +116,15 @@ export function TracesList() {
     setSelectedRowKeys([]);
   };
 
-  const onRefresh = () => {
+  const fetchData = () => {
     const workspaceId = selectedWorkspace.id;
-    dispatch(getTracesAsync({ workspaceId }));
+    const { current, pageSize } = tableParams.pagination;
+    dispatch(getTracesAsync({
+      workspaceId,
+      limit: pageSize,
+      start: (current - 1) * pageSize,
+      filters: tableParams.filters,
+    }));
   };
 
   const onSelectChange = (newSelectedRowKeys) => {
@@ -137,6 +142,7 @@ export function TracesList() {
   const handleReset = (clearFilters) => {
     clearFilters();
     setSearchText('');
+    setSearchedColumn('');
   };
 
   const getColumnSearchProps = (dataIndex) => ({
@@ -154,18 +160,26 @@ export function TracesList() {
               clearFilters && handleReset(clearFilters);
               handleSearch(selectedKeys, confirm, dataIndex);
               setSelectedKeys([]);
+              setSearchText('');
+              setSearchedColumn('');
             }
           }}
           onPressEnter={() => handleSearch(selectedKeys, confirm, dataIndex)}
           style={{ marginBottom: 8 }}
         />
-        <div style={{ display: 'flex' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <Button type="primary"
             onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
             size="small"
           >
             Search
           </Button>
+          {/* <Button
+            onClick={() => clearFilters && handleReset(clearFilters)}
+            size="small"
+          >
+            Reset
+          </Button> */}
           <div style={{ flex: 1 }} />
           <Button type="link"
             size="small"
@@ -188,6 +202,7 @@ export function TracesList() {
         setTimeout(() => searchInput.current?.select(), 100);
       }
     },
+    filteredValue: tableParams.filters.name,
     render: (text) => searchedColumn === dataIndex ? (
       <Highlighter
         highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
@@ -197,6 +212,12 @@ export function TracesList() {
       />
     ) : text,
   });
+
+  const getDates = (dates) => {
+    if (!dates) return dates;
+    const [startDate, endDate] = dates;
+    return [dayjs(startDate), dayjs(endDate)];
+  }
 
   const getDateRangeProps = (dataIndex) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
@@ -212,6 +233,7 @@ export function TracesList() {
             }
           }}
           style={{ marginBottom: 8 }}
+          defaultValue={getDates(tableParams.filters[dataIndex]?.[0])}
         />
         <div>
           <Button type="primary"
@@ -237,6 +259,7 @@ export function TracesList() {
       // console.log('filter:', filter);
       return filter;
     },
+    filteredValue: tableParams.filters[dataIndex],
   });
 
   const getNumberRangeProps = (dataIndex) => ({
@@ -255,6 +278,7 @@ export function TracesList() {
             }
           }}
           style={{ marginBottom: 8 }}
+          defaultValue={tableParams.filters[dataIndex]?.[0]}
         />
         <Space>
           <Button type="primary"
@@ -288,6 +312,7 @@ export function TracesList() {
       console.log('filter:', filter);
       return filter;
     },
+    filteredValue: tableParams.filters[dataIndex],
   });
 
   const columns = [
@@ -326,10 +351,15 @@ export function TracesList() {
           value: 'chat',
         },
         {
+          text: 'composition',
+          value: 'composition',
+        },
+        {
           text: 'semfn',
           value: 'semfn',
         },
       ],
+      filteredValue: tableParams.filters.traceType,
       onFilter: (value, record) => record.traceType.indexOf(value) === 0,
       sorter: (a, b) => a.traceType.length - b.traceType.length,
       sortDirections: ['descend'],
@@ -366,6 +396,7 @@ export function TracesList() {
           value: false,
         },
       ],
+      filteredValue: tableParams.filters.success,
       onFilter: (value, record) => record.success === value,
     },
     {
@@ -423,16 +454,18 @@ export function TracesList() {
   ];
 
   const handleTableChange = (pagination, filters, sorter) => {
-    setTableParams({
+    const params = {
       pagination,
       filters,
       ...sorter,
-    });
+    };
+    console.log('table params:', params);
+    setTableParams(params);
 
     // `dataSource` is useless since `pageSize` changed
-    // if (pagination.pageSize !== tableParams.pagination?.pageSize) {
-    //   setData([]);
-    // }
+    if (pagination.pageSize !== tableParams.pagination?.pageSize) {
+      setTraces({ traces: [] });
+    }
   };
 
   const rowSelection = {
@@ -460,7 +493,7 @@ export function TracesList() {
               {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
             </span>
           </div>
-          <Button type="text" onClick={onRefresh} icon={<RedoOutlined />}>
+          <Button type="text" onClick={fetchData} icon={<RedoOutlined />}>
             Refresh
           </Button>
           <Download filename={'traces.json'} payload={selectedTraces}>
@@ -483,9 +516,8 @@ export function TracesList() {
           loading={loading}
           onChange={handleTableChange}
           pagination={{
-            current: page,
-            onChange: (page) => setPage(page),
             ...tableParams.pagination,
+            total: +count,
           }}
         />
       </div>

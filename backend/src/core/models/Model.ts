@@ -16,6 +16,7 @@ import {
   getText,
 } from '../conversions/RosettaStone';
 import SemanticCache from '../semanticcache/SemanticCache';
+import { convertRequestWithImages, convertResponseWithImages } from '../utils';
 import {
   CustomModelParams,
   CustomModelCallParams,
@@ -44,43 +45,67 @@ const defaultLLMChatModelParams = {
 
 export class LLMChatModel implements LLMModel {
 
+  modelId: number;
+  modelName: string;
   modelType: string;
   model: string;
   provider: string;
   contextWindow: number;
+  maxOutputTokens: number;
   completionService: CompletionService;
   semanticCache?: SemanticCache;
   semanticCacheEnabled: boolean;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
+    modelId,
+    modelName,
     modelType,
     model,
     provider,
     contextWindow,
+    maxOutputTokens,
     completionService,
     semanticCache,
     semanticCacheEnabled,
     callbacks,
   }: LLMChatModelParams) {
+    this.modelId = modelId;
+    this.modelName = modelName;
     this.modelType = modelType;
     this.model = model;
     this.provider = provider;
     this.contextWindow = contextWindow;
+    this.maxOutputTokens = maxOutputTokens;
     this.completionService = completionService;
     this.semanticCache = semanticCache;
     this.semanticCacheEnabled = semanticCacheEnabled;
     this.callbacks = callbacks || [];
   }
 
-  async call({ request, callbacks = [] }: ModelCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    const model = request.model || this.model;
+  async call({ provider, request, callbacks }: ModelCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    let _provider: string;
+    let _model: string;
+    if (provider) {
+      _provider = provider;
+    } else {
+      _provider = this.provider;
+    }
+    if (request.model) {
+      _model = request.model;
+    } else {
+      _model = this.model;
+    }
     let prompt: string;
     let embedding: number[];
     if (this.semanticCache && this.semanticCacheEnabled) {
-      const cacheResult = await this.lookupCache(request);
+      const cacheResult = await this.lookupCache(request, _callbacks);
       prompt = cacheResult.prompt;
       embedding = cacheResult.embedding;
       if (cacheResult.response) {
@@ -93,10 +118,13 @@ export class LLMChatModel implements LLMModel {
     };
     request = {
       ...request,
-      model,
+      model: _model,
       model_params: modelParamsWithDefaults,
     };
-    this.onStart({ request });
+    this.onStart({
+      provider: _provider,
+      request: await convertRequestWithImages(request),
+    }, _callbacks);
     try {
       const response = await this.completionService(this.provider, request);
       if (this.semanticCache && this.semanticCacheEnabled) {
@@ -134,7 +162,9 @@ export class LLMChatModel implements LLMModel {
         completionTokens,
         totalTokens,
       };
-      this.onEnd({ model, response });
+      this.onEnd({
+        response: await convertResponseWithImages(response),
+      }, _callbacks);
 
       return {
         response,
@@ -142,12 +172,12 @@ export class LLMChatModel implements LLMModel {
       };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ model, errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
-  async lookupCache(request: ChatRequest) {
+  async lookupCache(request: ChatRequest, callbacks: Callback[]) {
     const model = request.model || this.model;
     const n = request.model_params?.n || 1;
     const messages = request.prompt.messages;
@@ -171,20 +201,28 @@ export class LLMChatModel implements LLMModel {
       };
     }
     console.log('lookup cache', prompt, hits.length)
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onLookupCache({ model, prompt, hit: hits.length > 0, response });
     }
     return { prompt, embedding, response };
   }
 
-  onStart({ request }: ModelCallParams) {
-    for (let callback of this.currentCallbacks) {
-      callback.onModelStart({ request });
+  onStart({ provider, request }: ModelCallParams, callbacks: Callback[]) {
+    let params: any = { provider, request };
+    if (request.model === this.model) {
+      params = {
+        ...params,
+        modelId: this.modelId,
+        modelName: this.modelName,
+      };
+    }
+    for (let callback of callbacks) {
+      callback.onModelStart(params);
     }
   }
 
-  onEnd(params: ModelOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd(params: ModelOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onModelEnd(params);
     }
   }
@@ -193,62 +231,94 @@ export class LLMChatModel implements LLMModel {
 
 export class LLMCompletionModel implements LLMModel {
 
+  modelId: number;
+  modelName: string;
   modelType: string;
   model: string;
   provider: string;
   contextWindow: number;
+  maxOutputTokens: number;
   completionService: CompletionService;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
+    modelId,
+    modelName,
     modelType,
     model,
     provider,
     contextWindow,
+    maxOutputTokens,
     completionService,
     callbacks,
   }: LLMChatModelParams) {
+    this.modelId = modelId;
+    this.modelName = modelName;
     this.modelType = modelType;
     this.model = model;
     this.provider = provider;
     this.contextWindow = contextWindow;
+    this.maxOutputTokens = maxOutputTokens;
     this.completionService = completionService;
     this.callbacks = callbacks || [];
   }
 
-  async call({ request, callbacks = [] }: ModelCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    const model = request.model || this.model;
+  async call({ provider, request, callbacks }: ModelCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    let _provider: string;
+    let _model: string;
+    if (provider) {
+      _provider = provider;
+    } else {
+      _provider = this.provider;
+    }
+    if (request.model) {
+      _model = request.model;
+    } else {
+      _model = this.model;
+    }
     const modelParamsWithDefaults = {
       ...defaultLLMChatModelParams,
       ...request.model_params,
     };
     request = {
       ...request,
-      model,
+      model: _model,
       model_params: modelParamsWithDefaults,
     };
-    this.onStart({ request });
+    this.onStart({ provider: _provider, request }, _callbacks);
     try {
       const response = await this.completionService(this.provider, request);
-      this.onEnd({ model, response });
+      this.onEnd({ response: await convertResponseWithImages(response) }, _callbacks);
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ model, errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
-  onStart({ request }: ModelCallParams) {
-    for (let callback of this.currentCallbacks) {
-      callback.onCompletionModelStart({ request });
+  onStart({ provider, request }: ModelCallParams, callbacks: Callback[]) {
+    let params: any = { provider, request };
+    if (request.model === this.model) {
+      params = {
+        ...params,
+        modelId: this.modelId,
+        modelName: this.modelName,
+      };
+    }
+    for (let callback of callbacks) {
+      callback.onCompletionModelStart(params);
     }
   }
 
-  onEnd(params: ModelOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd(params: ModelOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onCompletionModelEnd(params);
     }
   }
@@ -262,7 +332,6 @@ export class CustomModel implements Model {
   url: string;
   batchEndpoint: string;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     modelType,
@@ -278,31 +347,36 @@ export class CustomModel implements Model {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, isBatch, callbacks = [] }: CustomModelCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args, isBatch });
+  async call({ args, isBatch, callbacks }: CustomModelCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ args, isBatch }, _callbacks);
     try {
       let res: any;
       if (isBatch) {
         if (!this.batchEndpoint) {
-          this.throwSemanticFunctionError('batch endpoint not supported');
+          this.throwSemanticFunctionError('batch endpoint not supported', _callbacks);
         }
         res = await axios.post(this.batchEndpoint, args);
       } else {
         res = await axios.post(this.url, args);
       }
       const response = res.data;
-      this.onEnd({ response });
+      this.onEnd({ response }, _callbacks);
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
-  onStart({ args, isBatch }: CustomModelCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ args, isBatch }: CustomModelCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onCustomModelStart({
         model: this.model,
         url: isBatch ? this.batchEndpoint : this.url,
@@ -312,8 +386,8 @@ export class CustomModel implements Model {
     }
   }
 
-  onEnd({ response, errors }: CustomModelOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ response, errors }: CustomModelOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onCustomModelEnd({
         model: this.model,
         response,
@@ -322,9 +396,9 @@ export class CustomModel implements Model {
     }
   }
 
-  throwSemanticFunctionError(message: string) {
+  throwSemanticFunctionError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onCustomModelError(errors);
     }
     throw new SemanticFunctionError(message);
@@ -338,7 +412,6 @@ export class HuggingfaceModel implements Model {
   model: string;
   modelProviderService: any;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     modelType,
@@ -352,22 +425,27 @@ export class HuggingfaceModel implements Model {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, callbacks = [] }: HuggingfaceModelCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args });
+  async call({ args, callbacks }: HuggingfaceModelCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ args }, _callbacks);
     try {
       const response = await this.modelProviderService.query('huggingface', this.model, args);
-      this.onEnd({ response });
+      this.onEnd({ response }, _callbacks);
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
-  onStart({ args }: HuggingfaceModelCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ args }: HuggingfaceModelCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onHuggingfaceModelStart({
         model: this.model,
         args,
@@ -375,8 +453,8 @@ export class HuggingfaceModel implements Model {
     }
   }
 
-  onEnd({ response, errors }: HuggingfaceModelOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ response, errors }: HuggingfaceModelOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onHuggingfaceModelEnd({
         model: this.model,
         response,
@@ -385,9 +463,9 @@ export class HuggingfaceModel implements Model {
     }
   }
 
-  throwSemanticFunctionError(message: string) {
+  throwSemanticFunctionError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onHuggingfaceModelError(errors);
     }
     throw new SemanticFunctionError(message);
@@ -396,9 +474,12 @@ export class HuggingfaceModel implements Model {
 }
 
 interface LLMModelOptions {
+  modelId: number;
+  modelName: string;
   model: string;
   provider: string;
   contextWindow: number;
+  maxOutputTokens: number;
   completionService: CompletionService;
   semanticCache: SemanticCache;
   semanticCacheEnabled: boolean;
@@ -413,9 +494,12 @@ export const llmModel = (options: LLMModelOptions) => {
 }
 
 interface LLMCompletionModelOptions {
+  modelId: number;
+  modelName: string;
   model: string;
   provider: string;
   contextWindow: number;
+  maxOutputTokens: number;
   completionService: CompletionService;
   semanticCache: SemanticCache;
   semanticCacheEnabled: boolean;

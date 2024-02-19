@@ -31,14 +31,17 @@ dayjs.extend(relativeTime);
 
 export class PromptTemplate {
 
+  promptSetId: number;
+  promptSetName: string;
   messages: Message[];
   schema?: object;
   templateFiller?: TemplateFiller;
   validator?: Validator;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
+    promptSetId,
+    promptSetName,
     messages,
     schema,
     templateEngine,
@@ -46,6 +49,8 @@ export class PromptTemplate {
     validator,
     callbacks,
   }: PromptTemplateParams) {
+    this.promptSetId = promptSetId;
+    this.promptSetName = promptSetName;
     this.messages = messages;
     this.schema = schema;
     this.templateFiller =
@@ -56,17 +61,22 @@ export class PromptTemplate {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, isBatch, messages, contextWindow, maxTokens, modelKey, callbacks = [] }: PromptTemplateCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    await this.onStart({ args, isBatch, contextWindow, maxTokens, modelKey });
+  async call({ args, isBatch, messages, contextWindow, maxOutputTokens, maxTokens, model, callbacks }: PromptTemplateCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    await this.onStart({ args, isBatch, contextWindow, maxTokens, model }, _callbacks);
     try {
       // logger.debug('args:', args);
       if (this.schema) {
-        this.validate(args, this.schema);
+        this.validate(args, this.schema, _callbacks);
       }
       if (args.context) {
         // check if context length will fit within the model's context window
-        args = this.checkContextLength(args, contextWindow, maxTokens, modelKey);
+        args = this.checkContextLength(args, contextWindow, maxOutputTokens, maxTokens, model);
         // logger.debug('new args:', args);
       }
       const _messages = this.messages.map((message) => ({
@@ -80,22 +90,22 @@ export class PromptTemplate {
           content: fillContent(this.templateFiller, args, message.content),
         })));
       }
-      this.onEnd({ messages: await convertMessagesWithImages(_messages) });
+      this.onEnd({ messages: await convertMessagesWithImages(_messages) }, _callbacks);
       return _messages;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
 
-  checkContextLength(args: any, contextWindow: number, maxTokens: number, modelKey: string) {
+  checkContextLength(args: any, contextWindow: number, maxOutputTokens: number, maxTokens: number, model: string) {
     logger.debug('checking context length');
-    // logger.debug('model: %s, context window: %d, args:', modelKey, contextWindow, args);
-    const model = modelKey as tiktoken.TiktokenModel;
+    // logger.debug('model: %s, context window: %d, max output tokens: %d, args:', model, contextWindow, maxOutputTokens, args);
+    const mod = model as tiktoken.TiktokenModel;
     let encoding: tiktoken.Tiktoken;
     try {
-      encoding = encodingForModel(model);
+      encoding = encodingForModel(mod);
     } catch (err) {
       encoding = getEncoding('gpt2');
     }
@@ -106,7 +116,16 @@ export class PromptTemplate {
     const preContextTokens = encoding.encode(preContextText);
     const preContextLength = preContextTokens.length;
     // logger.debug('pre context length:', preContextLength);
-    const available = contextWindow - preContextLength - maxTokens;
+
+    // Use `maxTokens` as a proxy for how many tokens will be generated
+    let available: number;
+    // Some models specify a `maxOutputTokens`
+    if (maxOutputTokens) {
+      available = Math.min(contextWindow - preContextLength - Math.min(maxTokens, maxOutputTokens), maxOutputTokens);
+    } else {
+      available = contextWindow - preContextLength - maxTokens;
+    }
+
     // logger.debug('available length:', available);
     const contextTokens = encoding.encode(args.context);
     const contextLength = contextTokens.length;
@@ -115,26 +134,46 @@ export class PromptTemplate {
     if (contextLength > available) {
       logger.debug('context length > available', contextLength, available);
       logger.debug('culling...');
-      context = args.context.slice(0, available);
+
+      // Don't cull the citation
+      let diff = contextLength - available;
+      const splits = args.context.split(/\nCitation:/);
+      let newSplits = [...splits];
+      for (let i = splits.length - 2; i >= 0 && diff > 0; i -= 2) {
+        const text = splits[i];
+        const tokens = encoding.encode(text);
+        const n = tokens.length;
+        if (n > diff) {
+          newSplits[i] = text.slice(0, n - diff);
+          break;
+        }
+        newSplits.splice(i, 2);
+
+        // est. length of citation is 70 tokens
+        diff -= n + 40;
+      }
+      context = newSplits.join('\nCitation:');
     } else {
       context = args.context;
     }
     return { ...args, context };
   }
 
-  validate(instance: object, schema: object) {
+  validate(instance: object, schema: object, callbacks: Callback[]) {
     const validatorResult = this.validator(instance, schema, { required: true });
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onValidateArguments(validatorResult);
     }
     if (!validatorResult.valid) {
-      this.throwSchemaError(validatorResult);
+      this.throwSchemaError(validatorResult, callbacks);
     }
   }
 
-  async onStart({ args, isBatch }: PromptTemplateCallParams) {
-    for (let callback of this.currentCallbacks) {
+  async onStart({ args, isBatch }: PromptTemplateCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onPromptTemplateStart({
+        promptSetId: this.promptSetId,
+        promptSetName: this.promptSetName,
         messageTemplates: await convertMessagesWithImages(this.messages),
         args,
         isBatch,
@@ -142,8 +181,8 @@ export class PromptTemplate {
     }
   }
 
-  onEnd({ messages, errors }: OnPromptTemplateEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ messages, errors }: OnPromptTemplateEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onPromptTemplateEnd({
         messages,
         errors,
@@ -151,8 +190,8 @@ export class PromptTemplate {
     }
   }
 
-  throwSchemaError(validatorResult: ValidatorResult) {
-    for (let callback of this.currentCallbacks) {
+  throwSchemaError(validatorResult: ValidatorResult, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onPromptTemplateError(validatorResult.errors);
     }
     throw new SchemaError(validatorResult);
@@ -183,6 +222,8 @@ export function message(params: Message) {
 }
 
 interface PromptTemplateOptions {
+  promptSetId: number;
+  promptSetName: string;
   schema?: object;
   templateEngine?: string;
   callbacks?: Callback[];

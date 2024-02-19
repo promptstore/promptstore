@@ -6,8 +6,44 @@ export default ({ app, auth, logger, services }) => {
 
   app.get('/api/workspaces/:workspaceId/traces', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
-    const traces = await tracesService.getTraces(workspaceId, 100);
-    res.json(traces);
+    const { limit, start, name, created, success, latency } = req.query;
+    let filters = { ...req.query };
+    delete filters.limit;
+    delete filters.start;
+    delete filters.name;
+    delete filters.created;
+    delete filters.success;
+    delete filters.latency;
+    filters = Object.entries(filters).reduce((a, [k, v]) => {
+      if (Array.isArray(v)) {
+        if (v[0] === 'true' || v[0] === 'false') {
+          a[k] = v.map(x => x === 'true');
+        } else {
+          a[k] = v;
+        }
+      } else if (v) {
+        a[k] = v;
+      }
+      return a;
+    }, {});
+    logger.debug('filters:', filters);
+    let nameQuery;
+    if (name) {
+      nameQuery = name[0];
+    }
+    let startDate, endDate;
+    if (created) {
+      startDate = created[0][0];
+      endDate = created[0][1];
+    }
+    let minLatency, maxLatency;
+    if (latency) {
+      minLatency = +latency[0][0];
+      maxLatency = +latency[0][1];
+    }
+    const count = await tracesService.getTracesCount(workspaceId, filters, nameQuery, startDate, endDate, success, minLatency, maxLatency);
+    const traces = await tracesService.getTraces(workspaceId, limit, start, filters, nameQuery, startDate, endDate, success, minLatency, maxLatency);
+    res.json({ count, data: traces });
   });
 
   const getModel = (trace) => {

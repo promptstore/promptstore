@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import { Chunk } from './Chunk';
 import { PluginMetadata } from './common_types';
@@ -46,9 +46,11 @@ export interface VectorStoreService {
 
   getIndex(vectorstore: string, indexName: string, params?: Partial<GetIndexParams>): Promise<any>
 
-  createIndex(vectorstore: string, indexName: string, schema: JSONSchema7, params: Partial<CreateIndexParams>): Promise<any>
+  createIndex(vectorstore: string, indexName: string, schema: Schema, params: Partial<CreateIndexParams>): Promise<any>
 
   dropIndex(vectorstore: string, indexName: string): void;
+
+  getChunks(vectorstore: string, indexName: string, ids: string[]): Promise<Chunk>;
 
   getNumberChunks(vectorstore: string, indexName: string, params?: GetNumberChunksParams): Promise<number>;
 
@@ -87,12 +89,16 @@ export abstract class VectorStore {
         return this.vectorStoreService.getIndex(vectorstore, indexName, params);
       }
 
-      createIndex(indexName: string, schema: JSONSchema7, params: Partial<CreateIndexParams>) {
+      createIndex(indexName: string, schema: Schema, params: Partial<CreateIndexParams>) {
         return this.vectorStoreService.createIndex(vectorstore, indexName, schema, params);
       }
 
       dropIndex(indexName: string) {
         return this.vectorStoreService.dropIndex(vectorstore, indexName);
+      }
+
+      getChunks(indexName: string, ids: string[]) {
+        return this.vectorStoreService.getChunks(vectorstore, indexName, ids);
       }
 
       getNumberChunks(indexName: string) {
@@ -126,9 +132,11 @@ export abstract class VectorStore {
 
   abstract getIndex(indexName: string, params?: Partial<GetIndexParams>): Promise<any>
 
-  abstract createIndex(indexName: string, schema: JSONSchema7, params: Partial<CreateIndexParams>): Promise<any>
+  abstract createIndex(indexName: string, schema: Schema, params: Partial<CreateIndexParams>): Promise<any>
 
   abstract dropIndex(indexName: string): void;
+
+  abstract getChunks(indexName: string, ids: string[]): Promise<Chunk>;
 
   abstract getNumberChunks(indexName: string, params?: GetNumberChunksParams): Promise<number>;
 

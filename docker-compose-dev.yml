@@ -56,6 +56,8 @@ services:
     image: elasticsearch:${ELASTICSEARCH_VERSION}
     expose:
       - 9200
+    ports:
+      - 9200:9200
     volumes:
       - /var/lib/elasticsearch/data
 

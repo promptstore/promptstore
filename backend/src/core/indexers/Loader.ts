@@ -12,6 +12,7 @@ export interface ApiLoaderParams {
 }
 
 export interface MinioLoaderParams {
+  uploadId: number;
   objectName: string;
   maxBytes?: number;
 }

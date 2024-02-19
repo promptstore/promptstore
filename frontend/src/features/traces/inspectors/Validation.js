@@ -8,7 +8,7 @@ export function Validation({ step, title }) {
   return (
     <Descriptions className="trace-step" title={title} column={{ md: 1, lg: 3 }} layout="vertical">
       <Descriptions.Item span={3} label="input">
-        <JsonView src={step.instance} />
+        <JsonView collapsed={1} src={step.instance} />
       </Descriptions.Item>
       <Descriptions.Item span={3} label="schema">
         <JsonView src={step.schema} />

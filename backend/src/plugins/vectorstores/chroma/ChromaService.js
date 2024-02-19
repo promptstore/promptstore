@@ -87,6 +87,30 @@ function ChromaService({ __name, constants, logger }) {
     }
   }
 
+  async function getChunks(indexName, ids) {
+    try {
+      const collection = await getCollection(indexName);
+      if (collection) {
+        const { documents, ids: _ids, metadatas } = await collection.get({ ids });
+        const chunks = [];
+        for (let i = 0; i < documents.length; i++) {
+          const chunk = {
+            ...metadatas[i],
+            id: _ids[i],
+            text: documents[i],
+          };
+          chunks.push(unflatten(chunk));
+        }
+        return chunks;
+      }
+      logger.debug("collection '%s' not found", indexName);
+      return [];
+    } catch (err) {
+      logger.error(err.message, err.stack);
+      throw err;
+    }
+  }
+
   async function dropData(indexName, { nodeLabel }) {
     try {
       const collection = await getCollection(indexName);
@@ -222,18 +246,15 @@ function ChromaService({ __name, constants, logger }) {
               const nodeLabel = metadata.nodeLabel;
               delete metadata.nodeLabel;
               let doc = {
+                ...metadata,
                 id,
                 text: res.documents[0][i],
-                ...metadata,
+                dist,
               };
-              doc = Object.entries(doc).reduce((a, [k, v]) => {
+              return Object.entries(doc).reduce((a, [k, v]) => {
                 a[nodeLabel + '__' + k] = v;
                 return a;
               }, {});
-              return {
-                ...doc,
-                dist,
-              };
             })
             .map(d => Object.entries(d).reduce((a, [k, v]) => {
               const key = k.replace(/__/g, '.');
@@ -260,6 +281,7 @@ function ChromaService({ __name, constants, logger }) {
     deleteChunk,
     dropData,
     dropIndex,
+    getChunks,
     getIndexes,
     getIndex,
     getNumberChunks,

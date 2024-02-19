@@ -10,15 +10,20 @@ function ElasticsearchService({ __name, constants, logger }) {
 
   function getClient() {
     if (!_client) {
-      const url = `https://${constants.ES_SERVER}:${constants.ES_PORT}`;
-      logger.debug('elastic server URL:', url);
-      _client = new Client({
-        node: url,
-        auth: {
+      let auth;
+      let protocol;
+      if (constants.ENV === 'dev') {
+        protocol = 'http';
+      } else {
+        protocol = 'https';
+        auth = {
           username: constants.ES_USER,
           password: constants.ES_PASS,
-        },
-      });
+        };
+      }
+      const url = `${protocol}://${constants.ES_SERVER}:${constants.ES_PORT}`;
+      logger.debug('elastic server URL:', url);
+      _client = new Client({ node: url, auth });
     }
     return _client;
   }
@@ -54,6 +59,17 @@ function ElasticsearchService({ __name, constants, logger }) {
     try {
       return await getClient().indices.create({
         index: indexName,
+        settings: {
+          analysis: {
+            analyzer: {
+              my_analyzer: {
+                tokenizer: 'whitespace',
+                filter: ['stop'],
+              },
+            },
+            filter: ['stop'],
+          },
+        },
       });
     } catch (err) {
       logger.error(err.message);
@@ -75,6 +91,28 @@ function ElasticsearchService({ __name, constants, logger }) {
       return await getClient().count({ index: indexName });
     } catch (err) {
       logger.error(err.message, err.stack);
+      throw err;
+    }
+  }
+
+  async function getChunks(indexName, ids) {
+    // logger.debug('indexName:', indexName);
+    // logger.debug('ids:', ids);
+    try {
+      const results = await getClient().search({
+        index: indexName,
+        query: {
+          bool: {
+            should: ids.map(id => ({
+              match: { id }
+            }))
+          }
+        }
+      });
+      // logger.debug('results:', results);
+      return results.hits.hits.map(h => unflatten(h._source));
+    } catch (err) {
+      logger.error(err.message);
       throw err;
     }
   }
@@ -168,27 +206,34 @@ function ElasticsearchService({ __name, constants, logger }) {
   async function search(indexName, q, attrs, logicalType, params) {
     const { k, nodeLabel } = params;
     try {
-      const query = {
-        bool: {
-          must: [
-            {
-              match: { text: q },
-            },
-          ],
-        },
-      };
+      let query;
       if (!isEmpty(attrs)) {
-        const filter = Object.entries(attrs).map(([k, v]) => ({
-          term: { k: v }
+        const terms = Object.entries(attrs).map(([k, v]) => ({
+          match: { [k]: v }
         }));
-        query.bool.filter = filter;
+        query = {
+          bool: {
+            must: [
+              { match: { text: q } },
+              ...terms
+            ]
+          }
+        };
+        // if (logicalType === 'and') {
+        //   query.bool.must.push(...terms);
+        // } else {
+        //   query.bool.should = terms;
+        // }
+      } else {
+        query = { match: { text: q } };
       }
+      logger.debug('query:', query);
       const res = await getClient().search({
         index: indexName,
         query,
       });
 
-      logger.debug('res:', res);
+      // logger.debug('res:', res);
       const hits = res.hits.hits;
       const result = hits.map((hit) => {
         return {
@@ -198,7 +243,7 @@ function ElasticsearchService({ __name, constants, logger }) {
           },
         };
       });
-      logger.debug('result:', result);
+      // logger.debug('result:', result);
       return result;
     } catch (err) {
       logger.error(err.message, err.stack);
@@ -214,6 +259,7 @@ function ElasticsearchService({ __name, constants, logger }) {
     deleteChunk,
     dropData,
     dropIndex,
+    getChunks,
     getIndexes,
     getIndex,
     getNumberChunks,

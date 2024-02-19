@@ -113,11 +113,8 @@ export function UserUploadsList({ loading, workspaceId, appId }) {
     {
       title: 'Type',
       dataIndex: 'ext',
-      render: (_, { ext }) => (
-        <div style={{ textAlign: 'center' }}>
-          {getDocIcon(ext)}
-        </div>
-      ),
+      align: 'center',
+      render: (_, { ext }) => getDocIcon(ext),
       className: 'col-hdr-nowrap',
     },
     {

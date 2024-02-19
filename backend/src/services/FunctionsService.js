@@ -72,6 +72,26 @@ export function FunctionsService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getFunctionsByTags(workspaceId, tags) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (tags === null || typeof tags === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      FROM functions f, json_array_elements_text(f.val->'tags') tag
+      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      AND tag = ANY($2::VARCHAR[])
+      `;
+    const { rows } = await pg.query(q, [workspaceId, tags]);
+    if (rows.length === 0) {
+      return [];
+    }
+    return rows.map(mapRow);
+  }
+
   async function getFunctionsByTag(workspaceId, tag) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -132,9 +152,11 @@ export function FunctionsService({ pg, logger }) {
     if (func === null || typeof func === 'undefined') {
       return null;
     }
-    const val = omit(func, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedFunction = await getFunction(func.id);
     if (savedFunction) {
+      func = { ...savedFunction, ...func };
+      const val = omit(func, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE functions
@@ -145,7 +167,9 @@ export function FunctionsService({ pg, logger }) {
         [func.name, val, username, modified, func.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(func, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO functions (workspace_id, name, val, created_by, created, modified_by, modified)
@@ -174,6 +198,7 @@ export function FunctionsService({ pg, logger }) {
     getFunctions,
     getFunctionsByName,
     getFunctionsByPromptSet,
+    getFunctionsByTags,
     getFunctionsByTag,
     getFunctionByName,
     getFunction,

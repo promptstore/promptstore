@@ -45,9 +45,11 @@ export function TrainingService({ pg, logger }) {
   }
 
   async function upsertTrainingRow(row) {
-    const val = omit(row, ['id', 'workspaceId', 'contentId', 'prompt', 'response', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'contentId', 'prompt', 'response', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedRow = await getTrainingRow(row.id);
     if (savedRow) {
+      row = { ...savedRow, ...row };
+      const val = omit(row, omittedFields);
       await pg.query(`
         UPDATE training
         SET prompt = $1, response = $2, val = $3
@@ -56,7 +58,9 @@ export function TrainingService({ pg, logger }) {
         [row.prompt, row.response, val, row.id]
       );
       return row.id;
+
     } else {
+      const val = omit(row, omittedFields);
       const { rows } = await pg.query(`
         INSERT INTO training (workspace_id, content_id, prompt, response, val)
         VALUES ($1, $2, $3, $4, $5) RETURNING id

@@ -6,8 +6,10 @@ import uuid from 'uuid';
 import startCase from 'lodash.startcase';
 import camelCase from 'lodash.camelcase';
 import { default as dayjs } from 'dayjs';
+import { UMAP } from 'umap-js';
 
 import { getDestinationSchema } from '../core/conversions/schema';
+import { EmbeddingProvider } from '../core/indexers/EmbeddingProvider';
 import { GraphStore } from '../core/indexers/GraphStore';
 import { Indexer } from '../core/indexers/Indexer';
 import { Pipeline } from '../core/indexers/Pipeline';
@@ -46,9 +48,9 @@ export const createActivities = ({
   evaluationsService,
   executionsService,
   extractorService,
-  indexesService,
   functionsService,
   graphStoreService,
+  indexesService,
   llmService,
   loaderService,
   modelsService,
@@ -85,6 +87,16 @@ export const createActivities = ({
       completion: log.systemOutputText,
       criteria,
     }));
+
+    const texts = logs.map(log => log.systemOutputText);
+    const embeddingModel = { provider: 'openai', model: 'text-embedding-ada-002' };
+    const embedder = EmbeddingProvider.create(embeddingModel, llmService);
+    const res = await embedder.createEmbeddings(texts, 1024);
+    const embeddings = res.data.map(e => e.embedding);
+    const umap = new UMAP({ nComponents: 2, nNeighbors: 5 });
+    const embedding = umap.fit(embeddings);
+    logger.debug('umap embedding:', embedding);
+
     const outputFormatter = {
       name: 'output_formatter',
       description: 'Output as JSON. Should always be used to format your response to the user.',
@@ -163,6 +175,7 @@ export const createActivities = ({
       numberTests: logs.length,
       numberFailed: failed.length,
       percentPassed: (logs.length - failed.length) / logs.length,
+      embedding,
     };
     const updatedEvaluation = await evaluationsService.upsertEvaluation(({
       ...evaluation,
@@ -173,13 +186,18 @@ export const createActivities = ({
     return updatedEvaluation;
   },
 
+  executeComposition(params) {
+    return executionsService.executeComposition(params);
+  },
+
   async index(params, loaderProvider, extractorProviders) {
     try {
       const pipeline = new Pipeline({
         executionsService,
         extractorService,
-        indexesService,
+        functionsService,
         graphStoreService,
+        indexesService,
         llmService,
         loaderService,
         vectorStoreService,
@@ -651,6 +669,22 @@ function getSchema({ jsonSchema, textNodeProperties }) {
             "type": "string",
             "description": "The document MIME (Multipurpose Internet Mail Extension) type"
           },
+          "dataSourceId": {
+            "type": "string",
+            "description": "The data source id"
+          },
+          "dataSourceName": {
+            "type": "string",
+            "description": "The data source name"
+          },
+          "uploadId": {
+            "type": "string",
+            "description": "The upload id"
+          },
+          "filename": {
+            "type": "string",
+            "description": "The file name"
+          },
           "objectName": {
             "type": "string",
             "description": "The document object name"
@@ -658,6 +692,10 @@ function getSchema({ jsonSchema, textNodeProperties }) {
           "endpoint": {
             "type": "string",
             "description": "The API endpoint"
+          },
+          "database": {
+            "type": "string",
+            "description": "The database name"
           },
           "subtype": {
             "type": "string",
@@ -733,4 +771,4 @@ const stringify = (val) => {
     return '';
   }
   return String(val);
-}
+};

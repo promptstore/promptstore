@@ -1,6 +1,6 @@
 import logger from '../../logger';
 
-import { Function, Message, ModelParams } from '../conversions/RosettaStone';
+import { Function, Message, ModelObject, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 interface RunFunctionParams {
@@ -9,7 +9,7 @@ interface RunFunctionParams {
   messages?: Message[];
   history?: Message[];
   extraSystemPrompt?: string;
-  modelKey: string;
+  model: ModelObject;
   modelParams: Partial<ModelParams>;
   functions?: Function[];
   isBatch: boolean;
@@ -26,7 +26,7 @@ export class LocalExecutor {
     messages,
     history,
     extraSystemPrompt,
-    modelKey,
+    model,
     modelParams,
     functions,
     isBatch,
@@ -34,28 +34,34 @@ export class LocalExecutor {
   }: RunFunctionParams) {
     logger.info('execute function', semanticFunction.name);
     if (!isBatch) logger.debug('args:', args);
-    logger.debug('model:', modelKey, modelParams);
+    if (model) {
+      logger.debug('model: [provider=%s; key=%s]', model.provider, model.model);
+    }
     modelParams = this.fixModelParams(modelParams);
+    logger.debug('model params:', modelParams);
     if (history) {
       history = this.fixMessages(history);
     }
 
-    return semanticFunction.call({ args, messages, history, extraSystemPrompt, modelKey, modelParams, functions, isBatch, options });
+    return semanticFunction.call({ args, messages, history, extraSystemPrompt, model, modelParams, functions, isBatch, options });
   }
 
   async runComposition({
     composition,
     args,
-    modelKey,
+    model,
     modelParams,
     isBatch,
   }) {
     logger.info('execute composition:', composition.name);
     if (!isBatch) logger.debug('args:', args);
-    logger.debug('model:', modelKey, modelParams);
+    if (model) {
+      logger.debug('model: [provider=%s; key=%s]', model.provider, model.key);
+    }
     modelParams = this.fixModelParams(modelParams);
+    logger.debug('model params:', modelParams);
 
-    return composition.call({ args, modelKey, modelParams, isBatch });
+    return composition.call({ args, model, modelParams, isBatch });
   }
 
   fixMessages(messages: Message[]) {

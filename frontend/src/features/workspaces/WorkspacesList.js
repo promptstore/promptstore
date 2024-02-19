@@ -116,8 +116,9 @@ export function WorkspacesList() {
       {
         title: 'Public',
         dataIndex: 'isPublic',
+        align: 'center',
         render: (_, { isPublic }) => (
-          <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5em' }}>
             <span>{isPublic ? <CheckOutlined /> : ''}</span>
           </div>
         )

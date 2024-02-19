@@ -67,6 +67,7 @@ function TextParser({ __name, constants, logger }) {
             mimetype: 'text/plain',
             dataSourceId: doc.dataSourceId,
             dataSourceName: doc.dataSourceName,
+            uploadId: doc.uploadId,
             objectName: doc.objectName,
             endpoint: doc.endpoint,
             database: doc.database,
@@ -135,9 +136,25 @@ function TextParser({ __name, constants, logger }) {
               "type": "string",
               "description": "The data source name"
             },
+            "uploadId": {
+              "type": "string",
+              "description": "The upload id"
+            },
+            "filename": {
+              "type": "string",
+              "description": "The file name"
+            },
+            "objectName": {
+              "type": "string",
+              "description": "The file object name"
+            },
             "endpoint": {
               "type": "string",
               "description": "The API endpoint"
+            },
+            "database": {
+              "type": "string",
+              "description": "The database name"
             },
             "subtype": {
               "type": "string",

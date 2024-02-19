@@ -25,7 +25,6 @@ export class OutputProcessingPipeline {
 
   steps: OutputProcessingStep[];
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     steps,
@@ -35,18 +34,23 @@ export class OutputProcessingPipeline {
     this.callbacks = callbacks || [];
   }
 
-  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ response });
+  async call({ response, callbacks }: OutputProcessingCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ response }, _callbacks);
     try {
       for (const step of this.steps) {
-        response = await step.call({ response, callbacks });
+        response = await step.call({ response, callbacks: _callbacks });
       }
-      this.onEnd({ response });
+      this.onEnd({ response }, _callbacks);
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
@@ -55,16 +59,16 @@ export class OutputProcessingPipeline {
     return this.steps.length;
   }
 
-  onStart({ response }: OutputProcessingCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ response }: OutputProcessingCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputProcessingStart({
         response,
       });
     }
   }
 
-  onEnd({ response, errors }: OutputProcessingEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ response, errors }: OutputProcessingEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputProcessingEnd({
         response,
         errors,
@@ -79,7 +83,6 @@ export class OutputGuardrail implements OutputProcessingStep {
   guardrail: string;
   guardrailsService: any;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     guardrail,
@@ -91,21 +94,26 @@ export class OutputGuardrail implements OutputProcessingStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ guardrail: this.guardrail, response });
+  async call({ response, callbacks }: OutputProcessingCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ guardrail: this.guardrail, response }, _callbacks);
     try {
       const content = this.getContent(response);
       const res = await this.guardrailsService.scan(this.guardrail, content);
       if (res.error) {
-        this.throwGuardrailError(res.error);
+        this.throwGuardrailError(res.error, _callbacks);
       }
       response = this.updateContent(response, res.text);
-      this.onEnd({ response })
+      this.onEnd({ response }, _callbacks)
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
@@ -118,8 +126,8 @@ export class OutputGuardrail implements OutputProcessingStep {
     return set(clone(response), 'choices[0].message.content', content);
   }
 
-  onStart({ guardrail, response }: OutputGuardrailStartResponse) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ guardrail, response }: OutputGuardrailStartResponse, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputGuardrailStart({
         guardrail,
         response,
@@ -127,8 +135,8 @@ export class OutputGuardrail implements OutputProcessingStep {
     }
   }
 
-  onEnd({ response, errors }: OutputProcessingEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ response, errors }: OutputProcessingEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputGuardrailEnd({
         response,
         errors,
@@ -136,9 +144,9 @@ export class OutputGuardrail implements OutputProcessingStep {
     }
   }
 
-  throwGuardrailError(message: string) {
+  throwGuardrailError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onOutputGuardrailError(errors);
     }
     throw new GuardrailError(message);
@@ -151,7 +159,6 @@ export class OutputParser implements OutputProcessingStep {
   outputParser: string;
   parserService: any;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     outputParser,
@@ -163,21 +170,26 @@ export class OutputParser implements OutputProcessingStep {
     this.callbacks = callbacks || [];
   }
 
-  async call({ response, callbacks = [] }: OutputProcessingCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ outputParser: this.outputParser, response });
+  async call({ response, callbacks }: OutputProcessingCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ outputParser: this.outputParser, response }, _callbacks);
     try {
       const content = this.getContent(response);
       const { error, json } = await this.parserService.parse(this.outputParser, content);
       if (error) {
-        this.throwParserError(error);
+        this.throwParserError(error, _callbacks);
       }
       response = this.updateContent(response, JSON.stringify(json));
-      this.onEnd({ response })
+      this.onEnd({ response }, _callbacks)
       return response;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ errors }, _callbacks);
       throw err;
     }
   }
@@ -191,8 +203,8 @@ export class OutputParser implements OutputProcessingStep {
     return set(clone(response), 'choices.0.message.content', content);
   }
 
-  onStart({ outputParser, response }: OutputParserStartResponse) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ outputParser, response }: OutputParserStartResponse, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputParserStart({
         outputParser,
         response,
@@ -200,8 +212,8 @@ export class OutputParser implements OutputProcessingStep {
     }
   }
 
-  onEnd({ response, errors }: OutputProcessingEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ response, errors }: OutputProcessingEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onOutputParserEnd({
         response,
         errors,
@@ -209,9 +221,9 @@ export class OutputParser implements OutputProcessingStep {
     }
   }
 
-  throwParserError(message: string) {
+  throwParserError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onOutputParserError(errors);
     }
     throw new ParserError(message);

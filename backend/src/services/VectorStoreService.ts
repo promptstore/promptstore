@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import { Chunk } from '../core/indexers/Chunk';
 import {
@@ -27,7 +27,7 @@ export function VectorStoreService({ logger, registry }: PluginServiceParams): V
     return instance.getIndex(indexName, params);
   };
 
-  function createIndex(vectorstore: string, indexName: string, schema: JSONSchema7, params: CreateIndexParams) {
+  function createIndex(vectorstore: string, indexName: string, schema: Schema, params: CreateIndexParams) {
     logger.debug('create index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.createIndex(indexName, schema, params);
@@ -37,6 +37,12 @@ export function VectorStoreService({ logger, registry }: PluginServiceParams): V
     logger.debug('drop index: %s, vectorstore:', indexName, vectorstore);
     const instance = registry[vectorstore] as VectorStore;
     return instance.dropIndex(indexName);
+  };
+
+  function getChunks(vectorstore: string, indexName: string, ids: string[]) {
+    logger.debug('get chunks from index: %s, vectorstore:', indexName, vectorstore);
+    const instance = registry[vectorstore] as VectorStore;
+    return instance.getChunks(indexName, ids);
   };
 
   function getNumberChunks(vectorstore: string, indexName: string, params: GetNumberChunksParams) {
@@ -88,6 +94,7 @@ export function VectorStoreService({ logger, registry }: PluginServiceParams): V
     getIndex,
     createIndex,
     dropIndex,
+    getChunks,
     getNumberChunks,
     dropData,
     indexChunks,

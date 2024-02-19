@@ -42,6 +42,9 @@ function CrawlerService({ __name, constants, logger }) {
       metadata: {
         author: null,
         mimetype: doc.mimetype,
+        dataSourceId: doc.dataSourceId,
+        dataSourceName: doc.dataSourceName,
+        uploadId: null,
         objectName: null,
         endpoint: doc.endpoint,
         database: null,
@@ -183,6 +186,18 @@ function CrawlerService({ __name, constants, logger }) {
               "type": "string",
               "description": "The document MIME (Multipurpose Internet Mail Extension) type"
             },
+            "dataSourceId": {
+              "type": "string",
+              "description": "The data source id"
+            },
+            "dataSourceName": {
+              "type": "string",
+              "description": "The data source name"
+            },
+            "uploadId": {
+              "type": "string",
+              "description": "The upload id"
+            },
             "objectName": {
               "type": "string",
               "description": "The document object name"
@@ -190,6 +205,10 @@ function CrawlerService({ __name, constants, logger }) {
             "endpoint": {
               "type": "string",
               "description": "The API endpoint"
+            },
+            "database": {
+              "type": "string",
+              "description": "The database name"
             },
             "title": {
               "type": "string",

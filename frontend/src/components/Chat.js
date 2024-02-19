@@ -47,8 +47,6 @@ export function Chat({
     placeholder = 'Ask away...';
   }
 
-  console.log('messages:', messages);
-
   const [indeterminate, setIndeterminate] = useState(false);
   const [selected, setSelected] = useState({});
   const [checkAll, setCheckAll] = useState(false);
@@ -269,7 +267,7 @@ export function Chat({
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
           <div className="content" style={{ maxWidth: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 24 }}>
               {message.content.map((c, i) => (
                 <div key={c.key} className={i > 0 ? 'chat-sep' : ''}>
                   <Typography.Paragraph copyable

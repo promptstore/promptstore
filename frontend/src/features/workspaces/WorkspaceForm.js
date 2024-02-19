@@ -127,7 +127,7 @@ export function WorkspaceForm() {
     if (values.invites) {
       dispatch(inviteMembersAsync({
         workspaceId: id,
-        invites: values.invites.trim().split(/\s*,\s*/),
+        invites: values.invites?.trim().split(/\s*,\s*/),
       }));
     }
     setIsInviteModalOpen(false);

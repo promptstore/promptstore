@@ -91,9 +91,11 @@ export function CompositionsService({ pg, logger }) {
     if (composition === null || typeof composition === 'undefined') {
       return null;
     }
-    const val = omit(composition, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedComposition = await getComposition(composition.id);
     if (savedComposition) {
+      composition = { ...savedComposition, ...composition };
+      const val = omit(composition, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE compositions
@@ -104,7 +106,9 @@ export function CompositionsService({ pg, logger }) {
         [composition.name, val, username, modified, composition.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(composition, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO compositions (workspace_id, name, val, created_by, created, modified_by, modified)

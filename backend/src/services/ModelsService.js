@@ -132,9 +132,11 @@ export function ModelsService({ pg, logger }) {
     if (model === null || typeof model === 'undefined') {
       return null;
     }
-    const val = omit(model, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedModel = await getModel(model.id);
     if (savedModel) {
+      model = { ...savedModel, ...model };
+      const val = omit(model, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE models
@@ -145,7 +147,9 @@ export function ModelsService({ pg, logger }) {
         [model.name, val, username, modified, model.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(model, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO models (workspace_id, name, val, created_by, created, modified_by, modified)

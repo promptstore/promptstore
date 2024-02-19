@@ -5,7 +5,7 @@ import uuid from 'uuid';
 
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
-import { convertMessagesWithImages } from '../core/utils';
+import { convertMessagesWithImages, convertResponseWithImages } from '../core/utils';
 import {
   downloadImage,
   fillTemplate,
@@ -164,6 +164,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.send(promptSuggestion);
   });*/
 
+  const cleanHistory = (history) => {
+    if (!history) return [];
+    return history.map((m) => ({
+      role: m.role,
+      content: Array.isArray(m.content) ? m.content[0].content : m.content,
+    }));
+  };
+
   app.post('/api/rag/:name', auth, async (req, res) => {
     const semanticFunctionName = req.params.name;
     const { username } = req.user;
@@ -179,42 +187,80 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       extraIndexes,
       functionId,
       modelId,
+      models,
+      selectedTags,
     } = req.body;
 
-    const { errors, response, responseMetadata } = await executionsService.executeFunction({
-      workspaceId: workspaceId || DEFAULT_WORKSPACE,
-      username,
-      semanticFunctionName,
-      args,
-      messages,
-      history,
-      params: params || {},
-      extraIndexes,
-      batch: isTruthy(batch),
-    });
-    if (errors) {
-      return res.status(500).json({ errors });
+    // logger.debug('models:', models);
+
+    if (!params) params = {};
+    const completions = [];
+    if (models && models.length) {
+      for (const model of models) {
+        const { errors, response } = await executionsService.executeFunction({
+          workspaceId: workspaceId || DEFAULT_WORKSPACE,
+          username,
+          semanticFunctionName,
+          args,
+          messages,
+          history: cleanHistory(history),
+          model,
+          params,
+          extraIndexes,
+          batch: isTruthy(batch),
+        });
+        if (errors) {
+          return res.status(500).json({ errors });
+        }
+        completions.push(response);
+      }
+    } else {
+      const { errors, response } = await executionsService.executeFunction({
+        workspaceId: workspaceId || DEFAULT_WORKSPACE,
+        username,
+        semanticFunctionName,
+        args,
+        messages,
+        history: cleanHistory(history),
+        params,
+        extraIndexes,
+        batch: isTruthy(batch),
+      });
+      if (errors) {
+        return res.status(500).json({ errors });
+      }
+      completions.push(response);
     }
 
     const argsFormData = { ...args };
     delete argsFormData.content;
-    const newMessages = [...(history || []), ...(messages || [])];
+    const curMessages = [...(history || []), ...(messages || [])];
     if (args.content) {
-      newMessages.push({
+      curMessages.push({
         role: 'user',
         content: args.content,
       });
     }
-    newMessages.push(...response.choices.map(({ message }) => ({
-      role: message.role,
-      content: [
-        {
+    const newMessages = [];
+    // logger.debug('completions:', completions);
+    for (const { choices, model } of completions) {
+      let i = 0;
+      for (const { message } of choices) {
+        if (!newMessages[i]) {
+          newMessages[i] = {
+            role: message.role,
+            content: [],
+            citation_metadata: message.citation_metadata,
+          };
+        }
+        newMessages[i].content.push({
+          model,
           content: message.content,
-          citation_metadata: message.citation_metadata,
-          model: response.model,
-        },
-      ],
-    })));
+        });
+        i += 1;
+      }
+    }
+    const allMessages = [...curMessages, ...newMessages];
 
     const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'rag');
     let session;
@@ -222,23 +268,26 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       session = await chatSessionsService.upsertChatSession({
         ...lastSession,
         argsFormData,
-        messages: newMessages,
+        messages: allMessages,
         modelParams: params || {},
         functionId,
         modelId,
+        selectedTags,
       }, username);
     } else {
       session = await chatSessionsService.upsertChatSession({
         argsFormData,
-        messages: newMessages,
+        messages: allMessages,
         modelParams: params || {},
         name: LAST_SESSION_NAME,
         type: 'rag',
         workspaceId,
         functionId,
         modelId,
+        selectedTags,
       }, username);
     }
+    // logger.debug('session:', session);
 
     if (isTruthy(stream)) {
       const headers = {
@@ -264,7 +313,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         }
       });
     } else {
-      res.json({ response, responseMetadata });
+      res.json({ completions, lastSession: session });
     }
   });
 
@@ -291,6 +340,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       criterion,
       systemPrompt,
       workspaceId,
+      app,
     } = req.body;
     let models = isCritic ? modelParams.criticModels : modelParams.models;
     if (!models || !models.length) {
@@ -444,7 +494,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
             const features = { content, context };
             const ctxMsgs = getMessages(prompts, features);
 
-            // TODO what is i
+            // TODO what is `i`
             const i = 0;  // temp
             messages.splice(i, 1, ...ctxMsgs);
           }
@@ -538,7 +588,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .addProperty('endTime', endTime.getTime())
         .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
         .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
-        .addProperty('response', completion)
+        .addProperty('response', await convertResponseWithImages(completion))
         .addProperty('success', true)
         ;
       const { provider } = await modelsService.getModelByKey(workspaceId, completion.model);
@@ -565,7 +615,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       .addProperty('endTime', endTime.getTime())
       .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
       .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
-      .addProperty('response', completions)
+      .addProperty('response', await convertResponseWithImages(completions))
       .addProperty('success', true)
       ;
     const traceRecord = tracer.close();
@@ -579,13 +629,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           newMessages[i] = {
             role: message.role,
             content: [],
-            // key: uuid.v4(),
           };
         }
         newMessages[i].content.push({
           model,
           content: message.content,
-          // key: uuid.v4(),
         });
         i += 1;
       }
@@ -597,34 +645,36 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     // to make sure the message used as an argument is also included
     const curMessages = [...history, ...userMessages];
 
-    const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'design');
     let session;
-    if (lastSession) {
-      session = await chatSessionsService.upsertChatSession({
-        ...lastSession,
-        argsFormData: args,
-        messages: [...curMessages, ...newMessages],
-        modelParams,
-        promptSetId,
-        systemPromptInput,
-        critiquePromptSetId,
-        critiquePromptInput,
-        criterion,
-      }, username);
-    } else {
-      session = await chatSessionsService.upsertChatSession({
-        argsFormData: args,
-        messages: [...curMessages, ...newMessages],
-        modelParams,
-        name: LAST_SESSION_NAME,
-        promptSetId,
-        systemPromptInput,
-        critiquePromptSetId,
-        critiquePromptInput,
-        criterion,
-        type: 'design',
-        workspaceId,
-      }, username);
+    if (app === 'promptstore') {
+      const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'design');
+      if (lastSession) {
+        session = await chatSessionsService.upsertChatSession({
+          ...lastSession,
+          argsFormData: args,
+          messages: [...curMessages, ...newMessages],
+          modelParams,
+          promptSetId,
+          systemPromptInput,
+          critiquePromptSetId,
+          critiquePromptInput,
+          criterion,
+        }, username);
+      } else {
+        session = await chatSessionsService.upsertChatSession({
+          argsFormData: args,
+          messages: [...curMessages, ...newMessages],
+          modelParams,
+          name: LAST_SESSION_NAME,
+          promptSetId,
+          systemPromptInput,
+          critiquePromptSetId,
+          critiquePromptInput,
+          criterion,
+          type: 'design',
+          workspaceId,
+        }, username);
+      }
     }
 
     res.json({ completions, lastSession: session, traceId: id, creditBalance });
@@ -666,6 +716,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       return m;
     });
   };
+
+  app.get('/api/providers', auth, (req, res, next) => {
+    const providers = llmService.getAllProviders();
+    res.json(providers);
+  });
 
   app.get('/api/providers/embedding', auth, (req, res, next) => {
     const providers = llmService.getEmbeddingProviders();

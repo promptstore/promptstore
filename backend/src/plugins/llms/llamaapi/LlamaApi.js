@@ -7,7 +7,7 @@ function LlamaApi({ __name, constants, logger }) {
   // The Llama API is OpenAI compatible
   const openai = new OpenAI({
     apiKey: constants.LLAMAAPI_API_KEY,
-    basePath: constants.LLAMAAPI_BASE_PATH,
+    baseURL: constants.LLAMAAPI_BASE_PATH,
   });
 
   async function createChatCompletion(request, retryCount = 0) {

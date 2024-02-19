@@ -12,9 +12,11 @@ import {
 } from '../../components/UserUploadsList';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { slugify } from '../../utils';
 import {
-  createDataSourceAsync,
+  getDataSourceAsync,
   selectDataSources,
+  updateDataSourceAsync,
 } from '../dataSources/dataSourcesSlice';
 import {
   getFunctionResponseAsync as getChatResponseAsync,
@@ -77,7 +79,7 @@ export function AppChat() {
   const sourceUploads = uploads[id] || [];
   const isIndexing = Object.values(indexing).some(v => v);
 
-  // console.log('app:', app);
+  console.log('app:', app);
   // console.log('sourceUploads:', sourceUploads);
   // console.log('dataSources:', dataSources);
 
@@ -92,7 +94,12 @@ export function AppChat() {
         createLink: null,
         title: app?.name,
       }));
-      dispatch(getFunctionAsync(app.function));
+      if (app.function) {
+        dispatch(getFunctionAsync(app.function));
+      }
+      if (app.dataSourceId) {
+        dispatch(getDataSourceAsync(app.dataSourceId));
+      }
     }
   }, [app]);
 
@@ -105,34 +112,73 @@ export function AppChat() {
   useEffect(() => {
     const upload = sourceUploads.find(u => u.filename === uploadedFilename);
     if (upload) {
-      const { filename, id } = upload;
-      createSource({ filename, id });
+      const workspaceId = selectedWorkspace.id;
+      const dataSourceId = app.dataSourceId;
+      const dataSource = dataSources[dataSourceId];
+      const documents = dataSource.documents || [];
+
+      dispatch(updateDataSourceAsync({
+        id: dataSourceId,
+        values: {
+          documents: [...new Set([...documents, upload.id])],
+        },
+      }));
+
+      const indexId = app.indexes?.[0] || 'new';
+      const params = {
+        indexId,
+        embeddingModel: 'sentenceencoder',
+        vectorStoreProvider: 'chroma',
+        bucket: 'promptstore',
+        prefix: [workspaceId, 'documents', 'apps', app.id].join('/'),
+        recursive: true,
+      };
+      if (indexId === 'new') {
+        params.newIndexName = snakeCase(app.name);
+      }
+      dispatch(indexDocumentAsync({
+        appId: app.id,
+        dataSourceId,
+        params,
+        workspaceId,
+      }));
+      // setCorrelationId((curr) => ({ ...curr, [uploadId]: null }));
+
       setUploadedFilename(null);
     }
   }, [sourceUploads]);
 
-  useEffect(() => {
-    for (const source of Object.values(dataSources)) {
-      const entry = Object.entries(correlationId)
-        .find(([_, correlationId]) => correlationId === source.correlationId);
-      if (entry) {
-        const uploadId = entry[0];
-        dispatch(indexDocumentAsync({
-          appId: id,
-          dataSourceId: source.id,
-          documents: source.documents,
-          params: {
-            indexId: 'new',
-            newIndexName: snakeCase(app.name),
-            embeddingProvider: 'sentenceencoder',
-            vectorStoreProvider: 'chroma',
-          },
-          workspaceId: selectedWorkspace.id,
-        }));
-        setCorrelationId((curr) => ({ ...curr, [uploadId]: null }));
-      }
-    }
-  }, [dataSources]);
+  // useEffect(() => {
+  //   const upload = sourceUploads.find(u => u.filename === uploadedFilename);
+  //   if (upload) {
+  //     const { filename, id } = upload;
+  //     createSource({ filename, id });
+  //     setUploadedFilename(null);
+  //   }
+  // }, [sourceUploads]);
+
+  // useEffect(() => {
+  //   for (const source of Object.values(dataSources)) {
+  //     const entry = Object.entries(correlationId)
+  //       .find(([_, correlationId]) => correlationId === source.correlationId);
+  //     if (entry) {
+  //       const uploadId = entry[0];
+  //       dispatch(indexDocumentAsync({
+  //         appId: id,
+  //         dataSourceId: source.id,
+  //         documents: source.documents,
+  //         params: {
+  //           indexId: 'new',
+  //           newIndexName: snakeCase(app.name),
+  //           embeddingModel: 'sentenceencoder',
+  //           vectorStoreProvider: 'chroma',
+  //         },
+  //         workspaceId: selectedWorkspace.id,
+  //       }));
+  //       setCorrelationId((curr) => ({ ...curr, [uploadId]: null }));
+  //     }
+  //   }
+  // }, [dataSources]);
 
   useEffect(() => {
     if (location.state && location.state.message) {
@@ -143,30 +189,30 @@ export function AppChat() {
     }
   }, [location]);
 
-  const createSource = (record) => {
-    const { filename, id } = record;
-    const re = /(?:\.([^.]+))?$/;
-    const name = filename.replace(re, '');
-    const ext = re.exec(filename)[1];
-    const values = {
-      name,
-      type: 'document',
-      documentType: ext,
-      documents: [id],
-      workspaceId: selectedWorkspace.id,
-    };
-    const correlationId = uuidv4();
-    dispatch(createDataSourceAsync({
-      correlationId,
-      appId: app.id,
-      uploadId: id,
-      values,
-    }));
-    setCorrelationId((curr) => ({
-      ...curr,
-      [id]: correlationId,
-    }));
-  };
+  // const createSource = (record) => {
+  //   const { filename, id } = record;
+  //   const re = /(?:\.([^.]+))?$/;
+  //   const name = filename.replace(re, '');
+  //   const ext = re.exec(filename)[1];
+  //   const values = {
+  //     name,
+  //     type: 'document',
+  //     documentType: ext,
+  //     documents: [id],
+  //     workspaceId: selectedWorkspace.id,
+  //   };
+  //   const correlationId = uuidv4();
+  //   dispatch(createDataSourceAsync({
+  //     correlationId,
+  //     appId: app.id,
+  //     uploadId: id,
+  //     values,
+  //   }));
+  //   setCorrelationId((curr) => ({
+  //     ...curr,
+  //     [id]: correlationId,
+  //   }));
+  // };
 
   const handleChatSubmit = (values) => {
     const { messages } = values;
@@ -176,7 +222,7 @@ export function AppChat() {
       functionName: func.name,
       args,
       history: messages.slice(0, messages.length - 1),
-      params: {},
+      params: { maxTokens: 1024 },
       workspaceId: selectedWorkspace.id,
       extraIndexes: app.indexes,
     }));

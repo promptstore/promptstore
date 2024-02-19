@@ -1,5 +1,6 @@
 // https://github.com/polymath-ai/polymath-ai/blob/main/seeds/playground/schemish.MD
 import { Validator } from 'jsonschema';
+
 import type { Schema } from 'jsonschema';
 
 export type JSONValue =

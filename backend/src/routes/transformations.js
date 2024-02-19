@@ -3,6 +3,7 @@ import camelCase from 'lodash.camelcase';
 
 import { getDestinationSchema } from '../core/conversions/schema';
 import searchFunctions from '../searchFunctions';
+import { hasValue } from '../utils';
 import { Indexer } from '../core/indexers/Indexer';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
@@ -49,7 +50,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/transformations', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
+    let values = req.body;
     const {
       indexName,
       name,
@@ -83,22 +84,23 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       });
       indexId = index.id;
     }
-
-    let scheduleId;
-    if (values.schedule) {
-      scheduleId = await workflowClient.scheduleTransformation(values, workspaceId, username, {
-        address: constants.TEMPORAL_URL,
-      });
-    }
-
-    const tx = {
+    values = {
       ...values,
       embeddingProvider: embeddingModel.provider,
       indexId,
-      scheduleId,
-      scheduleStatus: 'running',
     };
-    const transformation = await transformationsService.upsertTransformation(tx, username);
+    let transformation = await transformationsService.upsertTransformation(values, username);
+    if (hasValue(values.schedule)) {
+      const scheduleId = await workflowClient.scheduleTransformation(transformation, workspaceId, username, {
+        address: constants.TEMPORAL_URL,
+      });
+      values = {
+        ...transformation,
+        scheduleId,
+        scheduleStatus: 'running',
+      };
+      transformation = await transformationsService.upsertTransformation(values, username);
+    }
     const obj = createSearchableObject(transformation);
     await indexObject(obj);
     res.json(transformation);
@@ -107,7 +109,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.put('/api/transformations/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
-    const values = req.body;
+    let transformation = transformationsService.getTransformation(id);
+    let values = { ...transformation, ...req.body };
     const {
       name,
       indexName,
@@ -119,7 +122,6 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       provider: model.provider,
       model: model.key,
     };
-
 
     let indexId = values.indexId;
     // create index if new
@@ -143,16 +145,27 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       indexId = index.id;
     }
 
-    let scheduleId;
-    if (values.schedule) {
-      logger.debug('scheduling transformation:', values);
-      scheduleId = await workflowClient.scheduleTransformation(values, workspaceId, username, {
-        address: constants.TEMPORAL_URL,
-      });
+    if (values.scheduleStatus !== 'paused') {
+      if (hasValue(values.schedule)) {
+        logger.debug('scheduling transformation:', values);
+        if (values.scheduleId) {
+          await workflowClient.deleteSchedule(values.scheduleId, {
+            address: constants.TEMPORAL_URL,
+          });
+        }
+        const scheduleId = await workflowClient.scheduleTransformation(values, workspaceId, username, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId, scheduleStatus: 'running' };
+      } else if (values.scheduleId) {
+        await workflowClient.deleteSchedule(values.scheduleId, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId: null, scheduleStatus: null };
+      }
     }
 
-    const tx = { ...values, id, indexId, scheduleId };
-    const transformation = await transformationsService.upsertTransformation(tx, username);
+    transformation = await transformationsService.upsertTransformation(values, username);
     const obj = createSearchableObject(transformation);
     await indexObject(obj);
     res.json(transformation);

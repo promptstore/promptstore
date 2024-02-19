@@ -171,6 +171,10 @@ li img {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.navbar-title {
+  white-space: nowrap;
+}
+
 .light .navbar-title {
   color: rgb(51, 51, 51);
 }
@@ -260,18 +264,25 @@ li img {
 
 
 .react-flow .react-flow__handle {
-  width: 30px;
+  /* width: 30px;
   height: 14px;
   border-radius: 3px;
-  background-color: #784be8;
+  background-color: #784be8; */
+  width: 10px;
+  height: 5px;
+  border: none;
+  border-radius: 0;
+  background-color: #778899;
 }
 
 .react-flow .react-flow__handle-top {
-  top: -10px;
+  /* top: -10px; */
+  top: -5px;
 }
 
 .react-flow .react-flow__handle-bottom {
-  bottom: -10px;
+  /* bottom: -10px; */
+  bottom: -5px;
 }
 
 .react-flow .react-flow__node {
@@ -294,12 +305,20 @@ li img {
 
 
 .react-flow__node-compositionNode,
+.react-flow__node-sourceNode,
 .react-flow__node-functionNode,
+.react-flow__node-indexNode,
 .react-flow__node-joinerNode,
 .react-flow__node-mapperNode,
 .react-flow__node-outputNode,
 .react-flow__node-requestNode,
-.react-flow__node-toolNode {
+.react-flow__node-toolNode,
+.react-flow__node-modelNode,
+.react-flow__node-promptSetNode,
+.react-flow__node-scheduleNode,
+.react-flow__node-semanticSearchNode,
+.react-flow__node-dataSourceNode,
+.react-flow__node-documentNode {
   font-size: 10px;
   width: 180px;
   background: #f5f5f6;
@@ -308,14 +327,30 @@ li img {
   border-radius: 2px;
 }
 
-.react-flow__node .react-flow__handle,
+.react-flow__node-modelNode,
+.react-flow__node-promptSetNode,
+.react-flow__node-semanticSearchNode,
+.react-flow__node-dataSourceNode,
+.react-flow__node-documentNode {
+  font-size: 12px;
+}
+
 .react-flow__node-compositionNode .react-flow__handle,
+.react-flow__node-sourceNode .react-flow__handle,
 .react-flow__node-functionNode .react-flow__handle,
+.react-flow__node-indexNode .react-flow__handle,
 .react-flow__node-joinerNode .react-flow__handle,
 .react-flow__node-mapperNode .react-flow__handle,
 .react-flow__node-outputNode .react-flow__handle,
 .react-flow__node-requestNode .react-flow__handle,
-.react-flow__node-toolNode .react-flow__handle {
+.react-flow__node-toolNode .react-flow__handle,
+.react-flow__node-modelNode .react-flow__handle,
+.react-flow__node-promptSetNode .react-flow__handle,
+.react-flow__node-scheduleNode .react-flow__handle,
+.react-flow__node-semanticSearchNode .react-flow__handle,
+.react-flow__node-dataSourceNode .react-flow__handle,
+.react-flow__node-documentNode .react-flow__handle,
+.react-flow__node-binNode .react-flow__handle {
   width: 5px;
   height: 8px;
   border: none;
@@ -323,33 +358,36 @@ li img {
   background-color: #778899;
 }
 
-/* .react-flow__node-mapperNode .react-flow__handle {
-  top: 24px;
-} */
-
-/* .react-flow__node-functionNode .react-flow__handle-left,
-.react-flow__node-mapperNode .react-flow__handle-left {
-  left: -15px;
-} */
-
 .react-flow__node-compositionNode .react-flow__handle-left,
+.react-flow__node-sourceNode .react-flow__handle-left,
 .react-flow__node-functionNode .react-flow__handle-left,
+.react-flow__node-indexNode .react-flow__handle-left,
+.react-flow__node-requestNode .react-flow__handle-left,
 .react-flow__node-toolNode .react-flow__handle-left {
   left: -15px;
 }
 
-/* .react-flow__node-functionNode .react-flow__handle-right,
-.react-flow__node-requestNode .react-flow__handle-right,
-.react-flow__node-mapperNode .react-flow__handle-right {
-  right: -15px;
-} */
-
+.react-flow__node-joinerNode .react-flow__handle-left,
+.react-flow__node-mapperNode .react-flow__handle-left,
+.react-flow__node-outputNode .react-flow__handle-left,
+.react-flow__node-scheduleNode .react-flow__handle-left {
+  left: -5px;
+}
 
 .react-flow__node-compositionNode .react-flow__handle-right,
+.react-flow__node-sourceNode .react-flow__handle-right,
 .react-flow__node-functionNode .react-flow__handle-right,
+.react-flow__node-indexNode .react-flow__handle-right,
+.react-flow__node-outputNode .react-flow__handle-right,
 .react-flow__node-requestNode .react-flow__handle-right,
 .react-flow__node-toolNode .react-flow__handle-right {
   right: -15px;
+}
+
+.react-flow__node-joinerNode .react-flow__handle-right,
+.react-flow__node-mapperNode .react-flow__handle-right,
+.react-flow__node-scheduleNode .react-flow__handle-right {
+  right: -5px;
 }
 
 .custom-node__header {
@@ -991,4 +1029,46 @@ article.collapsible .panel.closed {
 
 .ant-form.eval-form .ant-form-item:last-child {
   margin-bottom: 0;
+}
+
+.folders .heading-wrapper {
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding-top: 1px;
+}
+
+.heading-wrapper .heading {
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 0 28px;
+}
+
+.folders .ant-tree-title .ant-typography {
+  max-width: 118px;
+}
+
+.folders .ant-tree {
+  border-radius: 0 0 8px 8px;
+  width: 150px;
+}
+
+.folders .ant-tree .ant-tree-switcher-noop {
+  width: 0;
+}
+
+.ant-menu-light.ant-menu-root.ant-menu-vertical {
+  border-inline-end: 0;
+}
+
+.custom-node__header a {
+  color: #1677ff;
+}
+
+.custom-node__header a:hover,
+.custom-node__header a:active {
+  color: #69b1ff;
 }

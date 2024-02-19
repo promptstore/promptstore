@@ -1,6 +1,6 @@
 import { proxyActivities } from '@temporalio/workflow';
 
-const { evaluate, index, logCall, reload, transform, upload } = proxyActivities({
+const { evaluate, executeComposition, index, logCall, reload, transform, upload } = proxyActivities({
   scheduleToCloseTimeout: '20m',
   startToCloseTimeout: '10m',
   retry: {
@@ -8,26 +8,30 @@ const { evaluate, index, logCall, reload, transform, upload } = proxyActivities(
   }
 });
 
-export async function evaluates(evaluation, workspaceId, username) {
-  return await evaluate(evaluation, workspaceId, username);
+export function evaluates(evaluation, workspaceId, username) {
+  return evaluate(evaluation, workspaceId, username);
 }
 
-export async function indexs(params, loaderProvider, extractorProviders) {
-  return await index(params, loaderProvider, extractorProviders);
+export function executeCompositions(params) {
+  return executeComposition(params);
 }
 
-export async function logCalls(params) {
-  return await logCall(params);
+export function indexs(params, loaderProvider, extractorProviders) {
+  return index(params, loaderProvider, extractorProviders);
 }
 
-export async function transforms(transformation, workspaceId, username) {
-  return await transform(transformation, workspaceId, username);
+export function logCalls(params) {
+  return logCall(params);
 }
 
-export async function uploads(file, workspaceId, appId, username, constants) {
-  return await upload(file, workspaceId, appId, username, constants);
+export function transforms(transformation, workspaceId, username) {
+  return transform(transformation, workspaceId, username);
 }
 
-export async function reloads(file, workspaceId, username, uploadId) {
-  return await reload(file, workspaceId, username, uploadId);
+export function uploads(file, workspaceId, appId, username, constants) {
+  return upload(file, workspaceId, appId, username, constants);
+}
+
+export function reloads(file, workspaceId, username, uploadId) {
+  return reload(file, workspaceId, username, uploadId);
 }

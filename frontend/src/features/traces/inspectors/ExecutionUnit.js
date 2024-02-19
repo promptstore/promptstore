@@ -15,8 +15,11 @@ export function ExecutionUnit({ step, title }) {
       </Descriptions.Item>
       {step.type === 'call-implementation' ?
         <>
+          <Descriptions.Item label="provider" span={1}>
+            {step.implementation.model.provider}
+          </Descriptions.Item>
           <Descriptions.Item label="model" span={1}>
-            {step.implementation.model}
+            {step.implementation.model.model}
           </Descriptions.Item>
           <Descriptions.Item label="params" span={2}>
             <JsonView src={step.implementation.modelParams} />

@@ -54,9 +54,11 @@ export function TransformationsService({ pg, logger }) {
     if (transformation === null || typeof transformation === 'undefined') {
       return null;
     }
-    const val = omit(transformation, ['id', 'workspaceId', 'dataSourceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'dataSourceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedTransformation = await getTransformation(transformation.id);
     if (savedTransformation) {
+      transformation = { ...savedTransformation, ...transformation };
+      const val = omit(transformation, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE transformations
@@ -67,7 +69,9 @@ export function TransformationsService({ pg, logger }) {
         [transformation.name, transformation.dataSourceId, val, transformation.id, modified, transformation.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(transformation, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO transformations (workspace_id, data_source_id, name, val, created_by, created, modified_by, modified)

@@ -5,12 +5,18 @@ import { Button, Col, Descriptions, Drawer, Row, Tree } from 'antd';
 import { DownloadOutlined, DownOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
-import ReactFlow, { ReactFlowProvider } from 'reactflow';
+import ReactFlow, { Controls, ReactFlowProvider } from 'reactflow';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 
 import { Governance } from './Governance';
+import BinNode from './BinNode';
+import DataSourceNode from './DataSourceNode';
+import DocumentNode from './DocumentNode';
+import ModelNode from './ModelNode';
+import PromptSetNode from './PromptSetNode';
+import SemanticSearchNode from './SemanticSearchNode';
 import { Status } from './Status';
 import { Inspector } from './inspectors';
 import {
@@ -24,20 +30,36 @@ const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 const nodeProps = {
   sourcePosition: 'right',
   targetPosition: 'left',
-  style: { width: 200 },
+  style: { width: 200, height: 75 },
 };
 
+const binNodeProps = {
+  sourcePosition: 'none',
+  targetPosition: 'none',
+  type: 'binNode',
+};
+
+const nodeTypes = {
+  binNode: BinNode,
+  dataSourceNode: DataSourceNode,
+  documentNode: DocumentNode,
+  modelNode: ModelNode,
+  promptSetNode: PromptSetNode,
+  semanticSearchNode: SemanticSearchNode,
+};
+
+const proOptions = { hideAttribution: true };
+
 const reactFlowProps = {
-  panOnDrag: false,
-  panOnScroll: false,
+  panOnDrag: true,
+  panOnScroll: true,
+  panOnScrollMode: 'horizontal',
   zoomOnScroll: false,
   zoomOnPinch: false,
   zoomOnDoubleClick: false,
   nodesDraggable: false,
   nodesConnectable: false,
 };
-
-const proOptions = { hideAttribution: true };
 
 export function TraceView() {
 
@@ -126,64 +148,159 @@ export function TraceView() {
     }
   }, [trace]);
 
+  const addNodes = (nodes, edges, x, y, traces, parentNode) => {
+    let i = 1;
+    let prior;
+    for (const trace of traces) {
+      let node;
+      if (trace.type === 'call-prompt-template') {
+        node = {
+          ...nodeProps,
+          id: trace.id,
+          data: {
+            label: trace.type,
+            promptSetId: trace.promptSetId,
+            promptSetName: trace.promptSetName,
+          },
+          position: { x, y },
+          type: 'promptSetNode',
+        };
+        x += 250;
+      } else if (trace.type === 'call-model') {
+        node = {
+          ...nodeProps,
+          id: trace.id,
+          data: {
+            label: trace.type,
+            modelId: trace.modelId,
+            modelName: trace.modelName,
+          },
+          position: { x, y },
+          type: 'modelNode',
+        };
+        x += 250;
+      } else if (trace.type === 'semantic-search-enrichment') {
+        node = {
+          ...nodeProps,
+          id: trace.id,
+          data: {
+            label: trace.type,
+            index: trace.index,
+          },
+          position: { x, y },
+          type: 'semanticSearchNode',
+        };
+        let j = 100;
+        for (const [k, v] of Object.entries(trace.sources)) {
+          const id = `${trace.id}-${v.dataSourceId}`;
+          const nd = {
+            ...nodeProps,
+            id,
+            data: {
+              label: 'data-source',
+              dataSourceId: v.dataSourceId,
+              dataSourceName: v.dataSourceName,
+              hits: v.hits,
+              indexName: trace.index.name,
+              vectorStoreProvider: trace.index.params.vectorStoreProvider,
+            },
+            position: { x: x - 250, y: y + j },
+            type: 'dataSourceNode',
+          };
+          nodes.push(nd);
+          edges.push({
+            id: `${id}-${trace.id}`,
+            source: id,
+            target: trace.id,
+          });
+          if (v.uploads) {
+            for (const [key, doc] of Object.entries(v.uploads)) {
+              const docId = `${trace.id}-${v.dataSourceId}-${key}`;
+              const nd = {
+                ...nodeProps,
+                id: docId,
+                data: {
+                  label: 'document',
+                  uploadId: doc.uploadId,
+                  objectName: doc.objectName,
+                },
+                position: { x: x - 500, y: y + j },
+                type: 'documentNode',
+              };
+              nodes.push(nd);
+              edges.push({
+                id: `${docId}-${id}`,
+                source: docId,
+                target: id,
+              });
+              j += 100;
+            }
+          } else {
+            j += 100;
+          }
+        }
+        x += 250;
+      } else if (trace.type === 'batch-bin') {
+        const id = 'bin-' + i;
+        const size = trace.subNodes.length;
+        const nd = {
+          ...binNodeProps,
+          id,
+          data: {
+            label: 'batch-bin-' + i,
+          },
+          position: { x, y },
+          targetPosition: 'left',
+          style: { background: 'none', width: size * 250, height: 140 },
+        };
+        nodes.push(nd);
+        if (prior) {
+          edges.push({
+            id: `${prior.id}-${id}`,
+            source: prior.id,
+            target: id,
+          });
+        }
+        prior = null;
+        const ret = addNodes(nodes, edges, 25, 40, trace.subNodes, id);
+        prior = ret.prior;
+        i += 1;
+        x += size * 250 + 25;
+      }
+      if (node) {
+        if (parentNode) {
+          node = { ...node, parentNode };
+        }
+        nodes.push(node);
+        if (prior) {
+          edges.push({
+            id: `${prior.id}-${node.id}`,
+            source: prior.id,
+            target: node.id,
+          });
+        }
+        prior = node;
+      }
+    }
+    return { prior };
+  }
+
   const graph = useMemo(() => {
     if (trace) {
       const nodes = [];
       const edges = [];
-      let x = 0;
-      let y = 0;
-      let prior;
-      const enrichmentPipeline = getNode(trace.trace[0], 'enrichment-pipeline');
-      // console.log('enrichmentPipeline:', enrichmentPipeline);
-      if (enrichmentPipeline) {
-        for (const step of enrichmentPipeline.children) {
-          const node = {
-            id: step.id,
-            data: {
-              label: step.type,
-            },
-            position: { x, y },
-            ...nodeProps,
-          };
-          if (x === 0) {
-            node.type = 'input';
-          }
-          nodes.push(node);
-          if (prior) {
-            edges.push({
-              id: `${prior.id}-${step.id}`,
-              source: prior.id,
-              target: step.id,
-            });
-          }
-          prior = node;
-          x += 250;
-        }
-      }
-      const callModel = getNode(trace.trace[0], 'call-model');
-      if (callModel) {
-        const node = {
-          id: callModel.id,
-          data: {
-            label: callModel.type,
-          },
-          position: { x, y },
-          type: 'output',
-          ...nodeProps,
-        };
-        nodes.push(node);
-        if (prior) {
-          edges.push({
-            id: `${prior.id}-${callModel.id}`,
-            source: prior.id,
-            target: callModel.id,
-          });
-        }
-        prior = node;
-        x += 250;
-      }
+      const traces = [];
+      getNodes(traces, trace.trace[0], [
+        'batch-bin',
+        'call-model',
+        'call-prompt-template',
+        'semantic-search-enrichment',
+      ]);
+      addNodes(nodes, edges, 25, 0, traces);
+
       return { nodes, edges };
     }
+
     return { nodes: [], edges: [] };
   }, [trace]);
 
@@ -304,8 +421,11 @@ export function TraceView() {
             nodes={graph.nodes}
             edges={graph.edges}
             onNodeClick={handleNodeClick}
+            nodeTypes={nodeTypes}
             proOptions={proOptions}
-          />
+          >
+            <Controls position="bottom-right" />
+          </ReactFlow>
         </ReactFlowProvider>
       </Drawer>
     </>
@@ -322,4 +442,20 @@ const getNode = (trace, type) => {
     if (node) return node;
   }
   return null;
+}
+
+const getNodes = (accum, trace, types) => {
+  let acc = [];
+  const children = trace.children || [];
+  for (const child of children) {
+    getNodes(acc, child, types);
+  }
+  if (trace.type === 'batch-bin') {
+    accum.push({ ...trace, subNodes: acc });
+  } else {
+    if (types.includes(trace.type)) {
+      accum.push(trace);
+    }
+    accum.push(...acc);
+  }
 }

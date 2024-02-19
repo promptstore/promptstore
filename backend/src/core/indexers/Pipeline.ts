@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import logger from '../../logger';
 import { getExtension } from '../../utils';
@@ -8,7 +8,12 @@ import { Document } from './Document';
 import {
   ExtendedDocument,
   Extractor,
-  ExtractorParams,
+  CsvExtractorParams,
+  JsonExtractorParams,
+  Neo4jExtractorParams,
+  OnesourceExtractorParams,
+  TextExtractorParams,
+  UnstructuredExtractorParams,
   ExtractorService,
 } from './Extractor';
 import {
@@ -47,7 +52,12 @@ interface DocumentsParams {
 type RunParams = ApiLoaderParams
   & MinioLoaderParams
   & WikipediaLoaderParams
-  & ExtractorParams
+  & CsvExtractorParams
+  & JsonExtractorParams
+  & Neo4jExtractorParams
+  & OnesourceExtractorParams
+  & TextExtractorParams
+  & UnstructuredExtractorParams
   & IndexParams
   & GraphStoreIndexParams
   & AddChunksParams
@@ -57,8 +67,9 @@ export class Pipeline {
 
   private executionsService: any;
   private extractorService: ExtractorService;
-  private indexesService: any;
+  private functionsService: any;
   private graphStoreService: GraphStoreService;
+  private indexesService: any;
   private llmService: LLMService;
   private loaderService: LoaderService;
   private vectorStoreService: VectorStoreService;
@@ -73,8 +84,9 @@ export class Pipeline {
   constructor({
     executionsService,
     extractorService,
-    indexesService,
+    functionsService,
     graphStoreService,
+    indexesService,
     llmService,
     loaderService,
     vectorStoreService,
@@ -87,8 +99,9 @@ export class Pipeline {
   }) {
     this.executionsService = executionsService;
     this.extractorService = extractorService;
-    this.indexesService = indexesService;
+    this.functionsService = functionsService;
     this.graphStoreService = graphStoreService;
+    this.indexesService = indexesService;
     this.llmService = llmService;
     this.loaderService = loaderService;
     this.vectorStoreService = vectorStoreService;
@@ -191,8 +204,84 @@ export class Pipeline {
   }
 
   async extractAndIndex(documents: Document[], params: RunParams, extractor: Extractor, index?: any, suffix?: string) {
+    const { workspaceId, username } = params;
+
     // Extract
-    const chunks = await extractor.getChunks(documents, params);
+    const rawChunks = await extractor.getChunks(documents, params);
+    // logger.debug('raw chunks:', rawChunks);
+
+    let chunks = [];
+    if (params.rephraseFunctionIds?.length) {
+      const texts = rawChunks.map(c => c.text);
+      const outputFormatter = {
+        name: 'output_formatter',
+        description: 'Output as JSON. Should always be used to format your response to the user.',
+        parameters: {
+          type: 'object',
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'integer',
+                    desciption: 'unique index of result',
+                  },
+                  rephrased_result: {
+                    description: 'rephrased content',
+                    type: 'string',
+                  },
+                }
+              }
+            }
+          },
+          required: ['results'],
+        },
+      };
+      const functions = [outputFormatter];
+      const extraSystemPrompt = `Process each of the provided text items and return the results as a JSON list of objects using the output_formatter.`;
+      const args = { content: texts };
+      // logger.debug('args:', args);
+      for (const functionId of params.rephraseFunctionIds) {
+        const func = await this.functionsService.getFunction(functionId);
+        const { errors, response } = await this.executionsService.executeFunction({
+          workspaceId,
+          username,
+          batch: true,
+          func,
+          args,
+          extraSystemPrompt,
+
+          // TODO
+          params: { maxTokens: 4096 },
+
+          functions,
+          options: {
+            batchResultKey: 'rephrased_result',
+            contentProp: 'content',
+            maxTokensRelativeToContextWindow: 0.5,
+          },
+        });
+        if (errors) {
+          logger.error('Error calling function "%s":', func.name, errors);
+          return { errors };
+        }
+        const serializedJson = response.choices[0].message.function_call.arguments;
+        const json = JSON.parse(serializedJson);
+        logger.debug('json:', json);
+        let i = 0;
+        for (const chunk of rawChunks) {
+          chunks.push({
+            ...chunk,
+            text: json[i],
+          });
+          i += 1;
+        }
+      }
+    } else {
+      chunks = rawChunks;
+    }
     // logger.debug('chunks:', chunks);
 
     logger.debug('Indexing %d chunks', chunks.length);
@@ -200,7 +289,7 @@ export class Pipeline {
     // Index to Vector Store or Graph Store
 
     // `schema` required only for new index
-    let schema: JSONSchema7;
+    let schema: Schema;
     if (!params.index && params.indexId === 'new') {
       schema = await extractor.getSchema(params);
     }

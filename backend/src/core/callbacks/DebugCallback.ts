@@ -61,7 +61,11 @@ import { Callback } from './Callback';
 
 export class DebugCallback extends Callback {
 
-  onCompositionStart({ name, args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
+  clone() {
+    return this;
+  }
+
+  onCompositionStart({ name, args, model, modelParams, isBatch }: CompositionOnStartResponse) {
     logger.debug('start composition', name);
   }
 
@@ -73,7 +77,7 @@ export class DebugCallback extends Callback {
     logger.error(errors);
   }
 
-  onSemanticFunctionStart({ name, args, history, modelKey, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
+  onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
     logger.debug('start function', name);
     logger.debug('batch:', isBatch ? 'true' : 'false');
     let input: any;
@@ -81,7 +85,7 @@ export class DebugCallback extends Callback {
       input = args?.length ? args[0] : args;
     }
     logger.debug('input:', input);
-    logger.debug('model:', modelKey, modelParams);
+    logger.debug('model:', model, modelParams);
     logger.debug('history:', history);
   }
 
@@ -141,12 +145,12 @@ export class DebugCallback extends Callback {
     logger.debug('selected experiment:', implementation);
   }
 
-  onSemanticFunctionImplementationStart({ args, history, modelType, modelKey, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
-    logger.debug('start implementation', modelKey);
+  onSemanticFunctionImplementationStart({ args, history, modelType, model, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
+    logger.debug('start implementation', model.model);
   }
 
-  onSemanticFunctionImplementationEnd({ modelKey, response, errors }: SemanticFunctionImplementationOnEndResponse) {
-    logger.debug('end implementation', modelKey);
+  onSemanticFunctionImplementationEnd({ model, response, errors }: SemanticFunctionImplementationOnEndResponse) {
+    logger.debug('end implementation', model.model);
   }
 
   onSemanticFunctionImplementationError(errors: any) {
@@ -182,15 +186,15 @@ export class DebugCallback extends Callback {
     logger.debug('start enrichment from index', index.name);
   }
 
-  onSemanticSearchEnrichmentEnd({ index, enrichedArgs, errors }: SemanticSearchEnrichmentOnEndResponse) {
-    logger.debug('end enrichment from index', index.name);
+  onSemanticSearchEnrichmentEnd({ enrichedArgs, errors }: SemanticSearchEnrichmentOnEndResponse) {
+    logger.debug('end enrichment');
   }
 
   onSemanticSearchEnrichmentError(errors: any) {
     logger.error(errors);
   }
 
-  onFunctionEnrichmentStart({ args, functionName, modelKey, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
+  onFunctionEnrichmentStart({ args, functionName, model, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
     logger.debug('start function enrichment', functionName);
   }
 
@@ -266,8 +270,8 @@ export class DebugCallback extends Callback {
     logger.debug('cache hit:', hit ? 'Yes' : 'No');
   }
 
-  onModelEnd({ model, response, errors }: ModelOnEndResponse) {
-    logger.debug('end model:', model);
+  onModelEnd({ response, errors }: ModelOnEndResponse) {
+    logger.debug('end model:', response.model);
     logger.debug('output:', response);
   }
 
@@ -287,8 +291,8 @@ export class DebugCallback extends Callback {
     logger.debug('messages:', prompt.messages);
   }
 
-  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
-    logger.debug('end completion model:', model);
+  onCompletionModelEnd({ response, errors }: ModelOnEndResponse) {
+    logger.debug('end completion model:', response.model);
     logger.debug('output:', response);
   }
 

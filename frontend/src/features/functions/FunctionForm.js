@@ -314,7 +314,7 @@ export function FunctionForm() {
       dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
-      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId }));
+      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
     }
   }, [selectedWorkspace]);
 

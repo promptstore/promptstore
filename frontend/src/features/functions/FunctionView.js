@@ -311,17 +311,17 @@ export function FunctionView() {
               type: sources.length ? 'default' : 'input',
               ...nodeProps,
             });
-          }
-          if (sources.length) {
-            for (const source of sources) {
-              eds.push({
-                id: `${source}-${id}`,
-                source,
-                target: id,
-              });
+            if (sources.length) {
+              for (const source of sources) {
+                eds.push({
+                  id: `${source}-${id}`,
+                  source,
+                  target: id,
+                });
+              }
+              sources.length = 0;
+              sources.push(id)
             }
-            sources.length = 0;
-            sources.push(id)
           }
         }
         if (impl.outputGuardrails?.length) {

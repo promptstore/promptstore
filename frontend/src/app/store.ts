@@ -6,6 +6,7 @@ import appsReducer from '../features/apps/appsSlice';
 import authReducer from '../authSlice';
 import chatReducer from '../features/designer/chatSlice';
 import chatSessionsReducer from '../features/designer/chatSessionsSlice';
+import chunksReducer from '../features/indexes/chunksSlice';
 import compositionsReducer from '../features/composer/compositionsSlice';
 import contentReducer from '../features/apps/Playground/contentSlice';
 import dataSourcesReducer from '../features/dataSources/dataSourcesSlice';
@@ -43,6 +44,7 @@ export const store = configureStore({
     auth: authReducer,
     chat: chatReducer,
     chatSessions: chatSessionsReducer,
+    chunks: chunksReducer,
     compositions: compositionsReducer,
     content: contentReducer,
     dataSources: dataSourcesReducer,

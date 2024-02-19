@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import logger from '../../logger';
 
@@ -16,7 +16,7 @@ export interface IndexParams {
   indexId: string;
   newIndexName: string;
   index: any;
-  schema: JSONSchema7;
+  schema: Schema;
   maxTokens: number;
   nodeLabel: string;
   embeddingNodeProperty: string;

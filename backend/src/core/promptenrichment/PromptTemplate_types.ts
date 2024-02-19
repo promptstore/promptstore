@@ -5,6 +5,8 @@ import { Message } from '../conversions/RosettaStone';
 export type TemplateFiller = (content: string, args: object) => string;
 
 export interface PromptTemplateOnStartResponse {
+  promptSetId: number;
+  promptSetName: string;
   args: any;
   isBatch: boolean;
   messageTemplates: Message[];
@@ -27,6 +29,8 @@ export type PromptTemplateOnEndCallbackFunction = (params: PromptTemplateOnEndRe
 export type PromptTemplateOnErrorCallbackFunction = (errors: any) => void;
 
 export interface PromptTemplateParams {
+  promptSetId: number;
+  promptSetName: string;
   messages: Message[];
   schema?: object;
   templateEngine?: string;
@@ -40,7 +44,8 @@ export interface PromptTemplateCallParams {
   isBatch: boolean;
   messages?: Message[];
   contextWindow: number;
+  maxOutputTokens?: number;
   maxTokens: number;
-  modelKey: string;
+  model: string;
   callbacks?: Callback[];
 }

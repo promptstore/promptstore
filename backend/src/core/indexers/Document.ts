@@ -1,6 +1,7 @@
 export interface DocumentParams {
   dataSourceId: number;
   dataSourceName: string;
+  uploadId: number;
   filepath: string;
   filename: string;
   endpoint: string;
@@ -18,6 +19,7 @@ export class Document {
 
   dataSourceId: number;
   dataSourceName: string;
+  uploadId: number;
   filepath: string;
   filename: string;
   endpoint: string;

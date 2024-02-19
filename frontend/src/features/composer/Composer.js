@@ -34,11 +34,14 @@ import {
 } from '../composer/compositionsSlice';
 
 import CompositionNode from './CompositionNode';
+import DataSourceNode from './DataSourceNode';
 import FunctionNode from './FunctionNode';
+import IndexNode from './IndexNode';
 import JoinerNode from './JoinerNode';
 import MapperNode from './MapperNode';
 import OutputNode from './OutputNode';
 import RequestNode from './RequestNode';
+import ScheduleNode from './ScheduleNode';
 import ToolNode from './ToolNode';
 
 import 'reactflow/dist/style.css';
@@ -61,14 +64,30 @@ const minimapStyle = {
 const nodeTypes = {
   compositionNode: CompositionNode,
   functionNode: FunctionNode,
+  indexNode: IndexNode,
   joinerNode: JoinerNode,
   mapperNode: MapperNode,
   outputNode: OutputNode,
   requestNode: RequestNode,
+  scheduleNode: ScheduleNode,
+  sourceNode: DataSourceNode,
   toolNode: ToolNode,
 };
 
 const proOptions = { hideAttribution: true };
+
+const validConnections = {
+  compositionNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  functionNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  indexNode: ['sourceNode'],
+  joinerNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  mapperNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  outputNode: ['compositionNode', 'functionNode', 'indexNode', 'joinerNode', 'mapperNode', 'toolNode'],
+  requestNode: [],
+  scheduleNode: [],
+  sourceNode: ['scheduleNode'],
+  toolNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+};
 
 export function Composer() {
 
@@ -97,6 +116,8 @@ export function Composer() {
   const id = location.pathname.match(/\/compositions\/(.*)/)[1];
   const composition = compositions[id];
   const isNew = id === 'new';
+
+  console.log('composition:', composition);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -132,7 +153,24 @@ export function Composer() {
     if (composition && composition.flow) {
       const flow = composition.flow;
       const { x = 0, y = 0, zoom = 1 } = flow.viewport;
-      setNodes(flow.nodes || []);
+      let nodes = flow.nodes || [];
+      const scheduleNode = nodes.find(nd => nd.type === 'scheduleNode');
+      if (scheduleNode) {
+        const newScheduleNode = {
+          ...scheduleNode,
+          data: {
+            ...scheduleNode.data,
+            compositionId: composition.id,
+            scheduleId: composition.scheduleId,
+            scheduleStatus: composition.scheduleStatus,
+          },
+        };
+        nodes = [
+          ...nodes.filter(nd => nd.type !== 'scheduleNode'),
+          newScheduleNode
+        ];
+      }
+      setNodes(nodes);
       setEdges(flow.edges || []);
       setTimeout(() => {
         setViewport({ x, y, zoom });
@@ -226,8 +264,20 @@ export function Composer() {
       id,
       type: 'compositionNode',
       data: {
-        parentCompositionId: composition.id,
+        parentCompositionId: composition?.id,
       },
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addDataSourceNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'sourceNode',
+      data: {},
       position: getNewPosition(),
       zIndex: 1001,
     };
@@ -239,6 +289,18 @@ export function Composer() {
     const newNode = {
       id,
       type: 'functionNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addIndexNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'indexNode',
       data: {},
       position: getNewPosition(),
       zIndex: 1001,
@@ -275,6 +337,31 @@ export function Composer() {
     const newNode = {
       id,
       type: 'outputNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addRequestNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'requestNode',
+      data: {
+        label: 'Request',
+      },
+      position: getNewPosition(),
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addScheduleNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'scheduleNode',
       data: {},
       position: getNewPosition(),
       zIndex: 1001,
@@ -403,6 +490,7 @@ export function Composer() {
 
   // console.log('composition:', composition);
   const args = composition?.flow?.nodes.find((n) => n.type === 'requestNode')?.data?.arguments;
+  const hasDataSource = nodes.find(nd => nd.type === 'sourceNode');
 
   if (!(isNew || loaded)) {
     return (
@@ -411,7 +499,7 @@ export function Composer() {
   }
   return (
     <>
-      {!isNew && !isEmpty(args) ?
+      {!isNew && (!isEmpty(args) || hasDataSource) ?
         <Modal
           onCancel={handleClose}
           onOk={handleClose}
@@ -425,24 +513,30 @@ export function Composer() {
           }}
           okButtonProps={{ style: { display: 'none' } }}
         >
-          <div>
-            <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
-              <Button type="default"
-                disabled={isEmpty(formData)}
-                onClick={() => { setFormData(null); }}
-              >
-                Clear Inputs
-              </Button>
+          {!isEmpty(args) ?
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+                <Button type="default"
+                  disabled={isEmpty(formData)}
+                  onClick={() => { setFormData(null); }}
+                >
+                  Clear Inputs
+                </Button>
+              </div>
+              <SchemaForm
+                schema={args}
+                uiSchema={uiSchema}
+                validator={validator}
+                formData={formData}
+                onChange={(ev) => setFormData(ev.formData)}
+                onSubmit={runTest}
+              />
             </div>
-            <SchemaForm
-              schema={args}
-              uiSchema={uiSchema}
-              validator={validator}
-              formData={formData}
-              onChange={(ev) => setFormData(ev.formData)}
-              onSubmit={runTest}
-            />
-          </div>
+            :
+            <Button onClick={() => runTest({ formData: {} })}>
+              Run
+            </Button>
+          }
           {!isEmpty(testResult) && testResultLoaded ?
             <div style={{ marginBottom: 20, marginTop: 16, width: 720 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Result:</div>
@@ -487,6 +581,9 @@ export function Composer() {
         </Form>
       </div>
       <Space>
+        <Button onClick={addRequestNode}>
+          Add Request
+        </Button>
         <Button onClick={addFunctionNode}>
           Add Semantic Function
         </Button>
@@ -502,12 +599,21 @@ export function Composer() {
         <Button onClick={addJoinerNode}>
           Add Joiner
         </Button>
+        <Button onClick={addDataSourceNode}>
+          Add Data Source
+        </Button>
+        <Button onClick={addIndexNode}>
+          Add Index
+        </Button>
+        <Button onClick={addScheduleNode}>
+          Add Schedule
+        </Button>
         <Button onClick={addOutputNode}>
           Add Output
         </Button>
         {!isNew ?
           <Button
-            disabled={isEmpty(args)}
+            disabled={isEmpty(args) && !hasDataSource}
             onClick={() => { handleTest(); }}
           >
             Test
@@ -534,6 +640,11 @@ export function Composer() {
           attributionPosition="top-right"
           nodeTypes={nodeTypes}
           proOptions={proOptions}
+          isValidConnection={({ source, target }) => {
+            const sourceNode = nodes.find(nd => nd.id === source);
+            const targetNode = nodes.find(nd => nd.id === target);
+            return validConnections[targetNode.type].includes(sourceNode.type);
+          }}
         >
           <MiniMap style={minimapStyle} zoomable pannable />
           <Controls />
@@ -545,14 +656,14 @@ export function Composer() {
 }
 
 export const initialNodes = [
-  {
-    id: '1',
-    type: 'requestNode',
-    data: {
-      label: 'Request',
-    },
-    position: { x: 15, y: 150 },
-  },
+  // {
+  //   id: '1',
+  //   type: 'requestNode',
+  //   data: {
+  //     label: 'Request',
+  //   },
+  //   position: { x: 15, y: 150 },
+  // },
 ];
 
 export const initialEdges = [];

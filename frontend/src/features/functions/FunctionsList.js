@@ -11,6 +11,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tree,
   Typography,
   Upload,
   message,
@@ -42,6 +43,11 @@ import {
   selectModels,
 } from '../models/modelsSlice';
 import {
+  getAllProvidersAsync,
+  getCustomModelProvidersAsync,
+  selectProviders,
+} from '../models/modelProvidersSlice';
+import {
   getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
@@ -61,12 +67,14 @@ const TAGS_KEY = 'functionTags';
 
 export function FunctionsList() {
 
+  const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('functions-filter-multimodal', { defaultValue: false });
   const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('functions-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', { defaultValue: [] });
+  const [selectedProviders, setSelectedProviders] = useLocalStorageState('selected-function-providers', { defaultValue: [] });
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', { defaultValue: [] });
   const [numItems, setNumItems] = useLocalStorageState('functions-num-items', { defaultValue: 12 });
 
@@ -76,6 +84,7 @@ export function FunctionsList() {
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
   const modelsLoading = useSelector(selectModelsLoading);
+  const providers = useSelector(selectProviders);
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
   const uploading = useSelector(selectUploading);
@@ -89,7 +98,13 @@ export function FunctionsList() {
         .filter((func) => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
         .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
         .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
+        .filter((func) => filterMultimodal ? func.implementations.some(impl => models[impl.modelId]?.multimodal) : true)
         .filter((func) => filterSystem ? func.isPublic : true)
+        .filter((func) =>
+          selectedProviders?.length && modelsLoaded ?
+            intersects(func.implementations.map(impl => models[impl.modelId]?.provider), selectedProviders) ||
+            intersects(func.implementations.map(impl => models[impl.modelId]?.type), selectedProviders)
+            : true)
         .map((func) => ({
           key: func.id,
           name: func.name,
@@ -101,7 +116,7 @@ export function FunctionsList() {
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
     }
-  }, [functions, filterSystem, searchValue, selectedImpls, selectedTags]);
+  }, [functions, filterMultimodal, filterSystem, models, modelsLoaded, searchValue, selectedImpls, selectedTags, selectedProviders]);
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
@@ -112,6 +127,29 @@ export function FunctionsList() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [models]);
+
+  const providerOptions = useMemo(() => {
+    const list = [
+      {
+        label: 'Custom',
+        value: 'api',
+      },
+    ];
+    if (providers.all) {
+      list.push(...providers.all.map(p => ({
+        label: p.name,
+        value: p.key,
+      })));
+    }
+    if (providers.custom) {
+      list.push(...providers.custom.map(p => ({
+        label: p.name,
+        value: p.key,
+      })));
+    }
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [providers]);
 
   const tagOptions = useMemo(() => {
     const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
@@ -141,13 +179,15 @@ export function FunctionsList() {
       createLink: '/functions/new/edit',
       title: 'Semantic Functions',
     }));
+    dispatch(getAllProvidersAsync());
+    dispatch(getCustomModelProvidersAsync());
   }, []);
 
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getSettingsAsync({ workspaceId, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
       dispatch(getFunctionsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,
@@ -213,8 +253,9 @@ export function FunctionsList() {
     {
       title: 'Public',
       dataIndex: 'isPublic',
+      align: 'center',
       render: (_, { isPublic }) => (
-        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.5em' }}>
           <span>{isPublic ? <CheckOutlined /> : ''}</span>
         </div>
       )
@@ -223,7 +264,7 @@ export function FunctionsList() {
       title: 'Tags',
       dataIndex: 'tags',
       render: (_, { tags = [] }) => (
-        <Space size={[0, 8]} wrap>
+        <Space size={[8, 8]} wrap>
           {tags.map((tag) => (
             <Tag key={tag}>{tag}</Tag>
           ))}
@@ -279,6 +320,44 @@ export function FunctionsList() {
     }
   };
 
+  const treeData = [
+    {
+      title: 'All',
+      key: 'all',
+      children: tagOptions.map(t => ({
+        title: <Typography.Text ellipsis>{t.label}</Typography.Text>,
+        key: t.value,
+      })),
+    }
+  ];
+
+  const selectFolder = (selectedKeys) => {
+    if (selectedKeys[0] === 'all') {
+      setSelectedTags([]);
+    } else {
+      setSelectedTags(selectedKeys);
+    }
+  };
+
+  const providerTreeData = [
+    {
+      title: 'All',
+      key: 'all',
+      children: providerOptions.map(p => ({
+        title: <Typography.Text ellipsis>{p.label}</Typography.Text>,
+        key: p.value,
+      })),
+    }
+  ];
+
+  const selectProvider = (selectedKeys) => {
+    if (selectedKeys[0] === 'all') {
+      setSelectedProviders([]);
+    } else {
+      setSelectedProviders(selectedKeys);
+    }
+  };
+
   return (
     <>
       {contextHolder}
@@ -303,7 +382,7 @@ export function FunctionsList() {
             }
           </div>
           <Search allowClear
-            placeholder="find entries"
+            placeholder="search filter"
             onSearch={onSearch}
             style={{ width: 220 }}
           />
@@ -316,7 +395,7 @@ export function FunctionsList() {
             style={{ width: 220 }}
             value={selectedImpls}
           />
-          <Select allowClear mode="multiple"
+          {/* <Select allowClear mode="multiple"
             options={tagOptions}
             optionFilterProp="label"
             loading={settingsLoading}
@@ -324,13 +403,20 @@ export function FunctionsList() {
             onChange={setSelectedTags}
             style={{ width: 220 }}
             value={selectedTags}
-          />
+          /> */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch
               checked={filterSystem}
               onChange={setFilterSystem}
             />
             <div>Public</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterMultimodal}
+              onChange={setFilterMultimodal}
+            />
+            <div>Multimodal</div>
           </div>
           <Upload
             name="upload"
@@ -360,54 +446,86 @@ export function FunctionsList() {
             ]}
           />
         </div>
-        {layout === 'grid' ?
-          <Space wrap size="large">
-            {data.map(f =>
-              <Card key={f.key} className="function-card" title={f.name} style={{ width: 350, height: 225 }} loading={loading}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
-                  <Typography.Text ellipsis>
-                    {f.description}
-                  </Typography.Text>
-                  <Space size={8} wrap>
-                    <div className="inline-label">imps</div>
-                    {f.implementations?.map((impl) => (
-                      impl.modelId && modelsLoaded && models[impl.modelId] ?
-                        <Tag key={impl.modelId}
-                          color={getColor(models[impl.modelId].type, isDarkMode)}
-                        >
-                          {models[impl.modelId].key}
-                        </Tag>
-                        : null
-                    ))}
-                  </Space>
-                  {f.tags?.length ?
-                    <Space size={8} wrap>
-                      <div className="inline-label">tags</div>
-                      {f.tags.map(t => <Tag key={t}>{t}</Tag>)}
-                    </Space>
-                    : null
-                  }
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
-                    <Link to={`/functions/${f.key}/edit`}>Edit</Link>
-                    <Link to={`/functions/${f.key}`}>View</Link>
-                  </div>
+        <div style={{ display: 'flex', alignItems: 'start', gap: 16, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="folders">
+              <div className="heading-wrapper">
+                <div className="heading">
+                  Tags
                 </div>
-              </Card>
-            )}
-          </Space>
-          :
-          <Table
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={data}
-            loading={loading}
-            pagination={{
-              current: page,
-              onChange: (page, pageSize) => setPage(page),
-            }}
-            rowClassName="function-list-row"
-          />
-        }
+              </div>
+              <Tree
+                defaultExpandAll
+                treeData={treeData}
+                onSelect={selectFolder}
+                defaultSelectedKeys={selectedTags}
+                height={200}
+              />
+            </div>
+            <div className="folders">
+              <div className="heading-wrapper">
+                <div className="heading">
+                  Providers
+                </div>
+              </div>
+              <Tree
+                defaultExpandAll
+                treeData={providerTreeData}
+                onSelect={selectProvider}
+                defaultSelectedKeys={selectedProviders}
+                height={200}
+              />
+            </div>
+          </div>
+          {layout === 'grid' ?
+            <Space wrap size="large">
+              {data.map(f =>
+                <Card key={f.key} className="function-card" title={f.name} style={{ width: 350, height: 225 }} loading={loading}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                    <Typography.Text ellipsis>
+                      {f.description}
+                    </Typography.Text>
+                    <Space size={8} wrap>
+                      <div className="inline-label">imps</div>
+                      {f.implementations?.map((impl) => (
+                        impl.modelId && modelsLoaded && models[impl.modelId] ?
+                          <Tag key={impl.modelId}
+                            color={getColor(models[impl.modelId].type, isDarkMode)}
+                          >
+                            {models[impl.modelId].key}
+                          </Tag>
+                          : null
+                      ))}
+                    </Space>
+                    {f.tags?.length ?
+                      <Space size={8} wrap>
+                        <div className="inline-label">tags</div>
+                        {f.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                      </Space>
+                      : null
+                    }
+                    <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
+                      <Link to={`/functions/${f.key}/edit`}>Edit</Link>
+                      <Link to={`/functions/${f.key}`}>View</Link>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </Space>
+            :
+            <Table
+              rowSelection={rowSelection}
+              columns={columns}
+              dataSource={data}
+              loading={loading}
+              pagination={{
+                current: page,
+                onChange: (page, pageSize) => setPage(page),
+              }}
+              rowClassName="function-list-row"
+            />
+          }
+        </div>
       </div>
     </>
   );

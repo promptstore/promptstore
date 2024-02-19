@@ -290,17 +290,26 @@ export function ModelForm() {
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
         {typeValue === 'embedding' ?
-          <Form.Item
-            label="Provider"
-            name="provider"
-            wrapperCol={{ span: 12 }}
-          >
-            <Select
-              loading={providersLoading}
-              options={embeddingProviderOptions}
-              optionFilterProp="label"
-            />
-          </Form.Item>
+          <>
+            <Form.Item
+              label="Provider"
+              name="provider"
+              wrapperCol={{ span: 12 }}
+            >
+              <Select
+                loading={providersLoading}
+                options={embeddingProviderOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+            <Form.Item
+              name="outputDim"
+              label="Output dim"
+              wrapperCol={{ span: 4 }}
+            >
+              <InputNumber />
+            </Form.Item>
+          </>
           : null
         }
         {typeValue === 'gpt' ?
@@ -350,6 +359,13 @@ export function ModelForm() {
             <Form.Item
               name="contextWindow"
               label="Context window"
+              wrapperCol={{ span: 4 }}
+            >
+              <InputNumber />
+            </Form.Item>
+            <Form.Item
+              name="maxOutputTokens"
+              label="Max output tokens"
               wrapperCol={{ span: 4 }}
             >
               <InputNumber />

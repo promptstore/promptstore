@@ -30,6 +30,20 @@ export const {
   startLoad,
 } = modelProvidersSlice.actions;
 
+export const getCustomModelProvidersAsync = () => async (dispatch) => {
+  dispatch(startLoad());
+  const url = '/api/custom-model-providers';
+  const res = await http.get(url);
+  dispatch(setProviders({ custom: res.data }));
+};
+
+export const getAllProvidersAsync = () => async (dispatch) => {
+  dispatch(startLoad());
+  const url = '/api/providers';
+  const res = await http.get(url);
+  dispatch(setProviders({ all: res.data }));
+};
+
 export const getEmbeddingProvidersAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/providers/embedding';

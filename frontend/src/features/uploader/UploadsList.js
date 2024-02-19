@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button, Modal, Space, Table } from 'antd';
 import {
@@ -15,7 +15,6 @@ import useLocalStorageState from 'use-local-storage-state';
 import { v4 as uuidv4 } from 'uuid';
 
 import { ContentView } from '../../components/ContentView';
-import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   createDataSourceAsync,
   selectDataSources,
@@ -103,8 +102,6 @@ export function UploadsList({ workspaceId }) {
 
   const sourceUploads = uploads[workspaceId] || [];
 
-  const { selectedWorkspace } = useContext(WorkspaceContext);
-
   const data = useMemo(() => {
     const list = sourceUploads.map((doc) => ({
       key: doc.etag,
@@ -173,13 +170,13 @@ export function UploadsList({ workspaceId }) {
       dispatch(indexCsvAsync({
         filepath: selectedRow.name,
         params: values,
-        workspaceId: selectedWorkspace,
+        workspaceId,
       }));
     } else if (selectedRow.ext === 'txt') {
       dispatch(indexTextDocumentAsync({
         filepath: selectedRow.name,
         params: values,
-        workspaceId: selectedWorkspace,
+        workspaceId,
       }));
     }
     setIsIndexModalOpen(false);
@@ -200,7 +197,10 @@ export function UploadsList({ workspaceId }) {
       type: 'document',
       documentType: ext,
       documents: [id],
-      workspaceId: selectedWorkspace.id,
+      workspaceId,
+      splitter: 'token',
+      chunkSize: 300,
+      chunkOverlap: 24,
     };
     const correlationId = uuidv4();
     dispatch(createDataSourceAsync({ correlationId, values }));
@@ -239,11 +239,7 @@ export function UploadsList({ workspaceId }) {
       title: 'Type',
       dataIndex: 'ext',
       align: 'center',
-      render: (_, { ext }) => (
-        <div style={{ textAlign: 'center' }}>
-          {getDocIcon(ext)}
-        </div>
-      ),
+      render: (_, { ext }) => getDocIcon(ext),
       className: 'col-hdr-nowrap',
     },
     {
@@ -316,6 +312,7 @@ export function UploadsList({ workspaceId }) {
         bodyStyle={{ height: 500, overflowY: 'auto' }}
         onCancel={onCancel}
         okButtonProps={{ style: { display: 'none' } }}
+        cancelText="Close"
       >
         <ContentView upload={upload} loading={dataSourcesLoading} />
       </Modal>

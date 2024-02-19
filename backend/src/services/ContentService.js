@@ -57,7 +57,7 @@ export function ContentService({ pg, logger }) {
   }
 
   async function getContentsByFilter(params, limit = 999, start = 0) {
-    // logger.debug('params: ', params);
+    // logger.debug('params:', params);
     let q = `
       SELECT c.id, c.app_id, c.content_id, c.text, c.hash, c.created, c.created_by, c.modified, c.modified_by, c.val
       FROM content c
@@ -82,9 +82,9 @@ export function ContentService({ pg, logger }) {
       q += conditions.join(' AND ');
     }
     q += ` LIMIT $${i++} OFFSET $${i++}`;
-    // logger.debug('getContentsByFilter: ', q);
+    // logger.debug('getContentsByFilter:', q);
     values = [...values, ...Object.values(params), limit, start];
-    // logger.debug('values: ', values);
+    // logger.debug('values:', values);
     const { rows } = await pg.query(q, values);
     return rows.map(mapRow);
   }
@@ -133,9 +133,11 @@ export function ContentService({ pg, logger }) {
   }
 
   async function upsertContent(content) {
-    const val = omit(content, ['id', 'appId', 'contentId', 'text', 'hash', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'appId', 'contentId', 'text', 'hash', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedContent = await getContent(content.id);
     if (savedContent) {
+      content = { ...savedContent, ...content };
+      const val = omit(content, omittedFields);
       const hash = hashStr(content.text);
       if (hash !== savedContent.hash) {
         val.versions = [
@@ -157,7 +159,9 @@ export function ContentService({ pg, logger }) {
         [content.text, hash, content.modifiedBy, modified, val, content.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(content, omittedFields);
       const { rows } = await pg.query(`
         INSERT INTO content (app_id, content_id, text, hash, created_by, modified_by, val)
         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *

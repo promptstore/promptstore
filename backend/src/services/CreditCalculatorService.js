@@ -515,8 +515,9 @@ export function CreditCalculatorService({ logger }) {
                 }
                 const breakpoints = params['image-quality'][quality]?.breakpoints;
                 let cost = 0;
+                let p;
                 if (breakpoints?.length) {
-                  let p = breakpoints[0];
+                  p = breakpoints[0];
                   for (const p1 of breakpoints) {
                     if (width < p1.dim && height < p1.dim) {
                       break;
@@ -527,7 +528,7 @@ export function CreditCalculatorService({ logger }) {
                 }
                 ims.push({
                   ...im,
-                  unitCost: p.price,
+                  unitCost: p?.price,
                   quality,
                   width,
                   height,
@@ -570,13 +571,13 @@ export function CreditCalculatorService({ logger }) {
     return costComponents;
   }
 
-  const getImageCostComponents = (name, provider, modelKey, batch, quality, width, height, response) => {
+  const getImageCostComponents = (name, provider, model, batch, quality, width, height, response) => {
     const { data, usage } = response;
     const { prompt_tokens, completion_tokens } = usage || {};
     return getCostComponents({
       name,
       provider,
-      modelKey,
+      model,
       batch,
       inputTokens: prompt_tokens,
       outputTokens: completion_tokens,

@@ -110,7 +110,7 @@ export class AgentEventEmitterCallback extends AgentCallback {
 
   }
 
-  onObserveModelEnd({ model, response, errors }: ModelOnEndResponse) {
+  onObserveModelEnd({ response, errors }: ModelOnEndResponse) {
     // this.emitter.emit('event', 'Observation:\n' + response.choices[0].message.content);
   }
 

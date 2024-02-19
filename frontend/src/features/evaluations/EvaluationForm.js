@@ -206,11 +206,15 @@ export function EvaluationForm() {
         endTime: values.schedule.endTime?.format('HH:mm:ss'),
       };
     }
+    let dateRange;
+    if (values.dateRange?.length === 2 && values.dateRange.every(v => v)) {
+      dateRange = [values.dateRange[0].format('YYYY-MM-DD'), values.dateRange[1].format('YYYY-MM-DD')];
+    }
     if (isNew) {
       dispatch(createEvaluationAsync({
         values: {
           ...values,
-          dateRange: [values.dateRange[0]?.format('YYYY-MM-DD'), values.dateRange[1]?.format('YYYY-MM-DD')],
+          dateRange,
           schedule,
           workspaceId: selectedWorkspace.id,
         },
@@ -221,7 +225,7 @@ export function EvaluationForm() {
         values: {
           ...evaluation,
           ...values,
-          dateRange: [values.dateRange[0]?.format('YYYY-MM-DD'), values.dateRange[1]?.format('YYYY-MM-DD')],
+          dateRange,
           schedule,
         },
       }));
@@ -316,7 +320,7 @@ export function EvaluationForm() {
           <Switch />
         </Form.Item>
         <Form.Item
-          label="Selection"
+          label="Filter"
           style={{ marginBottom: 0 }}
         >
           <Form.Item

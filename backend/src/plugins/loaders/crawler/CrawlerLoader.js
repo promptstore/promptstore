@@ -4,6 +4,7 @@ import uuid from 'uuid';
 function CrawlerLoader({ __name, constants, logger }) {
 
   async function load({
+    dataSourceId,
     dataSourceName,
     url,
     crawlerSpec,
@@ -89,7 +90,7 @@ function CrawlerLoader({ __name, constants, logger }) {
 
       const documents = [];
       for (const item of data.items) {
-        const doc = getDocument(item.url, item.title, crawlerSpec, item.data);
+        const doc = getDocument(dataSourceId, dataSourceName, item.url, item.title, crawlerSpec, item.data);
         documents.push(doc);
       }
 
@@ -114,12 +115,14 @@ function CrawlerLoader({ __name, constants, logger }) {
     return data;
   }
 
-  function getDocument(endpoint, title, schema, data) {
+  function getDocument(dataSourceId, dataSourceName, endpoint, title, schema, data) {
     const content = getContent(schema, data);
     const text = JSON.stringify(content);
     const size = new Blob([text]).size;
     return {
       id: uuid.v4(),
+      dataSourceId,
+      dataSourceName,
       endpoint,
       mimetype: 'application/json',
       size,

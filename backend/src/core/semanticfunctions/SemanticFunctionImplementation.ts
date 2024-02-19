@@ -1,8 +1,6 @@
-// import http from 'http';
 import axios from 'axios';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import sizeOf from 'image-size';
-// import url from 'url';
 import { default as dayjs } from 'dayjs';
 import { mapJsonAsync } from 'jsonpath-mapper';
 
@@ -27,6 +25,7 @@ import { UserMessage } from '../models/openai';
 import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPipeline';
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import { EnrichmentPipelineResponse } from '../promptenrichment/PromptEnrichmentPipeline_types';
+import { convertResponseWithImages } from '../utils';
 import { SemanticFunction } from './SemanticFunction';
 import {
   SemanticFunctionImplementationParams,
@@ -39,6 +38,12 @@ dayjs.extend(relativeTime);
 const DEFAULT_CONTEXT_WINDOW = 4096;
 
 const DEFAULT_MAX_TOKENS = 1024;
+
+interface GetInputParams {
+  args: any;
+  isBatch?: boolean;
+  options?: any;
+}
 
 export class SemanticFunctionImplementation {
 
@@ -56,7 +61,6 @@ export class SemanticFunctionImplementation {
   queryRewriteFunction: SemanticFunction;
   dataMapper: DataMapper;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     model,
@@ -95,23 +99,45 @@ export class SemanticFunctionImplementation {
     messages,
     history,
     extraSystemPrompt,
-    modelKey,
+    model,
     modelParams,
     functions,
     isBatch,
     returnTypeSchema,
     options,
-    callbacks = [],
+    callbacks,
   }: SemanticFunctionImplementationCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    modelKey = modelKey || this.model.model;
-    this.onStart({ args, messages, history, modelKey, modelParams, isBatch, options });
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    let modelKey: string;
+    let provider: string;
+    if (model) {
+      modelKey = model.model;
+      provider = model.provider;
+    } else {
+      modelKey = this.model.model;
+      provider = this.model.provider;
+    }
+    this.onStart({
+      args,
+      history,
+      messages,
+      model: { model: modelKey, provider },
+      modelParams,
+      isBatch,
+      options,
+    }, _callbacks);
     if (!options) {
       options = {};
     }
+    logger.debug('options:', options);
     try {
       if (this.argsMappingTemplate) {
-        args = await this.mapArgs(args, this.argsMappingTemplate, isBatch);
+        args = await this.mapArgs(args, this.argsMappingTemplate, isBatch, _callbacks);
       }
       let response: any;
       let responseMetadata: Partial<ResponseMetadata>;
@@ -120,16 +146,30 @@ export class SemanticFunctionImplementation {
         /********************************************
          ** GPT
          ********************************************/
-        const contextWindow = (this.model as LLMModel).contextWindow || DEFAULT_CONTEXT_WINDOW;
+        let { contextWindow, maxOutputTokens } = this.model as LLMModel;
+        if (!maxOutputTokens) maxOutputTokens = contextWindow;
+        if (!contextWindow) {
+          contextWindow = DEFAULT_CONTEXT_WINDOW;
+        }
         let maxTokens = +modelParams.max_tokens;
+
+        // TODO review
+        if (options.maxTokensRelativeToContextWindow) {
+          // maxTokens = Math.floor(contextWindow * options.maxTokensRelativeToContextWindow);
+          maxTokens = Math.floor(maxOutputTokens * options.maxTokensRelativeToContextWindow);
+        }
         if (isNaN(maxTokens)) {
           maxTokens = DEFAULT_MAX_TOKENS;
         }
 
         if (args && isBatch) {
-          const maxTokensPerRequest = (this.model as LLMModel).contextWindow * 0.9;  // leave a little buffer
+          // const maxTokensPerRequest = contextWindow * 0.75;  // leave a little buffer
+
+          // unlike context, batch token limits are bound by what can be output
+          const maxTokensPerRequest = maxOutputTokens * 0.75;
+
           const maxTokensPerChat = maxTokensPerRequest - maxTokens;
-          const originalTexts = this.getInput(args, isBatch, options);
+          const originalTexts = this.getInput({ args, isBatch, options }, _callbacks);
           const originalHashes = [];
           const dedupedInputs = [];
           const allProps = options.contentProp === '__all';
@@ -157,27 +197,34 @@ export class SemanticFunctionImplementation {
           // logger.debug('bins:', bins);
 
           const data = Array(originalHashes.length).fill(null);
-          const proms = bins.map(inputs => {
+          const proms = bins.map((inputs, i) => {
             let batchArgs: any;
             if (allProps) {
               batchArgs = inputs;
             } else {
-              batchArgs = { text: inputs };
+              batchArgs = { [options.contentProp || 'text']: inputs };
             }
-            return this.runImplementation({
+            this.onBatchBinStart({
+              bin: i,
+              size: inputs.length,
+            }, _callbacks);
+            const res = this.runImplementation({
               args: batchArgs,
               extraSystemPrompt,
               history,
               messages,
               contextWindow,
+              maxOutputTokens,
               maxTokens,
-              modelKey,
+              model: { model: modelKey, provider },
               modelParams,
               functions,
               returnTypeSchema,
               isBatch,
-              callbacks,
+              callbacks: _callbacks.map(cb => cb.clone()),
             });
+            this.onBatchBinEnd({ errors: null }, _callbacks);
+            return res;
           });
           const res = await Promise.all(proms);  // preserves order
 
@@ -261,13 +308,14 @@ export class SemanticFunctionImplementation {
             history,
             messages,
             contextWindow,
+            maxOutputTokens,
             maxTokens,
-            modelKey,
+            model: { model: modelKey, provider },
             modelParams,
             functions,
             returnTypeSchema,
             isBatch,
-            callbacks,
+            callbacks: _callbacks,
           });
           response = res.response;
 
@@ -290,27 +338,30 @@ export class SemanticFunctionImplementation {
         response = await this.model.call({
           args,
           isBatch,
-          callbacks
+          callbacks: _callbacks
         });
 
       } else {
-        this.throwSemanticFunctionError(`model type ${this.model.modelType} not supported`);
+        this.throwSemanticFunctionError(`model type ${this.model.modelType} not supported`, _callbacks);
       }
 
       if (this.outputProcessingPipeline && this.outputProcessingPipeline.length) {
-        response = await this.outputProcessingPipeline.call({ response, callbacks });
+        response = await this.outputProcessingPipeline.call({ response, callbacks: _callbacks });
       }
 
       if (this.returnMappingTemplate) {
-        response = await this.mapReturnType(response, this.returnMappingTemplate, isBatch);
+        response = await this.mapReturnType(response, this.returnMappingTemplate, isBatch, _callbacks);
       }
 
-      this.onEnd({ response });
+      this.onEnd({
+        model: { model: modelKey, provider },
+        response: await convertResponseWithImages(response),
+      }, _callbacks);
 
       return { response, responseMetadata };
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ errors });
+      this.onEnd({ model: { model: modelKey, provider }, errors }, _callbacks);
       throw err;
     }
   }
@@ -321,8 +372,9 @@ export class SemanticFunctionImplementation {
     history,
     messages,
     contextWindow,
+    maxOutputTokens,
     maxTokens,
-    modelKey,
+    model,
     modelParams,
     functions,
     returnTypeSchema,
@@ -341,7 +393,7 @@ export class SemanticFunctionImplementation {
 
     if (this.rewriteQuery) {
       const content = args[this.indexContentPropertyPath];
-      logger.debug('rewriteQuery before:', content);
+      // logger.debug('rewriteQuery before:', content);
       if (content) {
         const { response, responseMetadata } = await this.queryRewriteFunction.call({
           args: { content },
@@ -356,7 +408,7 @@ export class SemanticFunctionImplementation {
           totalTokens += responseMetadata.totalTokens || 0;
         }
         args[this.indexContentPropertyPath] = response.choices[0].message.content;
-        logger.debug('rewriteQuery after:', args[this.indexContentPropertyPath]);
+        // logger.debug('rewriteQuery after:', args[this.indexContentPropertyPath]);
       }
     }
 
@@ -365,14 +417,14 @@ export class SemanticFunctionImplementation {
         args,
         messages,
         contextWindow,
+        maxOutputTokens,
         maxTokens,
-        modelKey,
         isBatch,
         callbacks,
       });
       const enrichedMessages = enrichmentPipelineResponse.messages;
       if (!enrichedMessages.length) {
-        this.throwSemanticFunctionError('no prompt');
+        this.throwSemanticFunctionError('no prompt', callbacks);
       }
       context = this.getContext(enrichedMessages);
       if (history) {
@@ -402,7 +454,7 @@ export class SemanticFunctionImplementation {
       if (messages) {
         prompts = messages;
       } else {
-        const text = this.getInput(args);
+        const text = this.getInput({ args }, callbacks);
         let userMessage: UserMessage;
         if (args.imageUrls) {
           userMessage = new UserMessage([
@@ -444,8 +496,8 @@ export class SemanticFunctionImplementation {
     }
 
     const request = {
-      model: modelKey,
-      model_params: modelParams,
+      model: model.model,
+      model_params: { modelParams, max_tokens: maxTokens },
       functions,
       prompt: {
         context,
@@ -453,7 +505,11 @@ export class SemanticFunctionImplementation {
         messages: prompts,
       }
     };
-    let { response, responseMetadata } = await this.model.call({ request, callbacks });
+    let { response, responseMetadata } = await this.model.call({
+      provider: model.provider,
+      request,
+      callbacks,
+    });
     if (enrichmentPipelineResponse?.responseMetadata) {
       const meta = enrichmentPipelineResponse.responseMetadata;
       costComponents.push(...(meta.costComponents || []));
@@ -495,24 +551,8 @@ export class SemanticFunctionImplementation {
 
   getImage(c: ImageContent) {
     return new Promise(async (resolve, reject) => {
-      // const options = url.parse((c as ImageContent).image_url.url);
       const url = c.image_url.url;
       try {
-        // http.get(options, (res) => {
-        //   const chunks = [];
-        //   res
-        //     .on('data', (chunk) => {
-        //       chunks.push(chunk);
-        //     })
-        //     .on('end', () => {
-        //       const buffer = Buffer.concat(chunks);
-        //       const { width, height } = sizeOf(buffer);
-        //       images.push({ width, height });
-        //     })
-        //     .on('error', () => {
-        //       images.push({ width: 1024, height: 1024 });
-        //     });
-        // });
         const res = await axios.get(url, {
           responseType: 'stream',
           timeout: 5000,
@@ -553,10 +593,10 @@ export class SemanticFunctionImplementation {
     return Promise.all(proms);
   }
 
-  getInput(args: any, isBatch?: boolean, options?: any) {
+  getInput({ args, isBatch, options }: GetInputParams, callbacks: Callback[]) {
     const content = getInput(args, isBatch, options);
     if (!content) {
-      this.throwSemanticFunctionError('Cannot parse args');
+      this.throwSemanticFunctionError('Cannot parse args', callbacks);
     }
     return content;
   }
@@ -569,10 +609,10 @@ export class SemanticFunctionImplementation {
     return messages.filter(nonSystem);
   }
 
-  async mapArgs(args: any, mappingTemplate: string, isBatch: boolean) {
+  async mapArgs(args: any, mappingTemplate: string, isBatch: boolean, callbacks: Callback[]) {
     try {
       const mapped = await this._mapArgs(args, mappingTemplate, isBatch);
-      for (let callback of this.currentCallbacks) {
+      for (let callback of callbacks) {
         callback.onMapArguments({
           args,
           mapped,
@@ -582,7 +622,7 @@ export class SemanticFunctionImplementation {
       }
       return mapped;
     } catch (err) {
-      for (let callback of this.currentCallbacks) {
+      for (let callback of callbacks) {
         callback.onMapArguments({
           args,
           mappingTemplate,
@@ -602,10 +642,10 @@ export class SemanticFunctionImplementation {
     return mapData(args);
   }
 
-  async mapReturnType(response: any, mappingTemplate: string, isBatch: boolean) {
+  async mapReturnType(response: any, mappingTemplate: string, isBatch: boolean, callbacks: Callback[]) {
     try {
       const mapped = await this._mapArgs(response, mappingTemplate, isBatch);
-      for (let callback of this.currentCallbacks) {
+      for (let callback of callbacks) {
         callback.onMapReturnType({
           response,
           mapped,
@@ -615,7 +655,7 @@ export class SemanticFunctionImplementation {
       }
       return mapped;
     } catch (err) {
-      for (let callback of this.currentCallbacks) {
+      for (let callback of callbacks) {
         callback.onMapReturnType({
           response,
           mappingTemplate,
@@ -626,13 +666,13 @@ export class SemanticFunctionImplementation {
     }
   }
 
-  onStart({ args, history, modelKey, modelParams, isBatch, options }: SemanticFunctionImplementationCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ args, history, model, modelParams, isBatch, options }: SemanticFunctionImplementationCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionImplementationStart({
         args,
         history,
         modelType: this.model.modelType,
-        modelKey,
+        model,
         modelParams,
         isBatch,
         options,
@@ -640,19 +680,31 @@ export class SemanticFunctionImplementation {
     }
   }
 
-  onEnd({ response, errors }: SemanticFunctionImplementationOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ model, response, errors }: SemanticFunctionImplementationOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionImplementationEnd({
-        modelKey: this.model.model,
+        model,
         response,
         errors,
       });
     }
   }
 
-  throwSemanticFunctionError(message: string) {
+  onBatchBinStart(params, callbacks: Callback[]) {
+    for (let callback of callbacks) {
+      callback.onBatchBinStart(params);
+    }
+  }
+
+  onBatchBinEnd({ errors }, callbacks: Callback[]) {
+    for (let callback of callbacks) {
+      callback.onBatchBinEnd({ errors });
+    }
+  }
+
+  throwSemanticFunctionError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onSemanticFunctionImplementationError(errors);
     }
     throw new SemanticFunctionError(message);

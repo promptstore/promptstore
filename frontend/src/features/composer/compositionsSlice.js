@@ -82,10 +82,10 @@ export const deleteCompositionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeCompositions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => async (dispatch) => {
+export const runTestAsync = ({ args, modelId, model, name, workspaceId }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/composition-executions/${name}`;
-  const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
+  const res = await http.post(url, { args, params: { modelId, model }, workspaceId });
   const { response, creditBalance } = res.data;
   dispatch(setTestResult({ result: response }));
   dispatch(setCredits({ credits: creditBalance }));

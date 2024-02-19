@@ -11,6 +11,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tree,
   Typography,
   Upload,
   message,
@@ -144,7 +145,7 @@ export function PromptSetsList() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getSettingsAsync({ workspaceId, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
       dispatch(getPromptSetsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,
@@ -291,8 +292,9 @@ export function PromptSetsList() {
     {
       title: 'Public',
       dataIndex: 'public',
+      align: 'center',
       render: (_, { isPublic }) => (
-        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.5em' }}>
           <span>{isPublic ? <CheckOutlined /> : ''}</span>
         </div>
       )
@@ -300,8 +302,9 @@ export function PromptSetsList() {
     {
       title: 'Template',
       dataIndex: 'template',
+      align: 'center',
       render: (_, { isTemplate }) => (
-        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.5em' }}>
           <span>{isTemplate ? <CheckOutlined /> : ''}</span>
         </div>
       )
@@ -310,7 +313,7 @@ export function PromptSetsList() {
       title: 'Tags',
       dataIndex: 'tags',
       render: (_, { tags = [] }) => (
-        <Space size={[0, 8]} wrap>
+        <Space size={[8, 8]} wrap>
           {tags.map((tag) => (
             <Tag key={tag}>{tag}</Tag>
           ))}
@@ -388,6 +391,25 @@ export function PromptSetsList() {
     }
   };
 
+  const treeData = [
+    {
+      title: 'All',
+      key: 'all',
+      children: tagOptions.map(t => ({
+        title: <Typography.Text ellipsis>{t.label}</Typography.Text>,
+        key: t.value,
+      })),
+    }
+  ];
+
+  const selectFolder = (selectedKeys) => {
+    if (selectedKeys[0] === 'all') {
+      setSelectedTags([]);
+    } else {
+      setSelectedTags(selectedKeys);
+    }
+  };
+
   return (
     <>
       {contextHolder}
@@ -412,11 +434,11 @@ export function PromptSetsList() {
             }
           </div>
           <Search allowClear
-            placeholder="find entries"
+            placeholder="search filter"
             onSearch={onSearch}
             style={{ width: 220 }}
           />
-          <Select allowClear mode="multiple"
+          {/* <Select allowClear mode="multiple"
             options={tagOptions}
             optionFilterProp="label"
             loading={settingsLoading}
@@ -424,7 +446,7 @@ export function PromptSetsList() {
             onChange={setSelectedTags}
             style={{ width: 220 }}
             value={selectedTags}
-          />
+          /> */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch
               checked={filterTemplates}
@@ -470,44 +492,60 @@ export function PromptSetsList() {
             ]}
           />
         </div>
-        {layout === 'grid' ?
-          <Space wrap size="large">
-            {data.map(p =>
-              <Card key={p.key} className="ps-card" title={p.name} style={{ width: 350, height: 225 }} loading={loading}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
-                  <Typography.Text ellipsis>{p.description || p.prompt || p.summary}</Typography.Text>
-                  <div>
-                    <span className="inline-label">skill</span> <span style={{ color: '#177ddc' }}>{p.skill}</span>
+        <div style={{ display: 'flex', alignItems: 'start', gap: 16, width: '100%' }}>
+          <div className="folders">
+            <div className="heading-wrapper">
+              <div className="heading">
+                Tags
+              </div>
+            </div>
+            <Tree
+              defaultExpandAll
+              treeData={treeData}
+              onSelect={selectFolder}
+              defaultSelectedKeys={selectedTags}
+            />
+          </div>
+          {layout === 'grid' ?
+            <Space wrap size="large">
+              {data.map(p =>
+                <Card key={p.key} className="ps-card" title={p.name} style={{ width: 350, height: 225 }} loading={loading}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                    <Typography.Text ellipsis>{p.description || p.prompt || p.summary}</Typography.Text>
+                    <div>
+                      <span className="inline-label">skill</span> <span style={{ color: '#177ddc' }}>{p.skill}</span>
+                    </div>
+                    {p.tags?.length ?
+                      <Space wrap size="small">
+                        <div className="inline-label">tags</div>
+                        {p.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                      </Space>
+                      : null
+                    }
+                    <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
+                      <Link to={`/design/${p.key}`}>Design</Link>
+                      <Link to={`/prompt-sets/${p.key}/edit`}>Edit</Link>
+                      <Link to={`/prompt-sets/${p.key}`}>View</Link>
+                    </div>
                   </div>
-                  {p.tags?.length ?
-                    <Space wrap size="small">
-                      <div className="inline-label">tags</div>
-                      {p.tags.map(t => <Tag key={t}>{t}</Tag>)}
-                    </Space>
-                    : null
-                  }
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
-                    <Link to={`/design/${p.key}`}>Design</Link>
-                    <Link to={`/prompt-sets/${p.key}/edit`}>Edit</Link>
-                    <Link to={`/prompt-sets/${p.key}`}>View</Link>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </Space>
-          :
-          <Table
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={data}
-            loading={loading}
-            pagination={{
-              current: page,
-              onChange: (page, pageSize) => setPage(page),
-            }}
-            rowClassName="promptset-list-row"
-          />
-        }
+                </Card>
+              )}
+            </Space>
+            :
+            <Table
+              rowSelection={rowSelection}
+              columns={columns}
+              dataSource={data}
+              loading={loading}
+              pagination={{
+                current: page,
+                onChange: (page, pageSize) => setPage(page),
+              }}
+              rowClassName="promptset-list-row"
+              style={{ maxWidth: '100%' }}
+            />
+          }
+        </div>
       </div>
     </>
   );

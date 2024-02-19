@@ -46,13 +46,15 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/api', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, params, workspaceId } = req.body;
+    const { correlationId, dataSourceId, params, workspaceId } = req.body;
+    // const dataSource = await dataSourcesService.getDataSource(dataSourceId);
     const {
       textNodeProperties,
       indexId,
       newIndexName,
       vectorStoreProvider,
       graphStoreProvider,
+      dataSourceName,
       endpoint,
       schema: jsonSchema,
       nodeLabel = 'Chunk',
@@ -75,6 +77,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       const indexParams = {
         // Loader params
+        dataSourceId,
+        dataSourceName,
         endpoint,
         schema: jsonSchema,
 
@@ -183,7 +187,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    */
   app.post('/api/index/crawler', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, params, workspaceId } = req.body;
+    const { correlationId, dataSourceId, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -214,6 +218,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       const indexParams = {
         // Loader params
+        dataSourceId,
         dataSourceName,
         url,
         crawlerSpec,
@@ -334,7 +339,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/csv', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, documents, params, workspaceId } = req.body;
+    const { correlationId, dataSourceId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -346,6 +351,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       similarityMetric = 'cosine',
       allowedNodes,
       allowedRels,
+      dataSourceName,
     } = params;
     try {
       let embeddingModel;
@@ -363,11 +369,16 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
         const objectName = `${workspaceId}/documents/${upload.filename}`;
-        objectNames.push(objectName);
+        objectNames.push({
+          objectName,
+          uploadId,
+        });
       }
 
       const indexParams = {
         // Loader params
+        dataSourceId,
+        dataSourceName,
         objectNames,
         maxBytes: 100000,
 
@@ -412,7 +423,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/text', auth, async (req, res) => {
     const { username } = req.user;
-    const { correlationId, documents, params, workspaceId } = req.body;
+    const { correlationId, dataSourceId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -425,10 +436,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       functionId,
       chunkSize,
       chunkOverlap,
+      rephraseFunctionIds,
       embeddingNodeProperty = 'embedding',
       similarityMetric = 'cosine',
       allowedNodes,
       allowedRels,
+      dataSourceName,
     } = params;
     try {
       let embeddingModel;
@@ -446,11 +459,16 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       for (const uploadId of documents) {
         const upload = await uploadsService.getUpload(uploadId);
         const objectName = `${workspaceId}/documents/${upload.filename}`;
-        objectNames.push(objectName);
+        objectNames.push({
+          uploadId,
+          objectName,
+        });
       }
 
       const indexParams = {
         // Loader params
+        dataSourceId,
+        dataSourceName,
         objectNames,
         maxBytes: 100000,
 
@@ -461,6 +479,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         functionId,
         chunkSize,
         chunkOverlap,
+        rephraseFunctionIds,
         workspaceId,
         username,
 
@@ -498,7 +517,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/index/document', auth, async (req, res) => {
     const { username } = req.user;
-    const { appId, correlationId, documents, params, workspaceId } = req.body;
+    const { appId, correlationId, dataSourceId, documents, params, workspaceId } = req.body;
     const {
       indexId,
       newIndexName,
@@ -509,7 +528,17 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       similarityMetric = 'cosine',
       allowedNodes,
       allowedRels,
+      bucket,
+      prefix,
+      recursive,
     } = params;
+    let dataSourceName = params.dataSourceName;
+    if (!dataSourceName) {
+      const dataSource = await dataSourcesService.getDataSource(dataSourceId);
+      if (dataSource) {
+        dataSourceName = dataSource.name;
+      }
+    }
     try {
       let embeddingModel;
       if (params.embeddingModel) {
@@ -522,30 +551,41 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         }
       }
 
-      const docs = [];
-      for (const uploadId of documents) {
-        const upload = await uploadsService.getUpload(uploadId);
-        if (!upload) {
-          logger.error('Upload not found:', uploadId);
-          // keep processing the other documents
+      let docs;
+      if (documents?.length) {
+        docs = [];
+        for (const uploadId of documents) {
+          const upload = await uploadsService.getUpload(uploadId);
+          if (!upload) {
+            logger.error('Upload not found:', uploadId);
+            // keep processing the other documents
+          }
+          let objectName;
+          if (appId) {
+            objectName = `${upload.workspaceId}/documents/apps/${appId}/${upload.filename}`;
+          } else {
+            objectName = `${upload.workspaceId}/documents/${upload.filename}`;
+          }
+          logger.debug('Loading', objectName);
+          const file = await documentsService.download(objectName);
+          docs.push({
+            uploadId,
+            filepath: file.path,
+            objectName,
+            mimetype: file.mimetype,
+            originalname: file.originalname,
+          });
         }
-        let objectName;
-        if (appId) {
-          objectName = `${upload.workspaceId}/documents/apps/${appId}/${upload.filename}`;
-        } else {
-          objectName = `${upload.workspaceId}/documents/${upload.filename}`;
-        }
-        logger.debug('Loading', objectName);
-        const file = await documentsService.download(objectName);
-        docs.push({
-          filepath: file.path,
-          objectName,
-          mimetype: file.mimetype,
-          originalname: file.originalname,
-        });
       }
 
       const indexParams = {
+        // Loader params (if required)
+        dataSourceId,
+        dataSourceName,
+        bucket,
+        prefix,
+        recursive,
+
         // Extractor params
         documents: docs,
         nodeLabel,
@@ -567,29 +607,41 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         allowedRels,
       };
 
-      // There are no documents to extract
+      // If `documents` is not supplied as an argument, then 
+      // there are no documents to extract
       // Chunks are extracted directly from the document processor
-      workflowClient.index(indexParams, null, ['unstructured'], {
+      const loader = documents?.length ? null : 'minio';
+
+      workflowClient.index(indexParams, loader, ['unstructured'], {
         address: constants.TEMPORAL_URL,
       }).then(async (results) => {
         const index = results[0];
         setJobResult(correlationId, index);
-        if (appId) {
+        if (appId && indexId === 'new') {
           const indexId = index.id;
-          const uploadId = documents[0];
           const app = await appsService.getApp(appId);
-          const indexes = app.indexes || [];
-          await appsService.upsertApp({
-            id: appId,
-            indexes: [...indexes, indexId],
-            documents: {
-              ...app.documents,
+          let docs;
+          if (app.documents) {
+            docs = app.documents;
+          }
+          if (documents?.length) {
+            const uploadId = documents[0];
+            docs = {
+              ...(docs || {}),
               [uploadId]: {
                 ...app.documents?.[uploadId],
                 index: indexId,
               },
-            },
-          });
+            };
+          }
+          const indexes = app.indexes || [];
+          const values = {
+            id: appId,
+            indexes: [...new Set([...indexes, indexId])],
+            documents: docs,
+          };
+
+          await appsService.upsertApp(values);
         }
         const obj = createSearchableObject(index, { source: 'unstructured' });
         indexObject(obj);
@@ -606,7 +658,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/index/wikipedia', auth, async (req, res) => {
     const { username } = req.user;
     const { correlationId, dataSourceId, params, workspaceId } = req.body;
-    const dataSource = await dataSourcesService.getDataSource(dataSourceId);
+    // const dataSource = await dataSourcesService.getDataSource(dataSourceId);
     const {
       query,
       indexId,
@@ -620,10 +672,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       functionId,
       chunkSize,
       chunkOverlap,
+      rephraseFunctionIds,
       embeddingNodeProperty = 'embedding',
       similarityMetric = 'cosine',
       allowedNodes,
       allowedRels,
+      dataSourceName,
     } = params;
     try {
       let embeddingModel;
@@ -640,7 +694,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       const indexParams = {
         // Loader params
         dataSourceId,
-        dataSourceName: dataSource.name,
+        dataSourceName,
         query,
 
         // Extractor params
@@ -650,6 +704,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         functionId,
         chunkSize,
         chunkOverlap,
+        rephraseFunctionIds,
         workspaceId,
         username,
 
@@ -670,7 +725,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
       workflowClient.index(indexParams, 'wikipedia', ['text'], {
         address: constants.TEMPORAL_URL,
-      }).then(results => {
+      }).then((results) => {
         const index = results[0];
         setJobResult(correlationId, index);
         const obj = createSearchableObject(index, { source: 'wikipedia' });

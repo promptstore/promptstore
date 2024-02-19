@@ -92,9 +92,11 @@ export function IndexesService({ pg, logger }) {
     if (index === null || typeof index === 'undefined') {
       return null;
     }
-    const val = omit(index, ['id', 'workspaceId', 'name', 'vectorStoreProvider', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'vectorStoreProvider', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedIndex = await getIndex(index.id);
     if (savedIndex) {
+      index = { ...savedIndex, ...index };
+      const val = omit(index, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE doc_indexes
@@ -105,7 +107,9 @@ export function IndexesService({ pg, logger }) {
         [index.name, index.vectorStoreProvider, val, username, modified, index.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(index, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO doc_indexes (workspace_id, name, engine, val, created_by, created, modified_by, modified)

@@ -291,3 +291,20 @@ export const formatPercentage = (number) => {
 
   return numberFormatter.format(number);
 };
+
+export function convertContentTypeToString(content) {
+  if (!content) return '';
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content) && content.length) {
+    if (typeof content[0] === 'string') {
+      return content.join('\n\n');
+    }
+    return content
+      .filter(c => c.type === 'text')
+      .map(c => c.text)
+      .join('\n\n');
+  }
+  return '';
+}

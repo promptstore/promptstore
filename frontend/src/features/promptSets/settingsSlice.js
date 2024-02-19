@@ -41,7 +41,12 @@ export const {
 
 export const getSettingsAsync = ({ workspaceId, key }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/workspaces/${workspaceId}/settings/${key}`;
+  let url;
+  if (workspaceId) {
+    url = `/api/workspaces/${workspaceId}/settings/${key}`;
+  } else {
+    url = `/api/settings/${key}`;
+  }
   const res = await http.get(url);
   dispatch(setSettings({ settings: res.data }));
 };
@@ -49,13 +54,13 @@ export const getSettingsAsync = ({ workspaceId, key }) => async (dispatch) => {
 export const createSettingAsync = ({ values }) => async (dispatch) => {
   const url = '/api/settings';
   const res = await http.post(url, values);
-  dispatch(setSettings({ settings: [{ ...values, id: res.data }] }));
+  dispatch(setSettings({ settings: [res.data] }));
 };
 
 export const updateSettingAsync = ({ id, values }) => async (dispatch) => {
   const url = `/api/settings/${id}`;
-  await http.put(url, values);
-  dispatch(setSettings({ settings: [values] }));
+  const res = await http.put(url, values);
+  dispatch(setSettings({ settings: [res.data] }));
 };
 
 export const deleteSettingsAsync = ({ ids }) => async (dispatch, getState) => {

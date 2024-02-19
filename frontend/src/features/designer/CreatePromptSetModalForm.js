@@ -32,9 +32,10 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
 
   useEffect(() => {
     if (selectedWorkspace) {
+      const workspaceId = selectedWorkspace.id;
       dispatch(getSettingsAsync({
-        workspaceId: selectedWorkspace.id,
         key: 'skills',
+        workspaceId: null,
       }));
     }
   }, [selectedWorkspace]);

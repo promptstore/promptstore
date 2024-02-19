@@ -15,22 +15,135 @@ export function TracesService({ pg, logger }) {
     };
   }
 
-  async function getTraces(workspaceId, limit) {
+  async function getTraces(workspaceId, limit, start, filters, nameQuery, startDate, endDate, success, minLatency, maxLatency) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
     }
-    let q = `
+    let filterClauses = '';
+    let j = 4;
+    if (filters) {
+      for (const [k, v] of Object.entries(filters)) {
+        if (Array.isArray(v)) {
+          if (typeof v[0] === 'boolean') {
+            filterClauses += `AND (val->>'${k}')::BOOLEAN = ANY($${j}::BOOLEAN[]) `;
+          } else {
+            filterClauses += `AND val->>'${k}' = ANY($${j}::VARCHAR[]) `;
+          }
+        } else {
+          filterClauses += `AND val->>'${k}' = $${j} `;
+        }
+        j += 1;
+      }
+    }
+    const values = [workspaceId, limit, start, ...Object.values(filters || {})];
+    if (nameQuery) {
+      filterClauses += `AND name LIKE $${j}`;
+      values.push(`%${nameQuery}%`);
+      j += 1;
+    }
+    if (startDate) {
+      filterClauses += `AND created >= $${j} `;
+      values.push(startDate);
+      j += 1;
+    }
+    if (endDate) {
+      filterClauses += `AND created <= $${j} `;
+      values.push(endDate);
+      j += 1;
+    }
+    if (success) {
+      filterClauses += `AND (val->'trace'->0->>'success')::BOOLEAN = ANY($${j}) `;
+      values.push(success);
+      j += 1;
+    }
+    if (minLatency) {
+      filterClauses += `AND (val->'trace'->0->>'elapsedMillis')::INT >= $${j} `;
+      values.push(minLatency);
+      j += 1;
+    }
+    if (maxLatency) {
+      filterClauses += `AND (val->'trace'->0->>'elapsedMillis')::INT <= $${j} `;
+      values.push(maxLatency);
+      j += 1;
+    }
+    const q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM traces
       WHERE workspace_id = $1
+      ${filterClauses}
       ORDER BY created DESC
-      LIMIT $2
+      LIMIT $2 OFFSET $3
       `;
-    const { rows } = await pg.query(q, [workspaceId, limit]);
+    logger.debug('q:', q);
+    logger.debug('values:', values);
+
+    const { rows } = await pg.query(q, values);
     if (rows.length === 0) {
       return [];
     }
     return rows.map(mapRow);
+  }
+
+  async function getTracesCount(workspaceId, filters, nameQuery, startDate, endDate, success, minLatency, maxLatency) {
+    logger.debug('getTracesCount args:', arguments);
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return 0;
+    }
+    let filterClauses = '';
+    let j = 2;
+    if (filters) {
+      for (const [k, v] of Object.entries(filters)) {
+        if (Array.isArray(v)) {
+          if (typeof v[0] === 'boolean') {
+            filterClauses += `AND (val->>'${k}')::BOOLEAN = ANY($${j}::BOOLEAN[]) `;
+          } else {
+            filterClauses += `AND val->>'${k}' = ANY($${j}::VARCHAR[]) `;
+          }
+        } else {
+          filterClauses += `AND val->>'${k}' = $${j} `;
+        }
+        j += 1;
+      }
+    }
+    const values = [workspaceId, ...Object.values(filters || {})];
+    if (nameQuery) {
+      filterClauses += `AND name LIKE $${j}`;
+      values.push(`%${nameQuery}%`);
+      j += 1;
+    }
+    if (startDate) {
+      filterClauses += `AND created >= $${j} `;
+      values.push(startDate);
+      j += 1;
+    }
+    if (endDate) {
+      filterClauses += `AND created <= $${j} `;
+      values.push(endDate);
+      j += 1;
+    }
+    if (success) {
+      filterClauses += `AND (val->'trace'->0->>'success')::BOOLEAN = ANY($${j}) `;
+      values.push(success);
+      j += 1;
+    }
+    if (minLatency) {
+      filterClauses += `AND (val->'trace'->0->>'elapsedMillis')::INT >= $${j} `;
+      values.push(minLatency);
+      j += 1;
+    }
+    if (maxLatency) {
+      filterClauses += `AND (val->'trace'->0->>'elapsedMillis')::INT <= $${j} `;
+      values.push(maxLatency);
+      j += 1;
+    }
+    let q = `
+      SELECT COUNT(*) AS k FROM traces WHERE workspace_id = $1 ${filterClauses}
+    `;
+    logger.debug('q:', q);
+    logger.debug('values:', values);
+
+    const { rows } = await pg.query(q, values);
+    return rows[0].k;
   }
 
   async function getTrace(id) {
@@ -67,9 +180,11 @@ export function TracesService({ pg, logger }) {
     if (trace === null || typeof trace === 'undefined') {
       return null;
     }
-    const val = omit(trace, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedTrace = await getTrace(trace.id);
     if (savedTrace) {
+      trace = { ...savedTrace, ...trace };
+      const val = omit(trace, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE traces
@@ -80,7 +195,9 @@ export function TracesService({ pg, logger }) {
         [trace.name, val, trace.id, modified, trace.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(trace, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO traces (workspace_id, name, val, created_by, created, modified_by, modified)
@@ -108,6 +225,7 @@ export function TracesService({ pg, logger }) {
   return {
     getLatestTrace,
     getTraces,
+    getTracesCount,
     getTrace,
     upsertTrace,
     deleteTraces,

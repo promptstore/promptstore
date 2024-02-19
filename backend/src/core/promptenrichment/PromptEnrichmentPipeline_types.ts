@@ -1,7 +1,7 @@
 import { Callback } from '../callbacks/Callback';
 import { GraphStoreService } from '../indexers/GraphStore';
 import { PromptTemplate } from './PromptTemplate';
-import { Message, ModelParams, ResponseMetadata } from '../conversions/RosettaStone';
+import { Message, ModelObject, ModelParams, ResponseMetadata } from '../conversions/RosettaStone';
 import { LLMModel, LLMService } from '../models/llm_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
@@ -10,8 +10,9 @@ export interface PromptEnrichmentCallParams {
   isBatch: boolean;
   messages?: Message[];
   contextWindow?: number;
+  maxOutputTokens?: number;
   maxTokens?: number;
-  modelKey?: string;
+  model?: string;
   callbacks?: Callback[];
 }
 
@@ -113,12 +114,26 @@ export interface IndexParams {
 }
 
 interface Index {
+  id: number;
   name: string;
   params: IndexParams;
 }
 
+interface SemanticSearchHit {
+  id: string;
+  score?: number;
+  dist?: number;
+}
+
+export interface SemanticSearchHits {
+  dataSourceId: number;
+  dataSourceName: string;
+  hits: SemanticSearchHit[];
+}
+
 export interface OnSemanticSearchEnrichmentEndParams {
   enrichedArgs?: any;
+  sources?: Map<number, SemanticSearchHits>;
   errors?: any;
 }
 
@@ -129,8 +144,8 @@ export interface SemanticSearchEnrichmentOnStartResponse {
 }
 
 export interface SemanticSearchEnrichmentOnEndResponse {
-  index: Index;
   enrichedArgs?: any;
+  sources?: Map<number, SemanticSearchHits>;
   errors?: any;
 }
 
@@ -141,6 +156,7 @@ export type SemanticSearchEnrichmentOnEndCallbackFunction = (params: SemanticSea
 export type SemanticSearchEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface SearchIndexEnrichmentParams {
+  indexId: number;
   indexName: string;
   indexParams: IndexParams;
   llmService: LLMService;
@@ -156,7 +172,7 @@ export interface OnFunctionEnrichmentEndParams {
 
 export interface FunctionEnrichmentOnStartResponse {
   functionName: string;
-  modelKey: string;
+  model: ModelObject;
   modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
@@ -166,7 +182,7 @@ export interface FunctionEnrichmentOnStartResponse {
 
 export interface FunctionEnrichmentOnEndResponse {
   functionName: string;
-  modelKey: string;
+  model: ModelObject;
   modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;
@@ -182,7 +198,7 @@ export type FunctionEnrichmentOnErrorCallbackFunction = (errors: any) => void;
 
 export interface FunctionEnrichmentParams {
   semanticFunction: SemanticFunction;
-  modelKey: string;
+  model: ModelObject;
   modelParams: Partial<ModelParams>;
   contentPropertyPath: string;
   contextPropertyPath: string;

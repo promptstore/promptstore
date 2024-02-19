@@ -4,6 +4,8 @@ import uuid from 'uuid';
 function ApiLoader({ __name, constants, logger }) {
 
   async function load({
+    dataSourceId,
+    dataSourceName,
     endpoint,
     schema,
   }) {
@@ -39,6 +41,8 @@ function ApiLoader({ __name, constants, logger }) {
     const size = new Blob([text]).size;
     return {
       id: uuid.v4(),
+      dataSourceId,
+      dataSourceName,
       endpoint,
       mimetype: 'application/json',
       size,

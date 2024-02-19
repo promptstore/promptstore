@@ -258,7 +258,7 @@ export const deleteUploadsAsync = ({ workspaceId, uploads }) => async (dispatch)
 export const crawlAsync = ({ dataSourceId, params, workspaceId }) => async (dispatch) => {
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
-  await http.post('/api/index/crawler', { correlationId, params, workspaceId });
+  await http.post('/api/index/crawler', { correlationId, dataSourceId, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {
@@ -287,7 +287,7 @@ export const indexApiAsync = ({ dataSourceId, params, workspaceId }) => async (d
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/api';
-  await http.post(url, { correlationId, params, workspaceId });
+  await http.post(url, { correlationId, dataSourceId, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {
@@ -316,7 +316,7 @@ export const indexCsvAsync = ({ dataSourceId, documents, params, workspaceId }) 
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/csv';
-  await http.post(url, { correlationId, documents, params, workspaceId });
+  await http.post(url, { correlationId, dataSourceId, documents, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {
@@ -345,7 +345,7 @@ export const indexDocumentAsync = ({ appId, dataSourceId, documents, params, wor
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/document';
-  await http.post(url, { appId, correlationId, documents, params, workspaceId });
+  await http.post(url, { appId, correlationId, dataSourceId, documents, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {
@@ -403,7 +403,7 @@ export const indexTextDocumentAsync = ({ dataSourceId, documents, params, worksp
   dispatch(startIndex({ dataSourceId }));
   const correlationId = uuidv4();
   const url = '/api/index/text';
-  await http.post(url, { correlationId, documents, params, workspaceId });
+  await http.post(url, { correlationId, dataSourceId, documents, params, workspaceId });
   const timeout = 120000;
   const start = new Date();
   const intervalId = setInterval(async () => {

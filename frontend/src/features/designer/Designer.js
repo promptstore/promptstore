@@ -687,7 +687,12 @@ export function Designer() {
   const hasSelected = selectedRowKeys.length > 0;
   const hasImage = messages
     .filter(m => m.role === 'user')
-    .some(m => m.content?.some(c => c.type === 'image_url'));
+    .some(m => {
+      if (Array.isArray(m.content)) {
+        return m.content.some(c => c.type === 'image_url');
+      }
+      return false;
+    });
 
   return (
     <>
@@ -930,14 +935,17 @@ export function Designer() {
                 topK: true,
                 jsonMode: true,
                 seed: true,
+                models: true,
+                criticModels: true,
               }}
               onChange={setModelParams}
               // value={initialModelParams}
-              value={{
-                ...modelParams,
-                models: modelParams.models?.map(m => m.id),
-                criticModels: modelParams.criticModels?.map(m => m.id),
-              }}
+              value={modelParams}
+            // value={{
+            //   ...modelParams,
+            //   models: modelParams.models?.map(m => m.id),
+            //   criticModels: modelParams.criticModels?.map(m => m.id),
+            // }}
             />
           </Sider>
         </Layout>

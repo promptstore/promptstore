@@ -154,6 +154,34 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
         ],
       },
       {
+        key: 'evals',
+        icon: <SafetyCertificateOutlined />,
+        label: 'Evals',
+        children: [
+          {
+            key: 'evaluations',
+            icon: <SafetyCertificateOutlined />,
+            label: (
+              <NavLink to="/evaluations">Evaluations</NavLink>
+            ),
+          },
+          {
+            key: 'eval-runs',
+            icon: <PlaySquareOutlined />,
+            label: (
+              <NavLink to="/eval-runs">Eval Runs</NavLink>
+            ),
+          },
+          {
+            key: 'datasets',
+            icon: <DatabaseOutlined />,
+            label: (
+              <NavLink to="/datasets">Human Review</NavLink>
+            ),
+          },
+        ],
+      },
+      {
         key: 'knowledge',
         icon: <DeploymentUnitOutlined />,
         label: 'Knowledge',
@@ -205,34 +233,6 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             icon: <FileSearchOutlined />,
             label: (
               <NavLink to="/rag">RAG Tester</NavLink>
-            ),
-          },
-        ],
-      },
-      {
-        key: 'evals',
-        icon: <SafetyCertificateOutlined />,
-        label: 'Evals',
-        children: [
-          {
-            key: 'datasets',
-            icon: <DatabaseOutlined />,
-            label: (
-              <NavLink to="/datasets">Call Logs</NavLink>
-            ),
-          },
-          {
-            key: 'evaluations',
-            icon: <SafetyCertificateOutlined />,
-            label: (
-              <NavLink to="/evaluations">Evaluations</NavLink>
-            ),
-          },
-          {
-            key: 'eval-runs',
-            icon: <PlaySquareOutlined />,
-            label: (
-              <NavLink to="/eval-runs">Eval Runs</NavLink>
             ),
           },
         ],

@@ -34,18 +34,20 @@ export function SettingsService({ pg, logger }) {
   }
 
   async function getSettingsByKey(workspaceId, key) {
-    if (workspaceId === null || typeof workspaceId === 'undefined') {
-      return null;
-    }
     if (key === null || typeof key === 'undefined') {
       return null;
     }
     let q = `
       SELECT id, workspace_id, key, created, created_by, modified, modified_by, val
       FROM settings
-      WHERE workspace_id = $1 AND key = $2
+      WHERE key = $1
       `;
-    const { rows } = await pg.query(q, [workspaceId, key]);
+    let params = [key];
+    if (workspaceId) {
+      q += `AND workspace_id = $2`;
+      params.push(workspaceId);
+    }
+    const { rows } = await pg.query(q, params);
     if (rows.length === 0) {
       return [];
     }
@@ -72,27 +74,33 @@ export function SettingsService({ pg, logger }) {
     if (setting === null || typeof setting === 'undefined') {
       return null;
     }
-    const val = omit(setting, ['id', 'workspaceId', 'key', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'key', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedSetting = await getSetting(setting.id);
     if (savedSetting) {
+      setting = { ...savedSetting, ...setting };
+      const val = omit(setting, omittedFields);
       const modified = new Date();
-      await pg.query(`
+      const { rows } = await pg.query(`
         UPDATE settings
         SET val = $1, modified_by = $2, modified = $3
         WHERE id = $4
+        RETURNING *
         `,
         [val, username, modified, setting.id]
       );
-      return setting.id;
+      return mapRow(rows[0]);
+
     } else {
+      const val = omit(setting, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO settings (workspace_id, key, val, created_by, created, modified_by, modified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+        VALUES ($1, $2, $3, $4, $5, $6, $7) 
+        RETURNING *
         `,
         [setting.workspaceId, setting.key, val, username, created, username, created]
       );
-      return rows[0].id;
+      return mapRow(rows[0]);
     }
   }
 

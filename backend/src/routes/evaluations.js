@@ -43,22 +43,19 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/evaluations', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
-
-    let scheduleId;
+    let values = req.body;
+    let evaluation = await evaluationsService.upsertEvaluation(values, username);
     if (hasValue(values.schedule)) {
-      scheduleId = await workflowClient.scheduleEvaluation(values, values.workspaceId, username, {
+      const scheduleId = await workflowClient.scheduleEvaluation(evaluation, values.workspaceId, username, {
         address: constants.TEMPORAL_URL,
       });
+      values = {
+        ...evaluation,
+        scheduleId,
+        scheduleStatus: 'running',
+      };
+      evaluation = await evaluationsService.upsertEvaluation(values, username);
     }
-
-    const eval_ = {
-      ...values,
-      scheduleId,
-      scheduleStatus: 'running',
-    };
-
-    const evaluation = await evaluationsService.upsertEvaluation(eval_, username);
     const obj = createSearchableObject(evaluation);
     await indexObject(obj);
     res.json(evaluation);
@@ -67,16 +64,28 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.put('/api/evaluations/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
-    const values = req.body;
-    let scheduleId;
-    if (hasValue(values.schedule)) {
-      logger.debug('scheduling transformation:', values);
-      scheduleId = await workflowClient.scheduleEvaluation(values, values.workspaceId, username, {
-        address: constants.TEMPORAL_URL,
-      });
+    let evaluation = await evaluationsService.getEvaluation(id);
+    let values = { ...evaluation, ...req.body };
+    if (values.scheduleStatus !== 'paused') {
+      if (hasValue(values.schedule)) {
+        logger.debug('scheduling evaluation:', values);
+        if (values.scheduleId) {
+          await workflowClient.deleteSchedule(values.scheduleId, {
+            address: constants.TEMPORAL_URL,
+          });
+        }
+        const scheduleId = await workflowClient.scheduleEvaluation(values, values.workspaceId, username, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId, scheduleStatus: 'running' };
+      } else if (values.scheduleId) {
+        await workflowClient.deleteSchedule(values.scheduleId, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId: null, scheduleStatus: null };
+      }
     }
-    const eval_ = { ...values, id, scheduleId };
-    const evaluation = await evaluationsService.upsertEvaluation(eval_, username);
+    evaluation = await evaluationsService.upsertEvaluation(values, username);
     const obj = createSearchableObject(evaluation);
     await indexObject(obj);
     res.json(evaluation);

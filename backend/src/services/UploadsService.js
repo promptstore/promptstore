@@ -83,13 +83,32 @@ export function UploadsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
+  async function getUploadByObjectName(objectName) {
+    if (objectName === null || typeof objectName === 'undefined') {
+      return null;
+    }
+    const [workspaceId, _, filename] = objectName.split('/');
+    let q = `
+      SELECT id, workspace_id, user_id, filename, created, created_by, modified, modified_by, val
+      FROM file_uploads
+      WHERE workspace_id = $1 AND filename = $2
+      `;
+    const { rows } = await pg.query(q, [workspaceId, filename]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
   async function upsertUpload(upload, username) {
     if (upload === null || typeof upload === 'undefined') {
       return null;
     }
-    const val = omit(upload, ['id', 'workspaceId', 'userId', 'filename']);
+    const omittedFields = ['id', 'workspaceId', 'userId', 'filename'];
     const savedUpload = await getUpload(upload.id);
     if (savedUpload) {
+      upload = { ...savedUpload, ...upload };
+      const val = omit(upload, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE file_uploads
@@ -100,7 +119,9 @@ export function UploadsService({ pg, logger }) {
         [val, username, modified, upload.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(upload, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO file_uploads (workspace_id, user_id, filename, val, created_by, created, modified_by, modified)
@@ -144,6 +165,7 @@ export function UploadsService({ pg, logger }) {
     getUploads,
     getUpload,
     getUploadByFilename,
+    getUploadByObjectName,
     upsertUpload,
     deleteUploads,
     deleteWorkspaceFiles,

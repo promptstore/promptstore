@@ -133,6 +133,7 @@ export const hasSentenceEnding = (content) => {
 };
 
 export const appendSentence = (content, sentence) => {
+  if (!content) return content;
   content = content.trim();
   const sep = hasSentenceEnding(content) ? ' ' : '. ';
   return content + sep + sentence;
@@ -611,5 +612,16 @@ export function getTextStats(text) {
 }
 
 export const hasValue = (value) => {
+  if (!value) return false;
   return Object.values(value).some(v => !(v === null || typeof v === 'undefined'));
+};
+
+export const slugify = (str) => {
+  if (!str) return 'undefined';
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 };

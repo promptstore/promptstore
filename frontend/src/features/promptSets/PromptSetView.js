@@ -324,7 +324,7 @@ export function PromptSetView() {
               rowSelection={rowSelection}
             />
             :
-            <div>Schema not defined</div>
+            <div style={{ padding: '24px 16px' }}>Schema not defined</div>
           }
         </Sider>
       </Layout>

@@ -2,7 +2,7 @@ import omit from 'lodash.omit';
 
 const DEFAULT_CREDITS = 2000;
 
-export function UsersService({ pg }) {
+export function UsersService({ pg, logger }) {
 
   function mapRow(row) {
     return {
@@ -72,12 +72,11 @@ export function UsersService({ pg }) {
   }
 
   async function upsertUser(user) {
+    const omittedFields = ['id', 'userId'];
     const savedUser = await getUser(user.username);
     if (savedUser) {
-      const val = {
-        ...omit(savedUser, ['id', 'userId']),
-        ...user
-      };
+      user = { ...savedUser, ...user };
+      const val = omit(user, omittedFields);
       const { rows } = await pg.query(
         `UPDATE users ` +
         `SET val = $1 ` +
@@ -86,11 +85,13 @@ export function UsersService({ pg }) {
         [val, user.username]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(user, omittedFields)
       const { rows } = await pg.query(
         `INSERT INTO users (username, val) ` +
         `VALUES ($1, $2) RETURNING *`,
-        [user.username, user]
+        [user.username, val]
       );
       return mapRow(rows[0]);
     }
@@ -123,7 +124,7 @@ export function UsersService({ pg }) {
     if (credits === null || typeof credits === 'undefined') {
       credits = DEFAULT_CREDITS;
     }
-    if (credits === 0) {
+    if (credits <= 0) {
       const errors = [
         {
           message: `No available credit`,

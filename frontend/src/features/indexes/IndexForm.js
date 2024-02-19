@@ -252,7 +252,7 @@ export function IndexForm() {
 
     return (
       <>
-        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: 0 }}>
           <Descriptions title="Physical Index Info">
             <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
             <Descriptions.Item label="Number of records">{store.numRecords}</Descriptions.Item>
@@ -297,7 +297,7 @@ export function IndexForm() {
 
     return (
       <>
-        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+        <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: 0 }}>
           <Descriptions title="Physical Index Info">
             <Descriptions.Item label="Number of documents">{store.numDocs}</Descriptions.Item>
           </Descriptions>
@@ -316,7 +316,7 @@ export function IndexForm() {
   function Neo4jStoreInfo({ store }) {
 
     return (
-      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: 0 }}>
         <Descriptions title="Physical Index Info" column={2}>
           <Descriptions.Item label="Embedding dimension">{store.embeddingDimension}</Descriptions.Item>
           <Descriptions.Item label="Similarity metric">{store.similarityMetric}</Descriptions.Item>
@@ -330,7 +330,7 @@ export function IndexForm() {
   function ChromaStoreInfo({ store }) {
 
     return (
-      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: 0 }}>
         <Descriptions title="Physical Index Info" column={2}>
           <Descriptions.Item label="Embedding dimension">{store.embeddingDimension}</Descriptions.Item>
           <Descriptions.Item label="Similarity metric">{store.similarityMetric}</Descriptions.Item>
@@ -365,7 +365,7 @@ export function IndexForm() {
       }
     }
     return (
-      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
+      <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: 0 }}>
         <div>Physical index not found</div>
       </Form.Item>
     );

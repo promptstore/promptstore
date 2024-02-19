@@ -1,10 +1,13 @@
+import path from 'path';
+import snakeCase from 'lodash.snakecase';
+
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
 
   const OBJECT_TYPE = 'apps';
 
-  const { appsService } = services;
+  const { appsService, dataSourcesService, indexesService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -213,6 +216,24 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json(app);
   });
 
+  async function createDataSource(app, username) {
+    const name = snakeCase(app.name);
+    const workspaceId = app.workspaceId;
+    const dataSourceName = name + '_source';
+    const prefix = path.join(String(workspaceId), constants.DOCUMENTS_PREFIX, 'apps', String(app.id));
+    const dataSourceInput = {
+      workspaceId,
+      name: dataSourceName,
+      description: `Data source for the ${app.name} app.`,
+      type: 'folder',
+      bucket: constants.FILE_BUCKET,
+      prefix,
+      recursive: true,
+    };
+    const dataSource = await dataSourcesService.upsertDataSource(dataSourceInput, username);
+    return dataSource;
+  }
+
   /**
    * @openapi
    * /api/apps:
@@ -238,8 +259,13 @@ export default ({ app, auth, constants, logger, services }) => {
    */
   app.post('/api/apps', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
-    const app = await appsService.upsertApp(values, username);
+    let values = req.body;
+    let app = await appsService.upsertApp(values, username);
+    if (values.allowUpload) {
+      const dataSource = await createDataSource(app, username);
+      values = { ...app, dataSourceId: dataSource.id };
+      app = await appsService.upsertApp(values, username);
+    }
     const obj = createSearchableObject(app);
     await indexObject(obj);
     res.json(app);
@@ -277,7 +303,16 @@ export default ({ app, auth, constants, logger, services }) => {
   app.put('/api/apps/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
-    const values = req.body;
+    let values = req.body;
+    const currentApp = await appsService.getApp(id);
+    if (currentApp.dataSourceId && !values.allowUpload) {
+      await dataSourcesService.deleteDataSources([currentApp.dataSourceId]);
+      values = { ...values, dataSourceId: null };
+    }
+    if (values.allowUpload && !currentApp.dataSourceId) {
+      const dataSource = await createDataSource(currentApp, username);
+      values = { ...values, dataSourceId: dataSource.id };
+    }
     const app = await appsService.upsertApp({ ...values, id }, username);
     const obj = createSearchableObject(app);
     await indexObject(obj);
@@ -308,6 +343,10 @@ export default ({ app, auth, constants, logger, services }) => {
    */
   app.delete('/api/apps/:id', auth, async (req, res, next) => {
     const id = req.params.id;
+    const currentApp = await appsService.getApp(id);
+    if (currentApp.dataSourceId) {
+      await dataSourcesService.deleteDataSources([currentApp.dataSourceId]);
+    }
     await appsService.deleteApps([id]);
     await deleteObject(objectId(id));
     res.json(id);
@@ -339,6 +378,25 @@ export default ({ app, auth, constants, logger, services }) => {
    */
   app.delete('/api/apps', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
+    let dataSourceIds = [];
+    let indexIds = [];
+    for (const id of ids) {
+      const app = await appsService.getApp(id);
+      if (app.dataSourceId) {
+        dataSourceIds.push(app.dataSourceId);
+      }
+      for (const indexId of (app.indexes || [])) {
+        indexIds.push(indexId);
+      }
+    }
+    if (dataSourceIds.length) {
+      dataSourceIds = [...new Set(dataSourceIds)];
+      await dataSourcesService.deleteDataSources(dataSourceIds);
+    }
+    if (indexIds.length) {
+      indexIds = [...new Set(indexIds)];
+      await indexesService.deleteIndexes(indexIds);
+    }
     await appsService.deleteApps(ids);
     await deleteObjects(ids.map(objectId));
     res.json(ids);

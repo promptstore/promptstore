@@ -12,6 +12,9 @@ import {
   mapperNode,
   requestNode,
   outputNode,
+  sourceNode,
+  indexNode,
+  scheduleNode,
 } from '../core/compositions/Composition';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
@@ -61,6 +64,7 @@ export default ({ logger, rc, services }) => {
     modelProviderService,
     modelsService,
     parserService,
+    pipelinesService,
     promptSetsService,
     sqlSourceService,
     toolService,
@@ -75,6 +79,8 @@ export default ({ logger, rc, services }) => {
       }))
       .map(message);
     return promptTemplate({
+      promptSetId: promptTemplateInfo.id,
+      promptSetName: promptTemplateInfo.name,
       schema: promptTemplateInfo.arguments,
       templateEngine: promptTemplateInfo.templateEngine,
       callbacks,
@@ -92,9 +98,12 @@ export default ({ logger, rc, services }) => {
       semanticCache = createSemanticCache('sentenceencoder');
     }
     return llmModel({
+      modelId: modelInfo.id,
+      modelName: modelInfo.name,
       model: modelInfo.key,
       provider: modelInfo.provider,
       contextWindow: modelInfo.contextWindow,
+      maxOutputTokens: modelInfo.maxOutputTokens,
       completionService,
       semanticCache,
       semanticCacheEnabled,
@@ -122,9 +131,12 @@ export default ({ logger, rc, services }) => {
       semanticCache = createSemanticCache('sentenceencoder');
     }
     return completionModel({
+      modelId: modelInfo.id,
+      modelName: modelInfo.name,
       model: modelInfo.key,
       provider: modelInfo.provider,
       contextWindow: modelInfo.contextWindow,
+      maxOutputTokens: modelInfo.maxOutputTokens,
       completionService,
       semanticCache,
       semanticCacheEnabled,
@@ -181,6 +193,7 @@ export default ({ logger, rc, services }) => {
       vectorStoreProvider: index.vectorStoreProvider,
     };
     return semanticSearchEnrichment({
+      indexId: index.id,
       indexName: index.name,
       indexParams,
       llmService,
@@ -199,7 +212,10 @@ export default ({ logger, rc, services }) => {
     };
     return functionEnrichment({
       semanticFunction,
-      modelKey: 'gpt-3.5-turbo-0613',
+      model: {
+        model: 'gpt-3.5-turbo-0613',
+        provider: 'openai',
+      },
       modelParams,
       contentPropertyPath: indexInfo.indexContentPropertyPath,
       contextPropertyPath: indexInfo.indexContextPropertyPath,
@@ -404,6 +420,22 @@ export default ({ logger, rc, services }) => {
           nodes.push(outputNode(nodeInfo.id));
           break;
 
+        case 'sourceNode':
+          let dataSourceId = nodeInfo.data.dataSourceId;
+          let dataSource = await dataSourcesService.getDataSource(dataSourceId);
+          nodes.push(sourceNode(nodeInfo.id, dataSource));
+          break;
+
+        case 'indexNode':
+          let indexId = nodeInfo.data.indexId;
+          let index = await indexesService.getIndex(indexId);
+          nodes.push(indexNode(nodeInfo.id, index));
+          break;
+
+        case 'scheduleNode':
+          nodes.push(scheduleNode(nodeInfo.id, nodeInfo.data.schedule));
+          break;
+
         default:
       }
     }
@@ -411,7 +443,7 @@ export default ({ logger, rc, services }) => {
     for (const edgeInfo of compositionInfo.flow.edges) {
       edges.push(edge(edgeInfo.id, edgeInfo.source, edgeInfo.target));
     }
-    return composition(compositionInfo.name, nodes, edges, callbacks);
+    return composition(compositionInfo.name, nodes, edges, pipelinesService, callbacks);
   }
 
   return {

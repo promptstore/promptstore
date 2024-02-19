@@ -1,8 +1,8 @@
 import { isTruthy } from '../utils';
 
-const DEFAULT_WORKSPACE = 1;  // system workspace
+const SYSTEM_WORKSPACE_ID = 1;
 
-export default ({ app, auth, logger, services }) => {
+export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const { executionsService } = services;
 
@@ -369,7 +369,7 @@ export default ({ app, auth, logger, services }) => {
     const { args, messages, history, params, workspaceId, extraIndexes } = req.body;
 
     const { errors, response, responseMetadata } = await executionsService.executeFunction({
-      workspaceId: workspaceId || DEFAULT_WORKSPACE,
+      workspaceId: workspaceId || SYSTEM_WORKSPACE_ID,
       username,
       semanticFunctionName,
       args,
@@ -453,20 +453,33 @@ export default ({ app, auth, logger, services }) => {
     const { username } = req.user;
     const batch = req.query.batch;
     // logger.debug('body:', req.body);
-    const { args, params = {}, workspaceId = 1 } = req.body;
-
-    const { errors, response, responseMetadata } = await executionsService.executeComposition({
+    let { args, params, workspaceId } = req.body;
+    if (!params) params = {};
+    if (!workspaceId) workspaceId = SYSTEM_WORKSPACE_ID;
+    const inputParams = {
       workspaceId,
       username,
       compositionName,
       args,
       params,
       batch,
+    };
+    workflowClient.executeComposition(inputParams, {
+      address: constants.TEMPORAL_URL,
+    }).then(({ errors, response, responseMetadata }) => {
+      if (errors) {
+        logger.debug("Error executing composition '%s'", compositionName, errors);
+        return res.status(500).json({ errors });
+      }
+      res.json({ response, responseMetadata });
     });
-    if (errors) {
-      return res.status(500).json({ errors });
-    }
-    res.json({ response, responseMetadata });
+
+    // const { errors, response, responseMetadata } = await executionsService.executeComposition(indexParams);
+    // if (errors) {
+    //   logger.debug("Error executing composition '%s'", compositionName, errors);
+    //   return res.status(500).json({ errors });
+    // }
+    // res.json({ response, responseMetadata });
   });
 
 };

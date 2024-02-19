@@ -14,7 +14,6 @@ export class InputGuardrails {
   guardrails: string[];
   guardrailsService: any;
   callbacks: Callback[];
-  currentCallbacks: Callback[];
 
   constructor({
     guardrails,
@@ -27,8 +26,13 @@ export class InputGuardrails {
   }
 
   async call({ messages, callbacks }: InputGuardrailsCallParams) {
-    this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ messages: await convertMessagesWithImages(messages) });
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ messages: await convertMessagesWithImages(messages) }, _callbacks);
     try {
       const contents = messages.map(m => m.content);
       const text = contents.join('\n\n');
@@ -36,15 +40,15 @@ export class InputGuardrails {
       for (let key of this.guardrails) {
         let res = await this.guardrailsService.scan(key, text);
         if (res.error) {
-          this.throwGuardrailError(res.error)
+          this.throwGuardrailError(res.error, _callbacks)
         }
         valid = true;
       }
-      this.onEnd({ valid });
+      this.onEnd({ valid }, _callbacks);
       return valid;
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
-      this.onEnd({ valid: false, errors });
+      this.onEnd({ valid: false, errors }, _callbacks);
       throw err;
     }
   }
@@ -53,8 +57,8 @@ export class InputGuardrails {
     return this.guardrails.length;
   }
 
-  onStart({ messages }: InputGuardrailsCallParams) {
-    for (let callback of this.currentCallbacks) {
+  onStart({ messages }: InputGuardrailsCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onInputGuardrailStart({
         guardrails: this.guardrails,
         messages,
@@ -62,8 +66,8 @@ export class InputGuardrails {
     }
   }
 
-  onEnd({ valid, errors }: InputGuardrailsOnEndParams) {
-    for (let callback of this.currentCallbacks) {
+  onEnd({ valid, errors }: InputGuardrailsOnEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
       callback.onInputGuardrailEnd({
         valid,
         errors,
@@ -71,9 +75,9 @@ export class InputGuardrails {
     }
   }
 
-  throwGuardrailError(message: string) {
+  throwGuardrailError(message: string, callbacks: Callback[]) {
     const errors = [{ message }];
-    for (let callback of this.currentCallbacks) {
+    for (let callback of callbacks) {
       callback.onInputGuardrailError(errors);
     }
     throw new GuardrailError(message);

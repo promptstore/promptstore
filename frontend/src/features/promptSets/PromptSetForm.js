@@ -49,6 +49,7 @@ import { wordsDiff } from '../../utils/PatienceDiff';
 import { VersionsModal } from '../apps/Playground/VersionsModal';
 import {
   getFunctionsByPromptSetAsync,
+  resetFunctions,
   selectFunctions,
 } from '../functions/functionsSlice';
 
@@ -292,7 +293,9 @@ export function PromptSetForm() {
       createLink: null,
       title: 'Prompt Template',
     }));
-    if (!isNew) {
+    if (isNew) {
+      dispatch(resetFunctions());
+    } else {
       dispatch(getPromptSetAsync(id));
     }
   }, []);
@@ -301,12 +304,12 @@ export function PromptSetForm() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getSettingsAsync({
-        workspaceId,
         key: 'skills',
+        workspaceId: null,
       }));
       dispatch(getSettingsAsync({
-        workspaceId,
         key: TAGS_KEY,
+        workspaceId: null,
       }));
     }
   }, [selectedWorkspace]);
@@ -347,9 +350,9 @@ export function PromptSetForm() {
         dispatch(createSettingAsync({ values }));
       }
     }
-    setTimeout(() => {
-      newSkillInputRef.current?.focus();
-    }, 0);
+    // setTimeout(() => {
+    //   newSkillInputRef.current?.focus();
+    // }, 0);
   };
 
   useEffect(() => {
@@ -751,7 +754,7 @@ export function PromptSetForm() {
                   ]}
                   style={{ display: 'inline-block', margin: 0, width: 300 }}
                 >
-                  <Select
+                  <Select allowClear
                     options={skillOptions}
                     optionFilterProp="label"
                     dropdownRender={(menu) => (

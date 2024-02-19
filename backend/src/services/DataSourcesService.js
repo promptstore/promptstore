@@ -72,9 +72,11 @@ export function DataSourcesService({ pg, logger }) {
     if (dataSource === null || typeof dataSource === 'undefined') {
       return null;
     }
-    const val = omit(dataSource, ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedDataSource = await getDataSource(dataSource.id);
     if (savedDataSource) {
+      dataSource = { ...savedDataSource, ...dataSource };
+      const val = omit(dataSource, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE data_sources
@@ -85,7 +87,9 @@ export function DataSourcesService({ pg, logger }) {
         [dataSource.name, dataSource.type, val, username, modified, dataSource.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(dataSource, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO data_sources (workspace_id, name, type, val, created_by, created, modified_by, modified)

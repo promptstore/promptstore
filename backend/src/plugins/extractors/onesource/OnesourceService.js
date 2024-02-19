@@ -36,6 +36,9 @@ function OnesourceService({ __name, constants, logger }) {
         metadata: {
           author: metadata.author,
           mimetype: getMimeType(metadata.doc_type),
+          dataSourceId: null,
+          dataSourceName: null,
+          uploadId: null,
           objectName: metadata.record_id,
           endpoint: null,
           database: null,
@@ -123,6 +126,18 @@ function OnesourceService({ __name, constants, logger }) {
               "type": "string",
               "description": "The document MIME (Multipurpose Internet Mail Extension) type"
             },
+            "dataSourceId": {
+              "type": "string",
+              "description": "The data source id"
+            },
+            "dataSourceName": {
+              "type": "string",
+              "description": "The data source name"
+            },
+            "uploadId": {
+              "type": "string",
+              "description": "The upload id"
+            },
             "objectName": {
               "type": "string",
               "description": "The document object name"
@@ -130,6 +145,10 @@ function OnesourceService({ __name, constants, logger }) {
             "endpoint": {
               "type": "string",
               "description": "The API endpoint"
+            },
+            "database": {
+              "type": "string",
+              "description": "The database name"
             },
             "subtype": {
               "type": "string",

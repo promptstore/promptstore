@@ -53,9 +53,9 @@ export default ({ app, auth, constants, logger, services }) => {
     logger.debug('create index:', req.body);
     try {
       let { embeddingProvider, embeddingModel, nodeLabel } = params;
-      if (!embeddingProvider || !embeddingModel) {
-        embeddingProvider = embeddingModel = 'sentenceencoder';
-      }
+      // if (!embeddingProvider || !embeddingModel) {
+      //   embeddingProvider = embeddingModel = 'sentenceencoder';
+      // }
       let index = await indexesService.getIndexByName(1, indexName);
       if (!index) {
         index = await indexesService.upsertIndex({
@@ -78,7 +78,7 @@ export default ({ app, auth, constants, logger, services }) => {
           nodeLabel,
           embeddingDimension,
         });
-      } else if (vectorStoreProvider === 'redis') {
+      } else if (vectorStoreProvider === 'redis' || vectorStoreProvider === 'elasticsearch') {
         const { vectorField } = params;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
@@ -89,6 +89,21 @@ export default ({ app, auth, constants, logger, services }) => {
       } else {
         throw new Error('Vector store provider not supported: ' + vectorStoreProvider);
       }
+      res.send(resp);
+    } catch (err) {
+      logger.error(String(err));
+      res.sendStatus(400);
+    }
+  });
+
+  app.post('/api/index/:vectorStoreProvider/:name/chunks', auth, async (req, res, next) => {
+    const { name, vectorStoreProvider } = req.params;
+    const { ids } = req.body;
+    try {
+      // logger.debug('vectorStoreProvider:', vectorStoreProvider);
+      // logger.debug('indexName:', name);
+      // logger.debug('ids:', ids);
+      const resp = await vectorStoreService.getChunks(vectorStoreProvider, name, ids);
       res.send(resp);
     } catch (err) {
       logger.error(String(err));
@@ -174,9 +189,10 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/search', auth, async (req, res, next) => {
     const { requests, logicalType, workspaceId, attributesForFacets } = req.body;
     const { indexName, params: { query, facetFilters = [] } } = requests[0];
-    // logger.debug('query:', q);
+    // logger.debug('query:', query);
     // logger.debug('workspace id:', workspaceId);
     // logger.debug('index name:', indexName);
+    logger.debug('facetFilters:', facetFilters);
     const index = await indexesService.getIndexByName(workspaceId, indexName);
     // logger.debug('index:', index);
     const {
@@ -196,7 +212,7 @@ export default ({ app, auth, constants, logger, services }) => {
       queryEmbedding = response.data[0].embedding;
     }
     const attrs = { ...req.body.attrs, ...formatAttrs(nodeLabel, facetFilters.flat()) };
-    // logger.debug('attrs:', attrs);
+    logger.debug('attrs:', attrs);
     const rawResults = await vectorStoreService.search(vectorStoreProvider, indexName, q, attrs, logicalType, {
       nodeLabel,
       queryEmbedding,

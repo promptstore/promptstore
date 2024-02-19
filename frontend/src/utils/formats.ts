@@ -1,3 +1,5 @@
+import type { Schema } from 'jsonschema';
+
 export const PARA_DELIM = '\n\n';
 
 interface CitationSource {
@@ -57,7 +59,7 @@ interface ChatPrompt {
 interface Function {
   name: string;  // The name of the function to be called. Must be a-z, A-Z, 0-9, or contain underscores and dashes, with a maximum length of 64.
   description?: string;  // A description of what the function does, used by the model to choose when and how to call the function.
-  parameters: object;  // JSONSchema document that describes the function and arguments.
+  parameters: Schema;  // JSONSchema document that describes the function and arguments.
 }
 
 interface OpenAIMessage extends Message {

@@ -9,6 +9,7 @@ import { Tool } from '../../agents/Agent_types';
 import { DataMapper, Source } from '../common_types';
 import { CompositionError } from '../errors';
 import { Callback } from '../callbacks/Callback';
+import { DataSource } from '../indexers/DataSource';
 import {
   CompositionCallParams,
   CompositionOnEndParams,
@@ -21,6 +22,9 @@ import {
   IMapperNode,
   IJoinerNode,
   IOutputNode,
+  IDataSourceNode,
+  IIndexNode,
+  IScheduleNode,
   Node,
 } from './Composition_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
@@ -33,6 +37,7 @@ export class Composition {
   nodes: Node[];
   edges: IEdge[];
   dataMapper: DataMapper;
+  pipelinesService: any;
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
@@ -41,21 +46,25 @@ export class Composition {
     nodes,
     edges,
     dataMapper,
+    pipelinesService,
     callbacks,
   }: CompositionParams) {
     this.name = name;
     this.nodes = nodes;
     this.edges = edges;
     this.dataMapper = dataMapper || mapJsonAsync;
+    this.pipelinesService = pipelinesService;
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, modelKey, modelParams, isBatch, callbacks = [] }: CompositionCallParams) {
+  async call({ args, model, modelParams, isBatch, callbacks = [] }: CompositionCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
-    this.onStart({ args, modelKey, modelParams, isBatch });
+    this.onStart({ args, model, modelParams, isBatch });
+    let dataSource: any;
+    let index: any;
 
     const inner = async (node: Node) => {
-      if (node.type === 'requestNode') {
+      if (node.type === 'requestNode' || node.type === 'scheduleNode') {
         return args;
       }
       const sourceIds = this.edges.filter(e => e.target === node.id).map(e => e.source);
@@ -63,16 +72,17 @@ export class Composition {
       for (let sourceId of sourceIds) {
         let sourceNode = this.nodes.find(n => n.id === sourceId);
         if (!sourceNode) {
+          logger.debug('nodes:', this.nodes);
           throw new CompositionError(`Source node (${sourceId}) not found.`);
         }
         let myargs = await inner(sourceNode);
-        logger.debug(node.type, 'myargs:', myargs);
+        // logger.debug(node.type, 'myargs:', myargs);
         if (node.type === 'functionNode') {
           let functionNode = node as IFunctionNode;
           let func = functionNode.func;
           let response = await func.call({
             args: myargs,
-            modelKey,
+            model,
             modelParams,
           });
           logger.debug('response:', response);
@@ -101,7 +111,7 @@ export class Composition {
           let composition = compositionNode.composition;
           let { response } = await composition.call({
             args: myargs,
-            modelKey,
+            model,
             modelParams,
           });
           res = merge(res, response);
@@ -121,10 +131,16 @@ export class Composition {
           }
           let response = await this.mapArgs(source, myargs, mappingTemplate, isBatch);
           res = merge(res, response);
+        } else if (node.type === 'sourceNode') {
+          let dataSourceNode = node as IDataSourceNode;
+          dataSource = dataSourceNode.dataSource;
+        } else if (node.type === 'indexNode') {
+          let indexNode = node as IIndexNode;
+          index = indexNode.index;
         } else {
           res = merge(res, myargs);
         }
-        logger.debug(node.type, 'res:', res);
+        // logger.debug(node.type, 'res:', res);
       }
       return res;
     }
@@ -136,6 +152,32 @@ export class Composition {
       }
 
       const response = await inner(output);
+
+      if (dataSource && index) {
+        // create and run pipeline
+        const params = {
+          dataSourceId: dataSource.id,
+          dataSourceName: dataSource.name,
+          documents: dataSource.documents,
+          maxBytes: 100000,
+          nodeLabel: index.nodeLabel,
+          splitter: dataSource.splitter,
+          chunkSize: dataSource.chunkSize,
+          chunkOverlap: dataSource.chunkOverlap,
+          rephraseFunctionIds: dataSource.rephraseFunctionIds,
+          workspaceId: dataSource.workspaceId,
+          username: args.username,
+          indexId: index.id,
+          embeddingNodeProperty: index.embeddingNodeProperty,
+          similarityMetric: index.similarityMetric,
+          embeddingModel: index.embeddingModel,
+          vectorStoreProvider: index.vectorStoreProvider,
+        };
+
+        // TODO
+        await this.pipelinesService.executePipeline(params, 'minio', ['text']);
+      }
+
       this.onEnd({ response });
       return { response };
 
@@ -181,12 +223,12 @@ export class Composition {
     return mapData(args);
   }
 
-  onStart({ args, modelKey, modelParams, isBatch }: CompositionCallParams) {
+  onStart({ args, model, modelParams, isBatch }: CompositionCallParams) {
     for (let callback of this.currentCallbacks) {
       callback.onCompositionStart({
         name: this.name,
         args,
-        modelKey,
+        model,
         modelParams,
         isBatch,
       });
@@ -217,11 +259,12 @@ export interface ICompositionNode extends INode {
   composition: Composition;
 }
 
-export const composition = (name: string, nodes: Node[], edges: IEdge[], callbacks: Callback[]) => {
+export const composition = (name: string, nodes: Node[], edges: IEdge[], pipelinesService: any, callbacks: Callback[]) => {
   return new Composition({
     name,
     nodes,
     edges,
+    pipelinesService,
     callbacks
   });
 }
@@ -320,6 +363,48 @@ class OutputNode implements IOutputNode {
 
 }
 
+class DataSourceNode implements IDataSourceNode {
+
+  id: string;
+  type: string;
+  dataSource: any;
+
+  constructor(id: string, dataSource: any) {
+    this.id = id;
+    this.type = 'sourceNode';
+    this.dataSource = dataSource;
+  }
+
+}
+
+class IndexNode implements IIndexNode {
+
+  id: string;
+  type: string;
+  index: any;
+
+  constructor(id: string, index: any) {
+    this.id = id;
+    this.type = 'indexNode';
+    this.index = index;
+  }
+
+}
+
+class ScheduleNode implements IScheduleNode {
+
+  id: string;
+  type: string;
+  schedule: any;
+
+  constructor(id: string, schedule: any) {
+    this.id = id;
+    this.type = 'scheduleNode';
+    this.schedule = schedule;
+  }
+
+}
+
 class Edge implements IEdge {
 
   id: string;
@@ -360,6 +445,18 @@ export const joinerNode = (id: string) => {
 
 export const outputNode = (id: string) => {
   return new OutputNode(id);
+};
+
+export const sourceNode = (id: string, dataSource: any) => {
+  return new DataSourceNode(id, dataSource);
+};
+
+export const indexNode = (id: string, index: any) => {
+  return new IndexNode(id, index);
+};
+
+export const scheduleNode = (id: string, schedule: any) => {
+  return new ScheduleNode(id, schedule);
 };
 
 export const edge = (id: string, source: string, target: string) => {

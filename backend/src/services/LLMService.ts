@@ -65,9 +65,9 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
       throw new Error(`model provider ${provider} not supported.`);
     }
 
-    // logger.debug('provider request:', providerRequest);
+    logger.debug('provider request:', providerRequest);
     const response = await instance.createChatCompletion(providerRequest);
-    // logger.debug('provider response:', response);
+    logger.debug('provider response:', response);
 
     if ([...OPENAI_COMPATIBLE_PROVIDERS, 'mistral'].includes(provider)) {
       // because the OpenAI GPT-4V model only accepts the key `gpt-4-vision-preview`,
@@ -104,7 +104,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     }
 
     if (provider === 'gemini') {
-      const universalResponse = fromGeminiChatResponse(response);
+      const universalResponse = await fromGeminiChatResponse(response, parserService);
       return {
         ...universalResponse,
         model: request.model,
@@ -112,7 +112,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     }
 
     if (provider === 'llamaapi') {
-      const universalResponse = fromLlamaApiChatResponse(response);
+      const universalResponse = await fromLlamaApiChatResponse(response, parserService);
       return {
         ...universalResponse,
         model: request.model,
@@ -157,7 +157,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     }
 
     if (provider === 'llamaapi') {
-      return fromLlamaApiChatResponse(response);
+      return fromLlamaApiChatResponse(response, parserService);
     }
 
     if (provider === 'vertexai') {
@@ -228,6 +228,14 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     return instance.rerank(model, documents, query, topN);
   }
 
+  function getAllProviders() {
+    return Object.entries(registry)
+      .map(([key, p]) => ({
+        key,
+        name: p.__name,
+      }));
+  }
+
   function getChatProviders(): PluginMetadata[] {
     return Object.entries(registry)
       .filter(([_, p]) => 'createChatCompletion' in p)
@@ -269,6 +277,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
     createCompletion,
     createEmbedding,
     rerank,
+    getAllProviders,
     getChatProviders,
     getCompletionProviders,
     getEmbeddingProviders,

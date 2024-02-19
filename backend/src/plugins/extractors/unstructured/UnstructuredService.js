@@ -55,7 +55,14 @@ function UnstructuredService({ __name, constants, logger }) {
             metadata: {
               author: null,
               mimetype: el.metadata.filetype,
+              dataSourceId: doc.dataSourceId,
+              dataSourceName: doc.dataSourceName,
+              uploadId: doc.uploadId,
               filename: el.metadata.filename,
+
+              // TODO
+              objectName: el.metadata.filename,
+
               endpoint: null,
               database: null,
               subtype: null,

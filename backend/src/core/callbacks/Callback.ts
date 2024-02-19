@@ -58,9 +58,11 @@ import {
   CompositionOnEndResponse,
 } from '../compositions/Composition_types';
 
-export class Callback {
+export abstract class Callback {
 
-  onCompositionStart({ args, modelKey, modelParams, isBatch }: CompositionOnStartResponse) {
+  abstract clone(): Callback;
+
+  onCompositionStart({ args, model, modelParams, isBatch }: CompositionOnStartResponse) {
 
   }
 
@@ -72,7 +74,7 @@ export class Callback {
 
   }
 
-  onSemanticFunctionStart({ name, args, history, modelKey, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
+  onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
 
   }
 
@@ -100,7 +102,7 @@ export class Callback {
 
   }
 
-  onSemanticFunctionImplementationStart({ args, history, modelType, modelKey, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
+  onSemanticFunctionImplementationStart({ args, history, modelType, model, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
 
   }
 
@@ -109,6 +111,14 @@ export class Callback {
   }
 
   onSemanticFunctionImplementationError(errors: any) {
+
+  }
+
+  onBatchBinStart(params) {
+
+  }
+
+  onBatchBinEnd({ errors }) {
 
   }
 
@@ -148,7 +158,7 @@ export class Callback {
 
   }
 
-  onFunctionEnrichmentStart({ args, functionName, modelKey, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
+  onFunctionEnrichmentStart({ args, functionName, model, modelParams, contentPropertyPath, contextPropertyPath }: FunctionEnrichmentOnStartResponse) {
 
   }
 
@@ -216,7 +226,7 @@ export class Callback {
 
   }
 
-  onModelEnd({ model, response, errors }: ModelOnEndResponse) {
+  onModelEnd({ errors, response }: ModelOnEndResponse) {
 
   }
 
@@ -228,7 +238,7 @@ export class Callback {
 
   }
 
-  onCompletionModelEnd({ model, response, errors }: ModelOnEndResponse) {
+  onCompletionModelEnd({ response, errors }: ModelOnEndResponse) {
 
   }
 

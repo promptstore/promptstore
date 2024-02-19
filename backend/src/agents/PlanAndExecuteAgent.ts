@@ -179,14 +179,14 @@ export default ({ logger, services }) => {
           }
 
           for (let callback of this.currentCallbacks) {
-            callback.onEvaluateStepEnd({ model: this.model, response: { ...response } });
+            callback.onEvaluateStepEnd({ response: { ...response } });
           }
           i += 1;
           previousSteps.push(new Step(step, response.choices[0].message.content as string));
         }
 
         for (let callback of this.currentCallbacks) {
-          callback.onExecutePlanEnd({ model: this.model, response });
+          callback.onExecutePlanEnd({ response });
         }
 
         this._onEnd({ response });
@@ -212,7 +212,7 @@ export default ({ logger, services }) => {
         prompt: { messages },
       };
       for (let callback of this.currentCallbacks) {
-        callback.onModelStartPlan({ request });
+        callback.onModelStartPlan({ provider: this.provider, request });
       }
       let response: ChatResponse;
       if (this.isChat) {
@@ -239,14 +239,17 @@ export default ({ logger, services }) => {
       if (!promptSets.length) {
         this._throwAgentError('Prompt not found');
       }
+      const { id, name, prompts } = promptSets[0];
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateStart({
-          messageTemplates: promptSets[0].prompts,
+          promptSetId: id,
+          promptSetName: name,
+          messageTemplates: prompts,
           args,
           isBatch: false,
         });
       }
-      const rawMessages = utils.getMessages(promptSets[0].prompts, args, PROMPTSET_TEMPLATE_ENGINE);
+      const rawMessages = utils.getMessages(prompts, args, PROMPTSET_TEMPLATE_ENGINE);
       const messages = this._mapMessagesToTypes(rawMessages);
       for (let callback of this.currentCallbacks) {
         callback.onPromptTemplateEnd({

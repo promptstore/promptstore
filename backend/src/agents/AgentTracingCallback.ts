@@ -322,7 +322,7 @@ export class AgentTracingCallback extends AgentCallback {
       .down();
   }
 
-  onObserveModelEnd({ model, response, errors }: ModelOnEndResponse) {
+  onObserveModelEnd({ response, errors }: ModelOnEndResponse) {
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer

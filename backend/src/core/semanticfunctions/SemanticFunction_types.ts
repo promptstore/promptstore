@@ -1,6 +1,13 @@
 import { Validator } from '../common_types';
 import { Callback } from '../callbacks/Callback';
-import { ChatResponse, Function, Message, ModelParams, ResponseMetadata } from '../conversions/RosettaStone';
+import {
+  ChatResponse,
+  Function,
+  Message,
+  ModelObject,
+  ModelParams,
+  ResponseMetadata,
+} from '../conversions/RosettaStone';
 import { SemanticFunctionImplementation } from './SemanticFunctionImplementation';
 
 export interface SemanticFunctionCallParams {
@@ -8,7 +15,7 @@ export interface SemanticFunctionCallParams {
   messages?: Message[];
   history?: Message[],
   extraSystemPrompt?: string;
-  modelKey?: string;
+  model?: ModelObject;
   modelParams: Partial<ModelParams>;
   functions?: Function[];
   isBatch?: boolean;

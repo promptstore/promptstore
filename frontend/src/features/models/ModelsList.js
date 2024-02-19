@@ -10,6 +10,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tree,
   Typography,
   Upload,
   message,
@@ -55,21 +56,29 @@ import {
   selectLoading,
   selectModels,
 } from './modelsSlice';
+import {
+  getAllProvidersAsync,
+  getCustomModelProvidersAsync,
+  selectProviders,
+} from './modelProvidersSlice';
 
 const { Search } = Input;
 
 export function ModelsList() {
 
+  const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('models-filter-multimodal', { defaultValue: false });
   const [filterPublic, setFilterPublic] = useLocalStorageState('models-filter-system', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('models-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('models-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
+  const [selectedProviders, setSelectedProviders] = useLocalStorageState('selected-model-providers', { defaultValue: [] });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [numItems, setNumItems] = useLocalStorageState('models-num-items', { defaultValue: 12 });
 
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
+  const providers = useSelector(selectProviders);
   const uploading = useSelector(selectUploading);
 
   const data = useMemo(() => {
@@ -79,7 +88,9 @@ export function ModelsList() {
     } else {
       const list = Object.values(models)
         .filter((model) => model.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+        .filter((model) => filterMultimodal ? model.multimodal : true)
         .filter((model) => filterPublic ? model.isPublic : true)
+        .filter((model) => selectedProviders.length === 0 || selectedProviders.includes(model.provider || model.type))
         .map((model) => ({
           key: model.id,
           modelKey: model.key,
@@ -95,7 +106,30 @@ export function ModelsList() {
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
     }
-  }, [models, filterPublic, searchValue]);
+  }, [models, filterMultimodal, filterPublic, searchValue, selectedProviders]);
+
+  const providerOptions = useMemo(() => {
+    const list = [
+      {
+        label: 'Custom',
+        value: 'api',
+      },
+    ];
+    if (providers.all) {
+      list.push(...providers.all.map(p => ({
+        label: p.name,
+        value: p.key,
+      })));
+    }
+    if (providers.custom) {
+      list.push(...providers.custom.map(p => ({
+        label: p.name,
+        value: p.key,
+      })));
+    }
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [providers]);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -112,6 +146,8 @@ export function ModelsList() {
       createLink: '/models/new/edit',
       title: 'Models',
     }));
+    dispatch(getAllProvidersAsync());
+    dispatch(getCustomModelProvidersAsync());
   }, []);
 
   useEffect(() => {
@@ -333,9 +369,20 @@ export function ModelsList() {
     {
       title: 'Public',
       dataIndex: 'isPublic',
+      align: 'center',
       render: (_, { isPublic }) => (
-        <div style={{ fontSize: '1.5em', textAlign: 'center' }}>
+        <div style={{ fontSize: '1.5em' }}>
           <span>{isPublic ? <CheckOutlined /> : null}</span>
+        </div>
+      )
+    },
+    {
+      title: 'Multimodal',
+      dataIndex: 'multimodal',
+      align: 'center',
+      render: (_, { multimodal }) => (
+        <div style={{ fontSize: '1.5em' }}>
+          <span>{multimodal ? <CheckOutlined /> : null}</span>
         </div>
       )
     },
@@ -422,6 +469,25 @@ export function ModelsList() {
     }
   };
 
+  const treeData = [
+    {
+      title: 'All',
+      key: 'all',
+      children: providerOptions.map(p => ({
+        title: <Typography.Text ellipsis>{p.label}</Typography.Text>,
+        key: p.value,
+      })),
+    }
+  ];
+
+  const selectProvider = (selectedKeys) => {
+    if (selectedKeys[0] === 'all') {
+      setSelectedProviders([]);
+    } else {
+      setSelectedProviders(selectedKeys);
+    }
+  };
+
   function CardTitle({ provider, title }) {
     return (
       <Space>
@@ -455,7 +521,7 @@ export function ModelsList() {
             }
           </div>
           <Search allowClear
-            placeholder="find entries"
+            placeholder="search filter"
             onSearch={onSearch}
             style={{ width: 220 }}
           />
@@ -465,6 +531,13 @@ export function ModelsList() {
               onChange={setFilterPublic}
             />
             <div>Public</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterMultimodal}
+              onChange={setFilterMultimodal}
+            />
+            <div>Multimodal</div>
           </div>
           <Upload
             name="upload"
@@ -494,73 +567,89 @@ export function ModelsList() {
             ]}
           />
         </div>
-        {layout === 'grid' ?
-          <Space wrap size="large">
-            {data.map(m =>
-              <Card key={m.key}
-                title={<CardTitle provider={m.provider} title={m.name} />}
-                style={{ width: 350, height: 225 }}
-                loading={loading}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
-                  {m.description ?
-                    <Typography.Text ellipsis>{m.description}</Typography.Text>
-                    :
-                    <Typography.Text>&nbsp;</Typography.Text>
-                  }
-                  <Space>
-                    <Tag color={getColor(m.type)}>{m.type}</Tag>
-                    <div>{m.modelKey}</div>
-                  </Space>
-                  <div>
-                    {m.contextWindow ?
-                      <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
-                        <span><span className="inline-label">context</span> {formatNumber(m.contextWindow)}</span>
-                      </Typography.Text>
-                      : null
-                    }
-                    {m.creditsPerCall ?
-                      <Typography.Text style={{ display: 'inline-block' }}>
-                        <span><span className="inline-label">credits</span> ~{formatNumber(m.creditsPerCall)}</span>
-                      </Typography.Text>
+        <div style={{ display: 'flex', alignItems: 'start', gap: 16, width: '100%' }}>
+          <div className="folders">
+            <div className="heading-wrapper">
+              <div className="heading">
+                Providers
+              </div>
+            </div>
+            <Tree
+              defaultExpandAll
+              treeData={treeData}
+              onSelect={selectProvider}
+              defaultSelectedKeys={selectedProviders}
+            />
+          </div>
+          {layout === 'grid' ?
+            <Space wrap size="large">
+              {data.map(m =>
+                <Card key={m.key}
+                  title={<CardTitle provider={m.provider} title={m.name} />}
+                  style={{ width: 350, height: 225 }}
+                  loading={loading}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                    {m.description ?
+                      <Typography.Text ellipsis>{m.description}</Typography.Text>
                       :
-                      <Typography.Text style={{ display: 'inline-block' }}>
-                        <span><span className="inline-label">credits</span> 0</span>
-                      </Typography.Text>
+                      <Typography.Text>&nbsp;</Typography.Text>
                     }
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>
-                    <Link to={`/models/${m.key}/edit`}>Edit</Link>
-                    <Link to={`/models/${m.key}`}>View</Link>
-                    <div style={{ flex: 1 }} />
-                    <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 10, alignItems: 'center' }}>
-                      {m.multimodal ?
-                        <>
-                          <VideoCameraOutlined />
-                          <CameraOutlined />
-                        </>
+                    <Space>
+                      <Tag color={getColor(m.type)}>{m.type}</Tag>
+                      <div>{m.modelKey}</div>
+                    </Space>
+                    <div>
+                      {m.contextWindow ?
+                        <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
+                          <span><span className="inline-label">context</span> {formatNumber(m.contextWindow)}</span>
+                        </Typography.Text>
                         : null
                       }
-                      <div style={{ cursor: 'default', fontFamily: 'Times New Roman', fontWeight: 600 }}>T</div>
+                      {m.creditsPerCall ?
+                        <Typography.Text style={{ display: 'inline-block' }}>
+                          <span><span className="inline-label">credits</span> ~{formatNumber(m.creditsPerCall)}</span>
+                        </Typography.Text>
+                        :
+                        <Typography.Text style={{ display: 'inline-block' }}>
+                          <span><span className="inline-label">credits</span> 0</span>
+                        </Typography.Text>
+                      }
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>
+                      <Link to={`/models/${m.key}/edit`}>Edit</Link>
+                      <Link to={`/models/${m.key}`}>View</Link>
+                      <div style={{ flex: 1 }} />
+                      <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 10, alignItems: 'center' }}>
+                        {m.multimodal ?
+                          <>
+                            <VideoCameraOutlined />
+                            <CameraOutlined />
+                          </>
+                          : null
+                        }
+                        <div style={{ cursor: 'default', fontFamily: 'Times New Roman', fontWeight: 600 }}>T</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            )}
-          </Space>
-          :
-          <Table
-            rowSelection={rowSelection}
-            columns={columns}
-            dataSource={data}
-            loading={loading}
-            pagination={{
-              current: page,
-              onChange: (page, pageSize) => setPage(page),
-            }}
-            rowClassName="model-list-row"
-          />
-        }
+                </Card>
+              )}
+            </Space>
+            :
+            <Table
+              rowSelection={rowSelection}
+              columns={columns}
+              dataSource={data}
+              loading={loading}
+              pagination={{
+                current: page,
+                onChange: (page, pageSize) => setPage(page),
+              }}
+              rowClassName="model-list-row"
+              style={{ maxWidth: '100%' }}
+            />
+          }
+        </div>
       </div>
     </>
   );

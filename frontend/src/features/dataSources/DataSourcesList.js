@@ -66,6 +66,8 @@ export function DataSourcesList() {
     return list;
   }, [dataSources]);
 
+  // console.log('data:', data);
+
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
@@ -108,8 +110,8 @@ export function DataSourcesList() {
         content: 'Finished indexing ' + dataSource.name,
         duration: 5,
       });
-      setSelectedId(null);
       dispatch(resetIndexStatus({ dataSourceId: selectedId }));
+      setSelectedId(null);
     }
   }, [indexed, selectedId]);
 
@@ -145,6 +147,7 @@ export function DataSourcesList() {
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
           allowedRels: values.allowedRels,
+          dataSourceName: dataSource.name,
           endpoint: dataSource.endpoint,
           schema: dataSource.schema,
         },
@@ -184,6 +187,7 @@ export function DataSourcesList() {
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
             allowedRels: values.allowedRels,
+            dataSourceName: dataSource.name,
             delimiter: dataSource.delimiter,
             quoteChar: dataSource.quoteChar,
           },
@@ -201,11 +205,13 @@ export function DataSourcesList() {
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
             allowedRels: values.allowedRels,
+            dataSourceName: dataSource.name,
             splitter: dataSource.splitter,
             characters: dataSource.characters,
             functionId: dataSource.functionId,
             chunkSize: +dataSource.chunkSize,
             chunkOverlap: +dataSource.chunkOverlap,
+            rephraseFunctionIds: dataSource.rephraseFunctionIds,
           },
           workspaceId: selectedWorkspace.id,
         }));
@@ -221,10 +227,31 @@ export function DataSourcesList() {
             graphStoreProvider: values.graphStoreProvider,
             allowedNodes: values.allowedNodes,
             allowedRels: values.allowedRels,
+            dataSourceName: dataSource.name,
           },
           workspaceId: selectedWorkspace.id,
         }));
       }
+
+    } else if (dataSource.type === 'folder') {
+      dispatch(indexDocumentAsync({
+        dataSourceId: dataSource.id,
+        params: {
+          indexId: values.indexId,
+          newIndexName: values.newIndexName,
+          embeddingModel: values.embeddingModel,
+          vectorStoreProvider: values.vectorStoreProvider,
+          graphStoreProvider: values.graphStoreProvider,
+          allowedNodes: values.allowedNodes,
+          allowedRels: values.allowedRels,
+          dataSourceName: dataSource.name,
+          bucket: dataSource.bucket,
+          prefix: dataSource.prefix,
+          recursive: dataSource.recursive,
+        },
+        workspaceId: selectedWorkspace.id,
+      }));
+
     } else if (dataSource.type === 'graphstore') {
       dispatch(indexGraphAsync({
         dataSourceId: dataSource.id,
@@ -255,12 +282,14 @@ export function DataSourcesList() {
           graphStoreProvider: values.graphStoreProvider,
           allowedNodes: values.allowedNodes,
           allowedRels: values.allowedRels,
+          dataSourceName: dataSource.name,
           query: dataSource.query,
           splitter: dataSource.splitter,
           characters: dataSource.characters,
           functionId: dataSource.functionId,
           chunkSize: +dataSource.chunkSize,
           chunkOverlap: +dataSource.chunkOverlap,
+          rephraseFunctionIds: dataSource.rephraseFunctionIds,
         },
         workspaceId: selectedWorkspace.id,
       }));
@@ -323,7 +352,7 @@ export function DataSourcesList() {
           >
             Edit
           </Button>
-          {record.type === 'document' && record.documents ?
+          {(record.type === 'document' && record.documents) || record.type === 'folder' ?
             <>
               <Button type="link"
                 disabled={!uploadsLoaded}

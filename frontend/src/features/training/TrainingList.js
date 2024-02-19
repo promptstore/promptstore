@@ -22,7 +22,7 @@ import useLocalStorageState from 'use-local-storage-state';
 import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { decodeEntities } from '../../utils';
+import { convertContentTypeToString, decodeEntities } from '../../utils';
 import {
   deleteTrainingDataAsync,
   getTrainingDataAsync,
@@ -289,7 +289,7 @@ export function TrainingList() {
     setNavbarState((state) => ({
       ...state,
       createLink: null,
-      title: 'Call Logs',
+      title: 'Human Review',
     }));
   }, []);
 
@@ -450,7 +450,7 @@ export function TrainingList() {
               }}
               style={{ whiteSpace: 'pre-wrap' }}
             >
-              {decodeEntities(prompt.messages[0].content?.trim())}
+              {decodeEntities(convertContentTypeToString(prompt.messages[0].content).trim())}
             </Typography.Paragraph>
           );
         } else {

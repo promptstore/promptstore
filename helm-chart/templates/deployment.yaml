@@ -290,6 +290,11 @@ spec:
                 configMapKeyRef:
                   key: JIRA_PROJECT_KEY
                   name: "{{ .Values.appname }}"
+            - name: WORKSPACE_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: WORKSPACE_ID
+                  name: "{{ .Values.appname }}"
             - name: SERPAPI_URL
               valueFrom:
                 configMapKeyRef:
@@ -831,6 +836,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: JIRA_PROJECT_KEY
+                  name: "{{ .Values.appname }}"
+            - name: WORKSPACE_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: WORKSPACE_ID
                   name: "{{ .Values.appname }}"
             - name: SERPAPI_URL
               valueFrom:

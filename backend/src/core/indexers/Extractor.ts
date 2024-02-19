@@ -1,4 +1,4 @@
-import { JSONSchema7 } from 'json-schema';
+import type { Schema } from 'jsonschema';
 
 import { Chunk } from './Chunk';
 import { Document } from './Document';
@@ -17,7 +17,7 @@ export interface CsvOptions {
 export interface CsvExtractorParams {
   nodeLabel: string;
   options: Partial<CsvOptions>;
-  schema: JSONSchema7;
+  schema: Schema;
   textNodeProperties: string[];
 }
 
@@ -31,12 +31,12 @@ export interface CsvSchemaParams {
 
 export interface JsonExtractorParams {
   nodeLabel: string;
-  jsonSchema: JSONSchema7;
+  jsonSchema: Schema;
   textNodeProperties: string[];
 }
 
 export interface JsonSchemaParams {
-  jsonSchema: JSONSchema7;
+  jsonSchema: Schema;
   textNodeProperties: string[];
 }
 
@@ -66,6 +66,7 @@ export interface TextExtractorParams {
   functionId: number;
   chunkSize: number;
   chunkOverlap: number;
+  rephraseFunctionIds: number[];
   objectName: string;
   workspaceId: number;
   username: string;
@@ -78,10 +79,12 @@ export interface UnstructuredExtractorParams {
   mimetype: string;
 }
 
-export type ExtractorParams = CsvExtractorParams
+export type ExtractorParams =
+  | CsvExtractorParams
   | JsonExtractorParams
   | Neo4jExtractorParams
   | OnesourceExtractorParams
+  | TextExtractorParams
   | UnstructuredExtractorParams;
 
 export type SchemaParams = CsvSchemaParams | JsonSchemaParams | Neo4jSchemaParams;
@@ -90,7 +93,7 @@ export interface ExtractorService {
 
   getChunks(extractor: string, documents: Document[] | null, params: Partial<ExtractorParams>): Promise<Chunk[]>;
 
-  getSchema(extractor: string, params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  getSchema(extractor: string, params?: Partial<SchemaParams>): Promise<Schema>;
 
   matchDocument(extractor: string, document: ExtendedDocument): boolean;
 
@@ -135,7 +138,7 @@ export abstract class Extractor {
 
   abstract getChunks(documents: Document[] | null, params: Partial<ExtractorParams>): Promise<Chunk[]>;
 
-  abstract getSchema(params?: Partial<SchemaParams>): Promise<JSONSchema7>;
+  abstract getSchema(params?: Partial<SchemaParams>): Promise<Schema>;
 
   abstract matchDocument(document: ExtendedDocument): boolean;
 

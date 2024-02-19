@@ -188,7 +188,7 @@ export function RagTester() {
       // dispatch(getFunctionsByTagAsync({ tag: 'rag', workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getChatSessionsAsync({ workspaceId, type: 'rag' }));
-      dispatch(getSettingsAsync({ workspaceId: selectedWorkspace.id, key: TAGS_KEY }));
+      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
     }
   }, [selectedWorkspace]);
 
@@ -294,7 +294,7 @@ export function RagTester() {
     // console.log('values:', values);
     const { messages } = values;
     const content = messages[messages.length - 1].content;
-    const model = models[impl.modelId];
+    // const model = models[impl.modelId];
     // console.log('model:', model);
     let args = { content };
     if (varsSchema) {
@@ -303,14 +303,13 @@ export function RagTester() {
     dispatch(getChatResponseAsync({
       functionId: selectedFunction,
       modelId: selectedImplementation,
+      models: modelParams.models,
       functionName: func.name,
       args,
       history: messages.slice(0, messages.length - 1),
-      params: {
-        ...modelParams,
-        model: model.key,
-      },
+      params: modelParams,
       workspaceId: selectedWorkspace.id,
+      selectedTags,
     }));
   };
 
@@ -571,6 +570,7 @@ export function RagTester() {
                 topK: true,
                 jsonMode: true,
                 seed: true,
+                models: true,
               }}
               onChange={setModelParams}
               value={modelParams}

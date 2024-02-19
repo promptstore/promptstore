@@ -51,9 +51,11 @@ export function AgentsService({ pg, logger }) {
     if (agent === null || typeof agent === 'undefined') {
       return null;
     }
-    const val = omit(agent, ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedAgent = await getAgent(agent.id);
     if (savedAgent) {
+      agent = { ...savedAgent, ...agent };
+      const val = omit(agent, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE agents
@@ -64,7 +66,9 @@ export function AgentsService({ pg, logger }) {
         [agent.name, val, username, modified, agent.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(agent, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO agents (workspace_id, name, val, created_by, created, modified_by, modified)

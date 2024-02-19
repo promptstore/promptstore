@@ -1,6 +1,14 @@
 import { default as dayjs } from 'dayjs';
 import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
-import { evaluates, indexs, logCalls, reloads, transforms, uploads } from './workflows';
+import {
+  evaluates,
+  executeCompositions,
+  indexs,
+  logCalls,
+  reloads,
+  transforms,
+  uploads,
+} from './workflows';
 
 import logger from '../logger';
 
@@ -23,7 +31,7 @@ export async function evaluate(evaluation, workspaceId, username, connectionOpti
     // type inference works! args: [name: string]
     args: [evaluation, workspaceId, username],
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'evaluate-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -74,6 +82,76 @@ export async function scheduleEvaluation(evaluation, workspaceId, username, conn
   return scheduleHandle.scheduleId;
 }
 
+export async function executeComposition(params, connectionOptions) {
+  // Connect to the default Server location (localhost:7233)
+  const connection = await Connection.connect(connectionOptions);
+  // In production, pass options to configure TLS and other settings:
+  // {
+  //   address: 'foo.bar.tmprl.cloud',
+  //   tls: {}
+  // }
+
+  const client = new Client({
+    connection,
+    // namespace: 'foo.bar', // connects to 'default' namespace if not specified
+    namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
+  });
+
+  const handle = await client.workflow.start(executeCompositions, {
+    // type inference works! args: [name: string]
+    args: [params],
+    taskQueue: 'worker',
+    workflowId: 'exec-composition-workflow-' + Date.now(),
+  });
+  console.log('Started workflow', handle.workflowId);
+
+  // optional: wait for client result
+  // console.log(await handle.result());
+  return handle.result();
+}
+
+export async function scheduleComposition(values, params, connectionOptions) {
+  logger.debug('schedule composition:', params);
+  const connection = await Connection.connect(connectionOptions);
+  const client = new Client({
+    connection,
+    namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
+  });
+  const { compositionId, scheduleId, schedule } = values;
+  const spec = getSpec(schedule);
+  const scheduleOptions = {
+    action: {
+      type: 'startWorkflow',
+      workflowType: executeCompositions,
+      args: [params],
+      taskQueue: 'worker',
+    },
+    scheduleId: 'composition-schedule-' + compositionId,
+    policies: {
+      catchupWindow: '1 day',
+      overlap: ScheduleOverlapPolicy.ALLOW_ALL,
+    },
+    spec,
+  };
+  logger.debug('schedule options:', scheduleOptions);
+
+  let scheduleHandle;
+  if (scheduleId) {
+    logger.debug('updating schedule:', scheduleId);
+    scheduleHandle = client.schedule.getHandle(scheduleId);
+    await scheduleHandle.update((schedule) => {
+      schedule.spec = spec;
+      return schedule;
+    });
+  } else {
+    logger.debug('creating schedule');
+    scheduleHandle = await client.schedule.create(scheduleOptions);
+    logger.debug('schedule id:', scheduleHandle.scheduleId);
+  }
+
+  return scheduleHandle.scheduleId;
+}
+
 export async function index(params, loaderProvider, extractorProviders, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
   const connection = await Connection.connect(connectionOptions);
@@ -93,7 +171,7 @@ export async function index(params, loaderProvider, extractorProviders, connecti
     // type inference works! args: [name: string]
     args: [params, loaderProvider, extractorProviders],
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'index-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -121,7 +199,7 @@ export async function logCall(params, connectionOptions) {
     // type inference works! args: [name: string]
     args: [params],
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'log-call-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -160,7 +238,7 @@ export async function transform(transformation, workspaceId, username, connectio
     args: [transformation, workspaceId, username],
     // taskQueue: 'transforms',
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'transform-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -233,7 +311,7 @@ export async function upload(file, workspaceId, appId, username, constants, conn
     args: [file, workspaceId, appId, username, constants],
     // taskQueue: 'uploads',
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'upload-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -262,7 +340,7 @@ export async function reload(file, workspaceId, username, uploadId, connectionOp
     args: [file, workspaceId, username, uploadId],
     // taskQueue: 'reloads',
     taskQueue: 'worker',
-    workflowId: 'workflow-' + Date.now(),
+    workflowId: 'reload-workflow-' + Date.now(),
   });
   console.log('Started workflow', handle.workflowId);
 
@@ -279,27 +357,27 @@ function getSpec(schedule) {
         every: (schedule.frequencyLength || '1') + schedule.frequency + 's',
       }
     ];
-    if (schedule.frequency === 'week') {
-      let hour = 0;
-      let minute = 0;
-      if (schedule.startTime) {
-        const time = dayjs(schedule.startTime);
-        hour = time.hour();
-        minute = time.minute();
-      }
-      spec.calendars = [
-        {
-          dayOfWeek: DAYS_OF_WEEK[schedule.frequencyDayOfWeek || 0],
-          hour,
-          minute,
-        }
-      ];
-    }
     if (schedule.endDate) {
       const endDate = dayjs(schedule.endDate);
       spec.endAt = endDate.toDate();
     }
     if (schedule.startDate) {
+      if (schedule.frequency === 'week') {
+        let hour = 0;
+        let minute = 0;
+        if (schedule.startTime) {
+          const time = dayjs(schedule.startDate + ' ' + schedule.startTime);
+          hour = time.hour();
+          minute = time.minute();
+        }
+        spec.calendars = [
+          {
+            dayOfWeek: DAYS_OF_WEEK[schedule.frequencyDayOfWeek || 0],
+            hour,
+            minute,
+          }
+        ];
+      }
       const startDate = dayjs(schedule.startDate);
       spec.startAt = startDate.toDate();
       if (schedule.ends === 'after' && schedule.afterLength && schedule.frequency && schedule.frequency !== 'norepeat') {

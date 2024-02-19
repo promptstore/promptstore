@@ -7,6 +7,7 @@ import path from 'path';
 import logger from '../logger';
 import pg from '../db';
 import { CallLoggingService } from '../services/CallLoggingService';
+import { CompositionsService } from '../services/CompositionsService';
 import { CreditCalculatorService } from '../services/CreditCalculatorService';
 import { DataSourcesService } from '../services/DataSourcesService';
 import { DestinationsService } from '../services/DestinationsService';
@@ -23,6 +24,7 @@ import { LoaderService } from '../services/LoaderService';
 import { ModelProviderService } from '../services/ModelProviderService';
 import { ModelsService } from '../services/ModelsService';
 import { ParserService } from '../services/ParserService';
+import { PipelinesService } from '../services/PipelinesService';
 import { PromptSetsService } from '../services/PromptSetsService';
 import { SecretsService } from '../services/SecretsService';
 import { SqlSourceService } from '../services/SqlSourceService';
@@ -48,13 +50,15 @@ const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 
-const mc = new Minio.Client({
+const minioOptions = {
   endPoint: S3_ENDPOINT,
   port: parseInt(S3_PORT, 10),
   useSSL: ENV !== 'dev',
   accessKey: AWS_ACCESS_KEY,
   secretKey: AWS_SECRET_KEY,
-});
+};
+logger.debug('minio options:', minioOptions);
+const mc = new Minio.Client(minioOptions);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(__dirname, '..');
@@ -91,6 +95,7 @@ const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
 const callLoggingService = CallLoggingService({ pg, logger });
+const compositionsService = CompositionsService({ pg, logger });
 const dataSourcesService = DataSourcesService({ pg, logger });
 const destinationsService = DestinationsService({ pg, logger });
 const evaluationsService = EvaluationsService({ pg, logger });
@@ -108,7 +113,7 @@ const secretsService = SecretsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
-const usersService = UsersService({ pg });
+const usersService = UsersService({ pg, logger });
 const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
@@ -118,6 +123,7 @@ const creditCalculatorService = CreditCalculatorService({ logger });
 const executionsService = ExecutionsService({
   logger,
   services: {
+    compositionsService,
     creditCalculatorService,
     dataSourcesService,
     featureStoreService,
@@ -132,6 +138,22 @@ const executionsService = ExecutionsService({
     sqlSourceService,
     tracesService,
     usersService,
+    vectorStoreService,
+  },
+});
+
+const pipelinesService = PipelinesService({
+  logger,
+  services: {
+    executionsService,
+    extractorService,
+    functionsService,
+    graphStoreService,
+    indexesService,
+    llmService,
+    loaderService,
+    modelsService,
+    uploadsService,
     vectorStoreService,
   },
 });
@@ -152,7 +174,7 @@ const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
 
 const toolService = ToolService({ logger, registry: toolPlugins });
 
-executionsService.addServices({ guardrailsService, toolService });
+executionsService.addServices({ guardrailsService, pipelinesService, toolService });
 
 async function runWorker() {
   const connectionOptions = {

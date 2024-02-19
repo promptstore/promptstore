@@ -9,19 +9,26 @@ export default ({ app, auth, logger, services }) => {
     res.json(settings);
   });
 
+  app.get('/api/settings/:key', auth, async (req, res, next) => {
+    const { key } = req.params;
+    logger.debug('key:', key);
+    const settings = await settingsService.getSettingsByKey(null, key);
+    res.json(settings);
+  });
+
   app.post('/api/settings', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const id = await settingsService.upsertSetting(values, username);
-    res.json(id);
+    const setting = await settingsService.upsertSetting(values, username);
+    res.json(setting);
   });
 
   app.put('/api/settings/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    await settingsService.upsertSetting({ id, ...values }, username);
-    res.json({ status: 'OK' });
+    const setting = await settingsService.upsertSetting({ id, ...values }, username);
+    res.json(setting);
   });
 
   app.delete('/api/settings/:id', auth, async (req, res, next) => {

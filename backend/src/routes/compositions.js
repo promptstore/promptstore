@@ -1,6 +1,7 @@
 import searchFunctions from '../searchFunctions';
+import { hasValue } from '../utils';
 
-export default ({ app, auth, constants, logger, services }) => {
+export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   const OBJECT_TYPE = 'compositions';
 
@@ -459,8 +460,31 @@ export default ({ app, auth, constants, logger, services }) => {
    */
   app.post('/api/compositions', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
-    const composition = await compositionsService.upsertComposition(values, username);
+    let values = req.body;
+    let composition = await compositionsService.upsertComposition(values, username);
+    const schedule = getSchedule(composition);
+    if (hasValue(schedule)) {
+      values = {
+        compositionId: composition.id,
+        schedule,
+      };
+      const params = {
+        workspaceId: values.workflowId,
+        username,
+        compositionName: composition.name,
+        args: {},  // not relevant to schedulable compositions
+        params: {},// "
+      };
+      const scheduleId = await workflowClient.scheduleComposition(values, params, {
+        address: constants.TEMPORAL_URL,
+      });
+      values = {
+        ...composition,
+        scheduleId,
+        scheduleStatus: 'running',
+      };
+      composition = await compositionsService.upsertComposition(values, username);
+    }
     const obj = createSearchableObject(composition);
     await indexObject(obj);
     res.json(composition);
@@ -498,12 +522,53 @@ export default ({ app, auth, constants, logger, services }) => {
   app.put('/api/compositions/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const { username } = req.user;
-    const values = req.body;
-    const composition = await compositionsService.upsertComposition({ ...values, id }, username);
+    let composition = await compositionsService.getComposition(id);
+    let values = { ...composition, ...req.body };
+    const schedule = getSchedule(values);
+    if (values.scheduleStatus !== 'paused') {
+      if (hasValue(schedule)) {
+        logger.debug('scheduling composition:', values);
+        if (values.scheduleId) {
+          await workflowClient.deleteSchedule(values.scheduleId, {
+            address: constants.TEMPORAL_URL,
+          });
+        }
+        const scheduleInput = {
+          compositionId: id,
+          schedule,
+        };
+        const params = {
+          workspaceId: values.workspaceId,
+          username,
+          compositionName: values.name,
+          args: {},  // not relevant to schedulable compositions
+          params: {},// "
+        };
+        const scheduleId = await workflowClient.scheduleComposition(scheduleInput, params, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId, scheduleStatus: 'running' };
+      } else if (values.scheduleId) {
+        await workflowClient.deleteSchedule(values.scheduleId, {
+          address: constants.TEMPORAL_URL,
+        });
+        values = { ...values, id, scheduleId: null, scheduleStatus: null };
+      }
+    }
+    composition = await compositionsService.upsertComposition(values, username);
     const obj = createSearchableObject(composition);
     await indexObject(obj);
     res.json(composition);
   });
+
+  const getSchedule = (composition) => {
+    if (!composition) return null;
+    const scheduleNode = composition.flow.nodes.find(nd => nd.type === 'scheduleNode');
+    if (scheduleNode) {
+      return scheduleNode.data.schedule;
+    }
+    return null;
+  };
 
   /**
    * @openapi

@@ -8,11 +8,13 @@ import {
 } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import Highcharts from 'highcharts'
+import HighchartsReact from 'highcharts-react-official';
 
 import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { decodeEntities } from '../../utils';
+import { convertContentTypeToString, decodeEntities } from '../../utils';
 import {
   getFunctionAsync,
   selectFunctions,
@@ -104,18 +106,21 @@ export function EvaluationRuns() {
   const id = location.pathname.match(/\/evaluation-runs\/(.*)/)[1];
   const evaluation = evaluations[id];
 
-  console.log('evaluation:', evaluation);
+  // console.log('evaluation:', evaluation);
 
   const runs = useMemo(() => {
     if (evaluation?.runs) {
-      return evaluation.runs.map((run, i) => ({
+      const list = evaluation.runs.map((run, i) => ({
         key: i,
         runDate: run.runDate,
         numberTests: run.numberTests,
         percentPassed: run.percentPassed,
         allTestsPassed: run.allTestsPassed,
         numberFailed: run.numberFailed,
+        embedding: run.embedding,
       }));
+      list.sort((a, b) => a.runDate > b.runDate ? -1 : 1);
+      return list;
     }
     return [];
   }, [evaluation]);
@@ -191,8 +196,14 @@ export function EvaluationRuns() {
   }, [evaluation]);
 
   useEffect(() => {
+    if (runs.length) {
+      setSelectedRun(runs[0]);
+    }
+  }, [runs]);
+
+  useEffect(() => {
     if (selectedRun) {
-      // console.log('selected run:', selectedRun);
+      console.log('selected run:', selectedRun);
       const ids = (selectedRun.failed || []).map(r => r.logId);
       if (ids.length) {
         dispatch(getTrainingDataByIdAsync({ ids }));
@@ -201,7 +212,8 @@ export function EvaluationRuns() {
   }, [selectedRun]);
 
   const openRun = (key) => {
-    setSelectedRun(runs[key]);
+    const run = runs.find(r => r.key === key);
+    setSelectedRun(run);
   };
 
   const columns = [
@@ -220,7 +232,7 @@ export function EvaluationRuns() {
           ellipsis={{ expandable: true, rows: 2 }}
           style={{ whiteSpace: 'pre-wrap' }}
         >
-          {decodeEntities(prompt.messages[0].content.trim())}
+          {decodeEntities(convertContentTypeToString(prompt.messages[0].content).trim())}
         </Typography.Paragraph>
       ),
     },
@@ -237,7 +249,7 @@ export function EvaluationRuns() {
               ellipsis={{ expandable: true, rows: 2 }}
               style={{ whiteSpace: 'pre-wrap' }}
             >
-              {response.trim()}
+              {response?.trim()}
             </Typography.Paragraph>
           );
         }
@@ -279,6 +291,72 @@ export function EvaluationRuns() {
       ),
     },
   ];
+
+  const chartOptions = useMemo(() => {
+    if (selectedRun?.embedding) {
+      const yMax = Math.ceil(selectedRun.embedding.map(e => Math.abs(e[0])).reduce((a, x) => Math.max(a, x), 0)) + 2;
+      const xMax = Math.ceil(selectedRun.embedding.map(e => Math.abs(e[1])).reduce((a, x) => Math.max(a, x), 0)) + 2;
+      const series = [{ data: selectedRun.embedding }];
+      // console.log('series:', series);
+      return {
+        chart: {
+          type: 'scatter',
+          zoomType: 'xy',
+        },
+        title: {
+          text: 'Response Embedding Clusters',
+        },
+        xAxis: {
+          min: -xMax,
+          max: xMax,
+        },
+        yAxis: {
+          min: -yMax,
+          max: yMax,
+        },
+        legend: false,
+        plotOptions: {
+          scatter: {
+            marker: {
+              radius: 2.5,
+              symbol: 'circle',
+              states: {
+                hover: {
+                  enabled: true,
+                  lineColor: 'rgb(100,100,100)'
+                }
+              }
+            },
+            states: {
+              hover: {
+                marker: {
+                  enabled: false
+                }
+              }
+            },
+            jitter: {
+              x: 0.005
+            }
+          }
+        },
+        tooltip: {
+          pointFormatter: function () {
+            let point = this;
+            const numberFormatter = new Intl.NumberFormat('en-US', {
+              minimumFractionDigits: 4,
+              maximumFractionDigits: 4,
+            });
+            return `${numberFormatter.format(point.x)}, ${numberFormatter.format(point.y)}`;
+          },
+        },
+        series,
+      };
+    }
+    return null;
+  }, [selectedRun]);
+
+  // console.log('runs:', runs);
+  // console.log('selectedRun:', selectedRun);
 
   if (!loaded) {
     return <div style={{ marginTop: 20 }}>Loading...</div>
@@ -373,6 +451,15 @@ export function EvaluationRuns() {
                   loading={trainingDataLoading}
                   pagination={false}
                 />
+                : null
+              }
+              {selectedRun.embedding ?
+                <div style={{ marginTop: 20, width: 667, height: 400 }}>
+                  <HighchartsReact
+                    highcharts={Highcharts}
+                    options={chartOptions}
+                  />
+                </div>
                 : null
               }
             </>

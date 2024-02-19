@@ -121,9 +121,11 @@ export function PromptSetsService({ pg, logger }) {
     if (promptSet === null || typeof promptSet === 'undefined') {
       return null;
     }
-    const val = omit(promptSet, ['id', 'workspaceId', 'skill', 'created', 'createdBy', 'modified', 'modifiedBy']);
+    const omittedFields = ['id', 'workspaceId', 'skill', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedPromptSet = await getPromptSet(promptSet.id);
     if (savedPromptSet) {
+      promptSet = { ...savedPromptSet, ...promptSet };
+      const val = omit(promptSet, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
         UPDATE prompt_sets
@@ -134,7 +136,9 @@ export function PromptSetsService({ pg, logger }) {
         [promptSet.skill, val, username, modified, promptSet.id]
       );
       return mapRow(rows[0]);
+
     } else {
+      const val = omit(promptSet, omittedFields);
       const created = new Date();
       const { rows } = await pg.query(`
         INSERT INTO prompt_sets (workspace_id, skill, val, created_by, created, modified_by, modified)

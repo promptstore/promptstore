@@ -1,7 +1,9 @@
+import type { Schema } from 'jsonschema';
+
 import { Tool } from '../../agents/Agent_types';
 import { DataMapper } from '../common_types';
 import { Callback } from '../callbacks/Callback';
-import { ModelParams } from '../conversions/RosettaStone';
+import { ModelObject, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 export interface INode {
@@ -10,7 +12,7 @@ export interface INode {
 }
 
 export interface IRequestNode extends INode {
-  argsSchema: object;  // JSONSchema
+  argsSchema: Schema;
 }
 
 export interface IFunctionNode extends INode {
@@ -33,7 +35,19 @@ export interface IOutputNode extends INode {
 
 }
 
-export type Node = IRequestNode | IFunctionNode | IMapperNode | IJoinerNode | IOutputNode;
+export interface IDataSourceNode extends INode {
+  dataSource: any;
+}
+
+export interface IIndexNode extends INode {
+  index: any;
+}
+
+export interface IScheduleNode extends INode {
+  schedule: any;
+}
+
+export type Node = IRequestNode | IFunctionNode | IMapperNode | IJoinerNode | IOutputNode | IDataSourceNode | IIndexNode | IScheduleNode;
 
 export interface IEdge {
   id: string;
@@ -54,7 +68,7 @@ export interface CompositionOnEndResponse extends CompositionOnEndParams {
 
 export interface CompositionCallParams {
   args: any;
-  modelKey: string;
+  model: ModelObject;
   modelParams: Partial<ModelParams>;
   isBatch?: boolean;
   callbacks?: Callback[];
@@ -75,5 +89,6 @@ export interface CompositionParams {
   edges: IEdge[];
   nodes: Node[];
   dataMapper?: DataMapper;
+  pipelinesService: any;
   callbacks?: Callback[];
 }

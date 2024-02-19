@@ -18,7 +18,14 @@ export class CallLoggingCallback extends Callback {
     this.startTime = [];
   }
 
-  onSemanticFunctionStart({ name, args, history, modelKey, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
+  clone() {
+    return new CallLoggingCallback({
+      workspaceId: this.workspaceId,
+      username: this.username,
+    });
+  }
+
+  onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
   }

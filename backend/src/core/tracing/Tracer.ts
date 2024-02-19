@@ -10,11 +10,15 @@ export class Tracer {
   trace: Trace;
   stack: Trace[];
 
-  constructor(name: string, type: string = 'semfn') {
+  constructor(name: string, type: string = 'semfn', trace?: Trace) {
     this.name = name;
     this.type = type;
-    this.trace = [];
+    this.trace = trace || [];
     this.stack = [this.trace];
+  }
+
+  clone() {
+    return new Tracer(this.name, this.type, this.currentTrace());
   }
 
   currentTrace() {

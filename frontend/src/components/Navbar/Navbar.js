@@ -267,7 +267,7 @@ function Navbar() {
                 </Button>
               </li>
               <li>
-                <div style={{ color: 'rgba(0, 0, 0, 0.88)' }}>
+                <div style={{ color: 'rgba(0, 0, 0, 0.88)', whiteSpace: 'nowrap' }}>
                   Credits: {formatNumber(currentUsr?.credits) || '0'}
                 </div>
               </li>
@@ -286,9 +286,9 @@ function Navbar() {
                         <div><TeamOutlined /></div>
                         <div style={{ marginLeft: 7 }}>
                           {selectedWorkspace ?
-                            <span>{selectedWorkspace.name}</span>
+                            <span style={{ whiteSpace: 'nowrap' }}>{selectedWorkspace.name}</span>
                             :
-                            <span style={{ fontWeight: 600 }}>Select Workspace</span>
+                            <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Select Workspace</span>
                           }
                         </div>
                       </div>
@@ -298,7 +298,7 @@ function Navbar() {
                       <div><TeamOutlined /></div>
                       <div style={{ marginLeft: 7 }}>
                         <Link to="/workspaces/new">
-                          <span style={{ fontWeight: 600 }}>Create Workspace</span>
+                          <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Create Workspace</span>
                         </Link>
                       </div>
                     </div>

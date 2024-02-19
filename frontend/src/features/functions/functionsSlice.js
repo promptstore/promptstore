@@ -73,6 +73,15 @@ export const getFunctionsByPromptSetAsync = ({ promptSetId, workspaceId }) => as
   dispatch(setFunctions({ functions: res.data }));
 };
 
+export const getFunctionsByTagsAsync = ({ tags, workspaceId }) => async (dispatch) => {
+  dispatch(startLoad());
+  dispatch(resetFunctions());
+  const tagsQueryString = tags.map(encodeURIComponent).join(',');
+  const url = `/api/workspaces/${workspaceId}/functions/tags?tags=${tagsQueryString}`;
+  const res = await http.get(url);
+  dispatch(setFunctions({ functions: res.data }));
+};
+
 export const getFunctionsByTagAsync = ({ tag, workspaceId, minDelay }) => async (dispatch) => {
   dispatch(startLoad());
   dispatch(resetFunctions());
@@ -109,10 +118,10 @@ export const deleteFunctionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeFunctions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelId, modelKey, name, workspaceId }) => async (dispatch) => {
+export const runTestAsync = ({ args, modelId, model, name, workspaceId }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/executions/${name}`;
-  const res = await http.post(url, { args, params: { modelId, model: modelKey }, workspaceId });
+  const res = await http.post(url, { args, params: { modelId, model: model }, workspaceId });
   const { response, responseMetadata } = res.data;
   dispatch(setTestResult({ result: response }));
   dispatch(setCredits({ credits: responseMetadata.creditBalance }));

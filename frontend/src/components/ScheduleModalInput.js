@@ -10,7 +10,12 @@ import {
   Switch,
   TimePicker,
 } from 'antd';
-import { CheckOutlined } from '@ant-design/icons';
+import {
+  CheckOutlined,
+  DeleteOutlined,
+  PauseOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 
 const layout = {
   wrapperCol: { span: 24 },
@@ -95,6 +100,7 @@ const endOptions = [
 
 export function ScheduleModalInput({
   buttonProps,
+  iconControls,
   onChange,
   title = 'Set Schedule',
   value,
@@ -104,6 +110,8 @@ export function ScheduleModalInput({
   scheduleId,
   scheduleStatus,
 }) {
+
+  console.log('scheduleId:', scheduleId)
 
   const [isDirty, setIsDirty] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -259,30 +267,56 @@ export function ScheduleModalInput({
       </Modal>
       <Space>
         <Button
+          disabled={scheduleStatus === 'paused'}
           icon={hasState ? <CheckOutlined /> : null}
           onClick={() => setIsModalOpen(true)}
           {...buttonProps}
         >
           {title}
         </Button>
-        <Button
-          disabled={!scheduleId || scheduleStatus === 'paused'}
-          onClick={() => onPause()}
-        >
-          Pause
-        </Button>
-        <Button
-          disabled={!scheduleId || scheduleStatus !== 'paused'}
-          onClick={() => onUnpause()}
-        >
-          Unpause
-        </Button>
-        <Button
-          disabled={!scheduleId}
-          onClick={() => onDelete()}
-        >
-          Delete
-        </Button>
+        {iconControls ?
+          <>
+            <Button type="text"
+              disabled={!scheduleId || scheduleStatus === 'paused'}
+              onClick={() => onPause()}
+              icon={<PauseOutlined />}
+              title="Pause"
+            />
+            <Button type="text"
+              disabled={!scheduleId || scheduleStatus !== 'paused'}
+              onClick={() => onUnpause()}
+              icon={<RightOutlined />}
+              title="Unpause"
+            />
+            <Button type="text"
+              disabled={!scheduleId}
+              onClick={() => onDelete()}
+              icon={<DeleteOutlined />}
+              title="Delete"
+            />
+          </>
+          :
+          <>
+            <Button
+              disabled={!scheduleId || scheduleStatus === 'paused'}
+              onClick={() => onPause()}
+            >
+              Pause
+            </Button>
+            <Button
+              disabled={!scheduleId || scheduleStatus !== 'paused'}
+              onClick={() => onUnpause()}
+            >
+              Unpause
+            </Button>
+            <Button
+              disabled={!scheduleId}
+              onClick={() => onDelete()}
+            >
+              Delete
+            </Button>
+          </>
+        }
       </Space>
     </>
   );

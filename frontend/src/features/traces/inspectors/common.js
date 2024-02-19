@@ -123,7 +123,7 @@ export function Input({ step }) {
         : null
       }
       {step.args ?
-        <JsonView src={step.args} />
+        <JsonView collapsed src={step.args} />
         : null
       }
     </Space>
@@ -165,7 +165,6 @@ export function OutputMultiple({ step }) {
 
 export function Messages({ step }) {
   const messages = step.messages || step.prompt?.messages || [];
-  console.log('messages:', messages);
   return (
     <div>
       {messages.map((message, i) =>

@@ -44,6 +44,7 @@ import { LoaderService } from './services/LoaderService';
 import { ModelProviderService } from './services/ModelProviderService';
 import { ModelsService } from './services/ModelsService';
 import { ParserService } from './services/ParserService';
+import { PipelinesService } from './services/PipelinesService.js';
 import { PromptSetsService } from './services/PromptSetsService';
 import { SecretsService } from './services/SecretsService';
 import { SettingsService } from './services/SettingsService';
@@ -242,7 +243,7 @@ const transformationsService = TransformationsService({ pg, logger });
 
 const uploadsService = UploadsService({ pg, logger });
 
-const usersService = UsersService({ pg });
+const usersService = UsersService({ pg, logger });
 
 const workspacesService = WorkspacesService({ pg, logger });
 
@@ -377,6 +378,22 @@ const executionsService = ExecutionsService({
   },
 });
 
+const pipelinesService = PipelinesService({
+  logger,
+  services: {
+    executionsService,
+    extractorService,
+    functionsService,
+    graphStoreService,
+    indexesService,
+    llmService,
+    loaderService,
+    modelsService,
+    uploadsService,
+    vectorStoreService,
+  },
+});
+
 const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
   app, auth, services: {
     executionsService,
@@ -393,7 +410,7 @@ const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
 
 const toolService = ToolService({ logger, registry: toolPlugins });
 
-executionsService.addServices({ guardrailsService, toolService });
+executionsService.addServices({ guardrailsService, pipelinesService, toolService });
 
 const options = {
   app,
@@ -442,6 +459,7 @@ const options = {
     modelProviderService,
     modelsService,
     parserService,
+    pipelinesService,
     promptSetsService,
     secretsService,
     settingsService,

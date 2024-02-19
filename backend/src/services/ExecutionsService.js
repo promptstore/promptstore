@@ -25,6 +25,7 @@ export function ExecutionsService({ logger, rc, services }) {
     modelProviderService,
     modelsService,
     parserService,
+    pipelinesService,
     promptSetsService,
     sqlSourceService,
     toolService,
@@ -54,6 +55,7 @@ export function ExecutionsService({ logger, rc, services }) {
           modelProviderService,
           modelsService,
           parserService,
+          pipelinesService,
           promptSetsService,
           sqlSourceService,
           toolService,
@@ -74,13 +76,15 @@ export function ExecutionsService({ logger, rc, services }) {
     messages,
     history,
     extraSystemPrompt,
-    params = {},
+    params,
+    model,
     functions,
     options,
     extraIndexes,
     batch = false,
     debug = false,
   }) => {
+    if (!params) params = {};
     const { credits, errors } = await usersService.checkCredits(username);
     if (errors) {
       return { errors };
@@ -128,7 +132,21 @@ export function ExecutionsService({ logger, rc, services }) {
     const executor = new LocalExecutor();
 
     try {
-      const modelKey = params.modelKey || params.model;
+      let response_format;
+      if (params.jsonMode) {
+        response_format = { type: 'json_object' };
+      }
+      const modelParams = {
+        max_tokens: params.maxTokens,
+        n: params.n,
+        temperature: params.temperature,
+        top_p: params.topP,
+        stop: params.stop,
+        presence_penalty: params.presencePenalty,
+        frequency_penalty: params.frequencyPenalty,
+        seed: params.seed,
+        response_format,
+      };
       const run = async (args) => {
         let { response, responseMetadata } = await executor.runFunction({
           semanticFunction,
@@ -136,11 +154,8 @@ export function ExecutionsService({ logger, rc, services }) {
           messages,
           history,
           extraSystemPrompt,
-          modelKey,
-          modelParams: {
-            max_tokens: params.maxTokens,
-            n: params.n,
-          },
+          model,
+          modelParams,
           functions,
           isBatch: batch,
           options,
@@ -251,6 +266,7 @@ export function ExecutionsService({ logger, rc, services }) {
     username,
     compositionName,
     args,
+    model,
     params,
     batch = false,
     debug = false,
@@ -282,18 +298,31 @@ export function ExecutionsService({ logger, rc, services }) {
         wordCount,
         maxWords,
         workspaceId,
-        username,
       };
     }
+    if (!args) args = {};
+    args = { ...args, username };
     try {
+      let response_format;
+      if (params.jsonMode) {
+        response_format = { type: 'json_object' };
+      }
+      const modelParams = {
+        max_tokens: params.maxTokens,
+        n: params.n,
+        temperature: params.temperature,
+        top_p: params.topP,
+        stop: params.stop,
+        presence_penalty: params.presencePenalty,
+        frequency_penalty: params.frequencyPenalty,
+        seed: params.seed,
+        response_format,
+      };
       const response = await executor.runComposition({
         composition,
         args,
-        modelKey: params.modelKey || params.model,
-        modelParams: {
-          max_tokens: params.maxTokens,
-          n: params.n,
-        },
+        model,
+        modelParams,
         isBatch: batch,
       });
 
@@ -431,5 +460,4 @@ export function ExecutionsService({ logger, rc, services }) {
     executeFunction,
     addServices,
   };
-
 }

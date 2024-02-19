@@ -1,10 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
+import qs from 'qs';
 
 import { http } from '../../http';
 
 export const tracesSlice = createSlice({
   name: 'traces',
   initialState: {
+    count: 0,
     loaded: false,
     loading: false,
     traces: {},
@@ -15,7 +17,11 @@ export const tracesSlice = createSlice({
         delete state.traces[id];
       }
     },
+    setCount: (state, action) => {
+      state.count = action.payload;
+    },
     setTraces: (state, action) => {
+      state.traces = {};
       for (const trace of action.payload.traces) {
         state.traces[trace.id] = trace;
       }
@@ -31,15 +37,17 @@ export const tracesSlice = createSlice({
 
 export const {
   removeTraces,
+  setCount,
   setTraces,
   startLoad,
 } = tracesSlice.actions;
 
-export const getTracesAsync = ({ workspaceId }) => async (dispatch) => {
+export const getTracesAsync = ({ workspaceId, limit, start, filters }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/workspaces/${workspaceId}/traces`;
+  const url = `/api/workspaces/${workspaceId}/traces?limit=${limit}&start=${start}&${qs.stringify(filters)}`;
   const res = await http.get(url);
-  dispatch(setTraces({ traces: res.data }));
+  dispatch(setTraces({ traces: res.data.data }));
+  dispatch(setCount(res.data.count));
 };
 
 export const getTraceAsync = (id) => async (dispatch, getState) => {
@@ -74,6 +82,8 @@ export const deleteTracesAsync = ({ ids }) => async (dispatch) => {
   await http.delete(url);
   dispatch(removeTraces({ ids }));
 };
+
+export const selectCount = (state) => state.traces.count;
 
 export const selectLoaded = (state) => state.traces.loaded;
 

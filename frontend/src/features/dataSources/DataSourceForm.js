@@ -1,14 +1,12 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Divider, Form, Input, InputNumber, Radio, Select, Space, Switch } from 'antd';
+import { Button, Form, Input, Select, Space } from 'antd';
 
-import { SchemaModalInput } from '../../components/SchemaModalInput';
-import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  getFunctionsByTagAsync,
+  getFunctionsByTagsAsync,
   selectFunctions,
   selectLoading as selectFunctionsLoading,
 } from '../functions/functionsSlice';
@@ -23,6 +21,19 @@ import {
   selectUploads,
 } from '../uploader/fileUploaderSlice';
 
+import { APIFormFields } from './APIFormFields';
+import { AnamlFormFields } from './AnamlFormFields';
+import { CSVFormFields } from './CSVFormFields';
+import { CrawlerFormFields } from './CrawlerFormFields';
+import { DocumentFormFields } from './DocumentFormFields';
+import { FeastFormFields } from './FeastFormFields';
+import { FeatureStoreFormFields } from './FeatureStoreFormFields';
+import { FolderFormFields } from './FolderFormFields';
+import { GraphStoreFormFields } from './GraphStoreFormFields';
+import { Neo4jFormFields } from './Neo4jFormFields';
+import { SQLFormFields } from './SQLFormFields';
+import { TextDocumentFormFields } from './TextDocumentFormFields';
+import { WikipediaFormFields } from './WikipediaFormFields';
 import {
   createDataSourceAsync,
   getDataSourceAsync,
@@ -192,6 +203,10 @@ const typeOptions = [
     value: 'featurestore',
   },
   {
+    label: 'Folder',
+    value: 'folder',
+  },
+  {
     label: 'Knowledge Graph',
     value: 'graphstore',
   },
@@ -244,6 +259,8 @@ export function DataSourceForm() {
   const dataSource = dataSources[id];
   const isNew = id === 'new';
 
+  // console.log('dataSource:', dataSource);
+
   const dialectOptions = useMemo(() => {
     const list = dialects.map((d) => ({
       label: d.name,
@@ -266,10 +283,19 @@ export function DataSourceForm() {
     }
   }, [selectedWorkspace, uploads, documentTypeValue]);
 
-  const functionOptions = useMemo(() => Object.values(functions).map((func) => ({
-    label: func.name,
-    value: func.id,
-  })), [functions]);
+  const chunkerFunctionOptions = useMemo(() => Object.values(functions)
+    .filter((func) => func.tags?.includes('chunker'))
+    .map((func) => ({
+      label: func.name,
+      value: func.id,
+    })), [functions]);
+
+  const rephraseFunctionOptions = useMemo(() => Object.values(functions)
+    .filter((func) => func.tags?.includes('rephrase'))
+    .map((func) => ({
+      label: func.name,
+      value: func.id,
+    })), [functions]);
 
   const indexOptions = useMemo(() => Object.values(indexes).map((index) => ({
     label: index.name,
@@ -291,7 +317,7 @@ export function DataSourceForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getFunctionsByTagAsync({ tag: 'chunker', workspaceId }));
+      dispatch(getFunctionsByTagsAsync({ tags: ['chunker', 'rephrase'], workspaceId }));
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getUploadsAsync({ workspaceId }));
     }
@@ -381,575 +407,79 @@ export function DataSourceForm() {
           <Select options={typeOptions} optionFilterProp="label" />
         </Form.Item>
         {typeValue === 'wikipedia' ?
-          <Form.Item
-            label="Query"
-            name="query"
-            wrapperCol={{ span: 10 }}
-          >
-            <Input />
-          </Form.Item>
+          <WikipediaFormFields />
+          : null
+        }
+        {typeValue === 'folder' ?
+          <FolderFormFields />
           : null
         }
         {typeValue === 'document' ?
-          <>
-            <Form.Item
-              label="Document Type"
-              name="documentType"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select options={documentTypeOptions} optionFilterProp="label" />
-            </Form.Item>
-            <Form.Item
-              label="Documents"
-              name="documents"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select allowClear
-                loading={uploadsLoading}
-                mode="multiple"
-                options={documentOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            <Form.Item
-              label="Extract Metadata"
-            >
-              <Form.Item
-                name="extractMetadata"
-                valuePropName="checked"
-                style={{ display: 'inline-block', margin: 0 }}
-              >
-                <Switch disabled />
-              </Form.Item>
-              {extractMetadataValue ?
-                <Form.Item
-                  label="Schema"
-                  name="extractSchema"
-                  style={{ display: 'inline-block', margin: '0 0 0 16px' }}
-                >
-                  <SchemaModalInput />
-                </Form.Item>
-                : null
-              }
-            </Form.Item>
-          </>
+          <DocumentFormFields
+            documentTypeOptions={documentTypeOptions}
+            documentOptions={documentOptions}
+            extractMetadataValue={extractMetadataValue}
+            uploadsLoading={uploadsLoading}
+          />
           : null
         }
         {documentTypeValue === 'csv' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                CSV Parameters
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Delimiter"
-              name="delimiter"
-              initialValue=","
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Quote Char"
-              name="quoteChar"
-              initialValue={'"'}
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-          </>
+          <CSVFormFields />
           : null
         }
         {documentTypeValue === 'txt' || typeValue === 'wikipedia' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Text Chunking Parameters
-              </div>
-            </Form.Item>
-            {/* <Form.Item
-              label="Text Property"
-              name="textProperty"
-              initialValue="text"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item> */}
-            <Form.Item
-              label="Split by"
-              name="splitter"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select allowClear
-                options={splitterOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            {splitterValue === 'delimiter' ?
-              <Form.Item
-                label="Character(s)"
-                name="characters"
-                initialValue="\n\n"
-                wrapperCol={{ span: 10 }}
-              >
-                <Input />
-              </Form.Item>
-              : null
-            }
-            {splitterValue === 'chunker' ?
-              <Form.Item
-                label="Chunker"
-                name="functionId"
-                wrapperCol={{ span: 10 }}
-              >
-                <Select allowClear
-                  loading={functionsLoading}
-                  options={functionOptions}
-                  optionFilterProp="label"
-                />
-              </Form.Item>
-              : null
-            }
-            {splitterValue === 'token' ?
-              <>
-                <Form.Item
-                  label="Chunk Size"
-                  name="chunkSize"
-                  initialValue="2048"
-                  wrapperCol={{ span: 5 }}
-                >
-                  <InputNumber />
-                </Form.Item>
-                <Form.Item
-                  label="Chunk Overlap"
-                  name="chunkOverlap"
-                  initialValue="24"
-                  wrapperCol={{ span: 5 }}
-                >
-                  <InputNumber />
-                </Form.Item>
-              </>
-              : null
-            }
-          </>
+          <TextDocumentFormFields
+            chunkerFunctionOptions={chunkerFunctionOptions}
+            functionsLoading={functionsLoading}
+            rephraseFunctionOptions={rephraseFunctionOptions}
+            splitterOptions={splitterOptions}
+            splitterValue={splitterValue}
+          />
           : null
         }
         {typeValue === 'featurestore' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Feature Store Connection Info
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Feature Store"
-              name="featurestore"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select options={featurestoreOptions} optionFilterProp="label" />
-            </Form.Item>
-            <Form.Item
-              label="HTTP Method"
-              name="httpMethod"
-              wrapperCol={{ span: 10 }}
-            >
-              <Radio.Group
-                options={httpMethodOptions}
-                optionType="button"
-                buttonStyle="solid"
-              />
-            </Form.Item>
-            <Form.Item
-              label="URL"
-              name="url"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Parameter Schema"
-              name="parameterSchema"
-            >
-              <SchemaModalInput />
-            </Form.Item>
-            <Form.Item
-              label="Credentials"
-              wrapperCol={{ span: 10 }}
-            >
-              <Form.Item
-                label="Key"
-                name="appId"
-                colon={false}
-                style={{ display: 'inline-block', width: 'calc(50% - 16px)' }}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                label="Secret"
-                name="appSecret"
-                colon={false}
-                style={{ display: 'inline-block', width: 'calc(50%)', marginLeft: 16 }}
-              >
-                <Input type="password" />
-              </Form.Item>
-            </Form.Item>
-          </>
+          <FeatureStoreFormFields
+            featurestoreOptions={featurestoreOptions}
+            httpMethodOptions={httpMethodOptions}
+          />
           : null
         }
         {featurestoreValue === 'feast' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Feast Parameters
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Feature Service"
-              name="featureService"
-              extra="Takes precedence over the feature list"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item wrapperCol={{ offset: 4, span: 10 }} style={{ margin: '-24px 0 0' }}>
-              <Divider orientation="left" style={{ color: 'rgba(0,0,0,0.45)' }}>or</Divider>
-            </Form.Item>
-            <Form.Item
-              label="Feature List"
-              name="featureList"
-              extra="Enter a comma-separated list"
-              wrapperCol={{ span: 10 }}
-            >
-              <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
-            </Form.Item>
-            <Form.Item
-              label="Entity"
-              name="entity"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-          </>
+          <FeastFormFields />
           : null
         }
         {featurestoreValue === 'anaml' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Anaml Parameters
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Feature Store Name"
-              name="featureStoreName"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-          </>
+          <AnamlFormFields />
           : null
         }
         {typeValue === 'graphstore' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Knowledge Graph Connection Info
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Knowledge Graph"
-              name="graphstore"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select options={graphstoreOptions} optionFilterProp="label" />
-            </Form.Item>
-            {/* <Form.Item
-              label="Host"
-              name="host"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Credentials"
-              wrapperCol={{ span: 10 }}
-            >
-              <Form.Item
-                label="Username"
-                name="uaername"
-                colon={false}
-                style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                label="Password"
-                name="password"
-                colon={false}
-                style={{ display: 'inline-block', width: 'calc(50% - 8px)', marginLeft: 16 }}
-              >
-                <Input type="password" />
-              </Form.Item>
-            </Form.Item> */}
-          </>
+          <GraphStoreFormFields
+            graphstoreOptions={graphstoreOptions}
+          />
           : null
         }
         {graphstoreValue === 'neo4j' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Neo4j Parameters
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="Node Label"
-              name="nodeLabel"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Linked to Index"
-              name="indexId"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select
-                loading={indexesLoading}
-                options={indexOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            <Form.Item
-              label="Embedding Node Property"
-              name="embeddingNodeProperty"
-              initialValue="embedding"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Text Node Properties"
-              name="textNodeProperties"
-            >
-              <TagsInput />
-            </Form.Item>
-            <Form.Item
-              label="Limit"
-              name="limit"
-              initialValue={1000}
-              wrapperCol={{ span: 10 }}
-            >
-              <InputNumber style={{ width: 100 }} />
-            </Form.Item>
-          </>
+          <Neo4jFormFields
+            indexesLoading={indexesLoading}
+            indexOptions={indexOptions}
+          />
           : null
         }
         {typeValue === 'crawler' ?
-          <>
-            <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-              <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                Web Crawler Parameters
-              </div>
-            </Form.Item>
-            <Form.Item
-              label="URL"
-              name="baseUrl"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Maximum Requests"
-              name="maxRequestsPerCrawl"
-              wrapperCol={{ span: 5 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Chunk Element"
-              name="chunkElement"
-              wrapperCol={{ span: 5 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Scraping Spec"
-              name="scrapingSpec"
-              wrapperCol={{ span: 5 }}
-            >
-              <SchemaModalInput
-                isSpec={true}
-                title="Set Spec"
-                placeholders={{
-                  title: 'selector',
-                  description: 'attribute (leave empty for text content)',
-                }}
-              />
-            </Form.Item>
-          </>
+          <CrawlerFormFields />
           : null
         }
         {typeValue === 'sql' ?
-          <>
-            <Form.Item
-              label="Dialect"
-              name="dialect"
-              wrapperCol={{ span: 10 }}
-            >
-              <Select allowClear
-                options={dialectOptions}
-                optionFilterProp="label"
-              />
-            </Form.Item>
-            <Form.Item
-              label="Metadata Source"
-              name="sqlType"
-            >
-              <Radio.Group
-                optionType="button"
-                buttonStyle="solid"
-                options={sqlTypeOptions}
-              />
-            </Form.Item>
-            {dialectValue === 'postgresql' || dialectValue === 'bigquery' ?
-              <>
-                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-                  <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                    Connection Info
-                  </div>
-                </Form.Item>
-                {dialectValue === 'postgresql' ?
-                  <Form.Item
-                    label="Connection String"
-                    name="connectionString"
-                    wrapperCol={{ span: 10 }}
-                  >
-                    <Input />
-                  </Form.Item>
-                  : null
-                }
-                <Form.Item
-                  label={dialectValue === 'bigquery' ? 'Dataset' : 'Schema'}
-                  name="dataset"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  extra="Enter a comma separated list"
-                  label="Tables"
-                  name="tables"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                {sqlTypeValue === 'sample' ?
-                  <>
-                    <Form.Item
-                      label="Table"
-                      name="tableName"
-                      wrapperCol={{ span: 10 }}
-                    >
-                      <Input />
-                    </Form.Item>
-                    <Form.Item
-                      label="Sample Rows"
-                      name="sampleRows"
-                      wrapperCol={{ span: 2 }}
-                    >
-                      <InputNumber />
-                    </Form.Item>
-                  </>
-                  : null
-                }
-              </>
-              : null
-            }
-            {dialectValue === 'clickhouse' ?
-              <>
-                <Form.Item wrapperCol={{ offset: 4 }} style={{ margin: '40px 0 0' }}>
-                  <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
-                    Connection Info
-                  </div>
-                </Form.Item>
-                <Form.Item
-                  label="Host"
-                  name="databaseHost"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  label="Database"
-                  name="databaseName"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Input />
-                </Form.Item>
-                {sqlTypeValue === 'sample' ?
-                  <>
-                    <Form.Item
-                      label="Table"
-                      name="tableName"
-                      wrapperCol={{ span: 10 }}
-                    >
-                      <Input />
-                    </Form.Item>
-                    <Form.Item
-                      label="Sample Rows"
-                      name="sampleRows"
-                      wrapperCol={{ span: 2 }}
-                    >
-                      <InputNumber />
-                    </Form.Item>
-                  </>
-                  : null
-                }
-                <Form.Item
-                  label="Credentials"
-                  name="credentials"
-                  wrapperCol={{ span: 10 }}
-                >
-                  <Form.Item
-                    label="Username"
-                    name={['credentials', 'username']}
-                    colon={false}
-                    style={{ display: 'inline-block', width: 'calc(50% - 8px)' }}
-                  >
-                    <Input />
-                  </Form.Item>
-                  <Form.Item
-                    label="Password"
-                    name={['credentials', 'password']}
-                    colon={false}
-                    style={{ display: 'inline-block', width: 'calc(50% - 8px)', marginLeft: 16 }}
-                  >
-                    <Input type="password" />
-                  </Form.Item>
-                </Form.Item>
-              </>
-              : null
-            }
-          </>
+          <SQLFormFields
+            dialectOptions={dialectOptions}
+            dialectValue={dialectValue}
+            sqlTypeOptions={sqlTypeOptions}
+            sqlTypeValue={sqlTypeValue}
+          />
           : null
         }
         {typeValue === 'api' ?
-          <>
-            <Form.Item
-              label="Endpoint"
-              name="endpoint"
-              wrapperCol={{ span: 10 }}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label="Schema"
-              name="schema"
-            >
-              <SchemaModalInput />
-            </Form.Item>
-          </>
+          <APIFormFields />
           : null
         }
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
