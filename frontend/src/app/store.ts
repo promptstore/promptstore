@@ -20,6 +20,7 @@ import graphStoresReducer from '../features/uploader/graphStoresSlice';
 import guardrailsReducer from '../features/functions/guardrailsSlice';
 import hfModelsReducer from '../features/models/hfModelsSlice';
 import indexesReducer from '../features/indexes/indexesSlice';
+import mirrosReducer from '../features/mirrors/mirrorsSlice';
 import modelProvidersReducer from '../features/models/modelProvidersSlice';
 import modelsReducer from '../features/models/modelsSlice';
 import outputParsersReducer from '../features/functions/outputParsersSlice';
@@ -58,6 +59,7 @@ export const store = configureStore({
     guardrails: guardrailsReducer,
     hfModels: hfModelsReducer,
     indexes: indexesReducer,
+    mirrors: mirrosReducer,
     modelProviders: modelProvidersReducer,
     models: modelsReducer,
     outputParsers: outputParsersReducer,

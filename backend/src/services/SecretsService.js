@@ -103,7 +103,7 @@ export function SecretsService({ pg, logger }) {
       return [];
     }
     await pg.query(`
-      DELETE FROM secerts WHERE id = ANY($1::INT[])
+      DELETE FROM secrets WHERE id = ANY($1::INT[])
       `, [ids]);
     return ids;
   }

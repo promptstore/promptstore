@@ -7,9 +7,11 @@ import { Layout, Menu } from 'antd';
 import Icon, {
   ApartmentOutlined,
   ApiOutlined,
+  BlockOutlined,
   BookOutlined,
   CodeOutlined,
   CodepenOutlined,
+  CommentOutlined,
   ControlOutlined,
   DatabaseOutlined,
   DeploymentUnitOutlined,
@@ -21,7 +23,6 @@ import Icon, {
   FunctionOutlined,
   HomeOutlined,
   InfoCircleOutlined,
-  InteractionOutlined,
   IssuesCloseOutlined,
   LockOutlined,
   NodeIndexOutlined,
@@ -111,7 +112,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           },
           {
             key: 'prompt-designer',
-            icon: <InteractionOutlined />,
+            icon: <CommentOutlined />,
             label: (
               <NavLink to="/design">Prompt Design</NavLink>
             ),
@@ -331,6 +332,13 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
         icon: <LockOutlined />,
         label: (
           <NavLink to="/secrets">Secrets</NavLink>
+        ),
+      },
+      {
+        key: 'mirrors',
+        icon: <BlockOutlined />,
+        label: (
+          <NavLink to="/mirrors">Mirrors</NavLink>
         ),
       },
     ];

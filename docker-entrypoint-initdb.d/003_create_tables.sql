@@ -920,3 +920,40 @@ ALTER SEQUENCE public."secrets_id_seq"
 
 ALTER SEQUENCE public."secrets_id_seq"
     OWNED BY public."secrets"."id";
+
+
+-- Table: public."mirrors"
+
+DROP TABLE IF EXISTS public."mirrors";
+
+-- Sequence: public."mirrors_id_seq"
+
+DROP SEQUENCE IF EXISTS public."mirrors_id_seq";
+
+CREATE SEQUENCE public."mirrors_id_seq" AS bigint;
+
+CREATE TABLE public."mirrors"
+(
+    id integer NOT NULL DEFAULT nextval('"mirrors_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    val json,
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    CONSTRAINT "mirrors_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."mirrors"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."mirrors_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."mirrors_id_seq"
+    OWNED BY public."mirrors"."id";

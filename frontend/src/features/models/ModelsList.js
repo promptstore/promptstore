@@ -33,6 +33,7 @@ import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { formatNumber } from '../../utils';
 import {
+  AI21LabsLogo,
   AnthropicLogo,
   BedrockLogo,
   CohereLogo,
@@ -100,6 +101,7 @@ export function ModelsList() {
           isPublic: model.isPublic,
           description: model.description,
           contextWindow: model.contextWindow,
+          maxOutputTokens: model.maxOutputTokens,
           multimodal: model.multimodal,
           creditsPerCall: model.creditsPerCall,
         }));
@@ -203,7 +205,7 @@ export function ModelsList() {
     return null;
   }
 
-  const ProviderLogo = ({ provider }) => {
+  const ProviderLogo = ({ provider, modelKey }) => {
     switch (provider) {
       case 'api':
         return (
@@ -211,6 +213,16 @@ export function ModelsList() {
         );
 
       case 'bedrock':
+        if (modelKey.startsWith('anthropic')) {
+          return (
+            <AnthropicLogo />
+          );
+        }
+        if (modelKey.startsWith('ai21')) {
+          return (
+            <AI21LabsLogo />
+          );
+        }
         return (
           <BedrockLogo />
         );
@@ -260,12 +272,12 @@ export function ModelsList() {
     }
   };
 
-  const ProviderLabel = ({ provider }) => {
+  const ProviderLabel = ({ provider, modelKey }) => {
     switch (provider) {
       case 'api':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Europa Labs</div>
           </Space>
         );
@@ -273,7 +285,7 @@ export function ModelsList() {
       case 'bedrock':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Bedrock</div>
           </Space>
         );
@@ -281,7 +293,7 @@ export function ModelsList() {
       case 'cohere':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Cohere</div>
           </Space>
         );
@@ -289,7 +301,7 @@ export function ModelsList() {
       case 'gemini':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Gemini</div>
           </Space>
         );
@@ -297,7 +309,7 @@ export function ModelsList() {
       case 'huggingface':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Hugging Face</div>
           </Space>
         );
@@ -305,7 +317,7 @@ export function ModelsList() {
       case 'llama2':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Llama 2</div>
           </Space>
         );
@@ -313,7 +325,7 @@ export function ModelsList() {
       case 'llamaapi':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Llama API</div>
           </Space>
         );
@@ -321,7 +333,7 @@ export function ModelsList() {
       case 'mistral':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Mistral</div>
           </Space>
         );
@@ -329,7 +341,7 @@ export function ModelsList() {
       case 'openai':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>OpenAI</div>
           </Space>
         );
@@ -337,7 +349,7 @@ export function ModelsList() {
       case 'vertexai':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
-            <ProviderLogo provider={provider} />
+            <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>Vertex AI</div>
           </Space>
         );
@@ -396,8 +408,8 @@ export function ModelsList() {
     {
       title: 'Provider',
       dataIndex: 'provider',
-      render: (_, { provider }) => (
-        <ProviderLabel provider={provider} />
+      render: (_, { modelKey, provider }) => (
+        <ProviderLabel provider={provider} modelKey={modelKey} />
       )
     },
     {
@@ -488,10 +500,10 @@ export function ModelsList() {
     }
   };
 
-  function CardTitle({ provider, title }) {
+  function CardTitle({ modelKey, provider, title }) {
     return (
       <Space>
-        <ProviderLogo provider={provider} />
+        <ProviderLogo provider={provider} modelKey={modelKey} />
         <div>{title}</div>
       </Space>
     );
@@ -584,12 +596,12 @@ export function ModelsList() {
           {layout === 'grid' ?
             <Space wrap size="large">
               {data.map(m =>
-                <Card key={m.key}
-                  title={<CardTitle provider={m.provider} title={m.name} />}
-                  style={{ width: 350, height: 225 }}
+                <Card key={m.key} className="model-card"
+                  title={<CardTitle provider={m.provider} modelKey={m.modelKey} title={m.name} />}
+                  style={{ width: 350, height: 255 }}
                   loading={loading}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 151 }}>
                     {m.description ?
                       <Typography.Text ellipsis>{m.description}</Typography.Text>
                       :
@@ -602,18 +614,32 @@ export function ModelsList() {
                     <div>
                       {m.contextWindow ?
                         <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
-                          <span><span className="inline-label">context</span> {formatNumber(m.contextWindow)}</span>
+                          <div>
+                            <span className="inline-label">context</span> {formatNumber(m.contextWindow)}
+                          </div>
                         </Typography.Text>
                         : null
                       }
                       {m.creditsPerCall ?
                         <Typography.Text style={{ display: 'inline-block' }}>
-                          <span><span className="inline-label">credits</span> ~{formatNumber(m.creditsPerCall)}</span>
+                          <div>
+                            <span className="inline-label">credits</span> ~{formatNumber(m.creditsPerCall)}
+                          </div>
                         </Typography.Text>
                         :
                         <Typography.Text style={{ display: 'inline-block' }}>
-                          <span><span className="inline-label">credits</span> 0</span>
+                          <div>
+                            <span className="inline-label">credits</span> 0
+                          </div>
                         </Typography.Text>
+                      }
+                    </div>
+                    <div>
+                      {m.maxOutputTokens ?
+                        <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
+                          <span><span className="inline-label">max out</span> {formatNumber(m.maxOutputTokens)}</span>
+                        </Typography.Text>
+                        : null
                       }
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'row-reverse', marginTop: 'auto', gap: 16, alignItems: 'center' }}>

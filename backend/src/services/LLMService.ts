@@ -34,6 +34,7 @@ export function LLMService({ logger, registry, services }: PluginServiceParams):
 
   async function createChatCompletion(provider: string, request: ChatRequest) {
     logger.debug('chat provider:', provider);
+    // logger.debug('request:', request);
     const instance = registry[provider] as LLM;
 
     let providerRequest: any;

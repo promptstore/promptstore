@@ -41,6 +41,7 @@ import { FunctionsService } from './services/FunctionsService';
 import { IndexesService } from './services/IndexesService';
 import { LLMService } from './services/LLMService';
 import { LoaderService } from './services/LoaderService';
+import { MirrorsService } from './services/MirrorsService';
 import { ModelProviderService } from './services/ModelProviderService';
 import { ModelsService } from './services/ModelsService';
 import { ParserService } from './services/ParserService';
@@ -220,6 +221,8 @@ const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugin
 const indexesService = IndexesService({ pg, logger });
 
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
+
+const mirrorsService = MirrorsService({ pg, logger });
 
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
 
@@ -456,6 +459,7 @@ const options = {
     indexesService,
     llmService,
     loaderService,
+    mirrorsService,
     modelProviderService,
     modelsService,
     parserService,
@@ -517,7 +521,7 @@ app.get('/api/v1/*', async (req, res, next) => {
   const tenant = searchParams.get('tenant');
   searchParams.delete('tenant');
   const url = `https://${tenant}${path}?${searchParams.toString()}`;
-  logger.debug('url: ', url);
+  logger.debug('url:', url);
   const headers = {
     ...req.headers,
     host: tenant,

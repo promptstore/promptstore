@@ -214,7 +214,7 @@ function MachineEval({ evaluations }) {
 export function TrainingList() {
 
   const [evalType, setEvalType] = useState({});
-  const [page, setPage] = useLocalStorageState('training-list-page', { defdaultValue: 1 });
+  const [page, setPage] = useLocalStorageState('training-list-page', { defaultValue: 1 });
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);

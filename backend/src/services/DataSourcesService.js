@@ -52,6 +52,26 @@ export function DataSourcesService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
+  async function getDataSourceByName(workspaceId, name) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return [];
+    }
+    if (name === null || typeof name === 'undefined') {
+      return [];
+    }
+    let q = `
+      SELECT id, workspace_id, name, type, created, created_by, modified, modified_by, val
+      FROM data_sources
+      WHERE workspace_id = $1
+      AND name = $2
+      `;
+    const { rows } = await pg.query(q, [workspaceId, name]);
+    if (rows.length === 0) {
+      return null;
+    }
+    return mapRow(rows[0]);
+  }
+
   async function getDataSource(id) {
     if (id === null || typeof id === 'undefined') {
       return null;
@@ -117,6 +137,7 @@ export function DataSourcesService({ pg, logger }) {
   return {
     getDataSources,
     getDataSourcesByType,
+    getDataSourceByName,
     getDataSource,
     upsertDataSource,
     deleteDataSources,

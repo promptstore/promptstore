@@ -38,7 +38,7 @@ export const {
 
 export const getModelsAsync = ({ workspaceId, minDelay, type }) => async (dispatch) => {
   dispatch(startLoad());
-  let url = `/api/workspace/${workspaceId}/models`;
+  let url = `/api/workspaces/${workspaceId}/models`;
   if (type) {
     url += '?type=' + type;
   }
@@ -58,7 +58,7 @@ export const getModelAsync = (id) => async (dispatch) => {
 
 export const getModelByKeyAsync = ({ key, workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/workspace/${workspaceId}/models-by-key/${key}`;
+  const url = `/api/workspaces/${workspaceId}/models-by-key/${key}`;
   const res = await http.get(url);
   dispatch(setModels({ models: [res.data] }));
 };

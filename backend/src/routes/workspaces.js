@@ -201,12 +201,14 @@ export default ({ app, auth, constants, logger, services }) => {
    *         description: Error
    */
   app.get('/api/workspaces', auth, async (req, res, next) => {
+    logger.debug('get workspaces');
     const query = { ...req.query };
     const limit = query.limit;
     const start = query.start;
     delete query.limit;
     delete query.start;
     const user = await usersService.getUser(req.user.username);
+    logger.debug('user:', user);
     let workspaces;
     if (user.roles && user.roles.indexOf['admin'] !== -1) {
       workspaces = await workspacesService.getWorkspaces(limit, start);

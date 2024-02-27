@@ -174,8 +174,9 @@ export class Composition {
           vectorStoreProvider: index.vectorStoreProvider,
         };
 
-        // TODO
-        await this.pipelinesService.executePipeline(params, 'minio', ['text']);
+        const loaderProvider = getLoaderProvider(dataSource.type);
+        const extractorProvider = getExtractorProvider(dataSource);
+        await this.pipelinesService.executePipeline(params, loaderProvider, [extractorProvider]);
       }
 
       this.onEnd({ response });
@@ -254,6 +255,46 @@ export class Composition {
   }
 
 }
+
+const getExtractorProvider = (ds: any) => {
+  if (ds.type === 'document') {
+    if (ds.documentType === 'txt') {
+      return 'text';
+    }
+    if (ds.documentType === 'csv') {
+      return 'csv';
+    }
+    if (ds.documentType === 'json') {
+      return 'json';
+    }
+  }
+  if (['document', 'folder'].includes(ds.type)) {
+    return 'unstructured';
+  }
+  if (ds.type === 'api') {
+    return 'json';
+  }
+  if (ds.type === 'wikipedia') {
+    return 'text';
+  }
+  if (ds.type === 'graphstore' && ds.graphstore === 'neo4j') {
+    return 'neo4j';
+  }
+  if (ds.type === 'crawler') {
+    return 'crawler';
+  }
+  throw new Error('Unsupported extractor');
+};
+
+const getLoaderProvider = (type: string) => {
+  if (['document', 'folder'].includes(type)) {
+    return 'minio';
+  }
+  if (['api', 'crawler', 'wikipedia'].includes(type)) {
+    return type;
+  }
+  return null;
+};
 
 export interface ICompositionNode extends INode {
   composition: Composition;

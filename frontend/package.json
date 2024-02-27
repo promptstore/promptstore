@@ -41,6 +41,7 @@
     "lodash.clonedeep": "^4.5.0",
     "lodash.debounce": "^4.0.8",
     "lodash.difference": "^4.5.0",
+    "lodash.get": "^4.4.2",
     "lodash.isempty": "^4.4.0",
     "lodash.isequal": "^4.5.0",
     "lodash.isfunction": "^3.0.9",

@@ -38,6 +38,8 @@ import { FunctionsList } from './features/functions/FunctionsList';
 import { Home } from './features/home/Home';
 import { IndexForm } from './features/indexes/IndexForm';
 import { IndexesList } from './features/indexes/IndexesList';
+import { MirrorsList } from './features/mirrors/MirrorsList';
+import { MirrorForm } from './features/mirrors/MirrorForm';
 import { ModelForm } from './features/models/ModelForm';
 import { ModelView } from './features/models/ModelView';
 import { ModelsList } from './features/models/ModelsList';
@@ -122,6 +124,8 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     <Route path="/home" element={<Home />} />
                     <Route path="/indexes/:id" element={<IndexForm />} />
                     <Route path="/indexes" element={<IndexesList />} />
+                    <Route path="/mirrors/:id" element={<MirrorForm />} />
+                    <Route path="/mirrors" element={<MirrorsList />} />
                     <Route path="/models/:id/edit" element={<ModelForm />} />
                     <Route path="/models/:id" element={<ModelView />} />
                     <Route path="/models" element={<ModelsList />} />

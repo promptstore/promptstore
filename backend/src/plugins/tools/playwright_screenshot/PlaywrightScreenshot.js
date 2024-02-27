@@ -99,12 +99,12 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
           }
           logger.debug('presigned url:', presignedUrl);
           let imageUrl;
-          if (constants.ENV === 'dev') {
+          // if (constants.ENV === 'dev') {
             const u = new URL(presignedUrl);
             imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
-          } else {
-            imageUrl = presignedUrl;
-          }
+          // } else {
+          //   imageUrl = presignedUrl;
+          // }
           resolve({ imageUrl, objectName });
         });
       });

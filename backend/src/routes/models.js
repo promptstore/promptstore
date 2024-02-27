@@ -8,7 +8,7 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
-  app.get('/api/workspace/:workspaceId/models', auth, async (req, res, next) => {
+  app.get('/api/workspaces/:workspaceId/models', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
     const { type } = req.query;
     let models;
@@ -29,7 +29,7 @@ export default ({ app, auth, constants, logger, services }) => {
     res.json({ ...model, creditsPerCall: creditsPerCall[model.key] });
   });
 
-  app.get('/api/workspace/:workspaceId/models-by-key/:key', auth, async (req, res, next) => {
+  app.get('/api/workspaces/:workspaceId/models-by-key/:key', auth, async (req, res, next) => {
     const { key, workspaceId } = req.params;
     const model = await modelsService.getModelByKey(workspaceId, key);
     res.json(model);

@@ -14,6 +14,26 @@ const DEFAULT_IMAGE_QUALITY = 'standard';
 const INFRA_COST_PER_CALL = 0.003;
 
 const COSTS = {
+  'ai21.j2-mid-v1': {
+    'currency': 'usd',
+    'type': 'text',
+    'bedrock': {
+      'online': {
+        'input-per-1k-tokens': 0.0125,
+        'output-per-1k-tokens': 0.0125,
+      },
+    },
+  },
+  'ai21.j2-ultra-v1': {
+    'currency': 'usd',
+    'type': 'text',
+    'bedrock': {
+      'online': {
+        'input-per-1k-tokens': 0.0188,
+        'output-per-1k-tokens': 0.0188,
+      },
+    },
+  },
   'anthropic.claude-v1': {
     'currency': 'usd',
     'type': 'text',

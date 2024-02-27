@@ -48,6 +48,7 @@ export function TracesList() {
         current: 1,
         pageSize: 10,
       },
+      filters: {},
     }
   });
   const [searchText, setSearchText] = useState('');
@@ -92,7 +93,7 @@ export function TracesList() {
       createLink: null,
       title: 'Traces',
     }));
-    if (tableParams.filters.name?.[0]) {
+    if (tableParams?.filters?.name?.[0]) {
       setSearchText(tableParams.filters.name[0]);
       setSearchedColumn('name');
     }
@@ -118,12 +119,12 @@ export function TracesList() {
 
   const fetchData = () => {
     const workspaceId = selectedWorkspace.id;
-    const { current, pageSize } = tableParams.pagination;
+    const { current, pageSize } = tableParams?.pagination || {};
     dispatch(getTracesAsync({
       workspaceId,
       limit: pageSize,
       start: (current - 1) * pageSize,
-      filters: tableParams.filters,
+      filters: tableParams?.filters || {},
     }));
   };
 
@@ -202,7 +203,7 @@ export function TracesList() {
         setTimeout(() => searchInput.current?.select(), 100);
       }
     },
-    filteredValue: tableParams.filters.name,
+    filteredValue: tableParams?.filters?.name,
     render: (text) => searchedColumn === dataIndex ? (
       <Highlighter
         highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
@@ -233,7 +234,7 @@ export function TracesList() {
             }
           }}
           style={{ marginBottom: 8 }}
-          defaultValue={getDates(tableParams.filters[dataIndex]?.[0])}
+          defaultValue={getDates(tableParams?.filters?.[dataIndex]?.[0])}
         />
         <div>
           <Button type="primary"
@@ -259,7 +260,7 @@ export function TracesList() {
       // console.log('filter:', filter);
       return filter;
     },
-    filteredValue: tableParams.filters[dataIndex],
+    filteredValue: tableParams?.filters?.[dataIndex],
   });
 
   const getNumberRangeProps = (dataIndex) => ({
@@ -278,7 +279,7 @@ export function TracesList() {
             }
           }}
           style={{ marginBottom: 8 }}
-          defaultValue={tableParams.filters[dataIndex]?.[0]}
+          defaultValue={tableParams?.filters?.[dataIndex]?.[0]}
         />
         <Space>
           <Button type="primary"
@@ -312,7 +313,7 @@ export function TracesList() {
       console.log('filter:', filter);
       return filter;
     },
-    filteredValue: tableParams.filters[dataIndex],
+    filteredValue: tableParams?.filters?.[dataIndex],
   });
 
   const columns = [
@@ -359,7 +360,7 @@ export function TracesList() {
           value: 'semfn',
         },
       ],
-      filteredValue: tableParams.filters.traceType,
+      filteredValue: tableParams?.filters?.traceType,
       onFilter: (value, record) => record.traceType.indexOf(value) === 0,
       sorter: (a, b) => a.traceType.length - b.traceType.length,
       sortDirections: ['descend'],
@@ -396,7 +397,7 @@ export function TracesList() {
           value: false,
         },
       ],
-      filteredValue: tableParams.filters.success,
+      filteredValue: tableParams?.filters?.success,
       onFilter: (value, record) => record.success === value,
     },
     {
@@ -463,7 +464,7 @@ export function TracesList() {
     setTableParams(params);
 
     // `dataSource` is useless since `pageSize` changed
-    if (pagination.pageSize !== tableParams.pagination?.pageSize) {
+    if (pagination.pageSize !== tableParams?.pagination?.pageSize) {
       setTraces({ traces: [] });
     }
   };
@@ -516,7 +517,7 @@ export function TracesList() {
           loading={loading}
           onChange={handleTableChange}
           pagination={{
-            ...tableParams.pagination,
+            ...tableParams?.pagination,
             total: +count,
           }}
         />

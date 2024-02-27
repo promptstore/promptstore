@@ -1,3 +1,4 @@
+export { AI21LabsLogo } from './AI21LabsLogo';
 export { AnthropicLogo } from './AnthropicLogo';
 export { BedrockLogo } from './BedrockLogo';
 export { CohereLogo } from './CohereLogo';

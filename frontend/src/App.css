@@ -953,6 +953,10 @@ article.collapsible .panel.closed {
   width: 36px;
 }
 
+.model-card .inline-label {
+  width: 59px;
+}
+
 .inline-label::after {
   content: ":";
   position: relative;
@@ -1064,11 +1068,14 @@ article.collapsible .panel.closed {
   border-inline-end: 0;
 }
 
-.custom-node__header a {
+.custom-node__header a,
+.ant-form-item-extra a {
   color: #1677ff;
 }
 
 .custom-node__header a:hover,
-.custom-node__header a:active {
+.custom-node__header a:active,
+.ant-form-item-extra a:hover,
+.ant-form-item-extra a:active {
   color: #69b1ff;
 }

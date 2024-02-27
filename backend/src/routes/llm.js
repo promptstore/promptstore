@@ -610,12 +610,13 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
     startTime = startTimes.pop();
     endTime = new Date();
+    const resp = completions.map(convertResponseWithImages);
     tracer
       .up()
       .addProperty('endTime', endTime.getTime())
       .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
       .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
-      .addProperty('response', await convertResponseWithImages(completions))
+      .addProperty('response', await Promise.all(resp))
       .addProperty('success', true)
       ;
     const traceRecord = tracer.close();
@@ -837,7 +838,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       promises.push(saveImage(sourceId, dirname, url));
     }
     const urls = await Promise.all(promises);
-    logger.debug('urls: ', urls);
+    logger.debug('urls:', urls);
     res.json(urls);
   });
 

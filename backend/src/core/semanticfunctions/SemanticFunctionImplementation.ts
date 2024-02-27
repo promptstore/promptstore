@@ -497,7 +497,7 @@ export class SemanticFunctionImplementation {
 
     const request = {
       model: model.model,
-      model_params: { modelParams, max_tokens: maxTokens },
+      model_params: { ...modelParams, max_tokens: maxTokens },
       functions,
       prompt: {
         context,
