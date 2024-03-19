@@ -102,7 +102,10 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       transformation = await transformationsService.upsertTransformation(values, username);
     }
     const obj = createSearchableObject(transformation);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, transformation.chunkId);
+    if (!transformation.chunkId) {
+      transformation = await transformationsService.upsertTransformation({ ...transformation, chunkId }, username);
+    }
     res.json(transformation);
   });
 
@@ -167,7 +170,10 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
     transformation = await transformationsService.upsertTransformation(values, username);
     const obj = createSearchableObject(transformation);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, transformation.chunkId);
+    if (!transformation.chunkId) {
+      transformation = await transformationsService.upsertTransformation({ ...transformation, chunkId }, username);
+    }
     res.json(transformation);
   });
 

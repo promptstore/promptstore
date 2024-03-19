@@ -32,7 +32,11 @@ function Neo4jService({ __name, constants, logger }) {
       const r = await session.run(q);
       return r.records;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       session.close();
@@ -127,7 +131,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       session.close();
@@ -145,7 +153,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -196,7 +208,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q, { batchSize, data });
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -232,7 +248,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q, { ids });
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -248,7 +268,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q, { id });
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();

@@ -33,7 +33,11 @@ function ChromaService({ __name, constants, logger }) {
     try {
       return getClient().listCollections();
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }
@@ -47,7 +51,11 @@ function ChromaService({ __name, constants, logger }) {
         numDocs,
       };
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return null;
     }
   }
@@ -59,7 +67,11 @@ function ChromaService({ __name, constants, logger }) {
         metadata: params,
       });
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -68,7 +80,11 @@ function ChromaService({ __name, constants, logger }) {
     try {
       await getClient().deleteCollection({ name: indexName });
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -82,7 +98,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return 0;
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -106,7 +126,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -123,7 +147,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }
@@ -143,7 +171,11 @@ function ChromaService({ __name, constants, logger }) {
         metadatas,
       });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -162,7 +194,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   };
@@ -185,7 +221,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }
@@ -200,7 +240,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   };
@@ -268,7 +312,11 @@ function ChromaService({ __name, constants, logger }) {
       logger.debug("collection '%s' not found", indexName);
       return [];
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }

@@ -58,7 +58,7 @@ export default memo(({ id, data, isConnectable }) => {
   return (
     <>
       <div className="custom-node__header">
-        Index
+        Semantic Index
       </div>
       <div className="custom-node__body">
         <Select

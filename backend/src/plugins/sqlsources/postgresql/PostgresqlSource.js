@@ -150,7 +150,7 @@ function PostgresqlSource({ __name, constants, logger }) {
     //   // delete table if exists
     //   client.query(`DROP TABLE "${dataset}"."${tableName}"`);
     // } catch (err) {
-    //   console.error(err);
+    //   console.error(err.message);
     //   // ignore
     // }
     // const [table] = await client
@@ -182,7 +182,11 @@ function PostgresqlSource({ __name, constants, logger }) {
       }
       logger.debug('meta:', meta);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
     }
     return meta;
   }
@@ -196,7 +200,11 @@ function PostgresqlSource({ __name, constants, logger }) {
       const template = Handlebars.compile(templateStr);
       return template({ name, schema });
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return '';
     }
   }
@@ -211,7 +219,11 @@ function PostgresqlSource({ __name, constants, logger }) {
       logger.debug('context:', context);
       return context;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return '';
     }
   }
@@ -289,7 +301,11 @@ function PostgresqlSource({ __name, constants, logger }) {
       const func = new Function(...Object.keys(vars), "return `" + template + "`;");
       return func(...Object.values(vars));
     } catch (err) {
-      console.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return null;
     }
   };

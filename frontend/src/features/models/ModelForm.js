@@ -1,8 +1,9 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import * as dayjs from 'dayjs';
 import debounce from 'lodash.debounce';
 import snakeCase from 'lodash.snakecase';
 
@@ -103,8 +104,21 @@ export function ModelForm() {
   const returnTypeValue = Form.useWatch('returnType', form);
 
   const id = location.pathname.match(/\/models\/(.*?)\/edit/)[1];
-  const model = models[id];
   const isNew = id === 'new';
+
+  const model = useMemo(() => {
+    const mdl = models[id];
+    if (mdl) {
+      let trainingDate;
+      if (mdl.trainingDate) {
+        trainingDate = dayjs(mdl.trainingDate);
+      }
+      return {
+        ...mdl,
+        trainingDate,
+      };
+    }
+  }, [id, models]);
 
   // console.log('model:', model);
 
@@ -390,6 +404,12 @@ export function ModelForm() {
               valuePropName="checked"
             >
               <Switch />
+            </Form.Item>
+            <Form.Item
+              name="trainingDate"
+              label="Training Date"
+            >
+              <DatePicker picker="month" />
             </Form.Item>
           </>
           : null

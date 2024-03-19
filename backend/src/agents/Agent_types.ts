@@ -103,5 +103,5 @@ export interface Tool {
   __name: string;
   __description: string;
   call: (args: any, raw: boolean) => Promise<string>;
-  getOpenAIMetadata: () => ToolMetadata;
+  getOpenAPIMetadata: () => ToolMetadata;
 }

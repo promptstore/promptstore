@@ -207,7 +207,7 @@ export function RagTester() {
       const sessions = Object.values(chatSessions);
       if (sessions.length) {
         const lastSession = sessions.find(s => s.name === 'last session');
-        console.log('lastSession:', lastSession);
+        // console.log('lastSession:', lastSession);
         if (lastSession) {
           setSelectedTags(lastSession.selectedTags);
           setSelectedFunction(lastSession.functionId);

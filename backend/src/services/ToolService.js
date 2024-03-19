@@ -15,14 +15,14 @@ export function ToolService({ logger, registry }) {
     return tool.call(args, raw);
   }
 
-  function getOpenAIMetadata(key) {
-    return registry[key].getOpenAIMetadata();
+  function getOpenAPIMetadata(key) {
+    return registry[key].getOpenAPIMetadata();
   }
 
   function getAllMetadata(keys) {
     return Object.entries(registry)
       .filter(([key, _]) => !keys || keys.includes(key))
-      .map(([_, tool]) => tool.getOpenAIMetadata())
+      .map(([_, tool]) => tool.getOpenAPIMetadata())
       ;
   }
 
@@ -53,7 +53,7 @@ export function ToolService({ logger, registry }) {
   return {
     call,
     getAllMetadata,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
     getToolNames,
     getToolsList,
     getTool,

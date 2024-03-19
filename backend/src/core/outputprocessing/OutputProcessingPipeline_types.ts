@@ -1,4 +1,5 @@
 import { Callback } from '../callbacks/Callback';
+import { PluginMetadata } from '../common_types';
 
 export interface OutputProcessingStep {
   call: (params: OutputProcessingCallParams) => Promise<object>;
@@ -51,4 +52,28 @@ export interface OutputGuardrailStartResponse {
 export interface OutputParserStartResponse {
   outputParser: string;
   response: any;
+}
+
+interface ParserResult {
+  error: Error;
+  fixed: boolean;
+  json: any;
+  nonJsonStr: string;
+  retriable: boolean;
+}
+
+export interface ParserService {
+
+  parse(provider: string, text: string): Promise<Partial<ParserResult>>;
+
+  getOutputParsers(): PluginMetadata[];
+
+}
+
+export interface Parser {
+
+  __name: string;
+
+  parse(text: string): Promise<Partial<ParserResult>>;
+
 }

@@ -6,8 +6,7 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
     logger.debug('parsing:', text);
     if (!text) {
       return {
-        error: 'Nothing to parse',
-        json: text,  // TODO remove
+        error: { message: 'Nothing to parse' },
         nonJsonStr: text,
       };
     }
@@ -33,12 +32,17 @@ function JsonParser({ __name, __metadata, constants, logger, app, auth }) {
       const { jsonStr, fixed } = fixTruncatedJson(maybeJsonStr);
       // logger.debug('json string:', jsonStr);
       const json = JSON.parse(jsonStr);
+
       return { fixed, json, nonJsonStr };
+
     } catch (err) {
-      logger.error('Error parsing text:', err);
+      let message = `Error parsing text "${text}": ` + err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return {
-        error: String(err),
-        json: text,  // TODO remove
+        error: { message },
         nonJsonStr: text,
       };
     }

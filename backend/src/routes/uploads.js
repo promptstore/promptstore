@@ -384,7 +384,11 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       }
       res.json(results);
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       res.sendStatus(500);
     }
   });
@@ -422,9 +426,18 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           if (isImage) {
             mc.presignedUrl('GET', constants.FILE_BUCKET, result.name, 24 * 60 * 60, (err, presignedUrl) => {
               if (err) {
-                logger.error(err);
+                let message = 'Error getting presigned url: ';
+                if (err instanceof Error) {
+                  message += err.message;
+                  if (err.stack) {
+                    message += '\n' + err.stack;
+                  }
+                } else {
+                  message += err.toString();
+                }
+                logger.error(message);
                 return res.status(400).json({
-                  error: { message: 'Error getting presigned url: ' + err.message },
+                  error: { message },
                 });
               }
               logger.debug('presigned url:', presignedUrl);
@@ -449,6 +462,8 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
         if (!isImage) {
           const obj = createSearchableObject(result);
+
+          // TODO
           indexObject(obj);
         }
 

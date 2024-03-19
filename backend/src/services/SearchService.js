@@ -213,7 +213,11 @@ export function SearchService({ constants, logger, services }) {
     try {
       if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
         const { embeddingProvider, embeddingModel } = params;
-        const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
+        const response = await llmService.createEmbedding(embeddingProvider, {
+          input: q,
+          inputType: 'search_query',
+          model: embeddingModel,
+        });
         return vectorStoreService.search('neo4j', indexName, query, attrs, 'and', {
           queryEmbedding: response.data[0].embedding,
         });
@@ -230,7 +234,11 @@ export function SearchService({ constants, logger, services }) {
       // logger.debug('search results:', res.data);
       return res.data;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }

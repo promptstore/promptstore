@@ -4,19 +4,25 @@ function BooleanParser({ __name, __metadata, constants, logger, app, auth }) {
     logger.debug('parsing:', text);
     if (!text) {
       return {
-        error: 'Nothing to parse',
-        json: text,
+        error: { message: 'Nothing to parse' },
+        nonJsonStr: text,
       };
     }
     try {
       let { fixedStr, fixed } = fixBools(text);
       // logger.debug('json string:', jsonStr);
-      return { json: fixedStr === 'true', fixed };
+
+      return { fixed, json: fixedStr === 'true' };
+
     } catch (err) {
-      logger.error('Error parsing text:', err);
+      let message = `Error parsing text "${text}": ` + err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return {
-        error: String(err),
-        json: text,
+        error: { message },
+        nonJsonStr: text,
       };
     }
   }

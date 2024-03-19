@@ -4,7 +4,7 @@ const SYSTEM_WORKSPACE_ID = 1;
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
-  const { executionsService } = services;
+  const { compositionsService, executionsService, functionsService, toolService } = services;
 
   /**
    * @openapi
@@ -453,7 +453,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { username } = req.user;
     const batch = req.query.batch;
     // logger.debug('body:', req.body);
-    let { args, params, workspaceId } = req.body;
+    let { args, params, functions, workspaceId } = req.body;
     if (!params) params = {};
     if (!workspaceId) workspaceId = SYSTEM_WORKSPACE_ID;
     const inputParams = {
@@ -462,17 +462,52 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       compositionName,
       args,
       params,
+      functions,
       batch,
     };
-    workflowClient.executeComposition(inputParams, {
-      address: constants.TEMPORAL_URL,
-    }).then(({ errors, response, responseMetadata }) => {
+    logger.debug('get composition:', compositionName);
+    const composition = await compositionsService.getCompositionByName(workspaceId, compositionName);
+
+    if (composition.type === 'codegen') {
+      let toolDefinitions;
+      if (composition.tools) {
+        toolDefinitions = toolService.getAllMetadata(composition.tools);
+      }
+      let functionDefinitions;
+      if (composition.functions) {
+        functionDefinitions = await functionsService.getAllMetadata(composition.functions);
+      }
+      const { errors, response, responseMetadata } = await executionsService.executeFunction({
+        workspaceId: workspaceId || SYSTEM_WORKSPACE_ID,
+        username,
+        semanticFunctionName: 'generate_ps_code',
+        args: {
+          toolDefinitions: toolDefinitions.map(def => JSON.stringify(def)).join('\n\n'),
+          functionDefinitions: functionDefinitions.map(def => JSON.stringify(def)).join('\n\n'),
+          requestSchema: JSON.stringify(composition.requestSchema),
+          returnSchema: JSON.stringify(composition.returnSchema),
+          input: composition.description,
+        },
+        params: params || {},
+        batch: isTruthy(batch),
+      });
       if (errors) {
-        logger.debug("Error executing composition '%s'", compositionName, errors);
         return res.status(500).json({ errors });
       }
+      logger.debug('response:', response.choices[0].message);
       res.json({ response, responseMetadata });
-    });
+
+    } else {
+      workflowClient.executeComposition(inputParams, {
+        address: constants.TEMPORAL_URL,
+      }).then(({ errors, response, responseMetadata }) => {
+        if (errors) {
+          logger.debug("Error executing composition '%s'", compositionName, errors);
+          return res.status(500).json({ errors });
+        }
+        res.json({ response, responseMetadata });
+      });
+    }
 
     // const { errors, response, responseMetadata } = await executionsService.executeComposition(indexParams);
     // if (errors) {
@@ -480,6 +515,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     //   return res.status(500).json({ errors });
     // }
     // res.json({ response, responseMetadata });
+  });
+
+  app.post('/api/tool-executions/:name', auth, async (req, res) => {
+    const { name } = req.params;
+    const { args, raw } = req.body;
+    logger.debug('calling tool', name, args, { raw });
+    const response = await toolService.call(name, args, raw);
+    res.json(response);
   });
 
 };

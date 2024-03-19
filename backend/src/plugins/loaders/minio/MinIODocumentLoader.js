@@ -1,26 +1,32 @@
-import Minio from 'minio';
+import { Blob } from 'buffer';
 import fs from 'fs';
 import mime from 'mime-types';
+import Minio from 'minio';
 import path from 'path';
 import uuid from 'uuid';
-import { Blob } from 'buffer';
 
 function MinIODocumentLoader({ __name, constants, logger }) {
 
-  const mc = new Minio.Client({
-    endPoint: constants.S3_ENDPOINT,
-    port: parseInt(constants.S3_PORT, 10),
-    useSSL: constants.ENV !== 'dev',
-    accessKey: constants.AWS_ACCESS_KEY,
-    secretKey: constants.AWS_SECRET_KEY,
-  });
+  let _mc;
+
+  function getClient() {
+    if (!_mc) {
+      _mc = new Minio.Client({
+        endPoint: constants.S3_ENDPOINT,
+        port: parseInt(constants.S3_PORT, 10),
+        useSSL: constants.ENV !== 'dev',
+        accessKey: constants.AWS_ACCESS_KEY,
+        secretKey: constants.AWS_SECRET_KEY,
+      });
+    }
+    return _mc;
+  }
 
   function getListing(bucket, path, recursive) {
     return new Promise((resolve, reject) => {
-      const stream = mc.listObjectsV2(bucket, path, recursive);
+      const stream = getClient().listObjectsV2(bucket, path, recursive);
       const objects = [];
       stream.on('data', function (obj) {
-        logger.debug('obj:', obj);
         if (obj.name) {
           objects.push(obj);
         }
@@ -46,18 +52,29 @@ function MinIODocumentLoader({ __name, constants, logger }) {
     const proms = [];
     if (!objectNames) {
       const objects = await getListing(bucket, prefix, recursive);
-      objectNames = objects.map(obj => ({ objectName: obj.name }));
+      objectNames = objects
+        .filter(obj => !obj.name.endsWith('/'))
+        .map(obj => ({ objectName: obj.name }));
     }
-    const _bucket = bucket || constants.FILE_BUCKET;
+    bucket = bucket || constants.FILE_BUCKET;
     for (const { objectName, uploadId } of objectNames) {
       const prom = new Promise((resolve, reject) => {
-        const localFilePath = `/var/data/${_bucket}/${objectName}`;
+        const localFilePath = `/var/data/${bucket}/${objectName}`;
         const dirname = path.dirname(localFilePath);
         fs.mkdirSync(dirname, { recursive: true });
         const fileStream = fs.createWriteStream(localFilePath);
-        mc.getPartialObject(_bucket, objectName, 0, maxBytes, (err, dataStream) => {
+        getClient().getPartialObject(bucket, objectName, 0, maxBytes, (err, dataStream) => {
           if (err) {
-            logger.error(err);
+            let message;
+            if (err instanceof Error) {
+              message = err.message;
+              if (err.stack) {
+                message += '\n' + err.stack;
+              }
+            } else {
+              message = err.toString();
+            }
+            logger.error(message);
             reject(err);
           }
           dataStream.on('data', (chunk) => {

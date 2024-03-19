@@ -51,6 +51,7 @@ export class LocalExecutor {
     args,
     model,
     modelParams,
+    functions,
     isBatch,
   }) {
     logger.info('execute composition:', composition.name);
@@ -61,7 +62,7 @@ export class LocalExecutor {
     modelParams = this.fixModelParams(modelParams);
     logger.debug('model params:', modelParams);
 
-    return composition.call({ args, model, modelParams, isBatch });
+    return composition.call({ args, model, modelParams, functions, isBatch });
   }
 
   fixMessages(messages: Message[]) {

@@ -387,9 +387,12 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/workspaces', auth, async (req, res, next) => {
     const values = req.body;
     const user = await usersService.getUser(req.user.username);
-    const workspace = await workspacesService.upsertWorkspace(values, user);
+    let workspace = await workspacesService.upsertWorkspace(values, user);
     const obj = createSearchableObject(workspace);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, workspace.chunkId);
+    if (!workspace.chunkId) {
+      workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+    }
     res.json(workspace);
   });
 
@@ -426,9 +429,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const values = req.body;
     const user = await usersService.getUser(req.user.username);
-    const workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
+    let workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
     const obj = createSearchableObject(workspace);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, workspace.chunkId);
+    if (!workspace.chunkId) {
+      workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+    }
     res.json(workspace);
   });
 

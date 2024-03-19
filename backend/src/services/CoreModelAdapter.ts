@@ -9,12 +9,18 @@ import {
   compositionNode,
   toolNode,
   joinerNode,
+  loopNode,
   mapperNode,
   requestNode,
   outputNode,
   sourceNode,
   indexNode,
   scheduleNode,
+  loaderNode,
+  extractorNode,
+  vectorStoreNode,
+  graphStoreNode,
+  embeddingNode,
 } from '../core/compositions/Composition';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
@@ -405,7 +411,7 @@ export default ({ logger, rc, services }) => {
         case 'toolNode':
           let toolKey = nodeInfo.data.toolId;
           let tool = await toolService.getTool(toolKey);
-          nodes.push(toolNode(nodeInfo.id, tool));
+          nodes.push(toolNode(nodeInfo.id, tool, nodeInfo.data.raw));
           break;
 
         case 'mapperNode':
@@ -434,6 +440,30 @@ export default ({ logger, rc, services }) => {
 
         case 'scheduleNode':
           nodes.push(scheduleNode(nodeInfo.id, nodeInfo.data.schedule));
+          break;
+
+        case 'loaderNode':
+          nodes.push(loaderNode(nodeInfo.id, nodeInfo.data));
+          break;
+
+        case 'extractorNode':
+          nodes.push(extractorNode(nodeInfo.id, nodeInfo.data));
+          break;
+
+        case 'vectorStoreNode':
+          nodes.push(vectorStoreNode(nodeInfo.id, nodeInfo.data.vectorStoreProvider, nodeInfo.data.newIndexName));
+          break;
+
+        case 'graphStoreNode':
+          nodes.push(graphStoreNode(nodeInfo.id, nodeInfo.data.graphStoreProvider));
+          break;
+
+        case 'embeddingNode':
+          nodes.push(embeddingNode(nodeInfo.id, nodeInfo.data.embeddingModel));
+          break;
+
+        case 'loopNode':
+          nodes.push(loopNode(nodeInfo.id, nodeInfo.data.loopVar, nodeInfo.data.aggregationVar));
           break;
 
         default:

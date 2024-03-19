@@ -48,10 +48,47 @@ export default memo(({ id, data, isConnectable }) => {
           isConnectable={isConnectable}
           value={data.toolId}
         />
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div>JSON output</div>
+          <Checkbox
+            nodeId={id}
+            isConnectable={isConnectable}
+            value={data.raw}
+          />
+        </div>
+        <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
+        <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
       </div>
     </>
   );
 });
+
+function Checkbox({ options, value, nodeId, isConnectable }) {
+  const { setNodes } = useReactFlow();
+  const store = useStoreApi();
+
+  const onChange = (ev) => {
+    const { nodeInternals } = store.getState();
+    setNodes(
+      Array.from(nodeInternals.values()).map((node) => {
+        if (node.id === nodeId) {
+          const raw = ev.target.checked;
+          node.data = {
+            ...node.data,
+            raw,
+          };
+        }
+        return node;
+      })
+    );
+  };
+
+  return (
+    <div>
+      <input type="checkbox" onChange={(ev) => onChange(ev)} checked={value} />
+    </div>
+  );
+}
 
 function Select({ options, value, nodeId, isConnectable }) {
   const { setNodes } = useReactFlow();
@@ -85,8 +122,6 @@ function Select({ options, value, nodeId, isConnectable }) {
           </option>
         ))}
       </select>
-      <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
-      <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
     </div>
   );
 }

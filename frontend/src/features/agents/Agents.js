@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { Button, Form, Input, Layout, Select, Space, Switch, Table, Typography } from 'antd';
+import { Button, Form, Input, Layout, Modal, Select, Space, Switch, Table, Typography } from 'antd';
 
 import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -66,22 +66,23 @@ const layout = {
 
 export function Agents() {
 
+  const [isOutputModalOpen, setOutputModalOpen] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [isDirty, setIsDirty] = useState(false);
 
   const agents = useSelector(selectAgents);
-  const loaded = useSelector(selectLoaded);
-  const loading = useSelector(selectLoading);
   const agentOutput = useSelector(selectAgentOutput);
-  const running = useSelector(selectRunning);
-  const tools = useSelector(selectTools);
   const functions = useSelector(selectFunctions);
   const functionsLoading = useSelector(selectFunctionsLoading);
   const indexes = useSelector(selectIndexes);
   const indexesLoading = useSelector(selectIndexesLoading);
+  const loaded = useSelector(selectLoaded);
+  const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
   const modelsLoading = useSelector(selectModelsLoading);
+  const running = useSelector(selectRunning);
+  const tools = useSelector(selectTools);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions).map((f) => ({
@@ -194,6 +195,10 @@ export function Agents() {
     setSelectedAgentId(null);
   };
 
+  const onCloseModal = () => {
+    setOutputModalOpen(false);
+  }
+
   const onDelete = () => {
     dispatch(deleteAgentsAsync({ ids: selectedRowKeys }));
     if (selectedAgentId && selectedRowKeys.indexOf(selectedAgentId) !== -1) {
@@ -232,6 +237,7 @@ export function Agents() {
       },
       workspaceId: selectedWorkspace.id,
     }));
+    setOutputModalOpen(true);
   };
 
   const onSelectChange = (newSelectedRowKeys) => {
@@ -262,6 +268,36 @@ export function Agents() {
 
   return (
     <>
+      <Modal
+        cancelText="Close"
+        onCancel={onCloseModal}
+        onOk={onCloseModal}
+        okButtonProps={{ style: { display: 'none' } }}
+        open={isOutputModalOpen}
+        width={'75%'}
+        height={'75%'}
+        title="Agent Output"
+        wrapClassName="agent-output"
+      >
+        {agentOutput.length ?
+          <div style={{
+            backgroundColor: '#fff',
+            border: '1px solid rgba(0, 0, 0, .15)',
+            boxSizing: 'border-box',
+            color: 'rgba(0, 0, 0, 0.88)',
+            fontSize: '14px',
+            height: 'calc(100% - 50px)',
+            lineHeight: '22px',
+            overflowY: 'scroll',
+            padding: '4px 11px',
+          }}>
+            {agentOutput.map((o) => (
+              <Output label={o.key} text={o.output} />
+            ))}
+          </div>
+          : null
+        }
+      </Modal>
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
           <Sider
@@ -432,7 +468,7 @@ export function Agents() {
                 </Space>
               </Form.Item>
             </Form>
-            <div style={{ marginTop: 20 }}>
+            {/* <div style={{ marginTop: 20 }}>
               {agentOutput.length ?
                 <>
                   <div style={{
@@ -460,18 +496,18 @@ export function Agents() {
                 </>
                 : null
               }
-            </div>
+            </div> */}
           </Content>
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
             width={350}
           >
-            <Typography.Paragraph>
+            {/* <Typography.Paragraph>
               Agents are a work in progress. Current tool selection is small.
             </Typography.Paragraph>
             <Typography.Paragraph>
               Roadmap items include tools for document retrieval and nudges via email and Microsoft Teams.
-            </Typography.Paragraph>
+            </Typography.Paragraph> */}
           </Sider>
         </Layout>
       </div >
@@ -515,13 +551,17 @@ function Output({ label, text }) {
 function Text({ label, text }) {
   return text.split('\n').map((line, i) => (
     <Typography.Paragraph key={label + '-' + i}>
-      {line}
+      {line.startsWith('Step') || line.startsWith('Agent Response') || line.startsWith('Plan') || line.startsWith('Goal') ?
+        <span style={{ fontWeight: 600 }}>{line}</span>
+        :
+        line
+      }
     </Typography.Paragraph>
   ));
 }
 
 function extractImageUrl(str) {
-  const imgR = /https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)(\?[^\s"]*)/gmi;
+  const imgR = /https?:\/\/.*\/.*\.(png|gif|webp|jpeg|jpg)(\?[^\s)"]*)/gmi;
   const match = imgR.exec(str);
   if (match) {
     const open = str.indexOf(match[0]);

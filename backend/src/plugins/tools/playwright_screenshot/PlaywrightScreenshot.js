@@ -1,9 +1,10 @@
 import Minio from 'minio';
 import path from 'path';
+import { expect } from '@playwright/test';
 import { chromium } from 'playwright-extra';
 import stealthmod from 'puppeteer-extra-plugin-stealth';
 // import recaptchamod from 'puppeteer-extra-plugin-recaptcha';
-import { solve } from 'recaptcha-solver';
+// import { solve } from 'recaptcha-solver';
 
 function PlaywrightScreenshot({ __key, __name, constants, logger }) {
 
@@ -31,18 +32,36 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
     return _browser;
   }
 
-  async function call({ input, imageSize = 'fullPage' }, raw) {
+  async function call({ input, imageSize, domainParams }, raw) {
     logger.debug('evaluating input:', input, { raw });
+    let url;
+    try {
+      url = new URL(input);
+    } catch (err) {
+      logger.error('Input "%s" is not a valid URL', input);
+      if (raw) {
+        return { imageUrls: [], objectNames: [] };
+      }
+      return "I don't know how to do that.";
+    }
+
+    const hostname = url.hostname;
+    if (!imageSize) {
+      imageSize = 'fullPage';
+    }
     let browser;
     try {
       browser = await getBrowser();
       const page = await browser.newPage();
       await page.setViewportSize({ width: 1280, height: 1080 });
-      await page.goto(input, { waitUntil: 'networkidle' });
 
-      // TODO hack - waiting for all images to load
-      // ineffective anyway
-      // await new Promise(resolve => setTimeout(resolve, 5000));
+      try {
+        // default timeout is 30 seconds
+        await page.goto(input, { waitUntil: 'networkidle' });
+      } catch (err) {
+        logger.debug('Error waiting for page to load:', err);
+        // continue
+      }
 
       // try {
       //   await solve(page);
@@ -52,18 +71,56 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
       // await page.click(':has-text("Reject all cookies")');
       // await page.click(':has-text("Close")');
 
-      const url = new URL(input);
-      const filename =
-        (url.hostname + '_' + url.pathname.split('/').pop().split('?')[0])
-          .replace(/(\.|%[A-Fa-f0-9]{2})/g, '_') + '.png';
+      logger.debug('domain params:', domainParams);
+      if (domainParams) {
+        const params = domainParams.find(p => hostname.includes(p.hostname));
+        if (params) {
+          const { hostname, hasCookieConsent, iframeSelector, buttonSelector } = params;
+          logger.debug('hostname:', hostname);
+          logger.debug('cookie consent:', hasCookieConsent);
+          logger.debug('iframe selector:', iframeSelector);
+          logger.debug('button selector:', buttonSelector);
+          if (hasCookieConsent && buttonSelector) {
+            // await new Promise(resolve => setTimeout(resolve, 5000));
+            try {
+              if (iframeSelector) {
+                const frame = await page.frameLocator(iframeSelector);
+                await frame.locator(buttonSelector).click();
+              } else {
+                await page.locator(buttonSelector).click();
+              }
+            } catch (err) {
+              logger.debug('Error finding button to accept cookies:', err);
+              // continue
+            }
+            try {
+              // wait until the cookie consent dialog is closed
+              if (iframeSelector) {
+                const frame = await page.frameLocator(iframeSelector);
+                await expect(frame.locator(buttonSelector)).toHaveCount(0);
+              } else {
+                await expect(page.locator(buttonSelector)).toHaveCount(0);
+              }
+            } catch (err) {
+              logger.debug('Error waiting for cookie consent dialog to close:', err);
+              // continue
+            }
+            // TODO hack - wait until the cookie consent dialog is closed
+            // await new Promise(resolve => setTimeout(resolve, 5000));
+          }
+        }
+      }
+
+      const filename = (hostname + '_' + url.pathname.split('/').pop().split('?')[0])
+        .replace(/(\.|%[A-Fa-f0-9]{2})/g, '_') + '.png';
       const localFilePath = '/var/data/images/' + filename;
       await page.screenshot({ path: localFilePath, fullPage: imageSize === 'fullPage' });
       const { imageUrl, objectName } = await saveImage(localFilePath);
       if (raw) {
         return { imageUrls: [imageUrl], objectNames: [objectName] };
       }
-      // return 'Image URL: ' + imageUrl;
-      return JSON.stringify({ imageUrl });
+      // return JSON.stringify({ imageUrl });
+      return 'Image URL: ' + imageUrl;
     } catch (err) {
       logger.error(`error evaluating url input "${input}":`, err);
       if (raw) {
@@ -88,20 +145,38 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
       };
       mc.fPutObject(constants.FILE_BUCKET, objectName, localFilePath, metadata, (err, etag) => {
         if (err) {
-          logger.error(err);
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
           return reject(err);
         }
         logger.info('File uploaded successfully.');
         mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
           if (err) {
-            logger.error(err);
+            let message;
+            if (err instanceof Error) {
+              message = err.message;
+              if (err.stack) {
+                message += '\n' + err.stack;
+              }
+            } else {
+              message = err.toString();
+            }
+            logger.error(message);
             return reject(err);
           }
           logger.debug('presigned url:', presignedUrl);
           let imageUrl;
           // if (constants.ENV === 'dev') {
-            const u = new URL(presignedUrl);
-            imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+          const u = new URL(presignedUrl);
+          imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
           // } else {
           //   imageUrl = presignedUrl;
           // }
@@ -111,7 +186,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
     });
   };
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.PLAYWRIGHT_SCREENSHOT_DESCRIPTION,
@@ -121,9 +196,58 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
             description: 'Input URL',
             type: 'string',
           },
+          imageSize: {
+            description: 'One of ["fullPage", "aboveTheFold"]',
+            type: 'string',
+          },
+          domainParams: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                hostname: {
+                  type: 'string',
+                  description: 'The hostname part of the Input URL',
+                },
+                hasCookieConsent: {
+                  type: 'boolean',
+                  description: 'Indicates if the URL has a cookie consent dialog',
+                },
+                iframeSelector: {
+                  type: 'string',
+                  description: 'The CSS selector to find the iframe of the cookie consent dialog',
+                },
+                buttonSelector: {
+                  type: 'string',
+                  description: 'The CSS selector to find the button for cookie consent acceptance',
+                },
+              },
+            },
+          },
         },
         required: ['input'],
         type: 'object',
+      },
+      returns: {
+        type: 'object',
+        properties: {
+          imageUrls: {
+            description: 'A list of Image URLs. Generally, we are only interested in the first one.',
+            type: 'array',
+            items: {
+              description: 'The image URL.',
+              type: 'string',
+            },
+          },
+          objectNames: {
+            description: 'A list of paths that reference the saved image in the object store.',
+            type: 'array',
+            items: {
+              description: 'The object store path including bucket, prefix, and file name.',
+              type: 'string',
+            },
+          },
+        },
       },
     };
   }
@@ -132,7 +256,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
     __name,
     __description: constants.PLAYWRIGHT_SCREENSHOT_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

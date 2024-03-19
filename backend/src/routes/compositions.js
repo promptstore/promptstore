@@ -486,7 +486,10 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       composition = await compositionsService.upsertComposition(values, username);
     }
     const obj = createSearchableObject(composition);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, composition.chunkId);
+    if (!composition.chunkId) {
+      composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+    }
     res.json(composition);
   });
 
@@ -557,12 +560,15 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
     composition = await compositionsService.upsertComposition(values, username);
     const obj = createSearchableObject(composition);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, composition.chunkId);
+    if (!composition.chunkId) {
+      composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+    }
     res.json(composition);
   });
 
   const getSchedule = (composition) => {
-    if (!composition) return null;
+    if (!composition?.flow) return null;
     const scheduleNode = composition.flow.nodes.find(nd => nd.type === 'scheduleNode');
     if (scheduleNode) {
       return scheduleNode.data.schedule;

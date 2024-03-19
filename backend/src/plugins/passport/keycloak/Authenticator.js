@@ -12,7 +12,16 @@ function Authenticator({ __name, constants, logger, app, passport, usersService 
   app.get('/api/auth/keycloak/return', (req, res, next) => {
     login(req, res, next, (err, user, info) => {
       if (err) {
-        logger.error(err);
+        let message;
+        if (err instanceof Error) {
+          message = err.message;
+          if (err.stack) {
+            message += '\n' + err.stack;
+          }
+        } else {
+          message = err.toString();
+        }
+        logger.error(message);
         return next(err);
       }
       if (!user) {
@@ -20,7 +29,16 @@ function Authenticator({ __name, constants, logger, app, passport, usersService 
       }
       req.logIn(user, (err) => {
         if (err) {
-          logger.error(err);
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
           return next(err);
         }
         let returnTo = req.session.returnTo;
@@ -58,7 +76,11 @@ function Authenticator({ __name, constants, logger, app, passport, usersService 
       });
       res.send(resp.data);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       res.sendStatus(401);
     }
   });

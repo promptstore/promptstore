@@ -57,7 +57,10 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       evaluation = await evaluationsService.upsertEvaluation(values, username);
     }
     const obj = createSearchableObject(evaluation);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, evaluation.chunkId);
+    if (!evaluation.chunkId) {
+      evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+    }
     res.json(evaluation);
   });
 
@@ -87,7 +90,10 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
     evaluation = await evaluationsService.upsertEvaluation(values, username);
     const obj = createSearchableObject(evaluation);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, evaluation.chunkId);
+    if (!evaluation.chunkId) {
+      evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+    }
     res.json(evaluation);
   });
 

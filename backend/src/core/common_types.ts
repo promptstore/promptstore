@@ -37,3 +37,8 @@ export interface MapReturnTypeResponse {
   mappingTemplate: any;
   errors?: any;
 }
+
+export interface PluginMetadata {
+  key: string;
+  name: string;
+}

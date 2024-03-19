@@ -1,21 +1,26 @@
 import type { Schema } from 'jsonschema';
-import uuid from 'uuid';
+// import uuid from 'uuid';
 
 import logger from '../../logger';
-import { getMimetype } from '../../utils';
+// import { getMimetype } from '../../utils';
 
 import { SchemishConverter } from './Schemish';
-import {
-  AnthropicChatCompletionResponse
-} from '../models/anthropic_types';
-import {
-  CohereChatCompletionResponse,
-} from '../models/cohere_types';
-import {
-  GeminiChatResponse,
-  GeminiContent,
-  GeminiTools,
-} from '../models/gemini_types';
+// import {
+//   AnthropicV1ChatCompletionResponse,
+//   AnthropicV1ContentObject,
+//   AnthropicChatCompletionResponse,
+// } from '../models/anthropic_types';
+// import {
+//   CohereChatCompletionResponse,
+//   CohereCompletionResponse,
+//   CohereEmbeddingResponse,
+//   CohereTool,
+// } from '../models/cohere_types';
+// import {
+//   GeminiChatResponse,
+//   GeminiContent,
+//   GeminiTools,
+// } from '../models/gemini_types';
 import {
   OpenAIMessageImpl,
   UserMessage,
@@ -28,18 +33,26 @@ import {
   OpenAICompletionResponse,
   OpenAIChatCompletionResponse,
 } from '../models/openai_types';
+// import {
+//   PaLMBatchEmbeddingResponse,
+//   PaLMChatResponse,
+//   PaLMCompletionResponse,
+//   PaLMEmbeddingResponse,
+//   PaLMExample,
+//   PaLMMessage,
+// } from '../models/vertexai_types';
 import {
-  PaLMBatchEmbeddingResponse,
-  PaLMChatResponse,
-  PaLMCompletionResponse,
-  PaLMEmbeddingResponse,
-  PaLMExample,
-  PaLMMessage,
-} from '../models/vertexai_types';
+  ParserService,
+} from '../outputprocessing/OutputProcessingPipeline_types';
+// import { convertImageToBase64Only } from '../utils';
 
 // TODO get prompts from store
-import { getPromptTemplate } from './prompt_template_variation_1';
-import { getPromptTemplate as buildToolsPrompt } from './prompt_template_variation_3';
+import {
+  getPromptTemplate,
+} from './prompt_template_variation_1';
+// import {
+//   getPromptTemplate as buildToolsPrompt,
+// } from './prompt_template_variation_3';
 
 export const PARA_DELIM = '\n\n';
 
@@ -52,10 +65,10 @@ const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
   'gpt-3.5-turbo-0613',
 ];
 
-const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
-  'gpt-4-1106-preview',
-  'gpt-3.5-turbo-1106',
-];
+// const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
+//   'gpt-4-1106-preview',
+//   'gpt-3.5-turbo-1106',
+// ];
 
 /*** universal superset ************/
 
@@ -137,7 +150,7 @@ interface FewShotLearningExample {
   output: Message;
 }
 
-interface ChatPrompt {
+export interface ChatPrompt {
   context?: ChatRequestContext;
   examples?: FewShotLearningExample[];
   history?: Message[];
@@ -220,7 +233,7 @@ export interface LogProbs {
   top_logprobs?: Record<string, number>[];
 }
 
-interface ChatCompletionChoice {
+export interface ChatCompletionChoice {
   finish_reason?: string;
   index: number;
   message: Message;
@@ -301,9 +314,10 @@ export interface EmbeddingRequest {
   model?: string;  // ID of the model to use. 
   input: string | string[];  // Input text to embed, encoded as a string or array of tokens. To embed multiple inputs in a single request, pass an array of strings or array of token arrays. Each input must not exceed the max input tokens for the model (8191 tokens for text-embedding-ada-002).
   user?: string;  // A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
+  inputType?: string;  // Specifies the type of input passed to the model. One of ['search_document', 'search_query', 'classification', 'clustering']
 }
 
-interface EmbeddingObject {
+export interface EmbeddingObject {
   index: number;  // The index of the embedding in the list of embeddings.
   object: string;  // The object type, which is always "embedding".
   embedding: number[];  // The embedding vector, which is a list of floats. The length of vector depends on the model.
@@ -325,7 +339,447 @@ type ToolsPromptBuilder = (toolDefinitions: string, toolKeys: string) => string[
 
 /*** ************/
 
-/*** translate to anthropic ************/
+/*** translate to cohere ************
+
+function mapCohereMessage(message: Message) {
+  let m: string;
+  if (typeof message.content === 'string') {
+    m = message.content;
+  } else if (Array.isArray(message.content)) {
+    const ms = [];
+    let c: string | ContentObject;
+    for (c of message.content) {
+      if (typeof c === 'string') {
+        ms.push(c);
+        continue;
+      }
+      if (c.type === 'text') {
+        const textContent = c as TextContent;
+        ms.push(textContent.text);
+        continue;
+      }
+    }
+    m = ms.join(PARA_DELIM);
+  }
+  return {
+    role: message.role === 'assistant' ? 'CHATBOT' : 'USER',
+    message: m,
+
+    // TODO
+    // generation_id,
+    // response_id,
+  };
+}
+
+function createCoherePrompts(prompt: ChatPrompt, functions?: Function[]) {
+  const history = [];
+  const examples = [];
+  let messages = [];
+  const systemPrompts = [];
+  if (prompt.history) {
+    for (const message of prompt.history) {
+      if (message.role === 'system') {
+        systemPrompts.push(convertContentTypeToString(message.content));
+        continue;
+      }
+      if (message.role !== 'function') {
+        history.push(mapCohereMessage(message));
+      }
+    }
+  }
+  if (prompt.examples) {
+    for (const { input, output } of prompt.examples) {
+      examples.push('USER: ' + input.content);
+      examples.push('CHATBOT: ' + output.content);
+    }
+  }
+  for (const message of prompt.messages) {
+    if (message.role === 'system') {
+      systemPrompts.push(convertContentTypeToString(message.content));
+      continue;
+    }
+    if (message.role !== 'function') {
+      const m = mapCohereMessage(message);
+      messages.push(m.message);
+    }
+  }
+  if (functions?.length) {
+    systemPrompts.push(...getFunctionPrompts(functions));
+  }
+  if (examples.length) {
+    messages = [
+      'The following are example CHATBOT responses to USER inputs:',
+      ...examples,
+      ...messages,
+    ];
+  }
+  return {
+    preamble: systemPrompts.join(PARA_DELIM),
+    chat_history: history,
+    message: messages.join(PARA_DELIM),
+  };
+}
+
+export function toCohereChatRequest(request: ChatRequest) {
+  const {
+    functions,
+    model,
+    model_params,
+    prompt,
+    stream,
+  } = request;
+  const {
+    temperature,
+    top_k,
+    top_p,
+    max_tokens,
+    frequency_penalty,
+    presence_penalty,
+  } = model_params;
+  const { preamble, chat_history, message } = createCoherePrompts(prompt, functions);
+  let tools: CohereTool[];
+  if (functions?.length) {
+    tools = functions.map(f => ({
+      name: f.name,
+      description: f.description,
+      parameter_definitions: Object.entries(f.parameters.properties).reduce((a, [k, v]) => {
+        a[k] = {
+          description: v.description,
+          type: v.type,  // TODO convert to Python type
+          required: !!f.parameters.required?.[k],
+        };
+        return a;
+      }, {}),
+    }));
+  }
+  return {
+    message,
+    model,
+    stream,
+    preamble,
+    chat_history,
+    temperature,
+    max_tokens,
+    k: top_k,
+    p: top_p,
+    frequency_penalty,
+    presence_penalty,
+    tools,
+  };
+}
+
+export function toCohereEmbeddingRequest(request: EmbeddingRequest) {
+  const { input, inputType, model } = request;
+  const texts = typeof input === 'string' ? [input] : input;
+  return {
+    model: model || 'embed-english-v3.0',
+    texts,
+    inputType: inputType || 'search_document',
+  };
+}
+
+export function fromCohereChatResponse(response: CohereChatCompletionResponse) {
+  const {
+    text,
+    generation_id,
+    citations,
+    finish_reason,
+    tool_calls,
+  } = response;
+  let citation_metadata: CitationMetadata;
+  if (citations?.length) {
+    citation_metadata = {
+      citation_sources: citations.map(cit => ({
+        start_index: cit.start,
+        end_index: cit.end,
+
+        // TODO
+        // text,
+        // document_ids,
+      })),
+    };
+  }
+  let choices: ChatCompletionChoice[];
+  if (tool_calls?.length) {
+    choices = tool_calls.map((call, i) => ({
+      finish_reason,
+      index: i,
+      message: {
+        role: MessageRole.function,
+        content: null,
+        function_call: {
+          name: call.name,
+          arguments: JSON.stringify(call.parameters),
+        },
+      },
+    }));
+  } else {
+    choices = [
+      {
+        finish_reason,
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content: text,
+          citation_metadata,
+        },
+      }
+    ];
+  }
+  const completion_tokens = 0;
+  const prompt_tokens = 0;
+  return {
+    id: generation_id,
+    created: new Date(),
+    n: choices.length,
+    choices,
+    usage: {
+      completion_tokens,
+      prompt_tokens,
+      total_tokens: prompt_tokens + completion_tokens,
+    }
+  };
+}
+
+export function fromCohereEmbeddingResponse(response: CohereEmbeddingResponse) {
+  let data: EmbeddingObject[];
+  if ('embeddings' in response) {
+    data = response.embeddings.map((e, index) => ({
+      index,
+      object: 'embedding',
+      embedding: e,
+    }));
+  }
+  const { billed_units } = response.meta;
+  return {
+    object: 'list',
+    data,
+    usage: {
+      prompt_tokens: billed_units?.input_tokens,
+      total_tokens: billed_units?.output_tokens,
+    },
+  };
+}
+
+*** ************/
+
+/*** translate to anthropic ************
+
+async function mapAnthropicV1Message(message: Message) {
+  let content: AnthropicV1ContentObject[];
+  if (typeof message.content === 'string') {
+    content = [{ type: 'text', text: message.content }];
+  } else if (Array.isArray(message.content)) {
+    content = [];
+    let c: string | ContentObject;
+    for (c of message.content) {
+      if (typeof c === 'string') {
+        content.push({ type: 'text', text: c });
+        continue;
+      }
+      if (c.type === 'text') {
+        const textContent = c as TextContent;
+        content.push(textContent);
+        continue;
+      }
+      if (c.type === 'image_url') {
+        const imageContent = c as ImageContent;
+        const imageUrl = imageContent.image_url.url;
+        const { pathname } = new URL(imageUrl);
+        const filename = pathname.split('/').pop();
+        const media_type = getMimetype(filename);
+        const data = await convertImageToBase64Only(imageUrl) as string;
+        const source = {
+          type: 'base64',
+          media_type,
+          data,
+        };
+        content.push({ type: 'image', source });
+      }
+    }
+  }
+  return {
+    role: message.role,
+    content,
+  };
+}
+
+async function createAnthropicV1Prompts(prompt: ChatPrompt, functions?: Function[]) {
+  const messages = [];
+  const systemPrompts = [];
+  if (prompt.history) {
+    for (const message of prompt.history) {
+      if (message.role === 'system') {
+        systemPrompts.push(convertContentTypeToString(message.content));
+        continue;
+      }
+      if (message.role !== 'function') {
+        messages.push(mapAnthropicV1Message(message));
+      }
+    }
+  }
+  if (prompt.examples) {
+    for (const { input, output } of prompt.examples) {
+      messages.push({
+        role: 'user',
+        content: input.content,
+      });
+      messages.push({
+        role: 'assistant',
+        content: output.content,
+      });
+    }
+  }
+  for (const message of prompt.messages) {
+    if (message.role === 'system') {
+      systemPrompts.push(convertContentTypeToString(message.content));
+      continue;
+    }
+    if (message.role !== 'function') {
+      const msg = await mapAnthropicV1Message(message);
+      messages.push(msg);
+    }
+  }
+  if (functions?.length) {
+    systemPrompts.push(...getFunctionPrompts(functions));
+  }
+  return {
+    system: systemPrompts.join(PARA_DELIM),
+    messages,
+  };
+}
+
+export async function toAnthropicV1ChatRequest(request: ChatRequest) {
+  logger.debug('request:', request);
+  const {
+    functions,
+    model,
+    model_params,
+    prompt,
+    stream,
+    user,
+  } = request;
+  const {
+    temperature,
+    top_k,
+    top_p,
+    stop = [],
+    max_tokens,
+  } = model_params;
+  const { system, messages } = await createAnthropicV1Prompts(prompt, functions);
+  return {
+    model,
+    messages,
+    system,
+    max_tokens,
+    metadata: { user_id: user },
+    temperature,
+    stop_sequences: stop,
+    stream,
+    top_p,
+    top_k,
+  };
+}
+
+export async function fromAnthropicV1ChatResponse(response: AnthropicV1ChatCompletionResponse, parserService: any) {
+  const {
+    content,
+    id,
+    model,
+    stop_reason,
+    stop_sequence,
+    usage,
+  } = response;
+  let choices: ChatCompletionChoice[];
+
+  const { json, nonJsonStr } = await parserService.parse('json', content[0].text);
+  if (json) {
+    const { action, action_input, citations } = json;
+    if (citations) {
+      const re = new RegExp('\s*Citations:\s*');
+      const content = nonJsonStr.replace(re, PARA_DELIM).trim();
+      choices = [
+        {
+          index: 0,
+          finish_reason: stop_reason,
+          message: {
+            role: MessageRole.assistant,
+            content,
+            citation_metadata: {
+              citation_sources: citations.map((cit: any) => ({
+                uri: cit.source,
+                page: cit.page,
+                row: cit.row,
+                dataSourceId: cit.dataSourceId,
+                dataSourceName: cit.dataSourceName,
+              })),
+            },
+          },
+        },
+      ];
+    } else if (action) {
+      if (action === 'Final Answer') {
+        choices = [
+          {
+            finish_reason: stop_reason,
+            index: 0,
+            message: {
+              role: MessageRole.assistant,
+              content: action_input,
+              final: true,
+            },
+          }
+        ];
+      } else {
+        const args = { input: action_input };
+        choices = [
+          {
+            finish_reason: stop_reason,
+            index: 0,
+            message: {
+              role: MessageRole.function,
+              content: null,
+              function_call: {
+                name: action,
+                arguments: JSON.stringify(args),
+              },
+            },
+          }
+        ];
+      }
+    }
+  }
+  if (!choices) {
+    choices = [
+      {
+        finish_reason: stop_reason,
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content: content[0].text,
+        },
+      }
+    ];
+  }
+  const completion_tokens = usage?.output_tokens || 0;
+  const prompt_tokens = usage?.input_tokens || 0;
+  return {
+    id,
+    created: new Date(),
+    model,
+    n: choices.length,
+    choices,
+    usage: {
+      completion_tokens,
+      prompt_tokens,
+      total_tokens: prompt_tokens + completion_tokens,
+    }
+  };
+}
+
+*** ************/
+
+/*** translate to bedrock anthropic ************
 
 export function toAnthropicChatRequest(request: ChatRequest) {
   const {
@@ -373,7 +827,8 @@ export async function fromAnthropicChatResponse(response: AnthropicChatCompletio
   if (json) {
     const { action, action_input, citations } = json;
     if (citations) {
-      const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+      const re = new RegExp('\s*Citations:\s*');
+      const content = nonJsonStr.replace(re, PARA_DELIM).trim();
       choices = [
         {
           index: 0,
@@ -446,11 +901,11 @@ export async function fromAnthropicChatResponse(response: AnthropicChatCompletio
   };
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to cohere ************/
+/*** translate to cohere ************
 
-export function toCohereChatRequest(request: ChatRequest) {
+export function toCohereLegacyChatRequest(request: ChatRequest) {
   const {
     model,
     model_params,
@@ -491,7 +946,7 @@ export function toCohereChatRequest(request: ChatRequest) {
   };
 }
 
-export async function fromCohereChatResponse(response: CohereChatCompletionResponse, parserService) {
+export async function fromCohereLegacyChatResponse(response: CohereCompletionResponse, parserService) {
   const {
     id,
     prompt,
@@ -504,7 +959,8 @@ export async function fromCohereChatResponse(response: CohereChatCompletionRespo
   if (json) {
     const { action, action_input, citations } = json;
     if (citations) {
-      const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+      const re = new RegExp('\s*Citations:\s*');
+      const content = nonJsonStr.replace(re, PARA_DELIM).trim();
       choices = [
         {
           index: generation.index,
@@ -581,9 +1037,9 @@ export async function fromCohereChatResponse(response: CohereChatCompletionRespo
   };
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to gemini ************/
+/*** translate to gemini ************
 
 function getGeminiRole(role: MessageRole) {
   switch (role) {
@@ -612,7 +1068,9 @@ function getGeminiContentParts(content: ContentType) {
       } else {
         const imageContent = c as ImageContent;
         const file_uri = imageContent.image_url.url;
-        const mime_type = getMimetype(imageContent.objectName);
+        const { pathname } = new URL(file_uri);
+        const filename = pathname.split('/').pop();
+        const mime_type = getMimetype(filename);
         return { file_data: { mime_type, file_uri } };
       }
     });
@@ -620,7 +1078,7 @@ function getGeminiContentParts(content: ContentType) {
   return [];
 }
 
-function createGeminiContents(prompt: ChatPrompt) {
+function createGeminiContents(prompt: ChatPrompt, functions?: Function[]) {
   const contents: GeminiContent[] = [];
   if (prompt.history) {
     for (const message of prompt.history) {
@@ -655,7 +1113,7 @@ function createGeminiContents(prompt: ChatPrompt) {
   return contents;
 }
 
-function createGeminiVisionContents(prompt: ChatPrompt) {
+function createGeminiVisionContents(prompt: ChatPrompt, functions?: Function[]) {
   const contents: GeminiContent[] = [];
   for (const message of prompt.messages) {
     if (message.role !== 'function') {
@@ -664,6 +1122,16 @@ function createGeminiVisionContents(prompt: ChatPrompt) {
         parts: getGeminiContentParts(message.content),
       });
     }
+  }
+  if (functions) {
+    const prompts = getFunctionPrompts(functions);
+    const text = prompts.join(PARA_DELIM);
+    const first = contents[0];
+    const message = {
+      role: 'user',
+      parts: [...first.parts, { text }],
+    };
+    contents.splice(0, 1, message);
   }
   return contents;
 }
@@ -684,16 +1152,16 @@ export function toGeminiChatRequest(request: ChatRequest) {
     stop,
   } = model_params;
   let contents: GeminiContent[];
-  if (model === 'gemini-pro-vision') {
-    contents = createGeminiVisionContents(prompt);
+  let tools: GeminiTools;
+  if (model === 'gemini-1.0-pro-vision') {
+    contents = createGeminiVisionContents(prompt, functions);
   } else {
     contents = createGeminiContents(prompt);
-  }
-  let tools: GeminiTools;
-  if (functions) {
-    tools = {
-      function_declarations: functions,
-    };
+    if (functions) {
+      tools = {
+        function_declarations: functions,
+      };
+    }
   }
   let safety_settings: SafetySetting[];
   if (safe_mode) {
@@ -741,7 +1209,8 @@ export async function fromGeminiChatResponse(response: GeminiChatResponse, parse
     if (json) {
       const { action, action_input, citations } = json;
       if (citations) {
-        const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+        const re = new RegExp('\s*Citations:\s*');
+        const content = nonJsonStr.replace(re, PARA_DELIM).trim();
         choices = [
           {
             index: 0,
@@ -859,14 +1328,18 @@ export async function fromGeminiChatResponse(response: GeminiChatResponse, parse
       n: choices.length,
     }
   } catch (err) {
-    logger.error(err, err.stack);
+    let message = err.message;
+    if (err.stack) {
+      message += '\n' + err.stack;
+    }
+    logger.error(message);
     throw err;
   }
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to llamaapi ************/
+/*** translate to llamaapi ************
 
 export function toLlamaApiChatRequest(request: ChatRequest) {
   const {
@@ -891,7 +1364,8 @@ export async function fromLlamaApiChatResponse(response: OpenAIChatCompletionRes
   if (json) {
     const { action, action_input, citations } = json;
     if (citations) {
-      const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+      const re = new RegExp('\s*Citations:\s*');
+      const content = nonJsonStr.replace(re, PARA_DELIM).trim();
       choices = [
         {
           index: 0,
@@ -962,9 +1436,9 @@ export async function fromLlamaApiChatResponse(response: OpenAIChatCompletionRes
   };
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to mistral ************/
+/*** translate to mistral ************
 
 export function toMistralChatRequest(request: ChatRequest) {
   const {
@@ -993,24 +1467,18 @@ export function toMistralChatRequest(request: ChatRequest) {
 }
 
 export function toMistralEmbeddingRequest(request: EmbeddingRequest) {
-  const { model, input } = request;
-  if (typeof input === 'string') {
-    return {
-      model: model || 'mistral-embed',
-      input: [input],
-      encoding_format: 'float',
-    };
-  }
+  const { input, model } = request;
+  const texts = typeof input === 'string' ? [input] : input;
   return {
     model: model || 'mistral-embed',
-    input,
+    input: texts,
     encoding_format: 'float',
   };
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to openai ************/
+/*** translate to openai ************
 
 export function toOpenAIChatRequest(request: ChatRequest) {
   const {
@@ -1058,8 +1526,12 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     logit_bias,
   };
 }
+*/
 
-export async function fromOpenAIChatResponse(response: OpenAIChatCompletionResponse, parserService) {
+export async function fromOpenAIChatResponse(
+  response: OpenAIChatCompletionResponse,
+  parserService: ParserService,
+) {
   const {
     id,
     created,
@@ -1072,13 +1544,12 @@ export async function fromOpenAIChatResponse(response: OpenAIChatCompletionRespo
     if (candidates.length) {
       const candidate = candidates[0];
       const message = candidate.message;
-      const { json, nonJsonStr } = await parserService.parse('json', message.content);
-      // console.log('json:', json);
-      // console.log('nonJsonStr:', nonJsonStr);
+      const text = message.content as string;
+      const { json, nonJsonStr } = await parserService.parse('json', text);
       if (json) {
         const { citations } = json;
         if (citations) {
-          const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+          const content = nonJsonStr.replace(/\s*Citations:\s*/, PARA_DELIM).trim();
           choices = [
             {
               finish_reason: candidate.finish_reason,
@@ -1119,9 +1590,8 @@ export async function fromOpenAIChatResponse(response: OpenAIChatCompletionRespo
     if (candidates.length) {
       const candidate = candidates[0];
       const message = candidate.message;
-      const { json, nonJsonStr } = await parserService.parse('json', message.content);
-      // console.log('json:', json);
-      // console.log('nonJsonStr:', nonJsonStr);
+      const text = message.content as string;
+      const { json, nonJsonStr } = await parserService.parse('json', text);
       const { action, action_input, citations } = json;
       if (action) {
         if (action === 'Final Answer') {
@@ -1157,7 +1627,7 @@ export async function fromOpenAIChatResponse(response: OpenAIChatCompletionRespo
           ];
         }
       } else if (citations) {
-        const content = nonJsonStr.replace(/\s*Citations:\s*/, '\n\n').trim();
+        const content = nonJsonStr.replace(/\s*Citations:\s*/, PARA_DELIM).trim();
         choices = [
           {
             finish_reason: candidate.finish_reason,
@@ -1214,6 +1684,7 @@ export async function fromOpenAIChatResponse(response: OpenAIChatCompletionRespo
   };
 }
 
+/*
 export function toOpenAICompletionRequest(request: ChatRequest) {
   const {
     functions,
@@ -1327,9 +1798,9 @@ export async function fromOpenAICompletionResponse(response: OpenAICompletionRes
   };
 }
 
-/*** ************/
+*** ************/
 
-/*** translate to vertexai ************/
+/*** translate to vertexai ************
 
 function mapPaLMMessage(message: Message) {
   return {
@@ -1614,11 +2085,11 @@ function toPaLMMessage(message: Message) {
   };
 }
 
-/*** ************/
+*** ************/
 
 /*** utility ************/
 
-function createOpenAIMessages(
+export function createOpenAIMessages(
   prompt: ChatPrompt,
   functions?: Function[],
   toolsPromptBuilder?: ToolsPromptBuilder
@@ -1693,14 +2164,18 @@ export function getToolDefinitions(functions: Function[]) {
       const args = schema.convert();
       d.push(`${f.name}: ${f.description}, args: ${args}`);
     } catch (err) {
-      logger.error(err, err.stack);
-      // skip tool
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      d.push(`${f.name}: ${f.description}, args: ${JSON.stringify(f.parameters)}`);
     }
   }
   return d.join('\n');
 }
 
-function getFunctionPrompts(functions: Function[], toolsPromptBuilder?: ToolsPromptBuilder) {
+export function getFunctionPrompts(functions: Function[], toolsPromptBuilder?: ToolsPromptBuilder) {
   if (!toolsPromptBuilder) {
     // get default
     toolsPromptBuilder = getPromptTemplate;
@@ -1710,7 +2185,7 @@ function getFunctionPrompts(functions: Function[], toolsPromptBuilder?: ToolsPro
   return toolsPromptBuilder(toolDefinitions, toolKeys);
 }
 
-function createSystemPrompt(
+export function createSystemPrompt(
   context: ChatRequestContext,
   systemMessages: SystemMessage[],
   functions?: Function[],
@@ -1760,12 +2235,12 @@ export function convertContentTypeToString(content: ContentType) {
   }
   if (Array.isArray(content) && content.length) {
     if (typeof content[0] === 'string') {
-      return (content as string[]).join('\n\n');
+      return (content as string[]).join(PARA_DELIM);
     }
     return (content as ContentObject[])
       .filter(c => c.type === 'text')
       .map((c: TextContent) => c.text)
-      .join('\n\n');
+      .join(PARA_DELIM);
   }
   return '';
 }
@@ -1778,7 +2253,7 @@ function makeObservation(observation: ContentType) {
 export function getText(messages: Message[]) {
   return messages
     .map(m => convertContentTypeToString(m.content))
-    .join('\n\n');
+    .join(PARA_DELIM);
 }
 
 /*** ************/

@@ -48,7 +48,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -72,7 +76,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -94,7 +102,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -120,7 +132,11 @@ class AnamlFeatureStore {
       }
       return stores.filter((s) => s.enabled);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -144,7 +160,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -166,7 +186,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -190,7 +214,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -212,7 +240,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -241,7 +273,11 @@ class AnamlFeatureStore {
       }
       return features;
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -265,7 +301,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -292,7 +332,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -321,7 +365,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -347,7 +395,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -376,7 +428,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -400,7 +456,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return res.data;
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -422,7 +482,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }
@@ -460,7 +524,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPost(url, token, data));
       return Promise.reject(err);
     }
@@ -496,7 +564,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPost(url, token, data));
       return Promise.reject(err);
     }
@@ -533,7 +605,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPost(url, token, data));
       return Promise.reject(err);
     }
@@ -559,7 +635,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPut(url, token, featureStoreInput));
       return Promise.reject(err);
     }
@@ -585,7 +665,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPut(url, token, featureSetInput));
       return Promise.reject(err);
     }
@@ -618,7 +702,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlPost(url, token, data));
       return Promise.reject(err);
     }
@@ -642,7 +730,11 @@ class AnamlFeatureStore {
       const res = await axios(opts);
       return JSON.parse(res.data);
     } catch (err) {
-      this.logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      this.logger.error(message);
       this.logger.debug(buildDebugCurlGet(url, token));
       return Promise.reject(err);
     }

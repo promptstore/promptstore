@@ -140,7 +140,11 @@ export const getIndexAsync = (id) => async (dispatch) => {
         };
       }
     } catch (err) {
-      console.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      console.error(message);
       // index probably doesn't exist
       index = res.data;
     }

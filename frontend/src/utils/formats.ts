@@ -178,13 +178,7 @@ function createSystemPrompt(context: ChatRequestContext, functions?: Function[])
         tooldef.push('Description: ' + func.description);
       }
       if (func.parameters) {
-        try {
-          const schema = func.parameters;
-          tooldef.push('Parameters: ' + schema);
-        } catch (err) {
-          console.error(err);
-          // skip
-        }
+        tooldef.push('Parameters: ' + JSON.stringify(func.parameters));
       }
       systemPrompt.push(tooldef.join('\n'));
     }

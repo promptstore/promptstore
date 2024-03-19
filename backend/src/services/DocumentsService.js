@@ -14,7 +14,16 @@ export function DocumentsService({ constants, mc, logger }) {
       fs.mkdirSync(dirname, { recursive: true });
       mc.statObject(bucket, filepath, (err, stat) => {
         if (err) {
-          logger.error(err);
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
           return reject(err);
         }
         if (!stat) {
@@ -27,7 +36,16 @@ export function DocumentsService({ constants, mc, logger }) {
         }
         mc.fGetObject(constants.FILE_BUCKET, filepath, localFilePath, (err) => {
           if (err) {
-            logger.error(err);
+            let message;
+            if (err instanceof Error) {
+              message = err.message;
+              if (err.stack) {
+                message += '\n' + err.stack;
+              }
+            } else {
+              message = err.toString();
+            }
+            logger.error(message);
             reject(err);
           }
           // return fake upload file
@@ -53,7 +71,16 @@ export function DocumentsService({ constants, mc, logger }) {
       const fileStream = fs.createWriteStream(localFilePath);
       mc.getPartialObject(constants.FILE_BUCKET, filepath, 0, maxBytes, (err, dataStream) => {
         if (err) {
-          logger.error(err);
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
           reject(err);
         }
         dataStream.on('data', (chunk) => {

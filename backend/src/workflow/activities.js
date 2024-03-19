@@ -208,7 +208,11 @@ export const createActivities = ({
       const index = await pipeline.run(params);
       return index;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   },
@@ -217,7 +221,11 @@ export const createActivities = ({
     try {
       callLoggingService.createCallLog(params);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   },

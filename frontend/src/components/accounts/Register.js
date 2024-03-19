@@ -33,7 +33,11 @@ export default function Register() {
           updateUserProfile(currentUser, { displayName: user.fullName });
           navigate('/profile');
         } catch (err) {
-          console.error(err);
+          let message = err.message;
+          if (err.stack) {
+            message += '\n' + err.stack;
+          }
+          console.error(message);
         }
       }
     }

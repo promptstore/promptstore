@@ -59,12 +59,16 @@ function OpenWeather({ __key, __name, constants, logger }) {
       const desc = w.description;
       return `It's ${sky} ${temp} day. The weather is ${desc}.`;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return "I don't know how to do that.";
     }
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.OPENWEATHER_DESCRIPTION,
@@ -85,7 +89,7 @@ function OpenWeather({ __key, __name, constants, logger }) {
     __name,
     __description: constants.OPENWEATHER_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import { Button, Card, Descriptions, Layout, Space, Table, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import * as dayjs from 'dayjs';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import snakeCase from 'lodash.snakecase';
@@ -170,6 +171,13 @@ export function ModelView() {
                       </Descriptions.Item>
                       <Descriptions.Item label="requests per min.">
                         {formatNumber(model.requestsPerMinute)}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </Descriptions.Item>
+                  <Descriptions.Item>
+                    <Descriptions column={3}>
+                      <Descriptions.Item label="training date">
+                        {model.trainingDate ? dayjs(model.trainingDate).format('MMMM, YYYY') : null}
                       </Descriptions.Item>
                     </Descriptions>
                   </Descriptions.Item>

@@ -264,7 +264,11 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
       let queryEmbedding: number[];
       if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
         const { provider, model } = embeddingModel;
-        const response = await this.llmService.createEmbedding(provider, { input: query, model });
+        const response = await this.llmService.createEmbedding(provider, {
+          input: query,
+          inputType: 'search_query',
+          model,
+        });
         queryEmbedding = response.data[0].embedding;
       }
       const results = await this.vectorStoreService.search(

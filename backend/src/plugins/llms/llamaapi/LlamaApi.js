@@ -1,6 +1,11 @@
 import OpenAI from 'openai';
 
-import { delay } from './utils';
+import { delay } from '../../../core/conversions';
+
+import {
+  fromLlamaApiChatResponse,
+  toLlamaApiChatRequest,
+} from './conversions';
 
 function LlamaApi({ __name, constants, logger }) {
 
@@ -10,26 +15,51 @@ function LlamaApi({ __name, constants, logger }) {
     baseURL: constants.LLAMAAPI_BASE_PATH,
   });
 
-  async function createChatCompletion(request, retryCount = 0) {
+  async function createChatCompletion(request, parserService, retryCount = 0) {
+    let res;
+    try {
+      const req = toLlamaApiChatRequest(request);
+      res = await openai.chat.completions.create(req);
+      const response = await fromLlamaApiChatResponse(res, parserService);
+      return {
+        ...response,
+        model: request.model,
+      };
+    } catch (err) {
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
+        if (retryCount > 2) {
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
+        }
+        await delay(2000);
+        return createChatCompletion(request, retryCount + 1);
+      }
+    }
+  }
+
+  async function createCompletion(request, retryCount = 0) {
     let res;
     try {
       res = await openai.chat.completions.create(request);
       return res;
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
-          throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(request, retryCount + 1);
+        return createCompletion(request, retryCount + 1);
       }
     }
-  }
-
-  async function createCompletion(request) {
-    const res = await openai.chat.completions.create(request);
-    return res;
   }
 
   function createImage(prompt, options) {

@@ -6,6 +6,7 @@ import {
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
+import useLocalStorageState from 'use-local-storage-state';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -23,6 +24,7 @@ import {
 
 export function CompositionsList() {
 
+  const [page, setPage] = useLocalStorageState('compositions-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const compositions = useSelector(selectCompositions);
@@ -167,7 +169,16 @@ export function CompositionsList() {
             </Button>
           </Upload>
         </div>
-        <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            onChange: (page, pageSize) => setPage(page),
+          }}
+        />
       </div>
     </>
   );

@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 import uuid from 'uuid';
 import { createParser } from 'eventsource-parser';
 
-import { delay } from './utils';
+import { delay } from '../../../core/conversions';
 
 function Llama2LLM({ __name, constants, logger }) {
 
@@ -55,7 +55,7 @@ function Llama2LLM({ __name, constants, logger }) {
               const queue = encoder.encode(text);
               controller.enqueue(queue);
             } catch (err) {
-              controller.error(err);
+              controller.error(err.message);
             }
           }
         };
@@ -82,7 +82,6 @@ function Llama2LLM({ __name, constants, logger }) {
   async function createChatCompletion(request, retryCount = 0) {
     let res;
     try {
-      logger.debug('basePath:', constants.LLAMA2_BASE_PATH);
       const stream = await OpenAIStream(request);
       const content = await streamToString(stream);
       return {
@@ -101,20 +100,40 @@ function Llama2LLM({ __name, constants, logger }) {
         ]
       };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
-          throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(request, retryCount + 1);
+        return createChatCompletion(request, retryCount + 1);
       }
     }
   }
 
-  async function createCompletion(request) {
-    const res = await openai.createCompletion(request);
-    return res.data;
+  async function createCompletion(request, retryCount = 0) {
+    let res;
+    try {
+      res = await openai.createCompletion(request);
+      return res.data;
+    } catch (err) {
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      if (res?.data.error?.message.startsWith('That model is currently overloaded with other requests')) {
+        if (retryCount > 2) {
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
+        }
+        await delay(2000);
+        return createCompletion(request, retryCount + 1);
+      }
+    }
   }
 
   function createImage(prompt, options) {

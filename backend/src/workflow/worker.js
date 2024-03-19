@@ -220,6 +220,15 @@ async function runWorker() {
 }
 
 runWorker().catch((err) => {
-  console.error(err);
+  let message;
+  if (err instanceof Error) {
+    message = err.message;
+    if (err.stack) {
+      message += '\n' + err.stack;
+    }
+  } else {
+    message = err.toString();
+  }
+  console.error(message);
   process.exit(1);
 });

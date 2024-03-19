@@ -26,13 +26,13 @@ import {
 } from '../models/modelsSlice';
 
 import {
-  getGraphStores,
+  getGraphStoresAsync,
   selectGraphStores,
   selectLoaded as selectGraphStoresLoaded,
   selectLoading as selectGraphStoresLoading,
 } from './graphStoresSlice';
 import {
-  getVectorStores,
+  getVectorStoresAsync,
   selectVectorStores,
   selectLoaded as selectVectorStoresLoaded,
   selectLoading as selectVectorStoresLoading,
@@ -168,10 +168,10 @@ export function IndexModal({
         dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id, type: 'embedding' }));
       }
       if (!vectorStoresLoaded) {
-        dispatch(getVectorStores());
+        dispatch(getVectorStoresAsync());
       }
       if (!graphStoresLoaded) {
-        dispatch(getGraphStores());
+        dispatch(getGraphStoresAsync());
       }
     }
   }, [indexValue]);

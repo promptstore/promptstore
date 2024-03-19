@@ -193,7 +193,11 @@ export const fillTemplate = (templateString, templateVars, engine = 'es6') => {
       // logger.debug('str:', str);
       return str;
     } catch (err) {
-      console.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      console.error(message);
       return null;
     }
   }

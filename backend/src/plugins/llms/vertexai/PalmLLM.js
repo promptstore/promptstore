@@ -1,6 +1,15 @@
 import { GoogleAuth } from 'google-auth-library';
 import { DiscussServiceClient, TextServiceClient } from '@google-ai/generativelanguage';
 
+import {
+  fromVertexAIChatResponse,
+  fromVertexAICompletionResponse,
+  fromVertexAIEmbeddingResponse,
+  toVertexAIChatRequest,
+  toVertexAICompletionRequest,
+  toVertexAIEmbeddingRequest,
+} from './conversions';
+
 function PalmLLM({ __name, constants, logger }) {
 
   let chatClient;
@@ -37,13 +46,19 @@ function PalmLLM({ __name, constants, logger }) {
    * }
    * 
    * @param {*} request 
+   * @param {*} parserService
    * @param {*} retryCount 
    * @returns 
    */
-  async function createChatCompletion(request, retryCount = 0) {
+  async function createChatCompletion(request, parserService, retryCount = 0) {
     const client = getChatClient();
-    const res = await client.generateMessage(request);
-    return res[0];
+    const req = toVertexAIChatRequest(request);
+    const res = await client.generateMessage(req);
+    const response = await fromVertexAIChatResponse(res[0], parserService);
+    return {
+      ...response,
+      model: request.model,
+    };
   }
 
   /**
@@ -60,12 +75,18 @@ function PalmLLM({ __name, constants, logger }) {
    * }
    * 
    * @param {*} request 
+   * @param {*} parserService
    * @returns 
    */
-  async function createCompletion(request) {
+  async function createCompletion(request, parserService) {
     const client = getCompletionClient();
-    const res = await client.generateText(request);
-    return res[0];
+    const req = toVertexAICompletionRequest(request);
+    const res = await client.generateText(req);
+    const response = await fromVertexAICompletionResponse(res[0], parserService);
+    return {
+      ...response,
+      model: request.model,
+    };
   }
 
   /**
@@ -114,8 +135,10 @@ function PalmLLM({ __name, constants, logger }) {
   async function createEmbedding(request) {
     const { model } = request;
     const client = getCompletionClient();
-    if ('texts' in request) {
-      const { texts } = request;
+    const req = toVertexAIEmbeddingRequest(request);
+    let res;
+    if ('texts' in req) {
+      const { texts } = req;
       const proms = [];
       let i = 0;
       while (i < texts.length) {
@@ -127,11 +150,17 @@ function PalmLLM({ __name, constants, logger }) {
         a.push(...r[0].embeddings);
         return a;
       }, []);
-      return { embeddings };
+      res = { embeddings };
+    } else {
+      // returns an unexpected array
+      const r = await client.embedText({ text: req.text, model });
+      res = r[0];
     }
-    // returns an unexpected array
-    const response = await client.embedText({ text: request.text, model });
-    return response[0];
+    const response = fromVertexAIEmbeddingResponse(res);
+    return {
+      ...response,
+      model: request.model,
+    };
   }
 
   function createImage(prompt, options) {

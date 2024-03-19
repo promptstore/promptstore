@@ -210,7 +210,11 @@ function BigQuerySource({ __name, constants, logger }) {
       logger.debug('context:', context);
       return context;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return '';
     }
   }
@@ -240,7 +244,11 @@ function BigQuerySource({ __name, constants, logger }) {
       const func = new Function(...Object.keys(vars), "return `" + template + "`;");
       return func(...Object.values(vars));
     } catch (err) {
-      console.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      console.error(message);
       return null;
     }
   };

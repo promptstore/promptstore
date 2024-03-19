@@ -2,9 +2,9 @@ import type { Schema } from 'jsonschema';
 
 import logger from '../../logger';
 
+import { PluginMetadata } from '../common_types';
 import { Neo4jSchemaParams } from './Extractor';
 import { Chunk } from './Chunk';
-import { PluginMetadata } from './common_types';
 
 export interface Node {
   id: string;
@@ -53,7 +53,6 @@ export interface GraphStoreService {
 export abstract class GraphStore {
 
   __name: string;
-
 
   protected executionsService: any;
   protected graphStoreService: GraphStoreService;

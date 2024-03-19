@@ -21,7 +21,11 @@ function Choices({ step }) {
           :
           <div key={'output-' + i}>
             <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
-              {decodeEntities(choice.message.content)}
+              {typeof choice.message.content === 'string' ?
+                decodeEntities(choice.message.content)
+                :
+                JSON.stringify(choice.message.content)
+              }
             </Typography.Paragraph>
             <Typography.Text type="secondary">
               finish reason: {choice.finish_reason}

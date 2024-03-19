@@ -9,8 +9,8 @@ function LastLineParser({ __name, __metadata, constants, logger, app, auth }) {
     logger.debug('parsing:', text);
     if (!text) {
       return {
-        error: 'Nothing to parse',
-        json: text,
+        error: { message: 'Nothing to parse' },
+        nonJsonStr: text,
       };
     }
     try {
@@ -19,12 +19,18 @@ function LastLineParser({ __name, __metadata, constants, logger, app, auth }) {
         .map(line => line.trim())
         .filter(line => line)
         .pop();
+
       return { json: lastline };
+
     } catch (err) {
-      logger.error('Error parsing text:', err);
+      let message = `Error parsing text "${text}": ` + err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return {
-        error: String(err),
-        json: text,
+        error: { message },
+        nonJsonStr: text,
       };
     }
   }

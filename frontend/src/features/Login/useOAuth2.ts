@@ -105,7 +105,11 @@ const useOAuth2 = <TData = AuthTokenPayload>(props: OAuth2Props) => {
           }
         }
       } catch (err: any) {
-        console.error(err);
+        let message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        console.error(message);
         setUI({
           error: String(err),
           loading: false,

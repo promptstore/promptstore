@@ -3,7 +3,14 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 
-import { delay } from './utils';
+import { delay } from '../../../core/conversions';
+
+import {
+  fromOpenAIChatResponse,
+  fromOpenAICompletionResponse,
+  toOpenAIChatRequest,
+  toOpenAICompletionRequest,
+} from './conversions';
 
 function OpenAILLM({ __name, constants, logger }) {
 
@@ -30,27 +37,36 @@ function OpenAILLM({ __name, constants, logger }) {
    * }
    * 
    * @param {*} request 
+   * @param {*} parserService
    * @param {*} retryCount 
    * @returns 
    */
-  async function createChatCompletion(request, retryCount = 0) {
+  async function createChatCompletion(request, parserService, retryCount = 0) {
     let res;
     try {
+      const req = toOpenAIChatRequest(request);
       if (request.stream) {
-        res = await openai.chat.completions.create(request, { responseType: 'stream' });
+        res = await openai.chat.completions.create(req, { responseType: 'stream' });
       } else {
-        logger.debug('request:', request);
-        res = await openai.chat.completions.create(request);
+        res = await openai.chat.completions.create(req);
       }
-      return res;
+      const response = await fromOpenAIChatResponse(res, parserService);
+      return {
+        ...response,
+        model: request.model,
+      };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
-          throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
         }
         await delay(2000);
-        return await createChatCompletion(request, retryCount + 1);
+        return createChatCompletion(request, retryCount + 1);
       }
     }
   }
@@ -78,19 +94,28 @@ function OpenAILLM({ __name, constants, logger }) {
    * @param {*} request 
    * @returns 
    */
-  async function createCompletion(request, retryCount = 0) {
+  async function createCompletion(request, parserService, retryCount = 0) {
     let res;
     try {
-      res = await openai.completions.create(request);
-      return res;
+      const req = toOpenAICompletionRequest(request);
+      res = await openai.completions.create(req);
+      const response = await fromOpenAICompletionResponse(res, parserService);
+      return {
+        ...response,
+        model: request.model,
+      };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
         if (retryCount > 2) {
-          throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+          throw new Error('Exceeded retry count: ' + err.message, { cause: err });
         }
         await delay(2000);
-        return await createCompletion(request, retryCount + 1);
+        return createCompletion(request, retryCount + 1);
       }
     }
   }

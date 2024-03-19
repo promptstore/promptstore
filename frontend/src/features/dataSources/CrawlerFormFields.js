@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Input } from 'antd';
+import { Form, Input, InputNumber } from 'antd';
 
 import { SchemaModalInput } from '../../components/SchemaModalInput';
 
@@ -23,7 +23,7 @@ export function CrawlerFormFields() {
         name="maxRequestsPerCrawl"
         wrapperCol={{ span: 5 }}
       >
-        <Input />
+        <InputNumber />
       </Form.Item>
       <Form.Item
         label="Chunk Element"

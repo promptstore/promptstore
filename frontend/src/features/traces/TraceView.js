@@ -79,7 +79,7 @@ export function TraceView() {
   const id = location.pathname.match(/\/traces\/(.*)/)[1];
   const trace = traces[id];
 
-  console.log('trace:', trace);
+  // console.log('trace:', trace);
 
   const step = useMemo(() => {
     const inner = (trace) => {

@@ -308,14 +308,18 @@ export default ({ logger, services }) => {
           };
         }
       } catch (err) {
-        logger.error(err);
+        let message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        logger.error(message);
         if (err instanceof OutputParserException) {
           const { sendToLLM, observation } = err.options;
           if (sendToLLM) {
             return { done: false, content: observation };
           }
         }
-        this._throwAgentError(err.message);
+        this._throwAgentError(message);
       }
     }
 
@@ -338,7 +342,11 @@ export default ({ logger, services }) => {
           }
           let queryEmbedding: number[];
           if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
-            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, { ...args, model: embeddingModel });
+            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, {
+              ...args,
+              inputType: 'search_query',
+              model: embeddingModel,
+            });
             queryEmbedding = embeddingResponse.data[0].embedding;
           }
           const searchResponse = await vectorStoreService.search(

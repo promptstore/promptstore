@@ -51,7 +51,11 @@ function CypherTool({ __key, __name, constants, logger, services }) {
       const res = await session.run(nodesQuery);
       return res.records.map(r => r.get('output'));
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -64,7 +68,11 @@ function CypherTool({ __key, __name, constants, logger, services }) {
       const res = await session.run(relsQuery);
       return res.records.map(r => r.get('output'));
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -86,7 +94,11 @@ function CypherTool({ __key, __name, constants, logger, services }) {
       }, {});
       return Object.entries(map).map(([type, values]) => ({ type, values }));
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -120,7 +132,11 @@ function CypherTool({ __key, __name, constants, logger, services }) {
           json = JSON.parse(message.content);
         }
       } catch (err) {
-        logger.error(err);
+        let message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        logger.error(message);
         json = {};
       }
       const entities = json.entities.map(e => e.entity);
@@ -192,7 +208,7 @@ function CypherTool({ __key, __name, constants, logger, services }) {
     return "I don't know how to answer that";
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.CYPHER_DESCRIPTION,
@@ -213,7 +229,7 @@ function CypherTool({ __key, __name, constants, logger, services }) {
     __name,
     __description: constants.CYPHER_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

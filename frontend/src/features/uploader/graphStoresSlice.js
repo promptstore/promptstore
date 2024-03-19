@@ -27,7 +27,7 @@ export const {
   startLoad,
 } = graphStoresSlice.actions;
 
-export const getGraphStores = () => async (dispatch) => {
+export const getGraphStoresAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/graph-stores';
   const res = await http.get(url);

@@ -6,8 +6,8 @@ function ActionParser({ __name, __metadata, constants, logger, app, auth }) {
     logger.debug('parsing:', text);
     if (!text) {
       return {
-        error: 'Nothing to parse',
-        json: text,
+        error: { message: 'Nothing to parse' },
+        nonJsonStr: text,
       };
     }
     try {
@@ -28,10 +28,10 @@ function ActionParser({ __name, __metadata, constants, logger, app, auth }) {
       if (actionMatch) {
         const action = actionMatch[1];
         if (hasFinalAnswer) {
-          const error =
+          const message =
             `Parsing LLM output produced both a final answer and a parseable ` +
             `action: ${action}`;
-          return { error, retriable: true };
+          return { error: { message }, retriable: true };
         }
         const inputMatch = text.match(inputRegex);
         if (inputMatch) {
@@ -51,11 +51,16 @@ function ActionParser({ __name, __metadata, constants, logger, app, auth }) {
         return { json: { content, final: true } };
       }
       return { json: { content: text } };
+
     } catch (err) {
-      logger.error('Error parsing text:', err);
+      let message = `Error parsing text "${text}": ` + err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return {
-        error: String(err),
-        json: text,
+        error: { message },
+        nonJsonStr: text,
       };
     }
   }

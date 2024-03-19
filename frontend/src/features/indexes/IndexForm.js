@@ -12,12 +12,12 @@ import {
   selectLoading as selectEmbeddingProvidersLoading,
 } from '../uploader/embeddingSlice';
 import {
-  getGraphStores,
+  getGraphStoresAsync,
   selectGraphStores,
   selectLoading as selectGraphStoresLoading,
 } from '../uploader/graphStoresSlice';
 import {
-  getVectorStores,
+  getVectorStoresAsync,
   selectVectorStores,
   selectLoading as selectVectorStoresLoading,
 } from '../uploader/vectorStoresSlice';
@@ -111,8 +111,8 @@ export function IndexForm() {
       dispatch(getIndexAsync(id));
     }
     dispatch(getEmbeddingProvidersAsync());
-    dispatch(getVectorStores());
-    dispatch(getGraphStores());
+    dispatch(getVectorStoresAsync());
+    dispatch(getGraphStoresAsync());
   }, []);
 
   useEffect(() => {

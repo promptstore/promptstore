@@ -135,7 +135,7 @@ export default ({ logger, services }) => {
             functions,
             prompt: { history: [...this.history], messages: [message] },
           };
-          this.history.push(message);
+          this._pushMessage(message);
           for (let callback of this.currentCallbacks) {
             callback.onEvaluateStepStart({
               step,
@@ -152,7 +152,7 @@ export default ({ logger, services }) => {
               request,
             });
           }
-          this.history.push(response.choices[0].message);
+          // this._pushMessage(response.choices[0].message);
           const call = response.choices[0].message.function_call;
 
           if (call) {
@@ -175,7 +175,7 @@ export default ({ logger, services }) => {
             //     response: { ...response },
             //   });
             // }
-            // this.history.push(response.choices[0].message);
+            // this._pushMessage(response.choices[0].message);
           }
 
           for (let callback of this.currentCallbacks) {
@@ -224,7 +224,7 @@ export default ({ logger, services }) => {
         });
       }
       const content = response.choices[0].message.content as string;
-      this.history.push(new AssistantMessage(content));
+      this._pushMessage(new AssistantMessage(content));
 
       const plan = await this._parsePlanOutput(content);
 
@@ -232,6 +232,11 @@ export default ({ logger, services }) => {
         callback.onModelEndPlan({ model: this.model, plan });
       }
       return plan;
+    }
+
+    _pushMessage(message: Message) {
+      logger.debug('Push message:', message);
+      this.history.push(message);
     }
 
     async _getPlanningPrompts(args: any) {
@@ -359,7 +364,7 @@ export default ({ logger, services }) => {
         content = this._getReturnContent(goal, previousSteps, currentStep, call, functionOutput);
       }
       const message = new FunctionMessage(content, call.name);
-      this.history.push(message);
+      this._pushMessage(message);
 
       // TODO why do I need another call to comment on the tool result
 
@@ -452,7 +457,11 @@ export default ({ logger, services }) => {
           }
           let queryEmbedding: number[];
           if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
-            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, { ...args, model: embeddingModel });
+            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, {
+              ...args,
+              inputType: 'search_query',
+              model: embeddingModel,
+            });
             queryEmbedding = embeddingResponse.data[0].embedding;
           }
           const searchResponse = await vectorStoreService.search(

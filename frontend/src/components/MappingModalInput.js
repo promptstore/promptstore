@@ -52,6 +52,7 @@ export function MappingModalInput({
   onChange,
   value,
   buttonProps,
+  validateSchema,
 }) {
 
   if (!disabledMessage) {
@@ -123,7 +124,11 @@ export function MappingModalInput({
   }, []);
 
   const isSimpleEnabled = !(isEmpty(getProperties(sourceSchema)) || isEmpty(getProperties(targetSchema)));
-  const isAdvancedEnabled = sourceSchema && targetSchema;
+  const isAdvancedEnabled = !!((sourceSchema && targetSchema) || !validateSchema);
+
+  // console.log('sourceSchema:', sourceSchema);
+  // console.log('targetSchema:', targetSchema);
+  // console.log('isAdvancedEnabled:', isAdvancedEnabled);
 
   let isSimple = isSimpleEnabled;
   let mappingData = [];

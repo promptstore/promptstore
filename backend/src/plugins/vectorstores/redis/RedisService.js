@@ -24,7 +24,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return res.data;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -39,7 +43,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return res.data;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return null;
     }
   }
@@ -76,7 +84,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return res.data;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -86,7 +98,11 @@ function RedisService({ __name, constants, logger }) {
       const index = await getIndex(indexName);
       return index.numDocs;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -101,7 +117,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return res.data;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -149,7 +169,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return ids;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -166,7 +190,11 @@ function RedisService({ __name, constants, logger }) {
       });
       return id;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -190,7 +218,11 @@ function RedisService({ __name, constants, logger }) {
         }
       });
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }

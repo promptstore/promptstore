@@ -166,7 +166,11 @@ function Neo4jService({ __name, constants, logger }) {
     try {
       await session.run(q);
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -311,7 +315,11 @@ function Neo4jService({ __name, constants, logger }) {
         }, {})
         ;
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();

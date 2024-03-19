@@ -42,9 +42,12 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/functions', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const func = await functionsService.upsertFunction(values, username);
+    let func = await functionsService.upsertFunction(values, username);
     const obj = createSearchableObject(func);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, func.chunkId);
+    if (!func.chunkId) {
+      func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+    }
     res.json(func);
   });
 
@@ -52,9 +55,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const func = await functionsService.upsertFunction({ ...values, id }, username);
+    let func = await functionsService.upsertFunction({ ...values, id }, username);
     const obj = createSearchableObject(func);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, func.chunkId);
+    if (!func.chunkId) {
+      func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+    }
     res.json(func);
   });
 

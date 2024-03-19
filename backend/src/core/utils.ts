@@ -22,6 +22,17 @@ export const convertImageToBase64 = (imageUrl: string) => {
   });
 };
 
+export const convertImageToBase64Only = (imageUrl: string) => {
+  return new Promise((resolve, reject) => {
+    axios.get(imageUrl, { responseType: 'arraybuffer' })
+      .then(res => {
+        const base64 = Buffer.from(res.data).toString('base64');
+        resolve(base64);
+      })
+      .catch(reject);
+  });
+};
+
 async function convertObjectWithImages(obj: any) {
   if (isObject(obj)) {
     const a = {};

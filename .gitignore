@@ -17,6 +17,8 @@ helm-chart/values.yaml
 k8s/loki-virtualservice.yaml
 k8s/openaiplatform-virtualservice.yaml
 openaiplatform/
+backend/src/plugins/loaders/gmail/keys/
+backend/src/plugins/loaders/googledrive/keys/
 backend/src/plugins/sqlsources/bigquery/keys/
 backend/src/plugins/llms/gemini/keys/
 scratchpad.md
@@ -27,4 +29,7 @@ backend/src/plugins/tools/bigquery/keys/
 backend/src/plugins/tools/bigquery_sql/keys/
 backend/src/config/serviceAccountKey.json
 .env.local
-.env.local.bak
+.env.local.*
+token.json
+credentials.json
+keys/*.json

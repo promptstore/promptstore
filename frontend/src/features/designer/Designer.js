@@ -216,7 +216,7 @@ export function Designer() {
       const sessions = Object.values(chatSessions);
       if (sessions.length) {
         const lastSession = sessions.find(s => s.name === 'last session');
-        console.log('lastSession:', lastSession);
+        // console.log('lastSession:', lastSession);
         if (lastSession) {
           dispatch(setMessages({ messages: lastSession.messages.filter(m => m).map(formatMessage) }));
           setSelectedSession(lastSession);

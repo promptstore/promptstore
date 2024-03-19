@@ -1,6 +1,7 @@
 export default ({ constants, logger, services }) => {
 
   const {
+    SEARCH_EMBEDDING_MODEL,
     SEARCH_EMBEDDING_PROVIDER,
     SEARCH_INDEX_NAME,
     SEARCH_NODE_LABEL,
@@ -29,17 +30,26 @@ export default ({ constants, logger, services }) => {
     }
   }
 
-  async function indexObject(obj) {
+  async function indexObject(obj, chunkId) {
     try {
       let embeddings;
       if (SEARCH_VECTORSTORE_PROVIDER !== 'redis' && SEARCH_VECTORSTORE_PROVIDER !== 'elasticsearch') {
-        const response = await llmService.createEmbedding(SEARCH_EMBEDDING_PROVIDER, { input: obj.text });
+        const response = await llmService.createEmbedding(SEARCH_EMBEDDING_PROVIDER, {
+          input: obj.text,
+          model: SEARCH_EMBEDDING_MODEL,
+        });
         embeddings = [response.data[0].embedding];
       }
-      await vectorStoreService.indexChunks(SEARCH_VECTORSTORE_PROVIDER, [obj], embeddings, {
+      let ids;
+      if (chunkId) {
+        ids = [chunkId];
+      }
+      const chunkIds = await vectorStoreService.indexChunks(SEARCH_VECTORSTORE_PROVIDER, [obj], embeddings, {
         indexName: SEARCH_INDEX_NAME,
         nodeLabel: SEARCH_NODE_LABEL,
+        chunkIds: ids,
       });
+      return chunkIds?.[0];
     } catch (err) {
       logger.error('Error indexing object [label=%s; name=%s; id=%s]:', obj.label, obj.name, obj.id, err);
     }

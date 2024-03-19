@@ -2,6 +2,11 @@ import axios from 'axios';
 import { Storage } from '@google-cloud/storage';
 import { VertexAI } from '@google-cloud/vertexai';
 
+import {
+  fromGeminiChatResponse,
+  toGeminiChatRequest,
+} from './conversions';
+
 function GeminiLLM({ __name, constants, logger }) {
 
   let _chatClient;
@@ -35,26 +40,27 @@ function GeminiLLM({ __name, constants, logger }) {
   }
 
   /**
-   * @param {GeminiChatRequest} request 
-   * @param {integer} retryCount 
-   * @returns 'GeminiChatResponse'
+   * 
+   * @param {*} request 
+   * @param {*} parser 
+   * @param {*} retryCount 
+   * @returns 
    */
-  async function createChatCompletion(request, retryCount = 0) {
+  async function createChatCompletion(request, parser, retryCount = 0) {
+    const model = request.model;
+    const chatRequest = toGeminiChatRequest(request);
     const storage = getStorageClient();
     const bucket = storage.bucket(constants.GCS_BUCKET);
     let contents = [];
-    for (const c of request.contents) {
-      // logger.debug('content:', c);
+    for (const c of chatRequest.contents) {
       let parts = [];
       for (const part of c.parts) {
-        // logger.debug('part:', part);
         if (part.file_data) {
           const imageUrl = part.file_data.file_uri;
           const url = new URL(imageUrl);
           const pathname = url.pathname.slice(constants.GCS_BUCKET.length + 2);
           const file = bucket.file(pathname);
           const [exists] = await file.exists();
-          // logger.debug('file exists:', exists);
           if (!exists) {
             await uploadFile(imageUrl, file);
           }
@@ -74,22 +80,29 @@ function GeminiLLM({ __name, constants, logger }) {
       });
     }
     const client = getChatClient();
-    const model = client.preview.getGenerativeModel({
-      model: request.model,
-    });
+    const genModel = client.preview.getGenerativeModel({ model });
+
+    // "Function as tool is only supported for `gemini-pro` and `gemini-pro-001` models."
+    let tools;
+    if (model !== 'gemini-1.0-pro-vision') {
+      tools = chatRequest.tools;
+    }
     const req = {
       contents,
-      generation_config: request.generation_config,
+      generationConfig: chatRequest.generationConfig,
+      safetySettings: chatRequest.safetySettings,
+      tools,
     };
-    logger.debug(request.model + ' request:', req);
-    const stream = await model.generateContent(req);
+    // logger.debug(model, 'request:', req);
+    const stream = await genModel.generateContent(req);
     const res = await stream;
-    return res.response;
+    const response = await fromGeminiChatResponse(res.response, parser);
+    return { ...response, model };
   }
 
   /**
-   * @param {GeminiChatRequest} request 
-   * @returns 'GeminiChatResponse'
+   * @param {*} request 
+   * @returns 
    */
   async function createCompletion(request) {
     return createChatCompletion(request);

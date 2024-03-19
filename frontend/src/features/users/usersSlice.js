@@ -86,7 +86,7 @@ export const getCurrentUserAsync = () => async (dispatch) => {
     const res = await http.get(url);
     dispatch(setCurrentUser({ currentUser: res.data }));
   } catch (err) {
-    console.error(err);
+    console.error(err.message);
     // window.location.replace('/login');
   }
 };

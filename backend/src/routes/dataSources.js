@@ -685,7 +685,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.post('/api/data-sources', auth, async (req, res, next) => {
     const { username } = req.user;
     const { appId, uploadId, values } = req.body;
-    const dataSource = await dataSourcesService.upsertDataSource(values, username);
+    let dataSource = await dataSourcesService.upsertDataSource(values, username);
     if (appId) {
       const app = appsService.getApp(appId);
       await appsService.upsertApp({
@@ -698,7 +698,10 @@ export default ({ app, auth, constants, logger, pg, services }) => {
       });
     }
     const obj = createSearchableObject(dataSource);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, dataSource.chunkId);
+    if (!dataSource.chunkId) {
+      dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+    }
     res.json(dataSource);
   });
 
@@ -735,9 +738,12 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const dataSource = await dataSourcesService.upsertDataSource({ ...values, id }, username);
+    let dataSource = await dataSourcesService.upsertDataSource({ ...values, id }, username);
     const obj = createSearchableObject(dataSource);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, dataSource.chunkId);
+    if (!dataSource.chunkId) {
+      dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+    }
     res.json(dataSource);
   });
 

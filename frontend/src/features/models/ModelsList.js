@@ -24,6 +24,7 @@ import {
   UploadOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
+import * as dayjs from 'dayjs';
 import debounce from 'lodash.debounce';
 import useLocalStorageState from 'use-local-storage-state';
 import isEmpty from 'lodash.isempty';
@@ -104,6 +105,7 @@ export function ModelsList() {
           maxOutputTokens: model.maxOutputTokens,
           multimodal: model.multimodal,
           creditsPerCall: model.creditsPerCall,
+          trainingDate: model.trainingDate,
         }));
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
@@ -207,6 +209,11 @@ export function ModelsList() {
 
   const ProviderLogo = ({ provider, modelKey }) => {
     switch (provider) {
+      case 'anthropic':
+        return (
+          <AnthropicLogo />
+        );
+
       case 'api':
         return (
           <EuropaLabsLogo />
@@ -274,6 +281,14 @@ export function ModelsList() {
 
   const ProviderLabel = ({ provider, modelKey }) => {
     switch (provider) {
+      case 'anthropic':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} modelKey={modelKey} />
+            <div>Anthropic</div>
+          </Space>
+        );
+
       case 'api':
         return (
           <Space style={{ whiteSpace: 'nowrap' }}>
@@ -638,6 +653,12 @@ export function ModelsList() {
                       {m.maxOutputTokens ?
                         <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
                           <span><span className="inline-label">max out</span> {formatNumber(m.maxOutputTokens)}</span>
+                        </Typography.Text>
+                        : null
+                      }
+                      {m.trainingDate ?
+                        <Typography.Text style={{ display: 'inline-block', width: '50%' }}>
+                          <span><span className="inline-label">trained</span> {dayjs(m.trainingDate).format('MMM, YYYY')}</span>
                         </Typography.Text>
                         : null
                       }

@@ -42,7 +42,7 @@ function EmailService({ __key, __name, constants, logger }) {
     }
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.EMAIL_DESCRIPTION,
@@ -63,7 +63,7 @@ function EmailService({ __key, __name, constants, logger }) {
     __name,
     __description: constants.EMAIL_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

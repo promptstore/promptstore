@@ -43,9 +43,12 @@ export default ({ app, auth, constants, logger, services }) => {
       logger.warn(err);
       // proceed without summary
     }
-    const ps = await promptSetsService.upsertPromptSet(values, username);
+    let ps = await promptSetsService.upsertPromptSet(values, username);
     const obj = createSearchableObject(ps);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, ps.chunkId);
+    if (!ps.chunkId) {
+      ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+    }
     res.json(ps);
   });
 
@@ -59,9 +62,12 @@ export default ({ app, auth, constants, logger, services }) => {
       logger.warn(err);
       // proceed without summary
     }
-    const ps = await promptSetsService.upsertPromptSet({ ...values, id }, username);
+    let ps = await promptSetsService.upsertPromptSet({ ...values, id }, username);
     const obj = createSearchableObject(ps);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, ps.chunkId);
+    if (!ps.chunkId) {
+      ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+    }
     res.json(ps);
   });
 

@@ -59,13 +59,13 @@ import {
   selectLoading as selectModelsLoading,
 } from '../models/modelsSlice';
 import {
-  getGraphStores,
+  getGraphStoresAsync,
   selectGraphStores,
   selectLoaded as selectGraphStoresLoaded,
   selectLoading as selectGraphStoresLoading,
 } from '../uploader/graphStoresSlice';
 import {
-  getVectorStores,
+  getVectorStoresAsync,
   selectVectorStores,
   selectLoaded as selectVectorStoresLoaded,
   selectLoading as selectVectorStoresLoading,
@@ -359,7 +359,7 @@ export function TransformationForm() {
       dispatch(getTransformationAsync(id));
     }
     if (!graphStoresLoaded) {
-      dispatch(getGraphStores());
+      dispatch(getGraphStoresAsync());
     }
   }, []);
 
@@ -387,7 +387,7 @@ export function TransformationForm() {
 
   useEffect(() => {
     if (indexValue === 'new' && !vectorStoresLoaded) {
-      dispatch(getVectorStores());
+      dispatch(getVectorStoresAsync());
       // dispatch(getEmbeddingProvidersAsync());
       dispatch(getModelsAsync({ workspaceId: selectedWorkspace.id, type: 'embedding' }));
     }

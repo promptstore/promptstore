@@ -270,9 +270,12 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/destinations', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const destination = await destinationsService.upsertDestination(values, username);
+    let destination = await destinationsService.upsertDestination(values, username);
     const obj = createSearchableObject(destination);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, destination.chunkId);
+    if (!destination.chunkId) {
+      destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+    }
     res.json(destination);
   });
 
@@ -309,9 +312,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const destination = await destinationsService.upsertDestination({ ...values, id }, username);
+    let destination = await destinationsService.upsertDestination({ ...values, id }, username);
     const obj = createSearchableObject(destination);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, destination.chunkId);
+    if (!destination.chunkId) {
+      destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+    }
     res.json(destination);
   });
 

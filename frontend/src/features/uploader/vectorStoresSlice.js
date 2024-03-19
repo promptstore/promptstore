@@ -27,7 +27,7 @@ export const {
   startLoad,
 } = vectorStoresSlice.actions;
 
-export const getVectorStores = () => async (dispatch) => {
+export const getVectorStoresAsync = () => async (dispatch) => {
   dispatch(startLoad());
   const url = '/api/vector-stores';
   const res = await http.get(url);

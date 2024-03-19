@@ -75,7 +75,18 @@ Strategy.prototype.authenticate = function (req, options) {
   var self = this;
 
   function verified(err, user, info) {
-    if (err) return self.error(err);
+    if (err) {
+      let message;
+      if (err instanceof Error) {
+        message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+      } else {
+        message = err.toString();
+      }
+      return self.error(message);
+    }
     if (!user) return self.fail(info);
     self.success(user, info);
   }

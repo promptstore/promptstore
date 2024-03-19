@@ -6,13 +6,16 @@ import {
   EmbeddingRequest,
   EmbeddingResponse,
 } from '../conversions/RosettaStone';
+import {
+  ParserService,
+} from '../outputprocessing/OutputProcessingPipeline_types';
 import SemanticCache from '../semanticcache/SemanticCache';
 
 export interface LLMService {
 
-  createChatCompletion?(provider: string, request: any): Promise<ChatResponse>;
+  createChatCompletion?(provider: string, request: ChatRequest, parserService: ParserService): Promise<ChatResponse>;
 
-  createCompletion?(provider: string, request: any): Promise<ChatResponse>;
+  createCompletion?(provider: string, request: ChatRequest, parserService: ParserService): Promise<ChatResponse>;
 
   createEmbedding?(provider: string, request: EmbeddingRequest): Promise<EmbeddingResponse>;
 
@@ -40,11 +43,11 @@ export interface LLM {
 
   __name: string;
 
-  createChatCompletion(request: any): Promise<any>;
+  createChatCompletion(request: ChatRequest, parserService: ParserService): Promise<ChatResponse>;
 
-  createCompletion(request: any): Promise<any>;
+  createCompletion(request: ChatRequest, parserService: ParserService): Promise<ChatResponse>;
 
-  createEmbedding(request: any): Promise<any>;
+  createEmbedding(request: EmbeddingRequest): Promise<EmbeddingResponse>;
 
   createImage(prompt: string, options: any): Promise<any>;
 

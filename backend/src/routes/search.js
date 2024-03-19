@@ -41,7 +41,10 @@ export default ({ app, auth, constants, logger, services }) => {
     logger.debug('create embeddings using %s:', embeddingProvider, req.body);
     const embeddings = [];
     for (const chunk of chunks) {
-      const response = await llmService.createEmbedding(embeddingProvider, { input: chunk, model: embeddingModel });
+      const response = await llmService.createEmbedding(embeddingProvider, {
+        input: chunk,
+        model: embeddingModel,
+      });
       embeddings.push(response.data[0].embedding);
     }
     res.json(embeddings);
@@ -72,7 +75,10 @@ export default ({ app, auth, constants, logger, services }) => {
 
       let resp;
       if (vectorStoreProvider === 'neo4j') {
-        const response = await llmService.createEmbedding(embeddingProvider, { input: 'foo', model: embeddingModel });
+        const response = await llmService.createEmbedding(embeddingProvider, {
+          input: 'foo',
+          model: embeddingModel,
+        });
         const embeddingDimension = response.data[0].embedding.length;
         resp = await vectorStoreService.createIndex(vectorStoreProvider, indexName, schema, {
           nodeLabel,
@@ -208,7 +214,11 @@ export default ({ app, auth, constants, logger, services }) => {
     }
     let queryEmbedding;
     if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
-      const response = await llmService.createEmbedding(embeddingProvider, { input: q, model: embeddingModel });
+      const response = await llmService.createEmbedding(embeddingProvider, {
+        input: q,
+        inputType: 'search_query',
+        model: embeddingModel,
+      });
       queryEmbedding = response.data[0].embedding;
     }
     const attrs = { ...req.body.attrs, ...formatAttrs(nodeLabel, facetFilters.flat()) };

@@ -1,5 +1,5 @@
+import { PluginMetadata } from '../common_types';
 import { Document } from './Document';
-import { PluginMetadata } from './common_types';
 
 interface CommonLoaderParams {
   dataSourceId: number;

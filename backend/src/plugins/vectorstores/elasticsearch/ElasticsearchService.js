@@ -36,7 +36,11 @@ function ElasticsearchService({ __name, constants, logger }) {
     try {
       return getClient().indices.get({ index: '*' });
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }
@@ -50,7 +54,11 @@ function ElasticsearchService({ __name, constants, logger }) {
         numDocs,
       };
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return null;
     }
   }
@@ -72,7 +80,11 @@ function ElasticsearchService({ __name, constants, logger }) {
         },
       });
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -81,7 +93,11 @@ function ElasticsearchService({ __name, constants, logger }) {
     try {
       await getClient().indices.delete({ index: indexName });
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -90,7 +106,11 @@ function ElasticsearchService({ __name, constants, logger }) {
     try {
       return await getClient().count({ index: indexName });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -112,7 +132,11 @@ function ElasticsearchService({ __name, constants, logger }) {
       // logger.debug('results:', results);
       return results.hits.hits.map(h => unflatten(h._source));
     } catch (err) {
-      logger.error(err.message);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
@@ -129,31 +153,53 @@ function ElasticsearchService({ __name, constants, logger }) {
         }
       });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }
 
-  async function indexChunks(chunks, embeddings, { indexName }) {
+  async function indexChunks(chunks, embeddings, { indexName, chunkIds }) {
     try {
-      await getClient().bulk({
-        index: indexName,
-        operations: chunks.map(flatten).flatMap(chunk => [
-          {
-            index: { _index: indexName },
-          },
-          chunk,
-        ]),
-      });
-      logger.debug('documents length:', chunks.length);
+      if (chunkIds && chunkIds.length === chunks.length) {
+        const res = await getClient().bulk({
+          index: indexName,
+          operations: chunks.map(flatten).flatMap((chunk, i) => [
+            {
+              update: { _index: indexName, _id: chunkIds[i] },
+            },
+            { doc: chunk },
+          ]),
+        });
+        return res.items.map(({ update }) => update._id);
+      } else {
+        const res = await getClient().bulk({
+          index: indexName,
+          operations: chunks.map(flatten).flatMap(chunk => [
+            {
+              index: { _index: indexName },
+            },
+            chunk,
+          ]),
+        });
+        return res.items.map(({ index }) => index._id);
+      }
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     }
   }
 
-  function indexChunk(chunk, embeddings, params) {
-    return indexChunks([chunk], embeddings, params);
+  async function indexChunk(chunk, embeddings, params) {
+    const chunkIds = await indexChunks([chunk], embeddings, params);
+    return chunkIds[0];
   }
 
   async function deleteChunks(ids, { indexName }) {
@@ -169,7 +215,11 @@ function ElasticsearchService({ __name, constants, logger }) {
         })),
       });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
     }
   };
 
@@ -186,7 +236,11 @@ function ElasticsearchService({ __name, constants, logger }) {
         },
       });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
     }
   }
 
@@ -198,7 +252,11 @@ function ElasticsearchService({ __name, constants, logger }) {
         id,
       });
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   };
@@ -246,7 +304,11 @@ function ElasticsearchService({ __name, constants, logger }) {
       // logger.debug('result:', result);
       return result;
     } catch (err) {
-      logger.error(err.message, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       return [];
     }
   }

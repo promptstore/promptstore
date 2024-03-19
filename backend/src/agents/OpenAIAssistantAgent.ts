@@ -214,7 +214,7 @@ export default ({ constants, logger, services }) => {
         // TODO - do once when saving/updating agent
         const assistant = await this.createAssistant(systemPrompt, tools);
         logger.debug('assistant id:', assistant.id);
- 
+
         logger.debug('creating thread');
         const thread = await this.openai.beta.threads.create();
         logger.debug('thread id:', thread.id);
@@ -332,13 +332,17 @@ export default ({ constants, logger, services }) => {
         run = await this.runAssistant(assistant, thread);
         logger.debug('run id:', run.id);
       } catch (err) {
-        logger.debug('Error running assistant:', err.message);
+        let message = 'Error running assistant: ' + err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        logger.debug(message);
         if (err instanceof RunError) {
           logger.debug('run:', err.run);
           const messages = await this.openai.beta.threads.messages.list(thread.id);
           logger.debug('messages:', messages);
         }
-        this._throwAgentError(err);
+        this._throwAgentError(message);
       }
 
       const messages = await this.openai.beta.threads.messages.list(thread.id);
@@ -397,14 +401,18 @@ export default ({ constants, logger, services }) => {
           };
         }
       } catch (err) {
-        logger.error(err);
+        let message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        logger.error(message);
         if (err instanceof OutputParserException) {
           const { sendToLLM, observation } = err.options;
           if (sendToLLM) {
             return { done: false, content: observation };
           }
         }
-        this._throwAgentError(err.message);
+        this._throwAgentError(message);
       }
     }
 
@@ -427,7 +435,11 @@ export default ({ constants, logger, services }) => {
           }
           let queryEmbedding: number[];
           if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
-            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, { ...args, model: embeddingModel });
+            const embeddingResponse = await llmService.createEmbedding(embeddingProvider, {
+              ...args,
+              inputType: 'search_query',
+              model: embeddingModel,
+            });
             queryEmbedding = embeddingResponse.data[0].embedding;
           }
           const searchResponse = await vectorStoreService.search(

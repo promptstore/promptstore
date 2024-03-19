@@ -40,7 +40,23 @@ export class Indexer {
   }
 
   async index(chunks: Chunk[], params: Partial<IndexParams>) {
-    const index = params.index || await this.createOrGetIndex(params);
+    let index = params.index || await this.createOrGetIndex(params);
+
+    // TODO - requires recreating the physical index,
+    // which requires redetermining the embedding dimension
+    // Should an existing index be mutable?
+    // Maybe the embedding model should be a property of the Vector Store
+    // Node, not a separate node.
+    // if (params.embeddingModel.model !== index.embeddingModel) {
+    //   logger.debug('updating index');
+    //   const { model, provider } = params.embeddingModel;
+    //   index = await this.indexesService.upsertIndex({
+    //     ...index,
+    //     embeddingProvider: provider,
+    //     embeddingModel: model,
+    //   }, params.username);
+    // }
+
     await this.indexChunks(chunks, {
       indexName: index.name,
       maxTokens: params.maxTokens,
@@ -68,7 +84,7 @@ export class Indexer {
       username,
     } = params;
     let index: any;
-    if (indexId === 'new') {
+    if (indexId === 'new' || !indexId) {
       const embeddingProviders = this.llmService.getEmbeddingProviders().map(p => p.key);
       // logger.debug('embedding providers:', embeddingProviders);
       // logger.debug('embedding model:', embeddingModel);

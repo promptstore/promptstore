@@ -58,7 +58,7 @@ export default memo(({ id, data, isConnectable }) => {
   return (
     <>
       <div className="custom-node__header">
-        Mapper
+        Map
       </div>
       <div className="custom-node__body">
         <Select options={returnTypeOptions} optionFilterProp="label" name="Output Type" nodeId={id} value={data.returnType} />
@@ -204,9 +204,9 @@ function SetMapper({ data, functions, functionsLoaded, models, modelsLoaded, nod
   } else if (nodeSource.type === 'requestNode') {
     sourceSchema = nodeSource.data.arguments;
   }
-  if (!sourceSchema) {
-    return null;
-  }
+  // if (!sourceSchema) {
+  //   return null;
+  // }
 
   const onChange = (value) => {
     console.log('value:', value);
@@ -236,6 +236,7 @@ function SetMapper({ data, functions, functionsLoaded, models, modelsLoaded, nod
         buttonProps={{ size: 'small', block: true }}
         onChange={onChange}
         value={data.mappingData}
+        validateSchema={false}
       />
     </div>
   );

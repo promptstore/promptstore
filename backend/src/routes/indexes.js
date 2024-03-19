@@ -23,9 +23,12 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/indexes', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const index = await indexesService.upsertIndex(values, username);
+    let index = await indexesService.upsertIndex(values, username);
     const obj = createSearchableObject(index);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, index.chunkId);
+    if (!index.chunkId) {
+      index = await indexesService.upsertIndex({ ...index, chunkId }, username);
+    }
     res.json(index);
   });
 
@@ -33,9 +36,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const index = await indexesService.upsertIndex({ ...values, id }, username);
+    let index = await indexesService.upsertIndex({ ...values, id }, username);
     const obj = createSearchableObject(index);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, index.chunkId);
+    if (!index.chunkId) {
+      index = await indexesService.upsertIndex({ ...index, chunkId }, username);
+    }
     res.json(index);
   });
 

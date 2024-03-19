@@ -300,15 +300,18 @@ li img {
 
 .wrapper {
   flex-grow: 1;
-  height: calc(100% - 164px);
+  height: calc(100vh - 320px);
 }
-
 
 .react-flow__node-compositionNode,
 .react-flow__node-sourceNode,
+.react-flow__node-embeddingNode,
+.react-flow__node-extractorNode,
 .react-flow__node-functionNode,
 .react-flow__node-indexNode,
 .react-flow__node-joinerNode,
+.react-flow__node-loaderNode,
+.react-flow__node-loopNode,
 .react-flow__node-mapperNode,
 .react-flow__node-outputNode,
 .react-flow__node-requestNode,
@@ -318,7 +321,9 @@ li img {
 .react-flow__node-scheduleNode,
 .react-flow__node-semanticSearchNode,
 .react-flow__node-dataSourceNode,
-.react-flow__node-documentNode {
+.react-flow__node-documentNode,
+.react-flow__node-graphStoreNode,
+.react-flow__node-vectorStoreNode {
   font-size: 10px;
   width: 180px;
   background: #f5f5f6;
@@ -335,11 +340,21 @@ li img {
   font-size: 12px;
 }
 
+.react-flow__node-compositionNode {
+  border-block-color: red;
+}
+
 .react-flow__node-compositionNode .react-flow__handle,
 .react-flow__node-sourceNode .react-flow__handle,
+.react-flow__node-embeddingNode .react-flow__handle,
+.react-flow__node-vectorStoreNode .react-flow__handle,
+.react-flow__node-graphStoreNode .react-flow__handle,
+.react-flow__node-extractorNode .react-flow__handle,
 .react-flow__node-functionNode .react-flow__handle,
 .react-flow__node-indexNode .react-flow__handle,
 .react-flow__node-joinerNode .react-flow__handle,
+.react-flow__node-loaderNode .react-flow__handle,
+.react-flow__node-loopNode .react-flow__handle,
 .react-flow__node-mapperNode .react-flow__handle,
 .react-flow__node-outputNode .react-flow__handle,
 .react-flow__node-requestNode .react-flow__handle,
@@ -360,10 +375,14 @@ li img {
 
 .react-flow__node-compositionNode .react-flow__handle-left,
 .react-flow__node-sourceNode .react-flow__handle-left,
+.react-flow__node-embeddingNode .react-flow__handle-left,
+.react-flow__node-vectorStoreNode .react-flow__handle-left,
+.react-flow__node-graphStoreNode .react-flow__handle-left,
+.react-flow__node-extractorNode .react-flow__handle-left,
 .react-flow__node-functionNode .react-flow__handle-left,
+.react-flow__node-loaderNode .react-flow__handle-left,
 .react-flow__node-indexNode .react-flow__handle-left,
-.react-flow__node-requestNode .react-flow__handle-left,
-.react-flow__node-toolNode .react-flow__handle-left {
+.react-flow__node-requestNode .react-flow__handle-left {
   left: -15px;
 }
 
@@ -376,11 +395,15 @@ li img {
 
 .react-flow__node-compositionNode .react-flow__handle-right,
 .react-flow__node-sourceNode .react-flow__handle-right,
+.react-flow__node-embeddingNode .react-flow__handle-right,
+.react-flow__node-vectorStoreNode .react-flow__handle-right,
+.react-flow__node-graphStoreNode .react-flow__handle-right,
+.react-flow__node-extractorNode .react-flow__handle-right,
 .react-flow__node-functionNode .react-flow__handle-right,
+.react-flow__node-loaderNode .react-flow__handle-right,
 .react-flow__node-indexNode .react-flow__handle-right,
 .react-flow__node-outputNode .react-flow__handle-right,
-.react-flow__node-requestNode .react-flow__handle-right,
-.react-flow__node-toolNode .react-flow__handle-right {
+.react-flow__node-requestNode .react-flow__handle-right {
   right: -15px;
 }
 
@@ -397,6 +420,20 @@ li img {
 
 .custom-node__body {
   padding: 10px;
+  font-weight: 400;
+}
+
+.custom-node__body div {
+  font-size: 9px;
+}
+
+.custom-node__body .text-secondary {
+  margin-bottom: 3px;
+  margin-top: 8px;
+}
+
+.custom-node__body .text-secondary:first-child {
+  margin-top: 0;
 }
 
 .custom-node__select {
@@ -422,6 +459,16 @@ li img {
 .custom-node__select div {
   font-size: 9px;
   font-weight: 400;
+}
+
+.custom-node__input {
+  position: relative;
+}
+
+.custom-node__input input {
+  width: 100%;
+  font-size: 10px;
+  outline: none;
 }
 
 .temp .react-flow__edge-path {
@@ -1078,4 +1125,33 @@ article.collapsible .panel.closed {
 .ant-form-item-extra a:hover,
 .ant-form-item-extra a:active {
   color: #69b1ff;
+}
+
+.agent-output .ant-modal-content {
+  height: 100%;
+}
+
+.agent-output .ant-modal-body {
+  height: calc(100% - 64px);
+}
+
+#composition-menu .ant-menu-item,
+#composition-menu .ant-menu-submenu-title {
+  padding-left: 16px;
+}
+
+#composition-menu .ant-menu-vertical .ant-menu-item,
+#composition-menu .ant-menu-vertical .ant-menu-submenu-title {
+  text-overflow: clip;
+}
+
+#composition-menu.collapsed .ant-menu-title-content,
+#composition-menu.collapsed .ant-menu-submenu-arrow {
+  display: none;
+}
+
+.character-icon {
+  font-family: 'Franklin Gothic Medium';
+  font-size: 15px !important;
+  vertical-align: baseline !important;
 }

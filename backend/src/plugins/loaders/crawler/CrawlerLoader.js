@@ -73,7 +73,11 @@ function CrawlerLoader({ __name, constants, logger }) {
               data,
             });
           } catch (err) {
-            log.debug(err.message);
+            let message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+            logger.debug(message);
             // continue
           }
 

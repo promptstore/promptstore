@@ -561,7 +561,7 @@ app.get('/api/v1/*', async (req, res, next) => {
 //     });
 //     res.send(resp.data);
 //   } catch (err) {
-//     logger.error(err);
+//     logger.error(err.message);
 //     res.send({ err });
 //   }
 // });

@@ -6,7 +6,7 @@ export default memo(({ id, data, isConnectable }) => {
   return (
     <>
       <div className="custom-node__header">
-        Joiner
+        Join
       </div>
       <div className="custom-node__body">
       </div>

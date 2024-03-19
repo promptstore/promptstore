@@ -14,13 +14,15 @@ import destinationsReducer from '../features/destinations/destinationsSlice';
 import embeddingReducer from '../features/uploader/embeddingSlice';
 import evaluationRunsReducer from '../features/evaluations/evaluationRunsSlice';
 import evaluationsReducer from '../features/evaluations/evaluationsSlice';
+import extractorsReducer from '../features/composer/extractorsSlice';
 import fileUploaderReducer from '../features/uploader/fileUploaderSlice';
 import functionsReducer from '../features/functions/functionsSlice';
 import graphStoresReducer from '../features/uploader/graphStoresSlice';
 import guardrailsReducer from '../features/functions/guardrailsSlice';
 import hfModelsReducer from '../features/models/hfModelsSlice';
 import indexesReducer from '../features/indexes/indexesSlice';
-import mirrosReducer from '../features/mirrors/mirrorsSlice';
+import loadersReducer from '../features/composer/loadersSlice';
+import mirrorsReducer from '../features/mirrors/mirrorsSlice';
 import modelProvidersReducer from '../features/models/modelProvidersSlice';
 import modelsReducer from '../features/models/modelsSlice';
 import outputParsersReducer from '../features/functions/outputParsersSlice';
@@ -53,13 +55,15 @@ export const store = configureStore({
     embedding: embeddingReducer,
     evaluationRuns: evaluationRunsReducer,
     evaluations: evaluationsReducer,
+    extractors: extractorsReducer,
     fileUploader: fileUploaderReducer,
     functions: functionsReducer,
     graphStores: graphStoresReducer,
     guardrails: guardrailsReducer,
     hfModels: hfModelsReducer,
     indexes: indexesReducer,
-    mirrors: mirrosReducer,
+    loaders: loadersReducer,
+    mirrors: mirrorsReducer,
     modelProviders: modelProvidersReducer,
     models: modelsReducer,
     outputParsers: outputParsersReducer,

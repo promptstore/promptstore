@@ -1,7 +1,7 @@
 import type { Schema } from 'jsonschema';
 
+import { PluginMetadata } from '../common_types';
 import { Chunk } from './Chunk';
-import { PluginMetadata } from './common_types';
 
 export interface GetIndexParams {
   nodeLabel: string;

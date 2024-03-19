@@ -194,7 +194,24 @@ export function FunctionsService({ pg, logger }) {
     return ids;
   }
 
+  async function getOpenAPIMetadata(id) {
+    const func = await getFunction(id);
+    return {
+      name: func.name,
+      description: func.description,
+      parameters: func.arguments,
+      returns: func.returnTypeSchema,
+    };
+
+  }
+
+  function getAllMetadata(keys) {
+    const proms = keys.map(getOpenAPIMetadata);
+    return Promise.all(proms);
+  }
+
   return {
+    getAllMetadata,
     getFunctions,
     getFunctionsByName,
     getFunctionsByPromptSet,
@@ -202,6 +219,7 @@ export function FunctionsService({ pg, logger }) {
     getFunctionsByTag,
     getFunctionByName,
     getFunction,
+    getOpenAPIMetadata,
     upsertFunction,
     deleteFunctions,
   };

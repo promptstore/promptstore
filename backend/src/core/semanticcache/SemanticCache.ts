@@ -56,7 +56,11 @@ export default class SemanticCache {
       if (err.message === 'Index already exists') {
         this.logger.debug('Index already exists, skipped creation.');
       } else {
-        this.logger.error('%s\n%s', err, err.stack);
+        let message = err.message;
+        if (err.stack) {
+          message += '\n' + err.stack;
+        }
+        this.logger.error(message);
         throw err;
       }
     }
@@ -64,8 +68,10 @@ export default class SemanticCache {
 
   async get(prompt: string, n: number = 1) {
     try {
-      const response =
-        await this.llmService.createEmbedding('sentenceencoder', { input: prompt });
+      const response = await this.llmService.createEmbedding('sentenceencoder', {
+        input: prompt,
+        inputType: 'search_query',
+      });
       const embedding = response.data[0].embedding;
       const query = '@prompt_vec:[VECTOR_RANGE $THRESHOLD $BLOB]=>{$EPSILON:0.5; $YIELD_DISTANCE_AS:dist}';
       const result = await this.redisClient.ft.search(INDEX_NAME, query, {

@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.73"
+version: "0.6.76"
 
 port: "5000"
 
@@ -12,10 +12,12 @@ base_url:
 
 promptstore:
   email:
+  search_embedding_model:
   search_embedding_provider:
   search_index_name: "pssearch"
   search_node_label: "Object"
   search_workspace: "1"
+  search_embedding_model:
   search_vectorstore_provider:
 
 ingress:
@@ -92,9 +94,31 @@ custom_models:
 
 ## Loader plugins ########
 
+# Confluence
+atlassian:
+  domain:
+  username:
+  api_token:
+
+# Google Drive
+googledrive:
+  client_id:
+  client_secret:
+  redirect_url: "https://<promptstore-domain>/auth/google/callback"
+
+# Notion
+notion:
+  api_token:
+
 # Onesource
 onesource:
   api_url:
+
+# S3
+s3:
+  region:
+  access_key_id:
+  secret_acccess_key:
 
 # Unstructured
 unstructured:
@@ -114,6 +138,10 @@ huggingface:
 ########
 
 ## LLM plugins ########
+
+# Anthropic - ./plugins/llms/anthropic
+anthropic:
+  api_key:
 
 # Bedrock - ./plugins/llms/bedrock
 bedrock:

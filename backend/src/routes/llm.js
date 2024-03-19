@@ -463,8 +463,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         const { embeddingProvider, embeddingModel, vectorStoreProvider } = index;
         const searchParams = {};
         if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
-          const response =
-            await llmService.createEmbedding(embeddingProvider, { input: content, model: embeddingModel });
+          const response = await llmService.createEmbedding(embeddingProvider, {
+            input: content,
+            inputType: 'search_query',
+            model: embeddingModel,
+          });
           searchParams.queryEmbedding = response.data[0].embedding;
           const { prompt_tokens, completion_tokens } = response.usage || {};
           const costComponents = creditCalculatorService.getCostComponents({
@@ -857,7 +860,16 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       logger.debug('objectName:', objectName);
       mc.fPutObject(constants.FILE_BUCKET, objectName, localFilePath, metadata, (err, etag) => {
         if (err) {
-          logger.error(err);
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
           return reject(err);
         }
         logger.info('File uploaded successfully.');

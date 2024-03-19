@@ -113,7 +113,8 @@ function SerpApiTool({ __key, __name, constants, logger }) {
    * @param {*} param0 
    * @returns 
    */
-  async function call({ input }) {
+  async function call({ input, num }, raw) {
+    logger.debug('data:', JSON.stringify({ q: input, num }), { raw });
     const config = {
       method: 'post',
       url: constants.SERPAPI_URL,
@@ -121,15 +122,22 @@ function SerpApiTool({ __key, __name, constants, logger }) {
         'X-API-KEY': constants.SERPAPI_KEY,
         'Content-Type': 'application/json'
       },
-      data: JSON.stringify({ q: input }),
+      data: JSON.stringify({ q: input, num }),
     };
     const res = await axios(config);
     const hits = res.data.organic.map((hit) => ({
       dateStr: hit.date,
       date: hit.date ? chrono.parseDate(hit.date) : new Date(1970, 0, 1),
       snippet: hit.snippet,
+      link: hit.link,
     }));
     hits.sort((a, b) => a.date > b.date ? -1 : 1);
+
+    // TODO
+    if (raw) {
+      return res.data;
+      return hits;
+    }
     // logger.debug('hits:', hits);
     // const hitsList = hits.map((hit) => (hit.dateStr ? hit.dateStr + ': ' : '') + hit.snippet);
     // const result = [
@@ -140,7 +148,7 @@ function SerpApiTool({ __key, __name, constants, logger }) {
     return result;
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.SERPAPI_DESCRIPTION,
@@ -150,9 +158,79 @@ function SerpApiTool({ __key, __name, constants, logger }) {
             description: 'Input text',
             type: 'string',
           },
+          num: {
+            description: 'Number of results to return',
+            type: 'number',
+          },
         },
         required: ['input'],
         type: 'object',
+      },
+      returns: {
+        type: 'object',
+        properties: {
+          searchParameters: {
+            description: 'Search parameters',
+            type: 'object',
+            properties: {
+              q: {
+                description: 'The search query',
+                type: 'string',
+              },
+              type: {
+                description: 'The request type',
+                type: 'string',
+                enum: ['search'],
+              },
+            },
+          },
+          organic: {
+            description: 'List of search results',
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title: {
+                  description: 'Page title',
+                  type: 'string',
+                },
+                link: {
+                  description: 'URL to navigate to the page',
+                  type: 'string',
+                },
+                snippet: {
+                  description: 'A relevant section of text from the page.',
+                  type: 'string',
+                },
+                date: {
+                  description: 'When the page was last updated',
+                  type: 'string',
+                },
+                imageUrl: {
+                  description: 'URL to the main image on the page',
+                  type: 'string',
+                },
+                position: {
+                  description: 'The list index of the search result',
+                  type: 'number',
+                },
+              }
+            }
+          },
+          relatedSearches: {
+            description: 'Related search queries',
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                query: {
+                  description: 'The related search query',
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
       },
     };
   }
@@ -161,7 +239,7 @@ function SerpApiTool({ __key, __name, constants, logger }) {
     __name,
     __description: constants.SERPAPI_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

@@ -74,7 +74,7 @@ function BigQuerySQLTool({ __key, __name, constants, logger, services }) {
     return "I don't know how to answer that";
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.BIGQUERY_DESCRIPTION,
@@ -95,7 +95,7 @@ function BigQuerySQLTool({ __key, __name, constants, logger, services }) {
     __name,
     __description: constants.BIGQUERY_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

@@ -45,6 +45,20 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     });
   };
 
+  // cache of results to poll
+  const jobs = {};
+
+  app.get('/api/agent-execution-status/:correlationId', auth, async (req, res) => {
+    const { correlationId } = req.params;
+    // logger.debug('checking agent status for:', correlationId);
+    const result = jobs[correlationId];
+    if (!result) {
+      return res.sendStatus(423);
+    }
+    res.json(result);
+    delete jobs[correlationId];
+  });
+
   /**
    * @openapi
    * components:
@@ -284,6 +298,7 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     // TODO
     events = [];
 
+    const { correlationId } = req.body;
     let {
       agentType,
       allowedTools,
@@ -352,6 +367,15 @@ export default ({ agents, app, auth, constants, logger, services }) => {
       done = true;
     });
     await agent.run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate });
+    if (correlationId) {
+      jobs[correlationId] = events;
+    }
+
+    // allow 10m to poll for results
+    setTimeout(() => {
+      delete jobs[correlationId];
+    }, 10 * 60 * 1000);
+
 
     // TODO the following may not be necessary if it is the client that
     // is closing the connection early.
@@ -488,9 +512,12 @@ export default ({ agents, app, auth, constants, logger, services }) => {
   app.post('/api/agents', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const agent = await agentsService.upsertAgent(values, username);
+    let agent = await agentsService.upsertAgent(values, username);
     const obj = createSearchableObject(agent);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, agent.chunkId);
+    if (!agent.chunkId) {
+      agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+    }
     res.json(agent);
   });
 
@@ -527,9 +554,12 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const agent = await agentsService.upsertAgent({ ...values, id }, username);
+    let agent = await agentsService.upsertAgent({ ...values, id }, username);
     const obj = createSearchableObject(agent);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, agent.chunkId);
+    if (!agent.chunkId) {
+      agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+    }
     res.json(agent);
   });
 

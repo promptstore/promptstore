@@ -7,6 +7,7 @@ import { Layout, Menu } from 'antd';
 import Icon, {
   ApartmentOutlined,
   ApiOutlined,
+  AppstoreOutlined,
   BlockOutlined,
   BookOutlined,
   CodeOutlined,
@@ -22,7 +23,6 @@ import Icon, {
   FolderOutlined,
   FunctionOutlined,
   HomeOutlined,
-  InfoCircleOutlined,
   IssuesCloseOutlined,
   LockOutlined,
   NodeIndexOutlined,
@@ -210,7 +210,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           },
           {
             key: 'indexes',
-            icon: <InfoCircleOutlined />,
+            icon: <AppstoreOutlined />,
             label: (
               <NavLink to="/indexes">Semantic Indexes</NavLink>
             ),

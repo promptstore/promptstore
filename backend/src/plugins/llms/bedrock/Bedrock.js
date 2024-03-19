@@ -1,15 +1,28 @@
 import { countTokens } from '@anthropic-ai/tokenizer';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
-import { delay } from './utils';
+import { delay } from '../../../core/conversions';
+
+import {
+  fromAI21ChatResponse,
+  toAI21ChatRequest,
+} from './ai21_conversions';
+import {
+  fromAnthropicChatResponse,
+  toAnthropicChatRequest,
+} from './anthropic_conversions';
+import {
+  fromCohereLegacyChatResponse,
+  toCohereLegacyChatRequest,
+} from './cohere_conversions';
 
 function Bedrock({ __name, constants, logger }) {
 
-  let client;
+  let _client;
 
   function getClient() {
-    if (!client) {
-      client = new BedrockRuntimeClient({
+    if (!_client) {
+      _client = new BedrockRuntimeClient({
         region: constants.AWS_REGION,
         credentials: {
           accessKeyId: constants.AWS_ACCESS_KEY_ID,
@@ -18,12 +31,23 @@ function Bedrock({ __name, constants, logger }) {
         }
       });
     }
-    return client;
+    return _client;
   }
 
-  async function createChatCompletion(request, retryCount = 0) {
-    const { modelId, body } = request;
+  async function createChatCompletion(request, parserService, retryCount = 0) {
     try {
+      const model = request.model;
+      let req;
+      if (model.startsWith('ai21')) {
+        req = toAI21ChatRequest(request);
+      } else if (model.startsWith('anthropic')) {
+        req = toAnthropicChatRequest(request);
+      } else if (model.startsWith('cohere')) {
+        req = toCohereLegacyChatRequest(request);
+      } else {
+        throw new Error('Unknown model ' + model);
+      }
+      const { modelId, body } = req;
       const client = getClient();
       const res = await client.send(new InvokeModelCommand({
         modelId,
@@ -31,22 +55,48 @@ function Bedrock({ __name, constants, logger }) {
         accept: '*/*',
         body: Buffer.from(JSON.stringify(body)),
       }));
-      const response = JSON.parse(Buffer.from(res.body));
-      return response;
+      const parsed = JSON.parse(Buffer.from(res.body));
+      if (model.startsWith('ai21')) {
+        const response = await fromAI21ChatResponse(parsed, parserService);
+        return {
+          ...response,
+          model,
+        };
+      } else if (model.startsWith('anthropic')) {
+        const response = await fromAnthropicChatResponse(parsed, parserService);
+        const prompt_tokens = this.getNumberTokens(model, req.body.prompt);
+        const completion_tokens = this.getNumberTokens(model, parsed.completion);
+        const total_tokens = prompt_tokens + completion_tokens;
+        return {
+          ...response,
+          model,
+          usage: { prompt_tokens, completion_tokens, total_tokens },
+        };
+      } else if (model.startsWith('cohere')) {
+        const response = await fromCohereLegacyChatResponse(parsed, parserService);
+        return {
+          ...response,
+          model,
+        };
+      }
+      throw new Error('should not be able to get here');
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       if (retryCount > 1) {
-        throw new Error('Exceeded retry count: ' + String(err), { cause: err });
+        throw new Error('Exceeded retry count: ' + err.message, { cause: err });
       }
       await delay(2000);
-      client = null;  // try refreshing the client if `ERR_SOCKET_CONNECTION_TIMEOUT`
-      return await createChatCompletion(request, retryCount + 1);
+      _client = null;  // try refreshing the client if `ERR_SOCKET_CONNECTION_TIMEOUT`
+      return createChatCompletion(request, retryCount + 1);
     }
   }
 
-  async function createCompletion(request) {
-    const res = await createChatCompletion(request);
-    return res;
+  function createCompletion(request) {
+    return createChatCompletion(request);
   }
 
   function createImage(prompt, options) {
@@ -58,8 +108,6 @@ function Bedrock({ __name, constants, logger }) {
   }
 
   function getNumberTokens(model, text) {
-    // logger.debug('model:', model);
-    // logger.debug('text:', text);
     if (text && model?.startsWith('anthropic')) {
       return countTokens(text);
     }

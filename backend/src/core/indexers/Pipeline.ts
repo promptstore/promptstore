@@ -132,7 +132,7 @@ export class Pipeline {
     let index = params.index;
     if (!this._vectorStoreProvider && !this._graphStoreProvider) {
       // determine from params
-      if (params.indexId === 'new') {
+      if (params.indexId === 'new' || !params.indexId) {
         this.vectorStoreProvider = params.vectorStoreProvider;
         this.graphStoreProvider = params.graphStoreProvider;
       } else {
@@ -150,7 +150,7 @@ export class Pipeline {
     // Check Embedding Provider
     if (!this._graphStoreProvider) {
       if (!this._embeddingModel && this._vectorStoreProvider !== 'redis' && this._vectorStoreProvider !== 'elasticsearch') {
-        if (params.indexId === 'new') {
+        if (params.indexId === 'new' || !params.indexId) {
           this.embeddingModel = params.embeddingModel;
         } else {
           if (!index) {
@@ -290,7 +290,7 @@ export class Pipeline {
 
     // `schema` required only for new index
     let schema: Schema;
-    if (!params.index && params.indexId === 'new') {
+    if (!params.index && (params.indexId === 'new' || !params.indexId)) {
       schema = await extractor.getSchema(params);
     }
 

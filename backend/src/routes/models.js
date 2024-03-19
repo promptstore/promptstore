@@ -38,9 +38,12 @@ export default ({ app, auth, constants, logger, services }) => {
   app.post('/api/models', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    const model = await modelsService.upsertModel(values, username);
+    let model = await modelsService.upsertModel(values, username);
     const obj = createSearchableObject(model);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, model.chunkId);
+    if (!model.chunkId) {
+      model = await modelsService.upsertModel({ ...model, chunkId }, username);
+    }
     res.json(model);
   });
 
@@ -48,9 +51,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    const model = await modelsService.upsertModel({ id, ...values }, username);
+    let model = await modelsService.upsertModel({ id, ...values }, username);
     const obj = createSearchableObject(model);
-    await indexObject(obj);
+    const chunkId = await indexObject(obj, model.chunkId);
+    if (!model.chunkId) {
+      model = await modelsService.upsertModel({ ...model, chunkId }, username);
+    }
     res.json(model);
   });
 

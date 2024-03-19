@@ -251,12 +251,12 @@ export function ExecutionsService({ logger, rc, services }) {
       return run(args);
       // }
     } catch (err) {
-      logger.error(err, err.stack);
-      const errors = [
-        {
-          message: `Error running function "${semanticFunctionName}": ` + err.message,
-        },
-      ];
+      let message = `Error running function "${semanticFunctionName}": ` + err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      const errors = [{ message }];
       return { errors };
     }
   };
@@ -268,6 +268,7 @@ export function ExecutionsService({ logger, rc, services }) {
     args,
     model,
     params,
+    functions,
     batch = false,
     debug = false,
   }) => {
@@ -301,7 +302,7 @@ export function ExecutionsService({ logger, rc, services }) {
       };
     }
     if (!args) args = {};
-    args = { ...args, username };
+    args = { ...args, username, workspaceId };
     try {
       let response_format;
       if (params.jsonMode) {
@@ -323,6 +324,7 @@ export function ExecutionsService({ logger, rc, services }) {
         args,
         model,
         modelParams,
+        functions,
         isBatch: batch,
       });
 

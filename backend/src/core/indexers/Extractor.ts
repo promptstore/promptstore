@@ -1,8 +1,8 @@
 import type { Schema } from 'jsonschema';
 
+import { PluginMetadata } from '../common_types';
 import { Chunk } from './Chunk';
 import { Document } from './Document';
-import { PluginMetadata } from './common_types';
 
 export interface CsvOptions {
   bom: boolean;

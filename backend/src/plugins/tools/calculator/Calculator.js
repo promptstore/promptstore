@@ -12,7 +12,7 @@ function Calculator({ __key, __name, constants, logger }) {
     }
   }
 
-  function getOpenAIMetadata() {
+  function getOpenAPIMetadata() {
     return {
       name: __key,
       description: constants.CALCULATOR_DESCRIPTION,
@@ -33,7 +33,7 @@ function Calculator({ __key, __name, constants, logger }) {
     __name,
     __description: constants.CALCULATOR_DESCRIPTION,
     call,
-    getOpenAIMetadata,
+    getOpenAPIMetadata,
   };
 }
 

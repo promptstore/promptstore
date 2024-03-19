@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import trim from 'lodash.trim';
+import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
 
@@ -24,6 +25,9 @@ export const agentsSlice = createSlice({
       for (const id of action.payload.ids) {
         delete state.agents[id];
       }
+    },
+    setAgentOutput: (state, action) => {
+      state.agentOutput = action.payload.output;
     },
     setAgents: (state, action) => {
       for (const a of action.payload.agents) {
@@ -53,6 +57,7 @@ export const {
   addAgentOutput,
   resetAgentOutput,
   removeAgents,
+  setAgentOutput,
   setAgents,
   setTestResult,
   setTools,
@@ -100,7 +105,8 @@ let events;
 
 export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   dispatch(startRun());
-  http.post('/api/agent-executions/', { agent, workspaceId })
+  const correlationId = uuidv4();
+  http.post('/api/agent-executions/', { agent, correlationId, workspaceId })
     .then(() => {
       if (events) {
         // allow a bit of time for server-side events to flush
@@ -119,10 +125,11 @@ export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
       }
       throw err;
     });
-  listen(dispatch);
+
+  listen(correlationId, dispatch);
 };
 
-const listen = (dispatch, retries = 0) => {
+const listen = (correlationId, dispatch, retries = 0) => {
   events = new EventSource('/api/agent-events');
   events.onmessage = (event) => {
     const parsedData = JSON.parse(event.data);
@@ -133,7 +140,29 @@ const listen = (dispatch, retries = 0) => {
     console.error('EventSource error:', err);
     events.close();
     if (retries < MAX_RETRY_COUNT) {
-      setTimeout(() => listen(dispatch, retries + 1), 200);
+      setTimeout(() => listen(dispatch, retries + 1), 1000);
+    } else {
+      // fallback to polling
+      const timeout = 120000;
+      const start = new Date();
+      const intervalId = setInterval(async () => {
+        try {
+          const res = await http.get('/api/agent-execution-status/' + correlationId);
+          clearInterval(intervalId);
+          dispatch(setAgentOutput({ output: res.data.map(o => ({ key: uuidv4(), output: o })) }));
+        } catch (err) {
+          // 423 - locked ~ not ready
+          if (err.response.status !== 423) {
+            clearInterval(intervalId);
+          } else {
+            const now = new Date();
+            const diff = now - start;
+            if (diff > timeout) {
+              clearInterval(intervalId);
+            }
+          }
+        }
+      }, 5000);
     }
   }
 };

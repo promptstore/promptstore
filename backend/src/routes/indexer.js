@@ -115,7 +115,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       res.sendStatus(200);
 
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       res.sendStatus(500);
     }
   });
@@ -255,7 +259,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       res.sendStatus(200);
 
     } catch (err) {
-      logger.error(err);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       res.sendStatus(500);
     }
   });

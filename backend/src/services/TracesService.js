@@ -74,8 +74,8 @@ export function TracesService({ pg, logger }) {
       ORDER BY created DESC
       LIMIT $2 OFFSET $3
       `;
-    logger.debug('q:', q);
-    logger.debug('values:', values);
+    // logger.debug('q:', q);
+    // logger.debug('values:', values);
 
     const { rows } = await pg.query(q, values);
     if (rows.length === 0) {
@@ -85,7 +85,7 @@ export function TracesService({ pg, logger }) {
   }
 
   async function getTracesCount(workspaceId, filters, nameQuery, startDate, endDate, success, minLatency, maxLatency) {
-    logger.debug('getTracesCount args:', arguments);
+    // logger.debug('getTracesCount args:', arguments);
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return 0;
     }
@@ -139,8 +139,8 @@ export function TracesService({ pg, logger }) {
     let q = `
       SELECT COUNT(*) AS k FROM traces WHERE workspace_id = $1 ${filterClauses}
     `;
-    logger.debug('q:', q);
-    logger.debug('values:', values);
+    // logger.debug('q:', q);
+    // logger.debug('values:', values);
 
     const { rows } = await pg.query(q, values);
     return rows[0].k;
