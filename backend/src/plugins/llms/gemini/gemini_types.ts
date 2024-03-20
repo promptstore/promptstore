@@ -2,7 +2,7 @@ import {
   Function,
   SafetyRating,
   SafetySetting,
-} from '../../../core/conversions/RosettaStone';
+} from '../../../core/conversions';
 
 interface GeminiPartInlineData {
   mime_type: string;

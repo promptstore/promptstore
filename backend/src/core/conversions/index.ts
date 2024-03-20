@@ -15,6 +15,7 @@ export {
   ContentType,
   EmbeddingObject,
   EmbeddingRequest,
+  EmbeddingResponse,
   Function,
   FunctionCallType,
   ImageContent,

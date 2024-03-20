@@ -1,5 +1,5 @@
-import { EmbeddingResponse } from '../conversions/RosettaStone';
-import { OpenAIMessage } from "./openai_types";
+import { EmbeddingResponse } from '../../../core/conversions';
+import { OpenAIMessage } from '../../../core/models/openai_types';
 
 export interface MistralChatCompletionRequest {
   model: string;
