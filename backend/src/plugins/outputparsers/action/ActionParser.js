@@ -60,6 +60,7 @@ function ActionParser({ __name, __metadata, constants, logger, app, auth }) {
       logger.error(message);
       return {
         error: { message },
+        json: {},
         nonJsonStr: text,
       };
     }

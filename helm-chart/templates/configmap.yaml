@@ -107,7 +107,7 @@ data:
   ONESOURCE_API_URL: "{{ .Values.onesource.api_url }}"
 
   # S3
-  S3_REGION: "{{ .Values.s3.region }}"
+  S3_REGION: "{{ .Values.aws_s3.region }}"
 
   # Unstructured
   UNSTRUCTURED_API_URL: "{{ .Values.unstructured.api_url }}"

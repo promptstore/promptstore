@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Avatar,
@@ -7,7 +7,7 @@ import {
   Checkbox,
   Divider,
   Image,
-  Input,
+  Mentions,
   Radio,
   Space,
   Spin,
@@ -17,9 +17,12 @@ import {
 import { SendOutlined } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 
+import WorkspaceContext from '../contexts/WorkspaceContext';
 import { setContents } from '../features/apps/Playground/contentSlice';
-
-const { TextArea } = Input;
+import {
+  getAppsAsync,
+  selectApps,
+} from '../features/apps/appsSlice';
 
 export function Chat({
   appId,
@@ -53,6 +56,8 @@ export function Chat({
   const [input, setInput] = useState(null);
   // const [lastInput, setLastInput] = useState(null);
 
+  const apps = useSelector(selectApps);
+
   let previewVisible = false;
 
   const selectedEntries = Object.entries(selected).filter(([_, v]) => v.checked).map(([k, v]) => [k, v.index]);
@@ -62,8 +67,23 @@ export function Chat({
 
   const hasMessages = messages.length > 0;
 
+  const { selectedWorkspace } = useContext(WorkspaceContext);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const appOptions = useMemo(() => {
+    const list = Object.values(apps).map((a) => ({
+      label: a.name,
+      value: a.name,
+    }));
+    list.sort((a, b) => a.label > b.label ? 1 : -1);
+    return list;
+  }, [apps]);
+
+  useEffect(() => {
+    dispatch(getAppsAsync({ workspaceId: selectedWorkspace.id }));
+  }, []);
 
   const findMessage = (key) => {
     for (const m of messages) {
@@ -147,8 +167,13 @@ export function Chat({
     }
   };
 
-  const handleSubmit = (ev) => {
-    ev.preventDefault();
+  const handleSubmit = (mention) => {
+    let appl;
+    if (mention) {
+      appl = Object.values(apps).find(a => a.name === mention);
+    } else {
+      appl = app;
+    }
     const msg = {
       key: uuidv4(),
       role: 'user',
@@ -156,16 +181,25 @@ export function Chat({
     };
     // setLastInput(input);
     setInput(null);
-    onSubmit({ app, messages: [...messages, msg] });
+    onSubmit({ app: appl, messages: [...messages, msg] });
   };
 
   const regenerate = () => {
+    const userMessage = [...messages].reverse().find(m => m.role === 'user');
+    const content = userMessage.content;
+    const match = content.match(/@\w+/);
+    let appl;
+    if (match) {
+      appl = Object.values(apps).find(a => a.name === match[1]);
+    } else {
+      appl = app;
+    }
     const msg = {
       key: uuidv4(),
       role: 'user',
-      content: [...messages].reverse().find(m => m.role === 'user').content,
+      content,
     };
-    onSubmit({ app, messages: [...messages, msg] });
+    onSubmit({ app: appl, messages: [...messages, msg] });
   };
 
   const critique = () => {
@@ -609,10 +643,11 @@ export function Chat({
       />
       <div ref={tourRefs?.prompt}>
         <MessageInput
+          appOptions={appOptions}
           disabled={disabled}
-          handleSubmit={handleSubmit}
           loading={loading}
           onChange={setInput}
+          onSubmit={handleSubmit}
           placeholder={placeholder}
           value={input}
         />
@@ -621,17 +656,33 @@ export function Chat({
   );
 }
 
-const MessageInput = ({ disabled, handleSubmit, loading, onChange, placeholder, value }) => {
+const MessageInput = ({ appOptions, disabled, loading, onChange, onSubmit, placeholder, value }) => {
 
-  const handleChange = (ev) => {
-    onChange(ev.target.value);
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  const handleChange = (value) => {
+    const mention = appOptions.find(a => value.includes(a.value));
+    if (!mention) {
+      setSelectedOption(null);
+    }
+    onChange(value);
+  };
+
+  const handleSelect = (option) => {
+    setSelectedOption(option);
+  };
+
+  const handleSubmit = (ev) => {
+    ev.preventDefault();
+    onSubmit(selectedOption?.value);
   };
 
   return (
     <div>
       <div style={{ display: 'flex' }}>
-        <TextArea
+        <Mentions
           autoSize={{ minRows: 1, maxRows: 14 }}
+          filterOption={() => !selectedOption}
           onPressEnter={(ev) => {
             if (!ev.shiftKey) {
               ev.preventDefault();
@@ -642,6 +693,8 @@ const MessageInput = ({ disabled, handleSubmit, loading, onChange, placeholder, 
           }}
           style={{ flex: 1 }}
           onChange={handleChange}
+          onSelect={handleSelect}
+          options={appOptions}
           placeholder={placeholder}
           value={value}
         />
@@ -657,6 +710,7 @@ const MessageInput = ({ disabled, handleSubmit, loading, onChange, placeholder, 
         style={{ lineHeight: '32px' }}
       >
         Press Shift+Enter to insert a new line.
+        Use @mention to send to a Custom GPT App.
       </p>
     </div>
   );

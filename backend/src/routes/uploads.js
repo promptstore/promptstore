@@ -515,8 +515,9 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         });
       }
       const filenames = names.map(n => n.split('/').pop());
+      let uploadIds;
       try {
-        const uploadIds = await uploadsService.deleteWorkspaceFiles(workspaceId, filenames);
+        uploadIds = await uploadsService.deleteWorkspaceFiles(workspaceId, filenames);
         const appId = parseInt(req.query.app, 10);
         if (!isNaN(appId)) {
           const { documents, indexes } = await appsService.getApp(appId);
@@ -555,9 +556,10 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         res.json(uploadIds);
       } catch (e) {
         logger.error('Error deleting documents:', e);
-        res.status(500).json({
-          error: String(e),
-        });
+        res.json(uploadIds);
+        // res.status(500).json({
+        //   error: String(e),
+        // });
       }
     });
   });

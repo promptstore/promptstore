@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.76"
+version: "0.6.80"
 
 port: "5000"
 
@@ -114,8 +114,8 @@ notion:
 onesource:
   api_url:
 
-# S3
-s3:
+# AWS S3
+aws_s3:
   region:
   access_key_id:
   secret_acccess_key:

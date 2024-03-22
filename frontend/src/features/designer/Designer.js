@@ -19,15 +19,19 @@ import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  fileUploadAsync,
-  selectUploading,
-} from '../uploader/fileUploaderSlice';
+  getFunctionAsync,
+  selectFunctions,
+} from '../functions/functionsSlice';
 import {
   createPromptSetAsync,
   getPromptSetsAsync,
   selectLoading as selectPromptSetsLoading,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
+import {
+  fileUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
 
 import { ModelParamsForm, initialValues as initialModelParamsValue } from './ModelParamsForm';
 import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
@@ -42,6 +46,7 @@ import {
   updateChatSessionAsync,
 } from './chatSessionsSlice';
 import {
+  getFunctionResponseAsync,
   getResponseAsync as getChatResponseAsync,
   selectLoading as selectChatLoading,
   selectMessages,
@@ -116,9 +121,11 @@ export function Designer() {
   const [argsFormData, setArgsFormData] = useState(null);
   const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('design-sessions-collapsed', { defaultValue: true });
   const [promptsCollapsed, setPromptsCollapsed] = useLocalStorageState('design-prompts-collapsed', { defaultValue: true });
+  const [request, setRequest] = useState(null);
 
   const chatLoading = useSelector(selectChatLoading);
   const chatSessions = useSelector(selectChatSessions);
+  const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const messages = useSelector(selectMessages);
@@ -239,6 +246,17 @@ export function Designer() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    if (functions && request) {
+      const func = functions[request.functionId];
+      if (func) {
+        request.functionName = func.name;
+        dispatch(getFunctionResponseAsync(request));
+      }
+      setRequest(null);
+    }
+  }, [functions]);
+
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
       return Object.values(promptSets).map((s) => ({
@@ -305,107 +323,128 @@ export function Designer() {
   }
 
   const handleChatSubmit = async (values) => {
-    console.log('values:', values);
-    let sp;
+    // console.log('values:', values);
+    const app = values.app;
     let history = [];
     let messages = values.messages;
     const originalMessages = messages;
-    let args;
-    let engine;
     const index = messages.findLastIndex(m => m.role !== 'user') + 1;
     history = messages.slice(0, index);
     messages = messages.slice(index);
-    const {
-      promptSet,
-      systemPrompt,
-      critiquePromptSet,
-      critiquePrompt,
-      criterion,
-    } = await promptForm.validateFields();
-    if (promptSet) {
-      const ps = promptSets[promptSet];
-      if (ps && ps.prompts) {
-        engine = ps.templateEngine || 'es6';
-        sp = ps.prompts
-          .filter(p => p.role === 'system')
-          .map(p => p.prompt)
-          .join('\n\n')
-          ;
-        if (contentVar || varsSchema) {
-          const nonSystemMessages = ps.prompts
-            .filter(p => p.role !== 'system')
-            .map(p => ({ role: p.role, content: p.prompt }))
+    if (app) {
+      console.log('app:', app);
+      if (app.function) {
+        console.log('messages:', messages)
+        const functionId = app.function;
+        const userMessage = messages[messages.length - 1];
+        const content = userMessage.content.replace(/@\w+/g, '');
+        const payload = {
+          functionId,
+          args: { content },
+          history,
+          extraIndexes: app.indexes,
+          params: { maxTokens: 1024 },
+          workspaceId: selectedWorkspace.id,
+        };
+        setRequest(payload);
+        dispatch(getFunctionAsync(functionId));
+      }
+    } else {
+      let sp;
+      let args;
+      let engine;
+      const {
+        promptSet,
+        systemPrompt,
+        critiquePromptSet,
+        critiquePrompt,
+        criterion,
+      } = await promptForm.validateFields();
+      if (promptSet) {
+        const ps = promptSets[promptSet];
+        if (ps && ps.prompts) {
+          engine = ps.templateEngine || 'es6';
+          sp = ps.prompts
+            .filter(p => p.role === 'system')
+            .map(p => p.prompt)
+            .join('\n\n')
             ;
-          if (contentVar) {
-            const content = getInputStr(messages);
-            args = { [contentVar]: content };
-            const idx = nonSystemMessages.findLastIndex(m => m.role !== 'user') + 1;
-            if (nonSystemMessages.length > 1) {
-              history = [
-                ...nonSystemMessages.slice(0, idx),
-                ...history,
-              ];
+          if (contentVar || varsSchema) {
+            const nonSystemMessages = ps.prompts
+              .filter(p => p.role !== 'system')
+              .map(p => ({ role: p.role, content: p.prompt }))
+              ;
+            if (contentVar) {
+              const content = getInputStr(messages);
+              args = { [contentVar]: content };
+              const idx = nonSystemMessages.findLastIndex(m => m.role !== 'user') + 1;
+              if (nonSystemMessages.length > 1) {
+                history = [
+                  ...nonSystemMessages.slice(0, idx),
+                  ...history,
+                ];
+              }
+              messages = nonSystemMessages.slice(idx);
+            } else {
+              if (nonSystemMessages.length > 0) {
+                history = [
+                  ...nonSystemMessages,
+                  ...history,
+                ];
+              }
             }
-            messages = nonSystemMessages.slice(idx);
+            if (varsSchema) {
+              args = { ...args, ...argsFormData };
+            }
           } else {
-            if (nonSystemMessages.length > 0) {
-              history = [
-                ...nonSystemMessages,
-                ...history,
-              ];
-            }
-          }
-          if (varsSchema) {
-            args = { ...args, ...argsFormData };
+            history = [
+              ...ps.prompts.filter(p => p.role !== 'system').map(p => ({ role: p.role, content: p.prompt })),
+              ...history,
+            ];
           }
         } else {
-          history = [
-            ...ps.prompts.filter(p => p.role !== 'system').map(p => ({ role: p.role, content: p.prompt })),
-            ...history,
-          ];
+          console.error(`prompt set with id (${promptSet}) not found or has no prompts`);
         }
-      } else {
-        console.error(`prompt set with id (${promptSet}) not found or has no prompts`);
+      } else if (systemPrompt) {
+        // TODO ignore variables?
+        sp = systemPrompt;
       }
-    } else if (systemPrompt) {
-      // TODO ignore variables?
-      sp = systemPrompt;
-    }
-    if (messages.length > 1) {
-      let content = [];
-      for (const m of messages) {
-        if (typeof m.content === 'string') {
-          content.push({
-            type: 'text',
-            text: m.content,
-          });
-        } else {
-          content.push(...m.content);
+      if (messages.length > 1) {
+        let content = [];
+        for (const m of messages) {
+          if (typeof m.content === 'string') {
+            content.push({
+              type: 'text',
+              text: m.content,
+            });
+          } else {
+            content.push(...m.content);
+          }
         }
+        messages = [
+          {
+            role: 'user',
+            content,
+          }
+        ];
       }
-      messages = [
-        {
-          role: 'user',
-          content,
-        }
-      ];
+      const payload = {
+        systemPrompt: sp,
+        promptSetId: promptSet,
+        systemPromptInput: systemPrompt,
+        critiquePromptSetId: critiquePromptSet,
+        critiquePromptInput: critiquePrompt,
+        criterion: criterion,
+        history,
+        messages,
+        originalMessages: [...originalMessages.slice(0, index), ...messages],
+        args,
+        engine,
+        modelParams,
+        workspaceId: selectedWorkspace.id,
+      };
+      dispatch(getChatResponseAsync(payload));
     }
-    const payload = {
-      systemPrompt: sp,
-      promptSetId: promptSet,
-      systemPromptInput: systemPrompt,
-      critiquePromptSetId: critiquePromptSet,
-      critiquePromptInput: critiquePrompt,
-      criterion: criterion,
-      history,
-      messages,
-      originalMessages: [...originalMessages.slice(0, index), ...messages],
-      args,
-      engine,
-      modelParams,
-      workspaceId: selectedWorkspace.id,
-    };
-    dispatch(getChatResponseAsync(payload));
   };
 
   const onCritique = async ({ input, completion }) => {

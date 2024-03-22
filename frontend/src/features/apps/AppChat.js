@@ -19,7 +19,7 @@ import {
   updateDataSourceAsync,
 } from '../dataSources/dataSourcesSlice';
 import {
-  getFunctionResponseAsync as getChatResponseAsync,
+  getFunctionResponseAsync,
   selectLoading as selectChatLoading,
   selectMessages,
   setMessages,
@@ -79,20 +79,20 @@ export function AppChat() {
   const sourceUploads = uploads[id] || [];
   const isIndexing = Object.values(indexing).some(v => v);
 
-  console.log('app:', app);
+  // console.log('app:', app);
   // console.log('sourceUploads:', sourceUploads);
   // console.log('dataSources:', dataSources);
 
-  useEffect(() => {
-    dispatch(getAppAsync(id));
-  }, []);
+  // useEffect(() => {
+  //   dispatch(getAppAsync(id));
+  // }, []);
 
   useEffect(() => {
     if (app) {
       setNavbarState((state) => ({
         ...state,
         createLink: null,
-        title: app?.name,
+        title: app.name,
       }));
       if (app.function) {
         dispatch(getFunctionAsync(app.function));
@@ -101,7 +101,7 @@ export function AppChat() {
         dispatch(getDataSourceAsync(app.dataSourceId));
       }
     }
-  }, [app]);
+  }, [loaded]);
 
   useEffect(() => {
     if (indexed) {
@@ -129,7 +129,7 @@ export function AppChat() {
         indexId,
         embeddingModel: 'sentenceencoder',
         vectorStoreProvider: 'chroma',
-        bucket: 'promptstore',
+        bucket: process.env.REACT_APP_FILE_BUCKET,
         prefix: [workspaceId, 'documents', 'apps', app.id].join('/'),
         recursive: true,
       };
@@ -218,13 +218,13 @@ export function AppChat() {
     const { messages } = values;
     const content = messages[messages.length - 1].content;
     let args = { content };
-    dispatch(getChatResponseAsync({
+    dispatch(getFunctionResponseAsync({
       functionName: func.name,
       args,
       history: messages.slice(0, messages.length - 1),
+      extraIndexes: app.indexes,
       params: { maxTokens: 1024 },
       workspaceId: selectedWorkspace.id,
-      extraIndexes: app.indexes,
     }));
   };
 
