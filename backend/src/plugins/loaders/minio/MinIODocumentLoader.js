@@ -75,7 +75,7 @@ function MinIODocumentLoader({ __name, constants, logger }) {
               message = err.toString();
             }
             logger.error(message);
-            reject(err);
+            return reject(err);
           }
           dataStream.on('data', (chunk) => {
             fileStream.write(chunk);

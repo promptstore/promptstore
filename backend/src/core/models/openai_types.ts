@@ -112,3 +112,9 @@ export interface OpenAICompletionResponse {
   choices: CompletionChoice[];  // The list of completion choices the model generated for the input prompt.
   usage: ChatCompletionUsage;
 }
+
+export interface OpenAIImageResponse {
+  b64_json?: string;
+  url?: string;
+  revised_prompt: string;
+}

@@ -62,14 +62,6 @@ function LlamaApi({ __name, constants, logger }) {
     }
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
-  }
-
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
-  }
-
   function getNumberTokens(model, text) {
     throw new Error('Not implemented');
   }
@@ -78,8 +70,6 @@ function LlamaApi({ __name, constants, logger }) {
     __name,
     createChatCompletion,
     createCompletion,
-    createImage,
-    generateImageVariant,
     getNumberTokens,
   };
 

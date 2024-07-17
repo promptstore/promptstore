@@ -4,6 +4,7 @@ import get from 'lodash.get';
 import set from 'lodash.set';  // mutable
 import { default as dayjs } from 'dayjs';
 import { unflatten } from 'flat';
+import pick from 'lodash.pick';
 
 import logger from '../../logger';
 import { hashStr } from '../../utils';
@@ -27,6 +28,9 @@ import {
   OnSemanticSearchEnrichmentEndParams,
   FunctionEnrichmentParams,
   OnFunctionEnrichmentEndParams,
+  MetricStoreEnrichmentParams,
+  MetricStoreParams,
+  OnMetricStoreEnrichmentEndParams,
   SqlEnrichmentParams,
   OnSqlEnrichmentEndParams,
   GraphEnrichmentParams,
@@ -219,6 +223,93 @@ export class FeatureStoreEnrichment implements PromptEnrichmentStep {
 
 }
 
+export class MetricStoreEnrichment implements PromptEnrichmentStep {
+
+  metricstore: string;
+  metricStoreParams: MetricStoreParams;
+  metricStoreService: any;
+  callbacks: Callback[];
+
+  constructor({
+    metricstore,
+    metricStoreParams,
+    metricStoreService,
+    callbacks,
+  }: MetricStoreEnrichmentParams) {
+    this.metricstore = metricstore;
+    this.metricStoreParams = metricStoreParams;
+    this.metricStoreService = metricStoreService;
+    this.callbacks = callbacks || [];
+  }
+
+  async call({ args, isBatch, callbacks }: PromptEnrichmentCallParams) {
+    let _callbacks: Callback[];
+    if (callbacks?.length) {
+      _callbacks = callbacks;
+    } else {
+      _callbacks = this.callbacks;
+    }
+    this.onStart({ args, isBatch }, _callbacks);
+    try {
+      const metrics = await this.metricStoreService.getMetrics(
+        this.metricstore,
+        this.metricStoreParams,
+      );
+      logger.debug('metrics:', metrics);
+      const metricsInput = metrics.map((m: any) => m.name);
+      let dimensionsInput = metrics.flatMap((m: any) => m.dimensions.map((d: any) => d.name));
+      dimensionsInput = [...new Set(dimensionsInput)];  // dedup
+      const enrichedArgs = {
+        ...args,
+        metrics: metricsInput,
+        dimensions: dimensionsInput,
+      };
+      logger.debug('enrichedArgs:', enrichedArgs);
+      this.onEnd({ enrichedArgs }, _callbacks);
+      return { args: enrichedArgs };
+    } catch (err) {
+      const errors = err.errors || [{ message: String(err) }];
+      this.onEnd({ errors }, _callbacks);
+      throw err;
+    }
+  }
+
+  onStart({ args, isBatch }: PromptEnrichmentCallParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
+      callback.onMetricStoreEnrichmentStart({
+        metricStore: {
+          name: this.metricstore,
+          params: this.metricStoreParams,
+        },
+        args,
+        isBatch,
+      });
+    }
+  }
+
+  onEnd({ enrichedArgs, errors }: OnMetricStoreEnrichmentEndParams, callbacks: Callback[]) {
+    for (let callback of callbacks) {
+      callback.onMetricStoreEnrichmentEnd({
+        metricStore: {
+          name: this.metricstore,
+          params: this.metricStoreParams,
+        },
+        enrichedArgs,
+        errors,
+      });
+    }
+  }
+
+  throwSemanticFunctionError(message: string, callbacks: Callback[]) {
+    const errors = [{ message }];
+    for (let callback of callbacks) {
+      callback.onMetricStoreEnrichmentError(errors);
+    }
+    throw new SemanticFunctionError(message);
+  }
+
+}
+
 export class SemanticSearchEnrichment implements PromptEnrichmentStep {
 
   indexId: number;
@@ -262,7 +353,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         throw new Error('Only vector stores currently support search');
       }
       let queryEmbedding: number[];
-      if (vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
+      if (!this.indexParams.allResults && vectorStoreProvider !== 'redis' && vectorStoreProvider !== 'elasticsearch') {
         const { provider, model } = embeddingModel;
         const response = await this.llmService.createEmbedding(provider, {
           input: query,
@@ -271,15 +362,16 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
         });
         queryEmbedding = response.data[0].embedding;
       }
+      const k = this.indexParams.allResults ? 9999 : 10;
       const results = await this.vectorStoreService.search(
         vectorStoreProvider,
         this.indexName,
         query,
         null,  // attrs
         null,  // logicalType
-        { k: 10, queryEmbedding, nodeLabel }  // params
+        { k, queryEmbedding, nodeLabel }  // params
       );
-      // logger.debug('results:', results);
+      logger.debug('results:', results);
 
       let hits = [];
       let enrichedArgs: any;
@@ -339,7 +431,7 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
 
         for (const hit of hits) {
           const { id, metadata, isDistanceMetric, score, rerankerScore } = hit;
-          const { dataSourceId, dataSourceName, objectName, uploadId } = metadata;
+          const { dataSourceId, dataSourceName, objectName, uploadId } = metadata || {};
           const docKey = uploadId || hashStr(objectName);
           if (!sources[dataSourceId]) {
             sources[dataSourceId] = {
@@ -360,6 +452,9 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
 
         const getHitText = this.getHitText.bind(this);
         const contextLines = hits.map(getHitText);
+        if (this.indexParams.allResults && hits.length) {
+          contextLines.push(this.getDocumentCitation(hits[0].metadata));
+        }
         logger.debug('context lines:', contextLines);
 
         const context = contextLines.join('\n\n');
@@ -385,7 +480,26 @@ export class SemanticSearchEnrichment implements PromptEnrichmentStep {
     return metadata.filename || metadata.objectName || metadata.endpoint || metadata.database;
   }
 
+  getDocumentCitation(metadata: any) {
+    let result = '';
+    const citation = this.getCitationSource(metadata);
+    if (citation) {
+      result += `\nCitation: {"source": "${citation}", "indexId": "${this.indexId}"`;
+      if (metadata.dataSourceId) {
+        result += `, "dataSourceId": ${metadata.dataSourceId}`;
+      }
+      if (metadata.dataSourceName) {
+        result += `, "dataSourceName": ${metadata.dataSourceName}`;
+      }
+      result += '}';
+    }
+    return result;
+  }
+
   getHitText({ id, metadata, text }) {
+    if (this.indexParams.allResults) {
+      return text;
+    }
     let result = `*** ${text} ***`;
     const citation = this.getCitationSource(metadata);
     if (citation) {
@@ -593,9 +707,13 @@ export class SqlEnrichment implements PromptEnrichmentStep {
       let context: string;
       if (this.sqlSourceInfo.sqlType === 'schema') {
         context = await this.sqlSourceService.getDDL(this.sqlSourceInfo);
+        const values = await this.sqlSourceService.getCategoricalValues(this.sqlSourceInfo);
+        context += '\n\n\These columns will only accept the following values: \n';
+        context += JSON.stringify(values, null, 2);
       } else if (this.sqlSourceInfo.sqlType === 'sample') {
         context = await this.sqlSourceService.getSample(this.sqlSourceInfo);
       }
+      logger.debug('context:', context);
       const enrichedArgs = this.enrich(args, context, _callbacks);
       this.onEnd({ enrichedArgs }, _callbacks);
       return { args: enrichedArgs };
@@ -793,6 +911,17 @@ interface FunctionEnrichmentOptions {
 
 export const functionEnrichment = (options: FunctionEnrichmentOptions) => {
   return new FunctionEnrichment(options);
+}
+
+interface MetricStoreEnrichmentOptions {
+  metricStoreService: any;
+  metricstore: string;
+  metricStoreParams: MetricStoreParams;
+  callbacks?: Callback[];
+}
+
+export const metricStoreEnrichment = (options: MetricStoreEnrichmentOptions) => {
+  return new MetricStoreEnrichment(options);
 }
 
 interface SqlEnrichmentOptions {

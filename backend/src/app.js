@@ -21,6 +21,7 @@ import { fileURLToPath } from 'url';
 import pg from './db';
 import initSearchIndex from './initSearchIndex';
 import logger from './logger';
+import { AgentNetworksService } from './services/AgentNetworksService';
 import { AgentsService } from './services/AgentsService';
 import { AppsService } from './services/AppsService';
 import { CallLoggingService } from './services/CallLoggingService';
@@ -38,15 +39,19 @@ import { FeatureStoreService } from './services/FeatureStoreService';
 import { GraphStoreService } from './services/GraphStoreService';
 import { GuardrailsService } from './services/GuardrailsService';
 import { FunctionsService } from './services/FunctionsService';
+import { ImagesService } from './services/ImagesService';
 import { IndexesService } from './services/IndexesService';
 import { LLMService } from './services/LLMService';
 import { LoaderService } from './services/LoaderService';
+import { MetricStoreService } from './services/MetricStoreService';
 import { MirrorsService } from './services/MirrorsService';
 import { ModelProviderService } from './services/ModelProviderService';
 import { ModelsService } from './services/ModelsService';
 import { ParserService } from './services/ParserService';
 import { PipelinesService } from './services/PipelinesService.js';
 import { PromptSetsService } from './services/PromptSetsService';
+import { RulesEngineService } from './services/RulesEngineService';
+import { RulesService } from './services/RulesService';
 import { SecretsService } from './services/SecretsService';
 import { SettingsService } from './services/SettingsService';
 import { SqlSourceService } from './services/SqlSourceService';
@@ -73,6 +78,8 @@ const SEARCH_NODE_LABEL = process.env.SEARCH_NODE_LABEL;
 const SEARCH_WORKSPACE = +process.env.SEARCH_WORKSPACE;
 const SEARCH_VECTORSTORE_PROVIDER = process.env.SEARCH_VECTORSTORE_PROVIDER;
 
+const SYSTEM_WORKSPACE_ID = +process.env.SYSTEM_WORKSPACE_ID;
+
 const BASE_URL = process.env.BASE_URL;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
@@ -90,6 +97,7 @@ const GRAPH_STORE_PLUGINS = process.env.GRAPH_STORE_PLUGINS || '';
 const GUARDRAIL_PLUGINS = process.env.GUARDRAIL_PLUGINS || '';
 const LLM_PLUGINS = process.env.LLM_PLUGINS || '';
 const LOADER_PLUGINS = process.env.LOADER_PLUGINS || '';
+const METRIC_STORE_PLUGINS = process.env.METRIC_STORE_PLUGINS || '';
 const MODEL_PROVIDER_PLUGINS = process.env.MODEL_PROVIDER_PLUGINS || '';
 const OUTPUT_PARSER_PLUGINS = process.env.OUTPUT_PARSER_PLUGINS || '';
 const PASSPORT_PLUGINS = process.env.PASSPORT_PLUGINS || '';
@@ -103,6 +111,7 @@ const featureStorePlugins = await getPlugins(basePath, FEATURE_STORE_PLUGINS, lo
 const graphStorePlugins = await getPlugins(basePath, GRAPH_STORE_PLUGINS, logger);
 const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
 const loaderPlugins = await getPlugins(basePath, LOADER_PLUGINS, logger);
+const metricStorePlugins = await getPlugins(basePath, METRIC_STORE_PLUGINS, logger);
 const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
 const outputParserPlugins = await getPlugins(basePath, OUTPUT_PARSER_PLUGINS, logger);
 const sqlSourcePlugins = await getPlugins(basePath, SQL_SOURCE_PLUGINS, logger);
@@ -180,6 +189,8 @@ const rc = redis.createClient({
 });
 rc.connect().catch((err) => { logger.error(err, err.stack); });
 
+const agentNetworksService = AgentNetworksService({ pg, logger });
+
 const agentsService = AgentsService({ pg, logger });
 
 const appsService = AppsService({ pg, logger });
@@ -218,9 +229,13 @@ const functionsService = FunctionsService({ pg, logger });
 
 const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugins });
 
+const imagesService = ImagesService({ pg, logger });
+
 const indexesService = IndexesService({ pg, logger });
 
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
+
+const metricStoreService = MetricStoreService({ logger, registry: metricStorePlugins });
 
 const mirrorsService = MirrorsService({ pg, logger });
 
@@ -231,6 +246,15 @@ const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 
 const promptSetsService = PromptSetsService({ pg, logger });
+
+const rulesService = RulesService({ pg, logger });
+
+const rulesEngineService = RulesEngineService({
+  constants: {
+    RULES_ENGINE_SERVICE_URL: process.env.RULES_ENGINE_SERVICE_URL,
+  },
+  logger,
+});
 
 const secretsService = SecretsService({ pg, logger });
 
@@ -252,7 +276,7 @@ const workspacesService = WorkspacesService({ pg, logger });
 
 const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlugins });
 
-const creditCalculatorService = CreditCalculatorService({ logger });
+const creditCalculatorService = CreditCalculatorService({ logger, services: { modelsService } });
 
 const RedisStore = connectRedis(session);
 const sess = {
@@ -362,6 +386,8 @@ const executionsService = ExecutionsService({
   logger,
   rc,
   services: {
+    agentNetworksService,
+    agentsService,
     compositionsService,
     creditCalculatorService,
     dataSourcesService,
@@ -370,10 +396,14 @@ const executionsService = ExecutionsService({
     graphStoreService,
     indexesService,
     llmService,
+    metricStoreService,
     modelProviderService,
     modelsService,
     parserService,
     promptSetsService,
+    rulesEngineService,
+    rulesService,
+    settingsService,
     sqlSourceService,
     tracesService,
     usersService,
@@ -432,6 +462,7 @@ const options = {
     SEARCH_NODE_LABEL,
     SEARCH_WORKSPACE,
     SEARCH_VECTORSTORE_PROVIDER,
+    SYSTEM_WORKSPACE_ID,
     TEMPORAL_URL,
   },
   logger,
@@ -439,6 +470,7 @@ const options = {
   passport,
   pg,
   services: {
+    agentNetworksService,
     agentsService,
     appsService,
     callLoggingService,
@@ -456,15 +488,19 @@ const options = {
     functionsService,
     graphStoreService,
     guardrailsService,
+    imagesService,
     indexesService,
     llmService,
     loaderService,
+    metricStoreService,
     mirrorsService,
     modelProviderService,
     modelsService,
     parserService,
     pipelinesService,
     promptSetsService,
+    rulesEngineService,
+    rulesService,
     secretsService,
     settingsService,
     sqlSourceService,
@@ -483,6 +519,8 @@ const options = {
 logger.debug('Installing agents');
 const agents = await installModules('agents', options);
 logger.debug('agents:', Object.keys(agents));
+
+executionsService.addAgents(agents);
 
 const specs = swaggerJsdoc(swaggerOptions);
 app.use(

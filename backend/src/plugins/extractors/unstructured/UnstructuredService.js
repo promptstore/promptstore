@@ -282,6 +282,9 @@ function UnstructuredService({ __name, constants, logger }) {
    */
   async function extract(filepath, originalname, mimetype) {
     logger.debug('extracting file content using the unstructured api');
+    logger.debug('filepath:', filepath);
+    logger.debug('originalname:', originalname);
+    logger.debug('mimetype:', mimetype);
     try {
       if (!fs.existsSync(filepath)) {
         return Promise.reject(new Error('File no longer on path: ' + filepath));

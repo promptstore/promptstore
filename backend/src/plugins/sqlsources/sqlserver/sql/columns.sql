@@ -1,0 +1,6 @@
+SELECT TABLE_SCHEMA,
+       TABLE_NAME,
+       COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'dbo', 'guest', 'sys', 'msdb', 'model', 'tempdb')
+AND TABLE_NAME = '${table_name}'

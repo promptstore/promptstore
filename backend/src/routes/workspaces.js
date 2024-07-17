@@ -385,8 +385,9 @@ export default ({ app, auth, constants, logger, services }) => {
    *         description: Error
    */
   app.post('/api/workspaces', auth, async (req, res, next) => {
+    const { username } = req.user;
     const values = req.body;
-    const user = await usersService.getUser(req.user.username);
+    const user = await usersService.getUser(username);
     let workspace = await workspacesService.upsertWorkspace(values, user);
     const obj = createSearchableObject(workspace);
     const chunkId = await indexObject(obj, workspace.chunkId);
@@ -428,7 +429,8 @@ export default ({ app, auth, constants, logger, services }) => {
   app.put('/api/workspaces/:id', auth, async (req, res, next) => {
     const { id } = req.params;
     const values = req.body;
-    const user = await usersService.getUser(req.user.username);
+    const { username } = req.user;
+    const user = await usersService.getUser(username);
     let workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
     const obj = createSearchableObject(workspace);
     const chunkId = await indexObject(obj, workspace.chunkId);

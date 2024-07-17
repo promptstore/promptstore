@@ -7,6 +7,7 @@ export type TemplateFiller = (content: string, args: object) => string;
 export interface PromptTemplateOnStartResponse {
   promptSetId: number;
   promptSetName: string;
+  promptSetVersion?: string;
   args: any;
   isBatch: boolean;
   messageTemplates: Message[];
@@ -33,6 +34,7 @@ export interface PromptTemplateParams {
   promptSetName: string;
   messages: Message[];
   schema?: object;
+  snippets?: object;
   templateEngine?: string;
   templateFiller?: TemplateFiller;
   validator?: Validator;

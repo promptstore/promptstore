@@ -33,7 +33,7 @@ function CohereLLM({ __name, constants, logger }) {
   async function createEmbedding(request) {
     const client = await getClient();
     const req = toCohereEmbeddingRequest(request);
-    const response = await client.embed(request);
+    const response = await client.embed(req);
     return {
       ...fromCohereEmbeddingResponse(response),
       model: request.model,
@@ -55,14 +55,6 @@ function CohereLLM({ __name, constants, logger }) {
     return client.generate(request);
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
-  }
-
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
-  }
-
   function getNumberTokens(model, text) {
     throw new Error('Not implemented');
   }
@@ -72,8 +64,6 @@ function CohereLLM({ __name, constants, logger }) {
     createChatCompletion,
     createCompletion,
     createEmbedding,
-    createImage,
-    generateImageVariant,
     getNumberTokens,
     rerank,
   };

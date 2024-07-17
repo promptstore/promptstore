@@ -71,11 +71,13 @@ export function UsersService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertUser(user) {
+  async function upsertUser(user, partial) {
     const omittedFields = ['id', 'userId'];
     const savedUser = await getUser(user.username);
     if (savedUser) {
-      user = { ...savedUser, ...user };
+      if (partial) {
+        user = { ...savedUser, ...user };
+      }
       const val = omit(user, omittedFields);
       const { rows } = await pg.query(
         `UPDATE users ` +

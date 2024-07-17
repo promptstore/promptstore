@@ -15,6 +15,23 @@ export function FunctionsService({ pg, logger }) {
     };
   }
 
+  async function getFunctionsCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM functions
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
+  }
+
   async function getFunctions(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -148,14 +165,16 @@ export function FunctionsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertFunction(func, username) {
+  async function upsertFunction(func, username, partial) {
     if (func === null || typeof func === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedFunction = await getFunction(func.id);
     if (savedFunction) {
-      func = { ...savedFunction, ...func };
+      if (partial) {
+        func = { ...savedFunction, ...func };
+      }
       const val = omit(func, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -212,6 +231,7 @@ export function FunctionsService({ pg, logger }) {
 
   return {
     getAllMetadata,
+    getFunctionsCount,
     getFunctions,
     getFunctionsByName,
     getFunctionsByPromptSet,

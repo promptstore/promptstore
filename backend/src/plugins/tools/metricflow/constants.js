@@ -1,0 +1,6 @@
+export default {
+  MAX_RETRIES: 5,
+  METRICFLOW_DESCRIPTION: 'Query a semantic layer to retrieve data.',
+  METRICFLOW_ENVIRONMENT_ID: process.env.METRICFLOW_ENVIRONMENT_ID,
+  METRICFLOW_SERVICE_TOKEN: process.env.METRICFLOW_SERVICE_TOKEN,
+}

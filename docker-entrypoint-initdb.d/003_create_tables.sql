@@ -957,3 +957,153 @@ ALTER SEQUENCE public."mirrors_id_seq"
 
 ALTER SEQUENCE public."mirrors_id_seq"
     OWNED BY public."mirrors"."id";
+
+
+-- Table: public."images"
+
+DROP TABLE IF EXISTS public."images";
+
+-- Sequence: public."images_id_seq"
+
+DROP SEQUENCE IF EXISTS public."images_id_seq";
+
+CREATE SEQUENCE public."images_id_seq" AS bigint;
+
+CREATE TABLE public."images"
+(
+    id integer NOT NULL DEFAULT nextval('"images_id_seq"'::regclass),
+    workspace_id integer,
+    image_id character varying(255) COLLATE pg_catalog."default",
+    image_uri text COLLATE pg_catalog."default",
+    hash character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "images_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."images"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."images_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."images_id_seq"
+    OWNED BY public."images"."id";
+
+-- Index: images_workspace_id_key
+
+DROP INDEX IF EXISTS public.images_workspace_id_key;
+
+CREATE INDEX images_workspace_id_key
+    ON public."images" USING btree
+    (workspace_id)
+    TABLESPACE pg_default;
+
+-- Index: images_image_id_key
+
+DROP INDEX IF EXISTS public.images_image_id_key;
+
+CREATE INDEX images_image_id_key
+    ON public."images" USING btree
+    (image_id COLLATE pg_catalog."default")
+    TABLESPACE pg_default;
+
+
+-- Table: public."rules"
+
+DROP TABLE IF EXISTS public."rules";
+
+-- Sequence: public."rules_id_seq"
+
+DROP SEQUENCE IF EXISTS public."rules_id_seq";
+
+CREATE SEQUENCE public."rules_id_seq" AS bigint;
+
+CREATE TABLE public."rules"
+(
+    id integer NOT NULL DEFAULT nextval('"rules_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    type character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "rules_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."rules"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."rules_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."rules_id_seq"
+    OWNED BY public."rules"."id";
+
+-- Index: rules_workspace_id_key
+
+DROP INDEX IF EXISTS public.rules_workspace_id_key;
+
+CREATE INDEX rules_workspace_id_key
+    ON public."rules" USING btree
+    (workspace_id)
+    TABLESPACE pg_default;
+
+
+-- Table: public."agent_networks"
+
+DROP TABLE IF EXISTS public."agent_networks";
+
+-- Sequence: public."agent_networks_id_seq"
+
+DROP SEQUENCE IF EXISTS public."agent_networks_id_seq";
+
+CREATE SEQUENCE public."agent_networks_id_seq" AS bigint;
+
+CREATE TABLE public."agent_networks"
+(
+    id integer NOT NULL DEFAULT nextval('"agent_networks_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "agent_networks_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."agent_networks"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."agent_networks_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."agent_networks_id_seq"
+    OWNED BY public."agent_networks"."id";
+
+-- Index: agent_networks_workspace_id_key
+
+DROP INDEX IF EXISTS public.agent_networks_workspace_id_key;
+
+CREATE INDEX agent_networks_workspace_id_key
+    ON public."agent_networks" USING btree
+    (workspace_id)
+    TABLESPACE pg_default;

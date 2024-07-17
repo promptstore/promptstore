@@ -1,5 +1,6 @@
 import { Callback } from '../callbacks/Callback';
 import { PluginMetadata } from '../common_types';
+import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 
 export interface OutputProcessingStep {
   call: (params: OutputProcessingCallParams) => Promise<object>;
@@ -76,4 +77,21 @@ export interface Parser {
 
   parse(text: string): Promise<Partial<ParserResult>>;
 
+}
+
+export interface Ruleset {
+  id: string;
+  ontology: any;
+}
+
+export interface RulesetsGuardrailParams {
+  rulesets: Ruleset[];
+  semanticFunction: SemanticFunction;
+  rulesEngineService: any;
+  callbacks?: Callback[];
+}
+
+export interface RulesetsGuardrailStartResponse {
+  response: any;
+  rulesets: Ruleset[];
 }

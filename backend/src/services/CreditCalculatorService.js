@@ -1,5 +1,7 @@
 import isEmpty from 'lodash.isempty';
 
+import { deepDiffMapperChangesOnly, merge } from '../utils';
+
 const DEFAULT_MODEL = {
   provider: 'openai',
   model: 'gpt-3.5-turbo-0613',
@@ -454,20 +456,84 @@ const currencyExchangeToUSD = {
   'euro': 1.1
 };
 
-export function CreditCalculatorService({ logger }) {
+export function CreditCalculatorService({ logger, services }) {
 
-  function getCostComponents({
+  const { modelsService } = services;
+
+  async function getCostComponents({
     name,
     provider,
     model,
     batch,
-    inputTokens,
-    outputTokens,
+    inputTokens = 0,
+    outputTokens = 0,
     images,
     imageCount = 0,
     videoSeconds = 0,
+    workspaceId,
   }) {
-    const mdl = COSTS[model];
+    const mymodel = await modelsService.getModelByKey(workspaceId, model);
+    let mdl;
+    if (mymodel && mymodel.costs?.length) {
+      const currency = mymodel.currency || 'USD';
+      mdl = {};
+      for (const costElement of mymodel.costs) {
+        let costFields;
+        let type;
+        if (costElement.type === 'text') {
+          if (mymodel.type === 'embedding') {
+            type = 'embedding';
+            costFields = {
+              'input-per-1k-tokens': costElement.inputPer1kTokens,
+            };
+          } else {
+            type = 'text';
+            costFields = {
+              'input-per-1k-tokens': costElement.inputPer1kTokens,
+              'output-per-1k-tokens': costElement.outputPer1kTokens,
+            };
+          }
+        } else if (costElement.type === 'multimodal') {
+          type = 'multimodal';
+          costFields = {
+            'input-per-1k-tokens': costElement.inputPer1kTokens,
+            'output-per-1k-tokens': costElement.outputPer1kTokens,
+            'per-image': costElement.perInputImage,
+            'video-per-second': costElement.videoPerSecond,
+          };
+        } else if (costElement.type === 'image') {
+          type = 'image';
+          costFields = {
+            'image-quality': {
+              [costElement.imageQuality]: {
+                breakpoints: costElement.imageBreakpoints?.map(bp => ({
+                  dim: bp.dim,
+                  price: bp.price,
+                })),
+              }
+            },
+          };
+        }
+        const value = {
+          currency,
+          type,
+          [mymodel.provider]: {
+            [costElement.mode]: costFields,
+          },
+        };
+        const diff = deepDiffMapperChangesOnly.map(mdl, value);
+        // default behaviour is to 'leave' in event of conflict
+        const { merged, conflicts } = merge(mdl, value, diff);
+        if (conflicts?.length) {
+          logger.debug('conflicts:', conflicts);
+        }
+        logger.debug('merged:', merged);
+        mdl = merged;
+      }
+    } else {
+      mdl = COSTS[model];
+    }
+    logger.debug('model costs:', mdl);
     const costComponents = { name };
     let totalCost = 0;
     if (mdl) {

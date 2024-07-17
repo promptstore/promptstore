@@ -20,6 +20,7 @@ import {
   CameraOutlined,
   CheckOutlined,
   DownloadOutlined,
+  ThunderboltOutlined,
   UnorderedListOutlined,
   UploadOutlined,
   VideoCameraOutlined,
@@ -32,7 +33,6 @@ import isEmpty from 'lodash.isempty';
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import { formatNumber } from '../../utils';
 import {
   AI21LabsLogo,
   AnthropicLogo,
@@ -45,12 +45,17 @@ import {
   LlamaApiLogo,
   MistralAILogo,
   OpenAILogo,
+  StabilityAILogo,
   VertexAILogo,
 } from '../../logos';
+import { formatNumber } from '../../utils';
+
 import {
+  duplicateObjectAsync,
   objectUploadAsync,
   selectUploading,
 } from '../uploader/fileUploaderSlice';
+
 import {
   deleteModelsAsync,
   getModelsAsync,
@@ -68,8 +73,10 @@ const { Search } = Input;
 
 export function ModelsList() {
 
+  const [filterImage, setFilterImage] = useLocalStorageState('models-filter-image', { defaultValue: false });
   const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('models-filter-multimodal', { defaultValue: false });
   const [filterPublic, setFilterPublic] = useLocalStorageState('models-filter-system', { defaultValue: false });
+  const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-models', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('models-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('models-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
@@ -91,7 +98,9 @@ export function ModelsList() {
       const list = Object.values(models)
         .filter((model) => model.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
         .filter((model) => filterMultimodal ? model.multimodal : true)
-        .filter((model) => filterPublic ? model.isPublic : true)
+        .filter((model) => filterImage ? model.type === 'imagegen' : true)
+        .filter((model) => filterPublic ? true : !model.isPublic)
+        .filter((model) => filterSystem ? true : !model.isSystem)
         .filter((model) => selectedProviders.length === 0 || selectedProviders.includes(model.provider || model.type))
         .map((model) => ({
           key: model.id,
@@ -100,6 +109,7 @@ export function ModelsList() {
           provider: model.provider || model.type,
           type: model.type,
           isPublic: model.isPublic,
+          isSystem: model.isSystem,
           description: model.description,
           contextWindow: model.contextWindow,
           maxOutputTokens: model.maxOutputTokens,
@@ -110,7 +120,7 @@ export function ModelsList() {
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
     }
-  }, [models, filterMultimodal, filterPublic, searchValue, selectedProviders]);
+  }, [models, filterImage, filterMultimodal, filterPublic, filterSystem, searchValue, selectedProviders]);
 
   const providerOptions = useMemo(() => {
     const list = [
@@ -187,6 +197,15 @@ export function ModelsList() {
     setSearchValue(q);
   }, 1000);
 
+  const handleDuplicate = (key) => {
+    const model = models[key];
+    dispatch(duplicateObjectAsync({
+      obj: model,
+      type: 'model',
+      workspaceId: selectedWorkspace.id,
+    }));
+  };
+
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
@@ -230,6 +249,11 @@ export function ModelsList() {
             <AI21LabsLogo />
           );
         }
+        if (modelKey.startsWith('stability')) {
+          return (
+            <StabilityAILogo />
+          );
+        }
         return (
           <BedrockLogo />
         );
@@ -267,6 +291,11 @@ export function ModelsList() {
       case 'openai':
         return (
           <OpenAILogo />
+        );
+
+      case 'stabilityai':
+        return (
+          <StabilityAILogo />
         );
 
       case 'vertexai':
@@ -358,6 +387,14 @@ export function ModelsList() {
           <Space style={{ whiteSpace: 'nowrap' }}>
             <ProviderLogo provider={provider} modelKey={modelKey} />
             <div>OpenAI</div>
+          </Space>
+        );
+
+      case 'stabilityai':
+        return (
+          <Space style={{ whiteSpace: 'nowrap' }}>
+            <ProviderLogo provider={provider} modelKey={modelKey} />
+            <div>Stability AI</div>
           </Space>
         );
 
@@ -466,6 +503,12 @@ export function ModelsList() {
           >
             Edit
           </Button>
+          <Button type="link"
+            onClick={() => handleDuplicate(record.key)}
+            style={{ paddingLeft: 0 }}
+          >
+            Duplicate
+          </Button>
         </Space>
       ),
     },
@@ -540,7 +583,7 @@ export function ModelsList() {
                 </span>
                 <Download filename={'models.json'} payload={selectedModels}>
                   <Button type="text" icon={<DownloadOutlined />}>
-                    Download
+                    Export
                   </Button>
                 </Download>
               </>
@@ -561,10 +604,24 @@ export function ModelsList() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch
+              checked={filterSystem}
+              onChange={setFilterSystem}
+            />
+            <div>System</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
               checked={filterMultimodal}
               onChange={setFilterMultimodal}
             />
             <div>Multimodal</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterImage}
+              onChange={setFilterImage}
+            />
+            <div>Image</div>
           </div>
           <Upload
             name="upload"
@@ -574,7 +631,7 @@ export function ModelsList() {
             onChange={onUpload}
           >
             <Button type="text" loading={uploading} icon={<UploadOutlined />}>
-              Upload
+              Import
             </Button>
           </Upload>
           <div style={{ flex: 1 }}></div>
@@ -668,14 +725,20 @@ export function ModelsList() {
                       <Link to={`/models/${m.key}`}>View</Link>
                       <div style={{ flex: 1 }} />
                       <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 10, alignItems: 'center' }}>
-                        {m.multimodal ?
+                        {m.type === 'imagegen' ?
+                          <ThunderboltOutlined />
+                          :
                           <>
-                            <VideoCameraOutlined />
-                            <CameraOutlined />
+                            {m.multimodal ?
+                              <>
+                                <VideoCameraOutlined />
+                                <CameraOutlined />
+                              </>
+                              : null
+                            }
+                            <div style={{ cursor: 'default', fontFamily: 'Times New Roman', fontWeight: 600 }}>T</div>
                           </>
-                          : null
                         }
-                        <div style={{ cursor: 'default', fontFamily: 'Times New Roman', fontWeight: 600 }}>T</div>
                       </div>
                     </div>
                   </div>

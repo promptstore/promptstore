@@ -43,6 +43,7 @@ export type SemanticFunctionImplementationOnEndCallbackFunction = (params: Seman
 export type SemanticFunctionImplementationOnErrorCallbackFunction = (errors: any) => void;
 
 export interface SemanticFunctionImplementationParams {
+  environment: string;
   model: Model;
   isDefault: boolean;
   argsMappingTemplate?: string;

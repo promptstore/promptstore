@@ -59,12 +59,14 @@ export function SchemaModalInput({
         title={title}
         width={'75%'}
       >
-        <JsonSchemaEditor
-          onChange={setState}
-          value={state}
-          placeholders={placeholders}
-          isSpec={isSpec}
-        />
+        <div className="bodyScroll">
+          <JsonSchemaEditor
+            onChange={setState}
+            value={state}
+            placeholders={placeholders}
+            isSpec={isSpec}
+          />
+        </div>
       </Modal>
       <Button
         icon={noState(value) ? null : <CheckOutlined />}

@@ -22,14 +22,29 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
   chromium.use(stealth);
   // chromium.use(recaptcha);
 
-  let _browser;
+  let _context;
 
-  async function getBrowser() {
-    if (!_browser || !_browser.isConnected()) {
+  async function getContext() {
+    // if (!_context || !_context.isConnected()) {
+    if (!_context) {
+      // Launch the browser
       // _browser = await chromium.launch({ headless: true });
-      _browser = await chromium.launch();
+      const browser = await chromium.launch();
+
+      // Create a new browser context
+      _context = await browser.newContext();
+
+      // Add an authentication cookie
+      await _context.addCookies([
+        {
+          name: 'sb-pzlykqaswarrsfshglyn-auth-token',
+          value: '{"access_token":"eyJhbGciOiJIUzI1NiIsImtpZCI6Ii9xS2tscHA4MFlmL0JoaWkiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzE0MzY5MjM4LCJpYXQiOjE3MTQzNjU2MzgsImlzcyI6Imh0dHBzOi8vcHpseWtxYXN3YXJyc2ZzaGdseW4uc3VwYWJhc2UuY28vYXV0aC92MSIsInN1YiI6IjYxNDdlZjY1LTljZWQtNGQwMS1iNzhkLTM0ODAwMDRlMjRkMyIsImVtYWlsIjoibWFya21vQGV1cm9wYS1sYWJzLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnt9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6Im90cCIsInRpbWVzdGFtcCI6MTcxNDM1NTUxOH1dLCJzZXNzaW9uX2lkIjoiOGI3YzNmNWMtYzJiYy00MWY0LWE5MGUtZTNiMmZmMTA1YzIxIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.GPkleI-x91OyzLVBDyQ1mIw4FqIAU-ApTjQEu49TJkU","token_type":"bearer","expires_in":3600,"expires_at":1714369238,"refresh_token":"l3qyfEMUz9B9asn9g4yBqg","user":{"id":"6147ef65-9ced-4d01-b78d-3480004e24d3","aud":"authenticated","role":"authenticated","email":"markmo@europa-labs.com","email_confirmed_at":"2024-04-29T01:51:58.581004Z","invited_at":"2024-04-29T01:50:59.043578Z","phone":"","confirmation_sent_at":"2024-04-29T01:50:59.043578Z","confirmed_at":"2024-04-29T01:51:58.581004Z","last_sign_in_at":"2024-04-29T01:51:58.583515Z","app_metadata":{"provider":"email","providers":["email"]},"user_metadata":{},"identities":[{"identity_id":"4e32faf8-7d29-4011-b00a-ba7a6a7fb3fb","id":"6147ef65-9ced-4d01-b78d-3480004e24d3","user_id":"6147ef65-9ced-4d01-b78d-3480004e24d3","identity_data":{"email":"markmo@europa-labs.com","email_verified":false,"phone_verified":false,"sub":"6147ef65-9ced-4d01-b78d-3480004e24d3"},"provider":"email","last_sign_in_at":"2024-04-29T01:50:59.04073Z","created_at":"2024-04-29T01:50:59.040777Z","updated_at":"2024-04-29T01:50:59.040777Z","email":"markmo@europa-labs.com"}],"created_at":"2024-04-29T01:50:59.036592Z","updated_at":"2024-04-29T04:40:38.471445Z","is_anonymous":false}}',
+          path: '/',
+          domain: 'app.kolatr.com',
+        }
+      ]);
     }
-    return _browser;
+    return _context;
   }
 
   async function call({ input, imageSize, domainParams }, raw) {
@@ -49,10 +64,10 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
     if (!imageSize) {
       imageSize = 'fullPage';
     }
-    let browser;
+    let context;
     try {
-      browser = await getBrowser();
-      const page = await browser.newPage();
+      context = await getContext();
+      const page = await context.newPage();
       await page.setViewportSize({ width: 1280, height: 1080 });
 
       try {
@@ -62,6 +77,8 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
         logger.debug('Error waiting for page to load:', err);
         // continue
       }
+
+      await delay(10000);
 
       // try {
       //   await solve(page);
@@ -128,8 +145,8 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
       }
       return "I don't know how to do that.";
     } finally {
-      if (browser) {
-        await browser.close();
+      if (context) {
+        await context.close();
       }
     }
   }
@@ -158,7 +175,7 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
+        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
           if (err) {
             let message;
             if (err instanceof Error) {
@@ -251,6 +268,12 @@ function PlaywrightScreenshot({ __key, __name, constants, logger }) {
       },
     };
   }
+
+  const delay = (t) => {
+    return new Promise((resolve) => {
+      setTimeout(resolve, t);
+    })
+  };
 
   return {
     __name,

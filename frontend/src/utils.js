@@ -1,4 +1,6 @@
+import isEqual from 'lodash.isequal';
 import isObject from 'lodash.isobject';
+import { v4 as uuidv4 } from 'uuid';
 
 const colors = {
   light: ['#87d068', '#2db7f5', '#ca3dd4', '#f56a00', '#7265e6', '#ffbf00', '#00a2ae'],
@@ -308,3 +310,356 @@ export function convertContentTypeToString(content) {
   }
   return '';
 }
+
+export const htmlEncode = (str) => str.replace(
+  /[\u00A0-\u9999<>\&]/g,
+  chr => '&#' + chr.charCodeAt(0) + ';'
+);
+
+export const toNumber = (str, defaultValue) => {
+  if (typeof str === 'undefined' || str === null) {
+    return defaultValue;
+  }
+  try {
+    if (str.indexOf('.') !== -1) {
+      return parseFloat(str, defaultValue);
+    }
+    return parseInt(str, defaultValue);
+  } catch (e) {
+    return defaultValue;
+  }
+};
+
+export const makeString = (object) => {
+  if (object == null || typeof object === undefined) return '';
+  return String(object);
+};
+
+export const capitalize = (str, lowercaseRest) => {
+  str = makeString(str);
+  const remainingChars = !lowercaseRest ? str.slice(1) : str.slice(1).toLowerCase();
+  return str.charAt(0).toUpperCase() + remainingChars;
+};
+
+export const escapeRegExp = (str) => {
+  return makeString(str).replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1');
+};
+
+const isQuasiArray = (obj) => {
+  if (!isObject(obj)) return false;
+  const keys = Object.keys(obj);
+  keys.sort();
+  // use `==` to compare numbers as strings
+  return keys.every((k, i) => k == i);
+};
+
+export const defaultToWhiteSpace = (characters) => {
+  if (characters == null) {
+    return '\\s';
+  } else if (characters.source) {
+    return characters.source;
+  } else {
+    return '[' + escapeRegExp(characters) + ']';
+  }
+};
+
+const nativeTrim = String.prototype.trim;
+
+export const trim = (str, characters) => {
+  str = makeString(str);
+  if (!characters && nativeTrim) {
+    return nativeTrim.call(str);
+  }
+  characters = defaultToWhiteSpace(characters);
+  return str.replace(new RegExp('^' + characters + '+|' + characters + '+$', 'g'), '');
+};
+
+export const underscored = (str) => {
+  return trim(str)
+    .replace(/([a-z\d])([A-Z]+)/g, '$1_$2')
+    .replace(/[-\s]+/g, '_')
+    .toLowerCase();
+};
+
+export const humanize = (str) => {
+  // return capitalize(trim(underscored(str).replace(/_id$/, '').replace(/_/g, ' ')));
+  return trim(underscored(str).replace(/_/g, ' '));
+};
+
+export const validateAST = (rules, targets) => {
+  // console.log('validate rules:', rules, targets);
+  const ast = rules.reduce((a, r) => {
+    a.key = r.key;
+    a.logicalType_id = r.logicalType_id;
+    a.predicates = r.predicates
+      .map((p) => {
+        if (p.logicalType_id) {
+          return validateAST([p], targets);
+        }
+        if (!p.target_id || !p.operator_id) {
+          return null;
+        }
+        if (!targets.find((t) => t.target_id === p.target_id)) {
+          return null;
+        }
+        return p;
+      })
+      .filter((p) => p !== null)
+      ;
+
+    return a;
+  }, {});
+  // console.log('return ast:', ast);
+  return ast;
+};
+
+const isChanged = (obj) => {
+  const recurse = (o) => {
+    if (o.type) {
+      return o.type !== 'unchanged';
+    }
+    return Object.entries(o)
+      .filter(([k, v]) => k !== 'key')
+      .map(([k, v]) => v)
+      .some(recurse);
+  };
+  return recurse(obj);
+};
+
+const isAnnotatedObject = (obj) => {
+  if (!isObject(obj)) return false;
+  const keys = Object.keys(obj);
+  keys.sort();
+  return isEqual(keys, ['data', 'type']);
+};
+
+export const stripAnnotations = (obj) => {
+  const recurse = (value) => {
+    if (isAnnotatedObject(value)) {
+      return value.data;
+    }
+    if (Array.isArray(value)) {
+      return value.map(recurse);
+    }
+    if (isQuasiArray(value)) {
+      return Object.values(value).map(recurse);
+    }
+    if (isObject(value)) {
+      return Object.entries(value).reduce((a, [k, v]) => {
+        a[k] = recurse(v);
+        return a;
+      }, {});
+    }
+    return value;
+  };
+  return recurse(obj);
+};
+
+export const updateKeys = (rules, updateAll = false) => {
+  const ast = rules.reduce((a, r) => {
+    const logicalTypeChanged = !r.key || updateAll || isChanged(r.logicalType_id);
+    a.logicalType_id = r.logicalType_id.data;
+    a.predicates = Object.values(r.predicates).map((p) => {
+      if (p.type === 'created') {
+        // actually deleted due to the polarity of AST comparison
+        return { value: null };
+      }
+      if (p.logicalType_id) {
+        return updateKeys([p], logicalTypeChanged);
+      }
+      const predicateChanged = !p.key || logicalTypeChanged || isChanged(p);
+      const key = predicateChanged ? uuidv4() : p.key.data;
+      if (p.type === 'created') {
+        return { ...p.data, key };
+      }
+      return {
+        argument: stripAnnotations(p.argument),
+        operator_id: p.operator_id && p.operator_id.data,
+        target_id: p.target_id && p.target_id.data,
+        key,
+      };
+    }).filter((p) => p.value !== null);
+    a.key = logicalTypeChanged ? uuidv4() : r.key.data;
+    return a;
+  }, {});
+  // console.log('return ast:', ast);
+  return ast;
+};
+
+export const deepDiffMapper = function () {
+  return {
+    VALUE_CREATED: 'created',
+    VALUE_UPDATED: 'updated',
+    VALUE_DELETED: 'deleted',
+    VALUE_UNCHANGED: 'unchanged',
+
+    map: function (obj1, obj2) {
+      if (this.isFunction(obj1) || this.isFunction(obj2)) {
+        throw 'Invalid argument. Function given, object expected.';
+      }
+      if (this.isValue(obj1) || this.isValue(obj2)) {
+        return {
+          type: this.compareValues(obj1, obj2),
+          data: obj1 === undefined ? obj2 : obj1
+        };
+      }
+
+      var diff = {};
+      for (var key in obj1) {
+        if (this.isFunction(obj1[key])) {
+          continue;
+        }
+
+        var value2 = undefined;
+        if (obj2[key] !== undefined) {
+          value2 = obj2[key];
+        }
+
+        diff[key] = this.map(obj1[key], value2);
+      }
+      for (var key in obj2) {
+        if (this.isFunction(obj2[key]) || diff[key] !== undefined) {
+          continue;
+        }
+
+        diff[key] = this.map(undefined, obj2[key]);
+      }
+
+      return diff;
+
+    },
+
+    compareValues: function (value1, value2) {
+      if (value1 === value2) {
+        return this.VALUE_UNCHANGED;
+      }
+      if (this.isDate(value1) && this.isDate(value2) && value1.getTime() === value2.getTime()) {
+        return this.VALUE_UNCHANGED;
+      }
+      if (value1 === undefined) {
+        return this.VALUE_CREATED;
+      }
+      if (value2 === undefined) {
+        return this.VALUE_DELETED;
+      }
+      return this.VALUE_UPDATED;
+    },
+
+    isFunction: function (x) {
+      return Object.prototype.toString.call(x) === '[object Function]';
+    },
+
+    isArray: function (x) {
+      return Object.prototype.toString.call(x) === '[object Array]';
+    },
+
+    isDate: function (x) {
+      return Object.prototype.toString.call(x) === '[object Date]';
+    },
+
+    isObject: function (x) {
+      return Object.prototype.toString.call(x) === '[object Object]';
+    },
+
+    isValue: function (x) {
+      return !this.isObject(x) && !this.isArray(x);
+    }
+  }
+}();
+
+export const deepDiffMapperChangesOnly = function () {
+  return {
+    VALUE_CREATED: 'created',
+    VALUE_UPDATED: 'updated',
+    VALUE_DELETED: 'deleted',
+    VALUE_UNCHANGED: '---',
+
+    map: function (obj1, obj2) {
+      if (this.isFunction(obj1) || this.isFunction(obj2)) {
+        throw 'Invalid argument. Function given, object expected.';
+      }
+      if (this.isValue(obj1) || this.isValue(obj2)) {
+        let returnObj = {
+          type: this.compareValues(obj1, obj2),
+          original: obj1,
+          updated: obj2,
+        };
+        if (returnObj.type != this.VALUE_UNCHANGED) {
+          return returnObj;
+        }
+        return undefined;
+      }
+
+      var diff = {};
+      let foundKeys = {};
+      for (var key in obj1) {
+        if (this.isFunction(obj1[key])) {
+          continue;
+        }
+
+        var value2 = undefined;
+        if (obj2[key] !== undefined) {
+          value2 = obj2[key];
+        }
+
+        let mapValue = this.map(obj1[key], value2);
+        foundKeys[key] = true;
+        if (mapValue) {
+          diff[key] = mapValue;
+        }
+      }
+      for (var key in obj2) {
+        if (this.isFunction(obj2[key]) || foundKeys[key] !== undefined) {
+          continue;
+        }
+
+        let mapValue = this.map(undefined, obj2[key]);
+        if (mapValue) {
+          diff[key] = mapValue;
+        }
+      }
+
+      //2020-06-13: object length code copied from https://stackoverflow.com/a/13190981/2336212
+      if (Object.keys(diff).length > 0) {
+        return diff;
+      }
+      return undefined;
+    },
+
+    compareValues: function (value1, value2) {
+      if (value1 === value2) {
+        return this.VALUE_UNCHANGED;
+      }
+      if (this.isDate(value1) && this.isDate(value2) && value1.getTime() === value2.getTime()) {
+        return this.VALUE_UNCHANGED;
+      }
+      if (value1 === undefined) {
+        return this.VALUE_CREATED;
+      }
+      if (value2 === undefined) {
+        return this.VALUE_DELETED;
+      }
+      return this.VALUE_UPDATED;
+    },
+
+    isFunction: function (x) {
+      return Object.prototype.toString.call(x) === '[object Function]';
+    },
+
+    isArray: function (x) {
+      return Object.prototype.toString.call(x) === '[object Array]';
+    },
+
+    isDate: function (x) {
+      return Object.prototype.toString.call(x) === '[object Date]';
+    },
+
+    isObject: function (x) {
+      return Object.prototype.toString.call(x) === '[object Object]';
+    },
+
+    isValue: function (x) {
+      return !this.isObject(x) && !this.isArray(x);
+    }
+  }
+}();

@@ -70,11 +70,13 @@ export function WorkspacesService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertWorkspace(workspace, user) {
+  async function upsertWorkspace(workspace, user, partial) {
     const omittedFields = ['id', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedWorkspace = await getWorkspace(workspace.id);
     if (savedWorkspace) {
-      workspace = { ...savedWorkspace, ...workspace };
+      if (partial) {
+        workspace = { ...savedWorkspace, ...workspace };
+      }
       const val = omit(workspace, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

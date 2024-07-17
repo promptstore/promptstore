@@ -44,18 +44,17 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/evaluations', auth, async (req, res, next) => {
     const { username } = req.user;
     let values = req.body;
-    let evaluation = await evaluationsService.upsertEvaluation(values, username);
     if (hasValue(values.schedule)) {
       const scheduleId = await workflowClient.scheduleEvaluation(evaluation, values.workspaceId, username, {
         address: constants.TEMPORAL_URL,
       });
       values = {
-        ...evaluation,
+        ...values,
         scheduleId,
         scheduleStatus: 'running',
       };
-      evaluation = await evaluationsService.upsertEvaluation(values, username);
     }
+    const evaluation = await evaluationsService.upsertEvaluation(values, username);
     const obj = createSearchableObject(evaluation);
     const chunkId = await indexObject(obj, evaluation.chunkId);
     if (!evaluation.chunkId) {

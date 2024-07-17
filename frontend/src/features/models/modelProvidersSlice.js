@@ -72,6 +72,13 @@ export const getRerankerProvidersAsync = () => async (dispatch) => {
   dispatch(setProviders({ reranker: res.data }));
 };
 
+export const getImageProvidersAsync = () => async (dispatch) => {
+  dispatch(startLoad());
+  const url = '/api/providers/imagegen';
+  const res = await http.get(url);
+  dispatch(setProviders({ imagegen: res.data }));
+};
+
 export const selectLoaded = (state) => state.modelProviders.loaded;
 
 export const selectLoading = (state) => state.modelProviders.loading;

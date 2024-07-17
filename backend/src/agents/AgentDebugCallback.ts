@@ -33,14 +33,14 @@ export class AgentDebugCallback extends AgentCallback {
     this.username = username;
   }
 
-  onAgentStart({ agentName, goal, allowedTools, extraFunctionCallParams, selfEvaluate }: AgentOnStartResponse) {
+  onAgentStart({ name, args, allowedTools, extraFunctionCallParams, selfEvaluate }: AgentOnStartResponse) {
     const startTime = new Date();
-    const traceName = [agentName, startTime.toISOString()].join(' - ');
+    const traceName = [name, startTime.toISOString()].join(' - ');
     logger.debug('start agent', traceName);
   }
 
-  onAgentEnd({ agentName, response, errors }: AgentOnEndResponse) {
-    logger.debug('end agent', agentName);
+  onAgentEnd({ name, response, errors }: AgentOnEndResponse) {
+    logger.debug('end agent', name);
   }
 
   onAgentError(errors: any) {

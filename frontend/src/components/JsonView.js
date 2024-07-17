@@ -2,7 +2,7 @@ import ReactJson from 'react-json-view';
 
 export function JsonView({ collapsed, enableClipboard = false, src, style, theme }) {
   if (src === null || typeof src === 'undefined') {
-    return 'undefined';
+    return 'none';
   }
   let json;
   if (typeof src === 'string') {
@@ -10,11 +10,11 @@ export function JsonView({ collapsed, enableClipboard = false, src, style, theme
       json = JSON.parse(src);
     } catch (err) {
       return (
-        <span>
+        <div>
           <span
             style={{ color: 'rgba(0, 0, 0, 0.45)', fontStyle: 'italic' }}
           >(invalid json)</span> {src}
-        </span>
+        </div>
       );
     }
   } else {

@@ -1,5 +1,6 @@
 import camelCase from 'lodash.camelcase';
 import capitalize from 'lodash.capitalize';
+import snakeCase from 'lodash.snakecase';
 import startCase from 'lodash.startcase';
 import neo4j from 'neo4j-driver';
 
@@ -46,10 +47,86 @@ function Neo4jService({ __name, constants, logger }) {
     return _client;
   }
 
+  async function getNodes(indexName) {
+    const q = `
+      MATCH (n) WHERE n.indexName = $indexName 
+      RETURN id(n) AS id, 
+        labels(n) AS labels, 
+        apoc.convert.toJson(properties(n)) AS properties
+      `;
+    const session = getClient().session();
+    try {
+      const result = await session.run(q, { indexName });
+      return result.records.map(rec => ({
+        id: rec.get('id'),
+        type: rec.get('labels')[0],
+        properties: JSON.parse(rec.get('properties')),
+      }));
+    } catch (err) {
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      throw err;
+    } finally {
+      await session.close();
+    }
+  }
+  async function getRels(indexName) {
+    logger.debug('indexName:', indexName);
+    const q = `
+      MATCH (n1)-[c]-(n2) WHERE c.indexName = $indexName 
+      RETURN type(c) AS type, 
+        apoc.convert.toJson(properties(c)) AS properties, 
+        id(n1) AS sourceId,
+        labels(n1) AS sourceLabels,
+        id(n2) AS targetId,
+        labels(n2) AS targetLabels
+      `;
+    const session = getClient().session();
+    try {
+      const result = await session.run(q, { indexName });
+      return result.records.map(rec => ({
+        type: rec.get('type'),
+        properties: JSON.parse(rec.get('properties')),
+        source: {
+          id: rec.get('sourceId'),
+          type: rec.get('sourceLabels')[0],
+        },
+        target: {
+          id: rec.get('targetId'),
+          type: rec.get('targetLabels')[0],
+        },
+      }));
+    } catch (err) {
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      throw err;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async function getGraph(indexName) {
+    const nodes = await getNodes(indexName);
+    const relationships = await getRels(indexName);
+    const graph = {
+      indexName,
+      nodes,
+      relationships,
+    };
+    logger.debug('graph:', graph);
+    return graph;
+  }
+
   async function addGraph(indexName, graph) {
-    logger.debug('raw graph:', graph);
+    // logger.debug('raw graph:', graph);
     const g = cleanGraph(indexName, graph);
-    logger.debug('cleaned graph:', graph);
+    // logger.debug('cleaned graph:', graph);
     const q1 = `
       UNWIND $data AS row
       CALL apoc.merge.node([row.type], {id: row.id}, row.properties, {})
@@ -67,11 +144,8 @@ function Neo4jService({ __name, constants, logger }) {
       RETURN distinct 'done'
     `;
     const session = getClient().session();
-    logger.debug('g:', g);
     try {
-      await session.run(q1, {
-        data: g.nodes,
-      });
+      await session.run(q1, { data: g.nodes });
       if (g.relationships?.length) {
         await session.run(q2, {
           data: g.relationships.map(rel => ({
@@ -85,7 +159,11 @@ function Neo4jService({ __name, constants, logger }) {
         });
       }
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -134,7 +212,7 @@ function Neo4jService({ __name, constants, logger }) {
   function cleanNode(indexName, node) {
     const props = propsToDict(node.properties);
     return {
-      id: `${indexName}_${node.id}`,
+      id: snakeCase(`${indexName}_${node.id}`),
       type: capitalize(node.type),
       properties: {
         ...props,
@@ -198,7 +276,11 @@ function Neo4jService({ __name, constants, logger }) {
         relationships,
       };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -262,7 +344,11 @@ function Neo4jService({ __name, constants, logger }) {
         required: required[nodeLabel],
       };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -330,6 +416,7 @@ function Neo4jService({ __name, constants, logger }) {
     __name,
     addGraph,
     dropData,
+    getGraph,
     getSchema,
   };
 }

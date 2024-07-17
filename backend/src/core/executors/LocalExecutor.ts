@@ -6,6 +6,7 @@ import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
 interface RunFunctionParams {
   semanticFunction: SemanticFunction;
   args: any;
+  env?: string;
   messages?: Message[];
   history?: Message[];
   extraSystemPrompt?: string;
@@ -23,6 +24,7 @@ export class LocalExecutor {
   async runFunction({
     semanticFunction,
     args,
+    env,
     messages,
     history,
     extraSystemPrompt,
@@ -43,7 +45,7 @@ export class LocalExecutor {
       history = this.fixMessages(history);
     }
 
-    return semanticFunction.call({ args, messages, history, extraSystemPrompt, model, modelParams, functions, isBatch, options });
+    return semanticFunction.call({ args, env, messages, history, extraSystemPrompt, model, modelParams, functions, isBatch, options });
   }
 
   async runComposition({
@@ -75,7 +77,7 @@ export class LocalExecutor {
   fixModelParams(modelParams: Partial<ModelParams>) {
     return {
       ...modelParams,
-      max_tokens: this.fixNumber(modelParams.max_tokens, 140),
+      max_tokens: this.fixNumber(modelParams.max_tokens, 2048),
       n: this.fixNumber(modelParams.n, 1),
     };
   }

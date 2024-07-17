@@ -34,7 +34,7 @@ export function IndexesList() {
 
   const [messageApi, contextHolder] = message.useMessage();
 
-  const isGraphList = location.pathname.match(/\/graphs\/?/);
+  const isGraphList = !!location.pathname.match(/\/graphs\/?/);
 
   const data = useMemo(() => {
     const list = Object.values(indexes)

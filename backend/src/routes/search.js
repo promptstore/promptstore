@@ -36,7 +36,6 @@ export default ({ app, auth, constants, logger, services }) => {
   });
 
   app.post('/api/embeddings/:embeddingProvider', auth, async (req, res, next) => {
-    // const { embeddingProvider, embeddingModel } = req.params;
     const { chunks, embeddingModel, embeddingProvider } = req.body;
     logger.debug('create embeddings using %s:', embeddingProvider, req.body);
     const embeddings = [];
@@ -56,9 +55,6 @@ export default ({ app, auth, constants, logger, services }) => {
     logger.debug('create index:', req.body);
     try {
       let { embeddingProvider, embeddingModel, nodeLabel } = params;
-      // if (!embeddingProvider || !embeddingModel) {
-      //   embeddingProvider = embeddingModel = 'sentenceencoder';
-      // }
       let index = await indexesService.getIndexByName(1, indexName);
       if (!index) {
         index = await indexesService.upsertIndex({
@@ -198,7 +194,7 @@ export default ({ app, auth, constants, logger, services }) => {
     // logger.debug('query:', query);
     // logger.debug('workspace id:', workspaceId);
     // logger.debug('index name:', indexName);
-    logger.debug('facetFilters:', facetFilters);
+    // logger.debug('facetFilters:', facetFilters);
     const index = await indexesService.getIndexByName(workspaceId, indexName);
     // logger.debug('index:', index);
     const {

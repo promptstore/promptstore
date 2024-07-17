@@ -78,9 +78,6 @@ export function TracesService({ pg, logger }) {
     // logger.debug('values:', values);
 
     const { rows } = await pg.query(q, values);
-    if (rows.length === 0) {
-      return [];
-    }
     return rows.map(mapRow);
   }
 
@@ -176,14 +173,16 @@ export function TracesService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertTrace(trace, username) {
+  async function upsertTrace(trace, username, partial) {
     if (trace === null || typeof trace === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedTrace = await getTrace(trace.id);
     if (savedTrace) {
-      trace = { ...savedTrace, ...trace };
+      if (partial) {
+        trace = { ...savedTrace, ...trace };
+      }
       const val = omit(trace, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

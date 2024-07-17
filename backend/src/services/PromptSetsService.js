@@ -13,7 +13,25 @@ export function PromptSetsService({ pg, logger }) {
       createdBy: row.created_by,
       modified: row.modified,
       modifiedBy: row.modified_by,
+      isSystem: row.is_system,
     };
+  }
+
+  async function getPromptSetsCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM prompt_sets
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
   }
 
   async function getPromptSets(workspaceId) {
@@ -21,7 +39,7 @@ export function PromptSetsService({ pg, logger }) {
       return [];
     }
     let q = `
-      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val, CASE WHEN workspace_id = 1 THEN TRUE ELSE FALSE END AS is_system
       FROM prompt_sets
       WHERE workspace_id = $1 OR workspace_id = 1
       OR (val->>'isPublic')::boolean = true
@@ -41,7 +59,7 @@ export function PromptSetsService({ pg, logger }) {
       return [];
     }
     let q = `
-      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val, CASE WHEN workspace_id = 1 THEN TRUE ELSE FALSE END AS is_system
       FROM prompt_sets
       WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND val->>'name' LIKE $2 || '%'
@@ -61,7 +79,7 @@ export function PromptSetsService({ pg, logger }) {
       return [];
     }
     let q = `
-      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val, CASE WHEN workspace_id = 1 THEN TRUE ELSE FALSE END AS is_system
       FROM prompt_sets
       WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND skill = $2
@@ -89,7 +107,7 @@ export function PromptSetsService({ pg, logger }) {
       return [];
     }
     let q = `
-      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, skill, created, created_by, modified, modified_by, val, CASE WHEN workspace_id = 1 THEN TRUE ELSE FALSE END AS is_system
       FROM prompt_sets p
       WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND p.val->>'isTemplate' = 'true'
@@ -117,14 +135,16 @@ export function PromptSetsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertPromptSet(promptSet, username) {
+  async function upsertPromptSet(promptSet, username, partial) {
     if (promptSet === null || typeof promptSet === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'skill', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedPromptSet = await getPromptSet(promptSet.id);
     if (savedPromptSet) {
-      promptSet = { ...savedPromptSet, ...promptSet };
+      if (partial) {
+        promptSet = { ...savedPromptSet, ...promptSet };
+      }
       const val = omit(promptSet, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -165,6 +185,7 @@ export function PromptSetsService({ pg, logger }) {
 
   return {
     getFirstPromptSetBySkillAsMessages,
+    getPromptSetsCount,
     getPromptSets,
     getPromptSetsByName,
     getPromptSetsBySkill,

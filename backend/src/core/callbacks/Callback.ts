@@ -1,6 +1,10 @@
 import { ValidatorResult } from 'jsonschema';
 
 import {
+  AgentOnStartResponse,
+  AgentOnEndResponse,
+} from '../../agents/Agent_types';
+import {
   MapArgumentsResponse,
   MapReturnTypeResponse,
 } from '../common_types';
@@ -17,6 +21,8 @@ import {
   SemanticSearchEnrichmentOnEndResponse,
   FunctionEnrichmentOnStartResponse,
   FunctionEnrichmentOnEndResponse,
+  MetricStoreEnrichmentOnStartResponse,
+  MetricStoreEnrichmentOnEndResponse,
   SqlEnrichmentOnStartResponse,
   SqlEnrichmentOnEndResponse,
   GraphEnrichmentOnStartResponse,
@@ -43,6 +49,7 @@ import {
   OutputProcessingResponse,
   OutputGuardrailStartResponse,
   OutputParserStartResponse,
+  RulesetsGuardrailStartResponse,
 } from '../outputprocessing/OutputProcessingPipeline_types';
 import {
   SemanticFunctionImplementationOnStartResponse,
@@ -61,6 +68,18 @@ import {
 export abstract class Callback {
 
   abstract clone(): Callback;
+
+  onAgentStart(params: Partial<AgentOnStartResponse>) {
+
+  }
+
+  onAgentEnd(params: AgentOnEndResponse) {
+
+  }
+
+  onAgentError(errors: any) {
+
+  }
 
   onCompositionStart({ args, model, modelParams, isBatch }: CompositionOnStartResponse) {
 
@@ -167,6 +186,18 @@ export abstract class Callback {
   }
 
   onFunctionEnrichmentError(errors: any) {
+
+  }
+
+  onMetricStoreEnrichmentStart({ args, metricStore }: MetricStoreEnrichmentOnStartResponse) {
+
+  }
+
+  onMetricStoreEnrichmentEnd({ enrichedArgs, errors }: MetricStoreEnrichmentOnEndResponse) {
+
+  }
+
+  onMetricStoreEnrichmentError(errors: any) {
 
   }
 
@@ -291,6 +322,18 @@ export abstract class Callback {
   }
 
   onOutputGuardrailError(errors: any) {
+
+  }
+
+  onRulesetsGuardrailStart({ response, rulesets }: RulesetsGuardrailStartResponse) {
+
+  }
+
+  onRulesetsGuardrailEnd({ response, errors }: OutputProcessingResponse) {
+
+  }
+
+  onRulesetsGuardrailError(errors: any) {
 
   }
 

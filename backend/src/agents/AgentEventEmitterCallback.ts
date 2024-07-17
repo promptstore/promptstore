@@ -37,12 +37,20 @@ export class AgentEventEmitterCallback extends AgentCallback {
     this.emitter = emitter;
   }
 
-  onAgentStart({ agentName, goal, allowedTools, extraFunctionCallParams, selfEvaluate }: AgentOnStartResponse) {
-    this.emitter.emit('event', 'Goal:\n' + goal);
+  onAgentStart({ name, args, allowedTools, extraFunctionCallParams, selfEvaluate, parent }: AgentOnStartResponse) {
+    let message = `[${name}] Goal: ` + args.goal;
+    // if (parent) {
+    //   message = `Parent '${parent}' ` + message;
+    // }
+    this.emitter.emit('event', message);
   }
 
-  onAgentEnd({ agentName, response, errors }: AgentOnEndResponse) {
-    this.emitter.emit('done', 'Agent finished');
+  onAgentEnd({ name, response, errors, parent }: AgentOnEndResponse) {
+    let message = `[${name}] Agent finished`;
+    // if (parent) {
+    //   message = `Parent '${parent}' ` + message;
+    // }
+    this.emitter.emit('done', message);
   }
 
   onAgentError(errors: any) {
@@ -90,28 +98,41 @@ export class AgentEventEmitterCallback extends AgentCallback {
     this.emitter.emit('event', 'Observation:\n' + response.choices[0].message.content);
   }
 
-  onEvaluateTurnStart({ index }: EvaluateTurnOnStartResponse) {
-    this.emitter.emit('event', `Turn ${index + 1}`);
+  onEvaluateTurnStart({ name, index, parent }: EvaluateTurnOnStartResponse) {
+    let message = `[${name}] Turn ${index + 1}`;
+    // if (parent) {
+    //   message = `Parent '${parent}' ` + message;
+    // }
+    this.emitter.emit('event', message);
   }
 
   onEvaluateTurnEnd(params: EvaluateTurnOnEndResponse) {
 
   }
 
-  onFunctionCallStart({ call, args }: FunctionCallOnStartResponse) {
-    this.emitter.emit('event', 'Call External Tool: ' + call.name + ', args: ' + JSON.stringify(args));
+  onFunctionCallStart({ name, call, args, parent }: FunctionCallOnStartResponse) {
+    let message = `[${name}] Call External Tool: ` + call.name + ', args: ' + JSON.stringify(args);
+    // if (parent) {
+    //   message = `Parent '${parent}' ` + message;
+    // }
+    this.emitter.emit('event', message);
   }
 
-  onFunctionCallEnd({ response }: FunctionCallOnEndResponse) {
-    this.emitter.emit('event', 'Tool Result: ' + response);
+  onFunctionCallEnd({ name, parent, response }: FunctionCallOnEndResponse) {
+    let message = `[${name}] Tool Result: ` + JSON.stringify(response);
+    this.emitter.emit('event', message);
   }
 
   onObserveModelStart({ request }: ModelOnStartResponse) {
 
   }
 
-  onObserveModelEnd({ response, errors }: ModelOnEndResponse) {
-    // this.emitter.emit('event', 'Observation:\n' + response.choices[0].message.content);
+  onObserveModelEnd({ name, errors, parent, response }: ModelOnEndResponse) {
+    const content = response.choices[0].message.content;
+    let message = `[${name}] Observation: ` + content;
+    if (content) {
+      this.emitter.emit('event', message);
+    }
   }
 
   onEvaluateResponseStart({ question, response, request }: EvaluateOnStartResponse) {

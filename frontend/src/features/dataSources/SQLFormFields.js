@@ -20,6 +20,22 @@ export function SQLFormFields({
         />
       </Form.Item>
       <Form.Item
+        extra="Enter a comma separated list"
+        label="Tables"
+        name="tables"
+        wrapperCol={{ span: 14 }}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
+        extra="Enter a comma separated list"
+        label="Categorical Columns"
+        name="categoricalColumns"
+        wrapperCol={{ span: 14 }}
+      >
+        <Input />
+      </Form.Item>
+      <Form.Item
         label="Metadata Source"
         name="sqlType"
       >
@@ -49,14 +65,6 @@ export function SQLFormFields({
           <Form.Item
             label={dialectValue === 'bigquery' ? 'Dataset' : 'Schema'}
             name="dataset"
-            wrapperCol={{ span: 10 }}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            extra="Enter a comma separated list"
-            label="Tables"
-            name="tables"
             wrapperCol={{ span: 10 }}
           >
             <Input />

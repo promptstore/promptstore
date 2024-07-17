@@ -239,11 +239,10 @@ li img {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.chat .ant-checkbox {
-  /* align-self: baseline; */
+/* .chat .ant-checkbox {
   align-self: center;
   margin-bottom: 13px;
-}
+} */
 
 .chat .ant-checkbox-wrapper {
   display: flex;
@@ -263,7 +262,7 @@ li img {
 }
 
 
-.react-flow .react-flow__handle {
+.wrapper .react-flow .react-flow__handle {
   /* width: 30px;
   height: 14px;
   border-radius: 3px;
@@ -275,17 +274,22 @@ li img {
   background-color: #778899;
 }
 
-.react-flow .react-flow__handle-top {
+.wrapper .react-flow .react-flow__handle-top {
   /* top: -10px; */
   top: -5px;
 }
 
-.react-flow .react-flow__handle-bottom {
+.wrapper .react-flow .react-flow__handle-bottom {
   /* bottom: -10px; */
   bottom: -5px;
 }
 
-.react-flow .react-flow__node {
+.wrapper .react-flow .react-flow__handle-right[data-handleid="error"] {
+  background-color: tomato;
+  top: 75%;
+}
+
+.wrapper .react-flow .react-flow__node {
   width: 150px;
   justify-content: center;
   align-items: center;
@@ -293,8 +297,8 @@ li img {
   font-weight: 700;
 }
 
-.react-flow .react-flow__edge path,
-.react-flow__connectionline path {
+.wrapper .react-flow .react-flow__edge path,
+.wrapper .react-flow__connectionline path {
   stroke-width: 2;
 }
 
@@ -303,26 +307,29 @@ li img {
   height: calc(100vh - 320px);
 }
 
+.react-flow__node-agentNode,
 .react-flow__node-compositionNode,
-.react-flow__node-sourceNode,
+.react-flow__node-dataSourceNode,
+.react-flow__node-documentNode,
 .react-flow__node-embeddingNode,
 .react-flow__node-extractorNode,
 .react-flow__node-functionNode,
+.react-flow__node-functionRouterNode,
+.react-flow__node-graphStoreNode,
 .react-flow__node-indexNode,
 .react-flow__node-joinerNode,
 .react-flow__node-loaderNode,
 .react-flow__node-loopNode,
+.react-flow__node-sourceNode,
 .react-flow__node-mapperNode,
-.react-flow__node-outputNode,
-.react-flow__node-requestNode,
-.react-flow__node-toolNode,
 .react-flow__node-modelNode,
+.react-flow__node-outputNode,
 .react-flow__node-promptSetNode,
+.react-flow__node-requestNode,
 .react-flow__node-scheduleNode,
 .react-flow__node-semanticSearchNode,
-.react-flow__node-dataSourceNode,
-.react-flow__node-documentNode,
-.react-flow__node-graphStoreNode,
+.react-flow__node-toolNode,
+.react-flow__node-transformerNode,
 .react-flow__node-vectorStoreNode {
   font-size: 10px;
   width: 180px;
@@ -332,11 +339,11 @@ li img {
   border-radius: 2px;
 }
 
+.react-flow__node-dataSourceNode,
+.react-flow__node-documentNode,
 .react-flow__node-modelNode,
 .react-flow__node-promptSetNode,
-.react-flow__node-semanticSearchNode,
-.react-flow__node-dataSourceNode,
-.react-flow__node-documentNode {
+.react-flow__node-semanticSearchNode {
   font-size: 12px;
 }
 
@@ -344,28 +351,31 @@ li img {
   border-block-color: red;
 }
 
+.react-flow__node-agentNode .react-flow__handle,
+.react-flow__node-binNode .react-flow__handle,
 .react-flow__node-compositionNode .react-flow__handle,
-.react-flow__node-sourceNode .react-flow__handle,
+.react-flow__node-dataSourceNode .react-flow__handle,
+.react-flow__node-documentNode .react-flow__handle,
 .react-flow__node-embeddingNode .react-flow__handle,
-.react-flow__node-vectorStoreNode .react-flow__handle,
-.react-flow__node-graphStoreNode .react-flow__handle,
 .react-flow__node-extractorNode .react-flow__handle,
 .react-flow__node-functionNode .react-flow__handle,
+.react-flow__node-functionRouterNode .react-flow__handle,
+.react-flow__node-graphStoreNode .react-flow__handle,
 .react-flow__node-indexNode .react-flow__handle,
 .react-flow__node-joinerNode .react-flow__handle,
 .react-flow__node-loaderNode .react-flow__handle,
 .react-flow__node-loopNode .react-flow__handle,
 .react-flow__node-mapperNode .react-flow__handle,
-.react-flow__node-outputNode .react-flow__handle,
-.react-flow__node-requestNode .react-flow__handle,
-.react-flow__node-toolNode .react-flow__handle,
 .react-flow__node-modelNode .react-flow__handle,
+.react-flow__node-outputNode .react-flow__handle,
 .react-flow__node-promptSetNode .react-flow__handle,
+.react-flow__node-requestNode .react-flow__handle,
 .react-flow__node-scheduleNode .react-flow__handle,
 .react-flow__node-semanticSearchNode .react-flow__handle,
-.react-flow__node-dataSourceNode .react-flow__handle,
-.react-flow__node-documentNode .react-flow__handle,
-.react-flow__node-binNode .react-flow__handle {
+.react-flow__node-sourceNode .react-flow__handle,
+.react-flow__node-vectorStoreNode .react-flow__handle,
+.react-flow__node-toolNode .react-flow__handle,
+.react-flow__node-transformerNode .react-flow__handle {
   width: 5px;
   height: 8px;
   border: none;
@@ -373,19 +383,22 @@ li img {
   background-color: #778899;
 }
 
+.react-flow__node-agentNode .react-flow__handle-left,
 .react-flow__node-compositionNode .react-flow__handle-left,
-.react-flow__node-sourceNode .react-flow__handle-left,
 .react-flow__node-embeddingNode .react-flow__handle-left,
-.react-flow__node-vectorStoreNode .react-flow__handle-left,
-.react-flow__node-graphStoreNode .react-flow__handle-left,
 .react-flow__node-extractorNode .react-flow__handle-left,
 .react-flow__node-functionNode .react-flow__handle-left,
-.react-flow__node-loaderNode .react-flow__handle-left,
+.react-flow__node-graphStoreNode .react-flow__handle-left,
 .react-flow__node-indexNode .react-flow__handle-left,
-.react-flow__node-requestNode .react-flow__handle-left {
+.react-flow__node-loaderNode .react-flow__handle-left,
+.react-flow__node-requestNode .react-flow__handle-left,
+.react-flow__node-sourceNode .react-flow__handle-left,
+.react-flow__node-transformerNode .react-flow__handle-left,
+.react-flow__node-vectorStoreNode .react-flow__handle-left {
   left: -15px;
 }
 
+.react-flow__node-functionRouterNode .react-flow__handle-left,
 .react-flow__node-joinerNode .react-flow__handle-left,
 .react-flow__node-mapperNode .react-flow__handle-left,
 .react-flow__node-outputNode .react-flow__handle-left,
@@ -393,17 +406,19 @@ li img {
   left: -5px;
 }
 
+.react-flow__node-agentNode .react-flow__handle-right,
 .react-flow__node-compositionNode .react-flow__handle-right,
-.react-flow__node-sourceNode .react-flow__handle-right,
 .react-flow__node-embeddingNode .react-flow__handle-right,
-.react-flow__node-vectorStoreNode .react-flow__handle-right,
-.react-flow__node-graphStoreNode .react-flow__handle-right,
 .react-flow__node-extractorNode .react-flow__handle-right,
 .react-flow__node-functionNode .react-flow__handle-right,
-.react-flow__node-loaderNode .react-flow__handle-right,
+.react-flow__node-graphStoreNode .react-flow__handle-right,
 .react-flow__node-indexNode .react-flow__handle-right,
+.react-flow__node-loaderNode .react-flow__handle-right,
 .react-flow__node-outputNode .react-flow__handle-right,
-.react-flow__node-requestNode .react-flow__handle-right {
+.react-flow__node-requestNode .react-flow__handle-right,
+.react-flow__node-sourceNode .react-flow__handle-right,
+.react-flow__node-transformerNode .react-flow__handle-right,
+.react-flow__node-vectorStoreNode .react-flow__handle-right {
   right: -15px;
 }
 
@@ -523,10 +538,10 @@ article.collapsible .panel.closed {
 }
 
 #menu {
-  flex: 0 0 215px !important;
-  max-width: 215px !important;
-  min-width: 215px !important;
-  width: 215px !important;
+  flex: 0 0 235px !important;
+  max-width: 235px !important;
+  min-width: 235px !important;
+  width: 235px !important;
 }
 
 #menu.ant-layout-sider-collapsed {
@@ -666,7 +681,7 @@ article.collapsible .panel.closed {
 }
 
 .chatline.user .content {
-  text-align: right;
+  text-align: left;
 }
 
 .chatline.user .content>div {
@@ -858,16 +873,17 @@ article.collapsible .panel.closed {
 
 .chat-actions {
   display: flex;
+  flex-wrap: wrap;
 }
 
 .chat-actions>* {
   margin-bottom: 16px;
-  margin-left: 8px;
+  margin-right: 8px;
 }
 
-.chat-actions>*:first-child {
+/* .chat-actions>*:first-child {
   margin-left: 0;
-}
+} */
 
 .prompttext p {
   margin-bottom: 0;
@@ -883,15 +899,17 @@ article.collapsible .panel.closed {
 
 .prompttext code {
   color: chocolate;
+  display: inline-block;
 }
 
 .prompttext code.promptcontrol {
   background: none;
   border: none;
   color: blueviolet;
-  display: block;
+  display: inline-block;
   margin: 0;
   padding: 8px 0;
+  white-space: pre-wrap;
 }
 
 .prompttext code.highlightedvar {
@@ -1037,9 +1055,9 @@ article.collapsible .panel.closed {
   vertical-align: middle;
 }
 
-.ant-space-item>.ant-tag {
+/* .ant-space-item>.ant-tag {
   margin-right: 0;
-}
+} */
 
 .ps-view-card .ant-description-item {
   padding-top: 8px;
@@ -1154,4 +1172,137 @@ article.collapsible .panel.closed {
   font-family: 'Franklin Gothic Medium';
   font-size: 15px !important;
   vertical-align: baseline !important;
+}
+
+.action-link {
+  border: 0;
+  color: rgba(0, 0, 0, 0.88);
+  height: 22px;
+  padding: 0;
+}
+
+.action-link:hover {
+  color: #69b1ff;
+}
+
+.form-table .ant-form-item-row .ant-form-item-label {
+  padding-bottom: 0;
+}
+
+.form-table .ant-form-item-row .ant-form-item-label label {
+  white-space: nowrap;
+}
+
+.highcharts-figure,
+.highcharts-data-table table {
+  min-width: 320px;
+  max-width: 800px;
+  margin: 1em auto;
+}
+
+#container {
+  height: 700px;
+}
+
+.controls {
+  text-align: right;
+  margin-bottom: 1rem;
+  padding: 0 10px;
+}
+
+.controls small {
+  opacity: 50%;
+  line-height: 1.5rem;
+  font-size: 0.8rem;
+}
+
+.button-row {
+  font-size: 0;
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
+.button-row button {
+  background: #f8f8f8;
+  transition: background 150ms;
+  border: 1px solid #999;
+  display: inline-block;
+  font-size: 12pt;
+  line-height: 16pt;
+  margin-left: -1px;
+  color: #555;
+}
+
+.button-row button:first-child {
+  border-top-left-radius: 0.3em;
+  border-bottom-left-radius: 0.3em;
+}
+
+.button-row button:last-child {
+  border-top-right-radius: 0.3em;
+  border-bottom-right-radius: 0.3em;
+}
+
+.button-row button[disabled] {
+  background: rgb(124 181 236);
+  color: white;
+}
+
+.button-row button:hover {
+  background: #ccc;
+  outline: none;
+}
+
+.highcharts-data-table table {
+  font-family: Verdana, sans-serif;
+  border-collapse: collapse;
+  border: 1px solid #ebebeb;
+  margin: 10px auto;
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+}
+
+.highcharts-data-table caption {
+  padding: 1em 0;
+  font-size: 1.2em;
+  color: #555;
+}
+
+.highcharts-data-table th {
+  font-weight: 600;
+  padding: 0.5em;
+}
+
+.highcharts-data-table td,
+.highcharts-data-table th,
+.highcharts-data-table caption {
+  padding: 0.5em;
+}
+
+.highcharts-data-table thead tr,
+.highcharts-data-table tr:nth-child(even) {
+  background: #f8f8f8;
+}
+
+.highcharts-data-table tr:hover {
+  background: #f1f7ff;
+}
+
+.bodyScroll {
+  overflow-y: scroll;
+  padding-right: 20px;
+}
+
+.slider-list-item {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+#promptset-form .ant-upload.ant-upload-select {
+  width: 100%;
+  height: unset;
 }

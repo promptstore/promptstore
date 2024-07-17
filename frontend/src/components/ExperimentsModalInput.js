@@ -17,7 +17,7 @@ export function ExperimentsModalInput({
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (implementationsValue.length && value) {
+    if (implementationsValue.length) {
       setState(implementationsValue.map((x, i) => ({ percentage: value?.[i]?.percentage })));
     }
   }, [implementationsValue, value]);
@@ -76,11 +76,11 @@ export function ExperimentsModalInput({
                   </div>
                   <div style={{ marginLeft: 24, width: 48 }}>
                     <InputNumber
-                      value={state[i].percentage}
-                      onChange={(ev) => {
+                      value={state[i]?.percentage}
+                      onChange={(value) => {
                         setState((curr) => {
-                          let newState = [...curr];
-                          newState.splice(i, 1, { ...curr[i], percentage: ev.target.value });
+                          const newState = [...curr];
+                          newState.splice(i, 1, { ...curr[i], percentage: value });
                           return newState;
                         });
                       }}

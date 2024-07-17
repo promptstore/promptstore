@@ -27,9 +27,13 @@ import { PromptTemplate } from './PromptTemplate';
 import { Validation } from './Validation';
 
 export function Inspector({ step }) {
+  let messages;
   switch (step.type) {
     case 'batch-bin':
       return <BatchBin step={step} title="Batch Bin" />
+
+    case 'call-agent':
+      return <ExecutionUnit step={step} title="Call Agent" />
 
     case 'call-function':
       return <ExecutionUnit step={step} title="Call Function" />
@@ -59,7 +63,11 @@ export function Inspector({ step }) {
       return <PromptTemplate step={step} title="Call Prompt Template" />
 
     case 'call-model':
-      const messages = createOpenAIMessages(step.prompt);
+      if (step.prompt) {
+        messages = createOpenAIMessages(step.prompt);
+      } else {
+        messages = step.messages || [];
+      }
       return <ModelCall messages={messages} step={step} title="Call GPT Model" />
 
     case 'call-custom-model':

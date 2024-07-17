@@ -568,7 +568,7 @@ export function TrainingList() {
             data={cleanData(data)}
             filename={getFilename()}
           >
-            Download
+            Export
           </CSVLink>
         </div>
         <Table

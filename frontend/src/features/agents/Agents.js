@@ -1,12 +1,34 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { Button, Form, Input, Layout, Modal, Select, Space, Switch, Table, Typography } from 'antd';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Button,
+  Form,
+  Input,
+  Layout,
+  Modal,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Typography,
+} from 'antd';
+import { CloseOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
 
 import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
+import {
+  getCompositionsAsync,
+  selectLoading as selectCompositionsLoading,
+  selectCompositions,
+} from '../composer/compositionsSlice';
+import {
+  getDataSourcesAsync,
+  selectDataSources,
+  selectLoading as selectDataSourcesLoading,
+} from '../dataSources/dataSourcesSlice';
 import {
   getFunctionsAsync,
   selectLoading as selectFunctionsLoading,
@@ -23,6 +45,12 @@ import {
   selectModels,
 } from '../models/modelsSlice';
 import {
+  getPromptSetsAsync,
+  selectLoading as selectPromptSetsLoading,
+  selectPromptSets,
+} from '../promptSets/promptSetsSlice';
+
+import {
   createAgentAsync,
   deleteAgentsAsync,
   getAgentsAsync,
@@ -33,6 +61,7 @@ import {
   selectLoaded,
   selectLoading,
   selectRunning,
+  stopRun,
   updateAgentAsync,
 } from './agentsSlice';
 import {
@@ -49,13 +78,17 @@ const agentTypeOptions = [
     value: 'plan',
   },
   {
+    label: 'ReAct Zero-shot Learning',
+    value: 'react',
+  },
+  {
+    label: 'Simple',
+    value: 'simple',
+  },
+  {
     label: 'OpenAI Assistant',
     value: 'openai',
     disabled: true,
-  },
-  {
-    label: 'ReAct Zero-shot Learning',
-    value: 'react',
   },
 ];
 
@@ -73,6 +106,10 @@ export function Agents() {
 
   const agents = useSelector(selectAgents);
   const agentOutput = useSelector(selectAgentOutput);
+  const compositions = useSelector(selectCompositions);
+  const compositionsLoading = useSelector(selectCompositionsLoading);
+  const dataSources = useSelector(selectDataSources);
+  const dataSourcesLoading = useSelector(selectDataSourcesLoading);
   const functions = useSelector(selectFunctions);
   const functionsLoading = useSelector(selectFunctionsLoading);
   const indexes = useSelector(selectIndexes);
@@ -81,8 +118,28 @@ export function Agents() {
   const loading = useSelector(selectLoading);
   const models = useSelector(selectModels);
   const modelsLoading = useSelector(selectModelsLoading);
+  const promptSets = useSelector(selectPromptSets);
+  const promptSetsLoading = useSelector(selectPromptSetsLoading);
   const running = useSelector(selectRunning);
   const tools = useSelector(selectTools);
+
+  const agentOptions = useMemo(() => {
+    const list = Object.values(agents).map((a) => ({
+      label: a.name,
+      value: a.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [agents]);
+
+  const compositionOptions = useMemo(() => {
+    const list = Object.values(compositions).map((c) => ({
+      label: c.name,
+      value: c.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [compositions]);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions).map((f) => ({
@@ -102,6 +159,17 @@ export function Agents() {
     return list;
   }, [indexes]);
 
+  const metricStoreOptions = useMemo(() => {
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'metricstore')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
+
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
       .filter((m) => m.type === 'gpt' || m.type === 'completion')
@@ -114,6 +182,15 @@ export function Agents() {
     return list;
   }, [models]);
 
+  const promptSetOptions = useMemo(() => {
+    const list = Object.values(promptSets).map((f) => ({
+      value: f.id,
+      label: f.name,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [promptSets]);
+
   const toolOptions = useMemo(() => {
     const list = tools.map((t) => ({
       label: t.name,
@@ -123,21 +200,19 @@ export function Agents() {
       label: 'Search Index',
       value: 'searchIndex',
     });
-    list.push({
-      label: 'Semantic Function',
-      value: 'semanticFunction',
-    });
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [tools]);
 
   const [form] = Form.useForm();
   const toolsValue = Form.useWatch('allowedTools', form);
+  const metricStoreSourceIdValue = Form.useWatch('metricStoreSourceId', form);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // console.log('agents:', agents);
 
@@ -155,10 +230,13 @@ export function Agents() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
+      dispatch(getCompositionsAsync({ workspaceId }));
+      dispatch(getDataSourcesAsync({ workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getAgentsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -186,6 +264,7 @@ export function Agents() {
     dispatch(resetAgentOutput());
     setSelectedAgentId(id);
     const agent = agents[id];
+    form.resetFields();
     form.setFieldsValue(agent);
   };
 
@@ -197,6 +276,7 @@ export function Agents() {
 
   const onCloseModal = () => {
     setOutputModalOpen(false);
+    dispatch(stopRun());
   }
 
   const onDelete = () => {
@@ -292,7 +372,7 @@ export function Agents() {
             padding: '4px 11px',
           }}>
             {agentOutput.map((o) => (
-              <Output label={o.key} text={o.output} />
+              <Output key={o.key} label={o.key} text={o.output} />
             ))}
           </div>
           : null
@@ -328,6 +408,7 @@ export function Agents() {
               autoComplete="off"
               onFinish={onFinish}
               onValuesChange={() => { setIsDirty(true); }}
+              initialValues={{}}
             >
               <Form.Item
                 label="Name"
@@ -342,17 +423,56 @@ export function Agents() {
                 <Input />
               </Form.Item>
               <Form.Item
-                label="Goal"
-                name="goal"
-                rules={[
-                  {
-                    required: true,
-                    message: 'Please give the agent a goal',
-                  },
-                ]}
+                label="Description"
+                name="description"
               >
                 <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
               </Form.Item>
+              <Form.Item
+                label="Goal"
+                name="goal"
+                extra="Either enter a goal or select a prompt template."
+              >
+                <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+              </Form.Item>
+              <div>
+                <Form.Item
+                  label="System Prompt"
+                  name="promptSetId"
+                  wrapperCol={{ span: 24 }}
+                  style={{ display: 'inline-block', width: 'calc(25% - 8px)' }}
+                >
+                  <Select
+                    loading={promptSetsLoading}
+                    options={promptSetOptions}
+                    optionFilterProp="label"
+                    placeholder="Select prompt template"
+                  />
+                </Form.Item>
+                <div style={{ display: 'inline-flex', marginLeft: 16, width: 'calc(25% - 8px)' }}>
+                  <Form.Item
+                    name="metricStoreSourceId"
+                    label="Metrics Store"
+                    style={{ flex: 1 }}
+                  >
+                    <Select allowClear
+                      loading={dataSourcesLoading}
+                      options={metricStoreOptions}
+                      optionFilterProp="label"
+                      placeholder="Select metrics store"
+                    />
+                  </Form.Item>
+                  {metricStoreSourceIdValue ?
+                    <Button
+                      type="link"
+                      icon={<LinkOutlined />}
+                      onClick={() => navigate(`/data-sources/${metricStoreSourceIdValue}`)}
+                      style={{ marginTop: 40, width: 32 }}
+                    />
+                    : null
+                  }
+                </div>
+              </div>
               <Form.Item
                 label="Agent Type"
                 name="agentType"
@@ -383,38 +503,152 @@ export function Agents() {
                   optionFilterProp="label"
                 />
               </Form.Item>
-              {toolsValue?.includes('searchIndex') ?
+              <div>
                 <Form.Item
-                  label="Index"
-                  name="indexName"
-                  style={{ display: 'inline-block', width: 'calc(25% - 8px)', marginRight: 16 }}
-                  wrapperCol={{ span: 24 }}
-                >
-                  <Select
-                    allowClear
-                    loading={indexesLoading}
-                    options={indexOptions}
-                    optionFilterProp="label"
-                  />
-                </Form.Item>
-                : null
-              }
-              {toolsValue?.includes('semanticFunction') ?
-                <Form.Item
-                  label="Function"
-                  name="functionId"
+                  label="Sub-agents"
                   style={{ display: 'inline-block', width: 'calc(25% - 8px)' }}
-                  wrapperCol={{ span: 24 }}
                 >
-                  <Select
-                    allowClear
-                    loading={functionsLoading}
-                    options={functionOptions}
-                    optionFilterProp="label"
-                  />
+                  <Form.List name="subAgents">
+                    {(fields, { add, remove }, { errors }) => (
+                      <>
+                        {fields.map((field, index) => (
+                          <Form.Item key={field.name}
+                          >
+                            <Form.Item
+                              name={[field.name, 'agentId']}
+                              style={{ display: 'inline-block', marginBottom: 0, width: 'calc(100% - 32px)' }}
+                            >
+                              <Select
+                                allowClear
+                                options={agentOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              style={{ display: 'inline-block', marginBottom: 0, width: '32px' }}
+                            >
+                              <Button type="text"
+                                icon={<CloseOutlined />}
+                                className="dynamic-delete-button"
+                                onClick={() => remove(field.name)}
+                              />
+                            </Form.Item>
+                          </Form.Item>
+                        ))}
+                        <Form.Item
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Button
+                            type="dashed"
+                            onClick={() => add()}
+                            style={{ width: '100%', zIndex: 101 }}
+                            icon={<PlusOutlined />}
+                          >
+                            Add Agent
+                          </Button>
+                          <Form.ErrorList errors={errors} />
+                        </Form.Item>
+                      </>
+                    )}
+                  </Form.List>
                 </Form.Item>
-                : null
-              }
+                <Form.Item
+                  label="Compositions"
+                  style={{ display: 'inline-block', marginLeft: 16, width: 'calc(25% - 8px)' }}
+                >
+                  <Form.List name="compositions">
+                    {(fields, { add, remove }, { errors }) => (
+                      <>
+                        {fields.map((field, index) => (
+                          <Form.Item key={field.name}
+                          >
+                            <Form.Item
+                              name={[field.name, 'compositionId']}
+                              style={{ display: 'inline-block', marginBottom: 0, width: 'calc(100% - 32px)' }}
+                            >
+                              <Select
+                                allowClear
+                                options={compositionOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              style={{ display: 'inline-block', marginBottom: 0, width: '32px' }}
+                            >
+                              <Button type="text"
+                                icon={<CloseOutlined />}
+                                className="dynamic-delete-button"
+                                onClick={() => remove(field.name)}
+                              />
+                            </Form.Item>
+                          </Form.Item>
+                        ))}
+                        <Form.Item
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Button
+                            type="dashed"
+                            onClick={() => add()}
+                            style={{ width: '100%', zIndex: 101 }}
+                            icon={<PlusOutlined />}
+                          >
+                            Add Composition
+                          </Button>
+                          <Form.ErrorList errors={errors} />
+                        </Form.Item>
+                      </>
+                    )}
+                  </Form.List>
+                </Form.Item>
+                <Form.Item
+                  label="Semantic Functions"
+                  style={{ display: 'inline-block', marginLeft: 16, width: 'calc(25% - 8px)' }}
+                >
+                  <Form.List name="functions">
+                    {(fields, { add, remove }, { errors }) => (
+                      <>
+                        {fields.map((field, index) => (
+                          <Form.Item key={field.name}
+                          >
+                            <Form.Item
+                              name={[field.name, 'functionId']}
+                              style={{ display: 'inline-block', marginBottom: 0, width: 'calc(100% - 32px)' }}
+                            >
+                              <Select
+                                allowClear
+                                options={functionOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              style={{ display: 'inline-block', marginBottom: 0, width: '32px' }}
+                            >
+                              <Button type="text"
+                                icon={<CloseOutlined />}
+                                className="dynamic-delete-button"
+                                onClick={() => remove(field.name)}
+                              />
+                            </Form.Item>
+                          </Form.Item>
+                        ))}
+                        <Form.Item
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Button
+                            type="dashed"
+                            onClick={() => add()}
+                            style={{ width: '100%', zIndex: 101 }}
+                            icon={<PlusOutlined />}
+                          >
+                            Add Function
+                          </Button>
+                          <Form.ErrorList errors={errors} />
+                        </Form.Item>
+                      </>
+                    )}
+                  </Form.List>
+                </Form.Item>
+              </div>
               <div>
                 <Form.Item
                   label="Model"
@@ -429,6 +663,22 @@ export function Agents() {
                     optionFilterProp="label"
                   />
                 </Form.Item>
+                {toolsValue?.includes('searchIndex') ?
+                  <Form.Item
+                    label="Index"
+                    name="indexName"
+                    style={{ display: 'inline-block', marginLeft: 16, width: 'calc(25% - 8px)' }}
+                    wrapperCol={{ span: 24 }}
+                  >
+                    <Select
+                      allowClear
+                      loading={indexesLoading}
+                      options={indexOptions}
+                      optionFilterProp="label"
+                    />
+                  </Form.Item>
+                  : null
+                }
               </div>
               <div style={{ margin: '16px 0' }}>
                 <Form.Item
@@ -453,7 +703,7 @@ export function Agents() {
                   <Button type="default"
                     onClick={onCancel}
                   >
-                    Cancel
+                    Reset
                   </Button>
                   <Button type="primary" htmlType="submit">
                     {selectedAgentId ? 'Update' : 'Create'}
@@ -500,7 +750,7 @@ export function Agents() {
           </Content>
           <Sider
             style={{ backgroundColor: 'inherit', marginLeft: 20 }}
-            width={350}
+            width={150}
           >
             {/* <Typography.Paragraph>
               Agents are a work in progress. Current tool selection is small.

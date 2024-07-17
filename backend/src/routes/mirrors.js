@@ -1,10 +1,7 @@
 import axios from 'axios';
-import cloneDeep from 'lodash.clonedeep';
-import get from 'lodash.get';
-import set from 'lodash.set';
 import omit from 'lodash.omit';
 
-import { deepDiffMapperChangesOnly } from '../utils';
+import { deepDiffMapperChangesOnly, merge } from '../utils';
 
 const CONCAT_SEP = '\n\n---\n';
 
@@ -613,6 +610,7 @@ export default ({ app, auth, logger, services }) => {
           await settingsService.upsertSetting({
             workspaceId: k,
             key: 'functionTags',
+            settingType: 'json',
             value,
           }, username);
         }
@@ -623,42 +621,5 @@ export default ({ app, auth, logger, services }) => {
       changes,
     });
   });
-
-  const merge = (target, source, diff, actions) => {
-    const targetValue = cloneDeep(target);
-    const conflicts = [];
-    for (const [key, val] of Object.entries(diff)) {
-
-      const evaluate = (path, v) => {
-        if (v.type === 'created') {
-          set(targetValue, path, get(source, path));
-        } else if (v.type === 'updated') {
-          if (v.updated !== null && typeof v !== 'undefined') {
-            const key = path.join('.');
-            const action = actions?.[key];
-            if (action === 'replace') {
-              set(targetValue, path, get(source, path));
-            } else if (action === 'concat') {
-              set(targetValue, path, get(targetValue, path) + CONCAT_SEP + get(source, path));
-            } else if (action === 'leave') {
-              // leave target unchanged
-            } else {
-              conflicts.push(path);
-            }
-          }
-        } else if (!v.type) {
-          for (const [k1, v1] of Object.entries(v)) {
-            evaluate([...path, k1], v1);
-          }
-        }
-      };
-
-      evaluate([key], val);
-    }
-    return {
-      merged: targetValue,
-      conflicts,
-    };
-  };
 
 };

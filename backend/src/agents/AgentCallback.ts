@@ -24,7 +24,7 @@ import {
 
 export class AgentCallback {
 
-  onAgentStart(params: AgentOnStartResponse) {
+  onAgentStart(params: Partial<AgentOnStartResponse>) {
 
   }
 

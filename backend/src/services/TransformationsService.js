@@ -16,6 +16,23 @@ export function TransformationsService({ pg, logger }) {
     };
   }
 
+  async function getTransformationsCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM transformations
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
+  }
+
   async function getTransformations(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -50,14 +67,16 @@ export function TransformationsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertTransformation(transformation, username) {
+  async function upsertTransformation(transformation, username, partial) {
     if (transformation === null || typeof transformation === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'dataSourceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedTransformation = await getTransformation(transformation.id);
     if (savedTransformation) {
-      transformation = { ...savedTransformation, ...transformation };
+      if (partial) {
+        transformation = { ...savedTransformation, ...transformation };
+      }
       const val = omit(transformation, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -97,6 +116,7 @@ export function TransformationsService({ pg, logger }) {
   }
 
   return {
+    getTransformationsCount,
     getTransformations,
     getTransformation,
     upsertTransformation,

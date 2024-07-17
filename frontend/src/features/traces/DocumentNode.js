@@ -52,7 +52,9 @@ export default memo(({ id, data, isConnectable }) => {
         open={isModalOpen}
         title="Content Preview"
         width={'75%'}
-        bodyStyle={{ height: 500, overflowY: 'auto' }}
+        styles={{
+          body: { height: 500, overflowY: 'auto' },
+        }}
         onCancel={onCancel}
         okButtonProps={{ style: { display: 'none' } }}
         cancelText="Close"

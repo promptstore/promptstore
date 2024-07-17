@@ -10,7 +10,10 @@ export default memo(({ id, data, isConnectable }) => {
         <div style={{ display: 'flex' }}>
           {data.label}
           <div style={{ flex: 1 }}></div>
-          <Link to={`/design/${data.promptSetId}`}>Debug</Link>
+          {data.promptSetId ?
+            <Link to={`/design/${data.promptSetId}`}>Debug</Link>
+            : null
+          }
         </div>
       </div>
       <div className="custom-node__body">

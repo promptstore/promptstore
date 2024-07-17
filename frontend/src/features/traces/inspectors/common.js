@@ -20,16 +20,20 @@ function Choices({ step }) {
           </div>
           :
           <div key={'output-' + i}>
-            <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+            <Content content={choice.message.content} />
+            {/* <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
               {typeof choice.message.content === 'string' ?
                 decodeEntities(choice.message.content)
                 :
                 JSON.stringify(choice.message.content)
               }
-            </Typography.Paragraph>
-            <Typography.Text type="secondary">
-              finish reason: {choice.finish_reason}
-            </Typography.Text>
+            </Typography.Paragraph> */}
+            {choice.finish_reason ?
+              <Typography.Text type="secondary">
+                finish reason: {choice.finish_reason}
+              </Typography.Text>
+              : null
+            }
           </div>
       ))}
     </div>
@@ -117,7 +121,7 @@ export function Input({ step }) {
   let input;
   if (step.args) {
     input = getInput(step.args, step.isBatch);
-  } else if (step.messages) {
+  } else if (step.messages?.length) {
     input = step.messages[step.messages.length - 1].content;
   }
   return (
@@ -127,7 +131,7 @@ export function Input({ step }) {
         : null
       }
       {step.args ?
-        <JsonView collapsed src={step.args} />
+        <JsonView src={step.args} />
         : null
       }
     </Space>
@@ -151,7 +155,11 @@ export function OutputMultiple({ step }) {
     : (
       <Space wrap size="large">
         {step.response?.map(r => (
-          <Space key={r.model} direction="vertical" style={{ marginBottom: 24 }}>
+          <Space key={r.model}
+            direction="vertical"
+            size="middle"
+            style={{ marginBottom: 24 }}
+          >
             <div>
               <Typography.Paragraph className="first" style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>
                 {r.model}

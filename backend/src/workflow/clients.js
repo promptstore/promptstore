@@ -2,6 +2,7 @@ import { default as dayjs } from 'dayjs';
 import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
 import {
   evaluates,
+  executeAgentNetworks,
   executeCompositions,
   indexs,
   logCalls,
@@ -80,6 +81,34 @@ export async function scheduleEvaluation(evaluation, workspaceId, username, conn
   }
 
   return scheduleHandle.scheduleId;
+}
+
+export async function executeAgentNetwork(params, connectionOptions) {
+  // Connect to the default Server location (localhost:7233)
+  const connection = await Connection.connect(connectionOptions);
+  // In production, pass options to configure TLS and other settings:
+  // {
+  //   address: 'foo.bar.tmprl.cloud',
+  //   tls: {}
+  // }
+
+  const client = new Client({
+    connection,
+    // namespace: 'foo.bar', // connects to 'default' namespace if not specified
+    namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
+  });
+
+  const handle = await client.workflow.start(executeAgentNetworks, {
+    // type inference works! args: [name: string]
+    args: [params],
+    taskQueue: 'worker',
+    workflowId: 'exec-agent-network-workflow-' + Date.now(),
+  });
+  console.log('Started workflow', handle.workflowId);
+
+  // optional: wait for client result
+  // console.log(await handle.result());
+  return handle.result();
 }
 
 export async function executeComposition(params, connectionOptions) {

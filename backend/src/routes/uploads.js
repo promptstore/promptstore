@@ -19,9 +19,11 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
     extractorService,
     functionsService,
     graphStoreService,
+    imagesService,
     indexesService,
     modelsService,
     promptSetsService,
+    settingsService,
     uploadsService,
     vectorStoreService,
   } = services;
@@ -280,6 +282,28 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
       logger.debug('obj:', obj);
       r = await compositionsService.upsertComposition(obj, username);
     } else if (type === 'function') {
+      if (obj.model) {
+        const models = await modelsService.getModelsByName(workspaceId, obj.model.name);
+        if (models.length) {
+          obj = { ...obj, modelId: models[0].id };
+        } else {
+          const model = { ...obj.model, id: null, workspaceId };
+          const { id } = await modelsService.upsertModel(model, username);
+          obj = { ...obj, modelId: id };
+        }
+        delete obj.model;
+      }
+      if (obj.promptSet) {
+        const sets = await promptSetsService.getPromptSetsByName(workspaceId, obj.promptSet.name);
+        if (sets.length) {
+          obj = { ...obj, promptSetId: sets[0].id };
+        } else {
+          const promptSet = { ...obj.promptSet, id: null, workspaceId };
+          const { id } = await promptSetsService.upsertPromptSet(promptSet, username);
+          obj = { ...obj, promptSetId: id };
+        }
+        delete obj.promptSet;
+      }
       delete obj.id;
       const name = obj.name.trim();
       const functions = await functionsService.getFunctionsByName(workspaceId, name);
@@ -305,6 +329,23 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         obj = { ...obj, name, workspaceId };
       }
       logger.debug('obj:', obj);
+      const tagsSetting = await settingsService.getSettingsByKey(workspaceId, 'functionTags');
+      let value = [...(obj.tags || [])];
+      if (tagsSetting?.length) {
+        value.push(...(tagsSetting[0].value || []));
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({ ...tagsSetting[0], value }, username);
+      } else {
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({
+          workspaceId,
+          key: 'functionTags',
+          settingType: 'json',
+          value,
+        }, username);
+      }
       r = await functionsService.upsertFunction(obj, username);
     } else if (type === 'model') {
       delete obj.id;
@@ -351,7 +392,19 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           }
         }
         if (version > 0 || exactMatch) {
-          obj = { ...obj, name: name + ' ' + (version + 1), workspaceId };
+          const match = obj.skill.match(/(.*?)_\d+$/);
+          let skill;
+          if (match) {
+            skill = `${match[1]}_${version + 1}`;
+          } else {
+            skill = `${obj.skill}_${version + 1}`;
+          }
+          obj = {
+            ...obj,
+            name: name + ' ' + (version + 1),
+            skill,
+            workspaceId,
+          };
         } else {
           obj = { ...obj, name, workspaceId };
         }
@@ -359,11 +412,137 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         obj = { ...obj, name, workspaceId };
       }
       logger.debug('obj:', obj);
+      const tagsSetting = await settingsService.getSettingsByKey(workspaceId, 'promptSetTags');
+      let value = [...(obj.tags || [])];
+      if (tagsSetting?.length) {
+        value.push(...(tagsSetting[0].value || []));
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({ ...tagsSetting[0], value }, username);
+      } else {
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({
+          workspaceId,
+          key: 'promptSetTags',
+          settingType: 'json',
+          value,
+        }, username);
+      }
+      const skillsSetting = await settingsService.getSettingsByKey(workspaceId, 'skills');
+      value = [obj.skill];
+      if (skillsSetting?.length) {
+        value.push(...(skillsSetting[0].value || []));
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({ ...skillsSetting[0], value }, username);
+      } else {
+        value = [...new Set(value)];
+        value.sort((a, b) => a < b ? -1 : 1);
+        await settingsService.upsertSetting({
+          workspaceId,
+          key: 'skills',
+          settingType: 'json',
+          value,
+        }, username);
+      }
       r = await promptSetsService.upsertPromptSet(obj, username);
     }
     logger.debug('r:', r);
     return r;
   }
+
+  app.post('/api/workspaces/:workspaceId/fix-promptset-tag-setting', auth, async (req, res) => {
+    const { workspaceId } = req.params;
+    const { username } = req.user;
+    let value = [];
+    const promptSets = await promptSetsService.getPromptSets(workspaceId);
+    for (const ps of promptSets) {
+      if (ps.tags) {
+        value.push(...ps.tags);
+      }
+    }
+    value = [...new Set(value)];
+    value.sort((a, b) => a < b ? -1 : 1);
+    const tagsSetting = await settingsService.getSettingsByKey(workspaceId, 'promptSetTags');
+    if (tagsSetting?.length) {
+      await settingsService.upsertSetting({ ...tagsSetting[0], value }, username);
+    } else {
+      await settingsService.upsertSetting({
+        workspaceId,
+        key: 'promptSetTags',
+        settingType: 'json',
+        value,
+      }, username);
+    }
+    res.json('OK');
+  });
+
+  app.post('/api/workspaces/:workspaceId/fix-function-tag-setting', auth, async (req, res) => {
+    const { workspaceId } = req.params;
+    const { username } = req.user;
+    let value = [];
+    const funcs = await functionsService.getFunctions(workspaceId);
+    for (const func of funcs) {
+      if (func.tags) {
+        value.push(...func.tags);
+      }
+    }
+    value = [...new Set(value)];
+    value.sort((a, b) => a < b ? -1 : 1);
+    const tagsSetting = await settingsService.getSettingsByKey(workspaceId, 'functionTags');
+    if (tagsSetting?.length) {
+      await settingsService.upsertSetting({ ...tagsSetting[0], value }, username);
+    } else {
+      await settingsService.upsertSetting({
+        workspaceId,
+        key: 'functionTags',
+        settingType: 'json',
+        value,
+      }, username);
+    }
+    res.json('OK');
+  });
+
+  app.post('/api/workspaces/:workspaceId/fix-skill-setting', auth, async (req, res) => {
+    const { workspaceId } = req.params;
+    const { username } = req.user;
+    let value = [];
+    const promptSets = await promptSetsService.getPromptSets(workspaceId);
+    for (const ps of promptSets) {
+      value.push(ps.skill);
+    }
+    value = [...new Set(value)];
+    value.sort((a, b) => a < b ? -1 : 1);
+    const tagsSetting = await settingsService.getSettingsByKey(workspaceId, 'skills');
+    if (tagsSetting?.length) {
+      await settingsService.upsertSetting({ ...tagsSetting[0], value }, username);
+    } else {
+      await settingsService.upsertSetting({
+        workspaceId,
+        key: 'skills',
+        settingType: 'json',
+        value,
+      }, username);
+    }
+    res.json('OK');
+  });
+
+  app.post('/api/object-duplicates', auth, async (req, res) => {
+    const { username } = req.user;
+    try {
+      const { obj, type, workspaceId } = req.body;
+      const result = await importObject(workspaceId, username, type, obj);
+      res.json(result);
+    } catch (err) {
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
+      res.sendStatus(500);
+    }
+  });
 
   app.post('/api/object-uploads', upload.single('file'), auth, async (req, res) => {
     // logger.debug('body:', req.body);
@@ -424,7 +603,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
         // logger.debug('upload result:', result);
         if (correlationId) {
           if (isImage) {
-            mc.presignedUrl('GET', constants.FILE_BUCKET, result.name, 24 * 60 * 60, (err, presignedUrl) => {
+            mc.presignedUrl('GET', constants.FILE_BUCKET, result.name, async (err, presignedUrl) => {
               if (err) {
                 let message = 'Error getting presigned url: ';
                 if (err instanceof Error) {
@@ -448,7 +627,23 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
               } else {
                 imageUrl = presignedUrl;
               }
-              jobs[correlationId] = { ...result, imageUrl };
+
+              const { width, height, size, name, etag, appId, filename } = result;
+              const values = {
+                workspaceId,
+                imageId: uuid.v4(),
+                imageUrl,
+                objectName: name,
+                width,
+                height,
+                size,
+                etag,
+                appId,
+                filename,
+              };
+              const image = await imagesService.upsertImage(values, username);
+
+              jobs[correlationId] = image;
             });
           } else {
             jobs[correlationId] = result;
@@ -501,6 +696,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
   });
 
   app.delete('/api/uploads', auth, async (req, res, next) => {
+    const { username } = req.user;
     const names = req.query.names.split(',');
     const workspaceId = parseInt(req.query.workspace, 10);
     if (isNaN(workspaceId)) {
@@ -545,7 +741,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
             id: appId,
             documents: newDocuments,
             indexes: newIndexes,
-          });
+          }, username, true);
 
           // TODO
           // await deleteObjects(ids.map(objectId));

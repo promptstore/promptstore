@@ -130,6 +130,11 @@ spec:
                 configMapKeyRef:
                   key: LOADER_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: METRIC_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: METRIC_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: MODEL_PROVIDER_PLUGINS
               valueFrom:
                 configMapKeyRef:
@@ -375,6 +380,16 @@ spec:
                 configMapKeyRef:
                   key: SEARCH_VECTORSTORE_PROVIDER
                   name: "{{ .Values.appname }}"
+            - name: RULES_ENGINE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: RULES_ENGINE_SERVICE_URL
+                  name: "{{ .Values.appname }}"
+            - name: SYSTEM_WORKSPACE_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: SYSTEM_WORKSPACE_ID
+                  name: "{{ .Values.appname }}"
 
             - name: PGUSER
               valueFrom:
@@ -511,10 +526,25 @@ spec:
                 secretKeyRef:
                   key: OPENAI_API_KEY
                   name: "{{ .Values.appname }}"
+            - name: STABILITY_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: STABILITY_AI_API_KEY
+                  name: "{{ .Values.appname }}"
             - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: GOOGLE_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: METRICFLOW_ENVIRONMENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: METRICFLOW_ENVIRONMENT_ID
+                  name: "{{ .Values.appname }}"
+            - name: METRICFLOW_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: METRICFLOW_SERVICE_TOKEN
                   name: "{{ .Values.appname }}"
             - name: KEYCLOAK_CLIENT_SECRET
               valueFrom:
@@ -610,6 +640,26 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: EMAIL_OVERRIDE
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_URL
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_DATABASE
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_PASSWORD
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data
@@ -732,6 +782,11 @@ spec:
                 configMapKeyRef:
                   key: LOADER_PLUGINS
                   name: "{{ .Values.appname }}"
+            - name: METRIC_STORE_PLUGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: METRIC_STORE_PLUGINS
+                  name: "{{ .Values.appname }}"
             - name: MODEL_PROVIDER_PLUGINS
               valueFrom:
                 configMapKeyRef:
@@ -977,6 +1032,16 @@ spec:
                 configMapKeyRef:
                   key: SEARCH_VECTORSTORE_PROVIDER
                   name: "{{ .Values.appname }}"
+            - name: RULES_ENGINE_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: RULES_ENGINE_SERVICE_URL
+                  name: "{{ .Values.appname }}"
+            - name: SYSTEM_WORKSPACE_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: SYSTEM_WORKSPACE_ID
+                  name: "{{ .Values.appname }}"
 
             - name: PGUSER
               valueFrom:
@@ -1113,10 +1178,25 @@ spec:
                 secretKeyRef:
                   key: OPENAI_API_KEY
                   name: "{{ .Values.appname }}"
+            - name: STABILITY_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: STABILITY_AI_API_KEY
+                  name: "{{ .Values.appname }}"
             - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:
                   key: GOOGLE_API_KEY
+                  name: "{{ .Values.appname }}"
+            - name: METRICFLOW_ENVIRONMENT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: METRICFLOW_ENVIRONMENT_ID
+                  name: "{{ .Values.appname }}"
+            - name: METRICFLOW_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: METRICFLOW_SERVICE_TOKEN
                   name: "{{ .Values.appname }}"
             - name: KEYCLOAK_CLIENT_SECRET
               valueFrom:
@@ -1212,6 +1292,26 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: EMAIL_OVERRIDE
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_URL
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_DATABASE
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_USERNAME
+                  name: "{{ .Values.appname }}"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: CLICKHOUSE_PASSWORD
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data

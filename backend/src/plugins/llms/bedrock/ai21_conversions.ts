@@ -66,6 +66,7 @@ export async function fromAI21ChatResponse(
 ) {
   const {
     id,
+    prompt,
     completions,
   } = response;
   let choices: ChatCompletionChoice[];
@@ -139,11 +140,19 @@ export async function fromAI21ChatResponse(
       }
     ];
   }
+  const prompt_tokens = prompt.tokens.length;
+  const completion_tokens = completions.reduce((a, c) => a + c.data.tokens.length, 0);
+  const total_tokens = prompt_tokens + completion_tokens;
   return {
     id,
     created: new Date(),
     n: choices.length,
     choices,
+    usage: {
+      prompt_tokens,
+      completion_tokens,
+      total_tokens,
+    },
   };
 }
 

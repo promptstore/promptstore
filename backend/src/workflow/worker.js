@@ -6,6 +6,8 @@ import path from 'path';
 
 import logger from '../logger';
 import pg from '../db';
+import { AgentNetworksService } from '../services/AgentNetworksService';
+import { AgentsService } from '../services/AgentsService';
 import { CallLoggingService } from '../services/CallLoggingService';
 import { CompositionsService } from '../services/CompositionsService';
 import { CreditCalculatorService } from '../services/CreditCalculatorService';
@@ -21,19 +23,23 @@ import { FunctionsService } from '../services/FunctionsService';
 import { IndexesService } from '../services/IndexesService';
 import { LLMService } from '../services/LLMService';
 import { LoaderService } from '../services/LoaderService';
+import { MetricStoreService } from '../services/MetricStoreService';
 import { ModelProviderService } from '../services/ModelProviderService';
 import { ModelsService } from '../services/ModelsService';
 import { ParserService } from '../services/ParserService';
 import { PipelinesService } from '../services/PipelinesService';
 import { PromptSetsService } from '../services/PromptSetsService';
+import { RulesEngineService } from '../services/RulesEngineService';
+import { RulesService } from '../services/RulesService';
 import { SecretsService } from '../services/SecretsService';
+import { SettingsService } from '../services/SettingsService';
 import { SqlSourceService } from '../services/SqlSourceService';
 import { ToolService } from '../services/ToolService';
 import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
 import { UsersService } from '../services/UsersService';
 import { VectorStoreService } from '../services/VectorStoreService';
-import { getPlugins } from '../utils';
+import { getPlugins, installModules } from '../utils';
 
 import { createActivities } from './activities';
 
@@ -49,6 +55,7 @@ const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
+const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 
 const minioOptions = {
   endPoint: S3_ENDPOINT,
@@ -80,6 +87,9 @@ const llmPlugins = await getPlugins(basePath, LLM_PLUGINS, logger);
 const LOADER_PLUGINS = process.env.LOADER_PLUGINS || '';
 const loaderPlugins = await getPlugins(basePath, LOADER_PLUGINS, logger);
 
+const METRIC_STORE_PLUGINS = process.env.METRIC_STORE_PLUGINS || '';
+const metricStorePlugins = await getPlugins(basePath, METRIC_STORE_PLUGINS, logger);
+
 const MODEL_PROVIDER_PLUGINS = process.env.MODEL_PROVIDER_PLUGINS || '';
 const modelProviderPlugins = await getPlugins(basePath, MODEL_PROVIDER_PLUGINS, logger);
 
@@ -94,6 +104,8 @@ const TOOL_PLUGINS = process.env.TOOL_PLUGINS || '';
 const VECTOR_STORE_PLUGINS = process.env.VECTOR_STORE_PLUGINS || '';
 const vectorStorePlugins = await getPlugins(basePath, VECTOR_STORE_PLUGINS, logger);
 
+const agentNetworksService = AgentNetworksService({ pg, logger });
+const agentsService = AgentsService({ pg, logger });
 const callLoggingService = CallLoggingService({ pg, logger });
 const compositionsService = CompositionsService({ pg, logger });
 const dataSourcesService = DataSourcesService({ pg, logger });
@@ -105,11 +117,22 @@ const functionsService = FunctionsService({ pg, logger });
 const graphStoreService = GraphStoreService({ logger, registry: graphStorePlugins });
 const indexesService = IndexesService({ pg, logger });
 const loaderService = LoaderService({ logger, registry: loaderPlugins });
+const metricStoreService = MetricStoreService({ logger, registry: metricStorePlugins });
 const modelProviderService = ModelProviderService({ logger, registry: modelProviderPlugins });
 const modelsService = ModelsService({ pg, logger });
 const parserService = ParserService({ logger, registry: outputParserPlugins });
 const promptSetsService = PromptSetsService({ pg, logger });
+
+const rulesEngineService = RulesEngineService({
+  constants: {
+    RULES_ENGINE_SERVICE_URL: process.env.RULES_ENGINE_SERVICE_URL,
+  },
+  logger,
+});
+
+const rulesService = RulesService({ pg, logger });
 const secretsService = SecretsService({ pg, logger });
+const settingsService = SettingsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
@@ -118,11 +141,13 @@ const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlu
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
-const creditCalculatorService = CreditCalculatorService({ logger });
+const creditCalculatorService = CreditCalculatorService({ logger, services: { modelsService } });
 
 const executionsService = ExecutionsService({
   logger,
   services: {
+    agentNetworksService,
+    agentsService,
     compositionsService,
     creditCalculatorService,
     dataSourcesService,
@@ -131,10 +156,14 @@ const executionsService = ExecutionsService({
     graphStoreService,
     indexesService,
     llmService,
+    metricStoreService,
     modelProviderService,
     modelsService,
     parserService,
     promptSetsService,
+    rulesEngineService,
+    rulesService,
+    settingsService,
     sqlSourceService,
     tracesService,
     usersService,
@@ -176,6 +205,45 @@ const toolService = ToolService({ logger, registry: toolPlugins });
 
 executionsService.addServices({ guardrailsService, pipelinesService, toolService });
 
+const services = {
+  callLoggingService,
+  dataSourcesService,
+  destinationsService,
+  evaluationsService,
+  executionsService,
+  extractorService,
+  functionsService,
+  graphStoreService,
+  indexesService,
+  llmService,
+  loaderService,
+  metricStoreService,
+  modelsService,
+  promptSetsService,
+  rulesEngineService,
+  rulesService,
+  secretsService,
+  sqlSourceService,
+  toolService,
+  uploadsService,
+  vectorStoreService,
+};
+
+const options = {
+  constants: {
+    DOCUMENTS_PREFIX,
+  },
+  logger,
+  mc,
+  ...services,
+};
+
+logger.debug('Installing agents');
+const agents = await installModules('agents', { logger, services });
+logger.debug('agents:', Object.keys(agents));
+
+executionsService.addAgents(agents);
+
 async function runWorker() {
   const connectionOptions = {
     address: TEMPORAL_URL,
@@ -186,26 +254,7 @@ async function runWorker() {
   const worker = await Worker.create({
     connection,
     workflowsPath: path.join(__dirname, 'workflows.js'),
-    activities: createActivities({
-      mc,
-      logger,
-      callLoggingService,
-      dataSourcesService,
-      destinationsService,
-      evaluationsService,
-      executionsService,
-      extractorService,
-      functionsService,
-      graphStoreService,
-      indexesService,
-      llmService,
-      loaderService,
-      modelsService,
-      secretsService,
-      sqlSourceService,
-      uploadsService,
-      vectorStoreService,
-    }),
+    activities: createActivities(options),
     taskQueue: 'worker',
     namespace: TEMPORAL_NAMESPACE || 'promptstore',
   });

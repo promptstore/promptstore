@@ -297,7 +297,7 @@ export function Chat({
   const AssistantMessage = ({ first, message, onChange }) => {
     if (!selectable || (first && !selectMultiple)) {
       return (
-        <div className="chatline assistant">
+        <div key={message.key} className="chatline assistant">
           <div className="ant-radio"></div>
           <div className="avatar"><Avatar>A</Avatar></div>
           <div className="content" style={{ maxWidth: '100%' }}>
@@ -374,7 +374,7 @@ export function Chat({
       //   </Checkbox>
       // );
       return (
-        <div className="chatline assistant">
+        <div key={message.key} className="chatline assistant">
           <div className="avatar"><Avatar>A</Avatar></div>
           <div className="content">
             <Space size="large">
@@ -394,7 +394,7 @@ export function Chat({
       );
     }
     return (
-      <Radio value={message.key}>
+      <Radio key={message.key} value={message.key}>
         <div className="chatline assistant">
           <div className="avatar"><Avatar>A</Avatar></div>
           <div className="content">
@@ -417,12 +417,12 @@ export function Chat({
     if (Array.isArray(content)) {
       return (
         <div style={{
-          alignContent: 'end',
+          alignContent: 'start',
           display: 'flex',
           flexDirection: 'column',
           flexWrap: 'wrap',
           gap: 16,
-          textAlign: 'end'
+          textAlign: 'left'
         }}>
           {content.map((c, i) => {
             if (c.type === 'text') {
@@ -607,7 +607,7 @@ export function Chat({
           disabled={disabled || !hasMessages || !enableCritique}
           onClick={critique}
         >
-          Critique
+          Evaluate
         </Button>
         {traceId ?
           <div style={{ color: '#1677ff', flex: 1, marginRight: 36, textAlign: 'end', whiteSpace: 'nowrap' }}>

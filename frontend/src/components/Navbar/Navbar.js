@@ -220,7 +220,7 @@ function Navbar() {
       <SearchModal
         onCancel={onSearchCancel}
         open={searchModalOpen}
-        indexName="pssearch"
+        indexName={process.env.REACT_APP_SEARCH_INDEX}
         titleField={(r => (
           <span style={{ fontFamily: 'monospace' }}>
             <span style={{

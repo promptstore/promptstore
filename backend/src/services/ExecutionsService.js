@@ -10,9 +10,12 @@ import CoreModelAdapter from './CoreModelAdapter.ts';
 
 export function ExecutionsService({ logger, rc, services }) {
 
+  let _agents;
   let _services = services;
 
   const {
+    agentNetworksService,
+    agentsService,
     compositionsService,
     creditCalculatorService,
     dataSourcesService,
@@ -22,17 +25,25 @@ export function ExecutionsService({ logger, rc, services }) {
     guardrailsService,
     indexesService,
     llmService,
+    metricStoreService,
     modelProviderService,
     modelsService,
     parserService,
     pipelinesService,
     promptSetsService,
+    rulesEngineService,
+    rulesService,
+    settingsService,
     sqlSourceService,
     toolService,
     tracesService,
     usersService,
     vectorStoreService,
   } = services;
+
+  const addAgents = (agents) => {
+    _agents = agents;
+  }
 
   const addServices = (services) => {
     _services = { ..._services, ...services };
@@ -43,7 +54,11 @@ export function ExecutionsService({ logger, rc, services }) {
   const getAdapter = () => {
     if (!_adapter) {
       _adapter = CoreModelAdapter({
-        logger, rc, services: {
+        agents: _agents,
+        logger,
+        rc,
+        services: {
+          agentsService,
           compositionsService,
           dataSourcesService,
           featureStoreService,
@@ -52,11 +67,15 @@ export function ExecutionsService({ logger, rc, services }) {
           guardrailsService,
           indexesService,
           llmService,
+          metricStoreService,
           modelProviderService,
           modelsService,
           parserService,
           pipelinesService,
           promptSetsService,
+          rulesEngineService,
+          rulesService,
+          settingsService,
           sqlSourceService,
           toolService,
           vectorStoreService,
@@ -67,12 +86,174 @@ export function ExecutionsService({ logger, rc, services }) {
     return _adapter;
   }
 
+  const executeAgentNetwork = async ({
+    agentNetworkId,
+    username,
+  }) => {
+    const agentNetwork = await agentNetworksService.getAgentNetwork(agentNetworkId);
+    const { edges, nodes } = agentNetwork.network;
+    const startNode = nodes.find(n => n.data.start);
+    const nodesMap = nodes.reduce((a, n) => {
+      a[n.id] = n;
+      return a;
+    }, {});
+    const nextNodes = [];
+    for (const edge of edges) {
+      if (edge.source === startNode.id) {
+        nextNodes.push(nodesMap[edge.target]);
+      }
+    }
+    const excludedTools = [];
+    const subAgents = [];
+    for (const next of nextNodes) {
+      const agent = await agentsService.getAgent(next.data.agentId);
+      subAgents.push(agent);
+      excludedTools.push(...agent.allowedTools);
+    }
+    const parent = await agentsService.getAgent(startNode.data.agentId);
+    logger.debug('startNode:', startNode);
+    const response = await executeAgent({
+      agentId: parent.id,
+      agent: parent,
+      args: {
+        goal: startNode.data.goal,
+      },
+      excludedTools,
+      subAgents,
+      workspaceId: parent.workspaceId,
+      username,
+    });
+    return { response };
+  };
+
+  const executeAgent = async ({
+    agentId,
+    agent,
+    args,
+    callbacks,
+    excludedTools,
+    parentAgentName,
+    subAgents,
+    username,
+    workspaceId,
+  }) => {
+    const { email, goal } = args;
+    const agentInfo = agent || await agentsService.getAgent(agentId);
+    const adapter = getAdapter();
+    const myagent = await adapter.createAgent(agentInfo);
+
+    // Override `subAgents` if passed in
+    if (subAgents?.length) {
+      myagent.subAgents = subAgents;
+    }
+    // Exclude tools that are performed by a sub agent
+    // TODO or filter within the agent given `subAgents`?
+    if (excludedTools?.length) {
+      myagent.allowedTools = myagent.allowedTools.filter(name => !excludedTools.includes(name));
+    }
+
+    const content = await myagent.call({
+      callbacks,
+      email,
+      goal,
+      workspaceId,
+      username,
+      parentAgentName,
+    });
+    logger.debug('Agent response content:', content);
+    return content;
+  }
+
+  const executeComposition = async ({
+    workspaceId,
+    username,
+    compositionName,
+    composition,
+    args,
+    model,
+    params,
+    functions,
+    batch = false,
+    debug = false,
+  }) => {
+    const compositionInfo = composition || await compositionsService.getCompositionByName(workspaceId, compositionName);
+    if (!compositionInfo) {
+      const errors = [
+        {
+          message: `Composition ${compositionName} not found`,
+        },
+      ];
+      return { errors };
+    }
+
+    const callbacks = [new TracingCallback({ workspaceId, username, tracesService })];
+    if (debug) {
+      callbacks.push(new DebugCallback());
+    }
+    const adapter = getAdapter();
+    const comp = await adapter.createComposition(workspaceId, compositionInfo, callbacks);
+
+    const executor = new LocalExecutor();
+    const userContent = getInput(args);
+    if (userContent) {
+      const wordCount = userContent.split(/\s+/).length;
+      const maxWords = Math.floor(wordCount * 1.2);
+      args = {
+        ...args,
+        wordCount,
+        maxWords,
+        workspaceId,
+      };
+    }
+    if (!args) args = {};
+    args = { ...args, username, workspaceId };
+    try {
+      let response_format;
+      if (params.jsonMode) {
+        response_format = { type: 'json_object' };
+      }
+      const modelParams = {
+        max_tokens: params.maxTokens,
+        n: params.n,
+        temperature: params.temperature,
+        top_p: params.topP,
+        stop: params.stop,
+        presence_penalty: params.presencePenalty,
+        frequency_penalty: params.frequencyPenalty,
+        seed: params.seed,
+        response_format,
+      };
+      const response = await executor.runComposition({
+        composition: comp,
+        args,
+        model,
+        modelParams,
+        functions,
+        isBatch: batch,
+      });
+
+      // TODO - or pass through
+      const user = await usersService.getUser(username);
+      const creditBalance = user.credits;
+
+      return { ...response, creditBalance };
+    } catch (err) {
+      const errors = [
+        {
+          message: String(err),
+        },
+      ];
+      return { errors };
+    }
+  }
+
   const executeFunction = async ({
     workspaceId,
     username,
     semanticFunctionName,
     func,
     args,
+    env,
     messages,
     history,
     extraSystemPrompt,
@@ -84,6 +265,7 @@ export function ExecutionsService({ logger, rc, services }) {
     batch = false,
     debug = false,
   }) => {
+    logger.debug('env:', env);
     if (!params) params = {};
     const { credits, errors } = await usersService.checkCredits(username);
     if (errors) {
@@ -121,10 +303,12 @@ export function ExecutionsService({ logger, rc, services }) {
       if (userContent) {
         const wordCount = userContent.split(/\s+/).length;
         const maxWords = Math.floor(wordCount * 1.2);
+        const currentDate = new Date().toISOString();
         args = {
           ...args,
           wordCount,
           maxWords,
+          currentDate,
         };
       }
     }
@@ -147,10 +331,11 @@ export function ExecutionsService({ logger, rc, services }) {
         seed: params.seed,
         response_format,
       };
-      const run = async (args) => {
+      const run = async (args, env) => {
         let { response, responseMetadata } = await executor.runFunction({
           semanticFunction,
           args,
+          env,
           messages,
           history,
           extraSystemPrompt,
@@ -162,9 +347,10 @@ export function ExecutionsService({ logger, rc, services }) {
           workspaceId,
           username,
         });
+        logger.debug('responseMetadata:', responseMetadata);
         const { images, promptTokens, completionTokens } = responseMetadata;
         const { provider } = await modelsService.getModelByKey(workspaceId, response.model);
-        const costComponents = creditCalculatorService.getCostComponents({
+        const costComponents = await creditCalculatorService.getCostComponents({
           name: semanticFunctionName,
           provider,
           model: response.model,
@@ -173,10 +359,13 @@ export function ExecutionsService({ logger, rc, services }) {
           outputTokens: completionTokens,
           images,
           imageCount: images?.length || 0,
+          workspaceId,
         });
         const totalCost = responseMetadata.totalCost + costComponents.totalCost;
         creditBalance -= totalCost * 1000;
-        await usersService.upsertUser({ username, credits: creditBalance });
+        if (!isNaN(creditBalance)) {
+          await usersService.upsertUser({ username, credits: creditBalance });
+        }
         const costs = [...(responseMetadata.costs || []), costComponents];
         responseMetadata = {
           ...responseMetadata,
@@ -248,7 +437,7 @@ export function ExecutionsService({ logger, rc, services }) {
         return data;
 
       } else {*/
-      return run(args);
+      return run(args, env);
       // }
     } catch (err) {
       let message = `Error running function "${semanticFunctionName}": ` + err.message;
@@ -260,88 +449,6 @@ export function ExecutionsService({ logger, rc, services }) {
       return { errors };
     }
   };
-
-  const executeComposition = async ({
-    workspaceId,
-    username,
-    compositionName,
-    args,
-    model,
-    params,
-    functions,
-    batch = false,
-    debug = false,
-  }) => {
-    const compositionInfo = await compositionsService.getCompositionByName(workspaceId, compositionName);
-    if (!compositionInfo) {
-      const errors = [
-        {
-          message: `Composition ${compositionName} not found`,
-        },
-      ];
-      return { errors };
-    }
-
-    const callbacks = [new TracingCallback({ workspaceId, username, tracesService })];
-    if (debug) {
-      callbacks.push(new DebugCallback());
-    }
-    const adapter = getAdapter();
-    const composition = await adapter.createComposition(workspaceId, compositionInfo, callbacks);
-
-    const executor = new LocalExecutor();
-    const userContent = getInput(args);
-    if (userContent) {
-      const wordCount = userContent.split(/\s+/).length;
-      const maxWords = Math.floor(wordCount * 1.2);
-      args = {
-        ...args,
-        wordCount,
-        maxWords,
-        workspaceId,
-      };
-    }
-    if (!args) args = {};
-    args = { ...args, username, workspaceId };
-    try {
-      let response_format;
-      if (params.jsonMode) {
-        response_format = { type: 'json_object' };
-      }
-      const modelParams = {
-        max_tokens: params.maxTokens,
-        n: params.n,
-        temperature: params.temperature,
-        top_p: params.topP,
-        stop: params.stop,
-        presence_penalty: params.presencePenalty,
-        frequency_penalty: params.frequencyPenalty,
-        seed: params.seed,
-        response_format,
-      };
-      const response = await executor.runComposition({
-        composition,
-        args,
-        model,
-        modelParams,
-        functions,
-        isBatch: batch,
-      });
-
-      // TODO - or pass through
-      const user = await usersService.getUser(username);
-      const creditBalance = user.credits;
-
-      return { ...response, creditBalance };
-    } catch (err) {
-      const errors = [
-        {
-          message: String(err),
-        },
-      ];
-      return { errors };
-    }
-  }
 
   /*
   const truncateTextByTokens = (text, maxTokens, encoding) => {
@@ -458,8 +565,11 @@ export function ExecutionsService({ logger, rc, services }) {
   }*/
 
   return {
+    addAgents,
+    addServices,
+    executeAgentNetwork,
+    executeAgent,
     executeComposition,
     executeFunction,
-    addServices,
   };
 }

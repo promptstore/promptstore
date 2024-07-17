@@ -2,6 +2,12 @@ export default ({ app, auth, logger, services }) => {
 
   const { graphStoreService } = services;
 
+  app.get('/api/graphs', auth, async (req, res) => {
+    const { provider, index } = req.query;
+    const graph = await graphStoreService.getGraph(provider, index);
+    res.json(graph);
+  });
+
   app.get('/api/graph-stores', auth, (req, res) => {
     const providers = graphStoreService.getGraphStores();
     res.json(providers);

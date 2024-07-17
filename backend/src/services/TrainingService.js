@@ -44,11 +44,13 @@ export function TrainingService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertTrainingRow(row) {
+  async function upsertTrainingRow(row, uaername, partial) {
     const omittedFields = ['id', 'workspaceId', 'contentId', 'prompt', 'response', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedRow = await getTrainingRow(row.id);
     if (savedRow) {
-      row = { ...savedRow, ...row };
+      if (partial) {
+        row = { ...savedRow, ...row };
+      }
       const val = omit(row, omittedFields);
       await pg.query(`
         UPDATE training

@@ -151,7 +151,9 @@ export function UserUploadsList({ loading, workspaceId, appId }) {
         open={isModalOpen}
         title="Content Preview"
         width={'75%'}
-        bodyStyle={{ height: 500, overflowY: 'auto' }}
+        styles={{
+          body: { height: 500, overflowY: 'auto' },
+        }}
         onCancel={onCancel}
         onOk={onCancel}
       >

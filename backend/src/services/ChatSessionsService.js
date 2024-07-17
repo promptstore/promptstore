@@ -66,14 +66,16 @@ export function ChatSessionsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertChatSession(session, username) {
+  async function upsertChatSession(session, username, partial) {
     if (session === null || typeof session === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedChatSession = await getChatSession(session.id);
     if (savedChatSession) {
-      session = { ...savedChatSession, ...session };
+      if (partial) {
+        session = { ...savedChatSession, ...session };
+      }
       const val = omit(session, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

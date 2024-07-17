@@ -31,12 +31,6 @@ import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
-  objectUploadAsync,
-  selectUploading,
-} from '../uploader/fileUploaderSlice';
-import { getColor, intersects } from '../../utils';
-
-import {
   getModelsAsync,
   selectLoaded as selectModelsLoaded,
   selectLoading as selectModelsLoading,
@@ -48,10 +42,21 @@ import {
   selectProviders,
 } from '../models/modelProvidersSlice';
 import {
+  getPromptSetsAsync,
+  selectLoaded as selectPromptSetsLoaded,
+  selectPromptSets,
+} from '../promptSets/promptSetsSlice';
+import {
   getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
-} from '../promptSets/settingsSlice';
+} from '../settings/settingsSlice';
+import {
+  duplicateObjectAsync,
+  objectUploadAsync,
+  selectUploading,
+} from '../uploader/fileUploaderSlice';
+import { getColor, intersects } from '../../utils';
 
 import {
   deleteFunctionsAsync,
@@ -68,7 +73,8 @@ const TAGS_KEY = 'functionTags';
 export function FunctionsList() {
 
   const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('functions-filter-multimodal', { defaultValue: false });
-  const [filterSystem, setFilterSystem] = useLocalStorageState('filter-system', { defaultValue: false });
+  const [filterPublic, setFilterPublic] = useLocalStorageState('public-functions', { defaultValue: false });
+  const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-functions', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('functions-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useState('');
@@ -84,6 +90,8 @@ export function FunctionsList() {
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
   const modelsLoading = useSelector(selectModelsLoading);
+  const promptSets = useSelector(selectPromptSets);
+  const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
   const providers = useSelector(selectProviders);
   const settings = useSelector(selectSettings);
   const settingsLoading = useSelector(selectSettingsLoading);
@@ -99,7 +107,8 @@ export function FunctionsList() {
         .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
         .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
         .filter((func) => filterMultimodal ? func.implementations.some(impl => models[impl.modelId]?.multimodal) : true)
-        .filter((func) => filterSystem ? func.isPublic : true)
+        .filter((func) => filterPublic ? true : !func.isPublic)
+        .filter((func) => filterSystem ? true : !func.isSystem)
         .filter((func) =>
           selectedProviders?.length && modelsLoaded ?
             intersects(func.implementations.map(impl => models[impl.modelId]?.provider), selectedProviders) ||
@@ -111,12 +120,13 @@ export function FunctionsList() {
           implementations: func.implementations,
           tags: func.tags,
           isPublic: func.isPublic,
+          isSystem: func.isSystem,
           description: func.description,
         }));
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
     }
-  }, [functions, filterMultimodal, filterSystem, models, modelsLoaded, searchValue, selectedImpls, selectedTags, selectedProviders]);
+  }, [functions, filterMultimodal, filterPublic, filterSystem, models, modelsLoaded, searchValue, selectedImpls, selectedTags, selectedProviders]);
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
@@ -187,7 +197,8 @@ export function FunctionsList() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getModelsAsync({ workspaceId }));
-      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
+      dispatch(getSettingsAsync({ keys: [TAGS_KEY], workspaceId }));
       dispatch(getFunctionsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,
@@ -209,6 +220,15 @@ export function FunctionsList() {
       setNumItems(Object.keys(functions).length);
     }
   }, [loaded, functions]);
+
+  const handleDuplicate = (key) => {
+    const func = functions[key];
+    dispatch(duplicateObjectAsync({
+      obj: func,
+      type: 'function',
+      workspaceId: selectedWorkspace.id,
+    }));
+  };
 
   const onDelete = () => {
     dispatch(deleteFunctionsAsync({ ids: selectedRowKeys }));
@@ -238,9 +258,9 @@ export function FunctionsList() {
       dataIndex: 'implementations',
       render: (_, { implementations = [] }) => (
         <Space size={[0, 8]} wrap>
-          {implementations.map((impl) => (
+          {implementations.map((impl, i) => (
             impl.modelId && modelsLoaded && models[impl.modelId] ?
-              <Tag key={impl.modelId}
+              <Tag key={'impl-' + i}
                 color={getColor(models[impl.modelId].type, isDarkMode)}
               >
                 {models[impl.modelId].key}
@@ -290,6 +310,12 @@ export function FunctionsList() {
           >
             Edit
           </Button>
+          <Button type="link"
+            onClick={() => handleDuplicate(record.key)}
+            style={{ paddingLeft: 0 }}
+          >
+            Duplicate
+          </Button>
         </Space>
       ),
     },
@@ -305,7 +331,18 @@ export function FunctionsList() {
 
   const hasSelected = selectedRowKeys.length > 0;
 
-  const selectedFunctions = selectedRowKeys.map(id => functions[id]);
+  const selectedFunctions = useMemo(() => {
+    const fns = [];
+    if (loaded && modelsLoaded && promptSetsLoaded) {
+      const funcs = selectedRowKeys.map(id => functions[id]);
+      for (const func of funcs) {
+        const model = models[func.modelId];
+        const promptSet = promptSets[func.promptSetId];
+        fns.push({ ...func, model, promptSet });
+      }
+    }
+    return fns;
+  }, [functions, loaded, modelsLoaded, promptSetsLoaded]);
 
   const onUpload = (info) => {
     if (info.file.status === 'uploading') {
@@ -374,7 +411,7 @@ export function FunctionsList() {
                 </span>
                 <Download filename={'functions.json'} payload={selectedFunctions}>
                   <Button type="text" icon={<DownloadOutlined />}>
-                    Download
+                    Export
                   </Button>
                 </Download>
               </>
@@ -406,10 +443,17 @@ export function FunctionsList() {
           /> */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch
+              checked={filterPublic}
+              onChange={setFilterPublic}
+            />
+            <div>Public</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
               checked={filterSystem}
               onChange={setFilterSystem}
             />
-            <div>Public</div>
+            <div>System</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Switch
@@ -426,7 +470,7 @@ export function FunctionsList() {
             onChange={onUpload}
           >
             <Button type="text" loading={uploading} icon={<UploadOutlined />}>
-              Upload
+              Import
             </Button>
           </Upload>
           <div style={{ flex: 1 }}></div>

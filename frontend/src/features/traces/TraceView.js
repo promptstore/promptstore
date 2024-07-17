@@ -1,11 +1,15 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Col, Descriptions, Drawer, Row, Tree } from 'antd';
+import { Button, Col, Descriptions, Drawer, Row, Segmented, Tree } from 'antd';
 import { DownloadOutlined, DownOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
 import ReactFlow, { Controls, ReactFlowProvider } from 'reactflow';
+import Highcharts from 'highcharts';
+import more from 'highcharts/highcharts-more';
+// import sunburst from 'highcharts/modules/sunburst.js';
+import HighchartsReact from 'highcharts-react-official';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
@@ -26,6 +30,52 @@ import {
 } from './tracesSlice';
 
 const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
+
+more(Highcharts);
+// sunburst(Highcharts);
+
+const colors = Highcharts.getOptions().colors;
+
+// Add new series type for the flame series
+(function (H) {
+  H.seriesType('flame', 'columnrange', {
+    cursor: 'pointer',
+    dataLabels: {
+      enabled: true,
+      format: '{point.name}',
+      inside: true,
+      align: 'center',
+      crop: true,
+      overflow: 'none',
+      color: 'black',
+      style: {
+        textOutline: 'none',
+        fontWeight: 'normal',
+      },
+    },
+    point: {
+      events: {
+        click: function () {
+          const point = this,
+            chart = point.series.chart,
+            series = point.series,
+            xAxis = series.xAxis,
+            yAxis = series.yAxis;
+
+          xAxis.setExtremes(xAxis.min, point.x, false);
+          yAxis.setExtremes(point.low, point.high, false);
+
+          chart.showResetZoom();
+          chart.redraw();
+        },
+      },
+    },
+    pointPadding: 0,
+    groupPadding: 0
+  }, {
+    drawDataLabels: H.seriesTypes.line.prototype.drawDataLabels,
+  });
+}(Highcharts));
 
 const nodeProps = {
   sourcePosition: 'right',
@@ -64,7 +114,9 @@ const reactFlowProps = {
 export function TraceView() {
 
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState([]);
+  const [scale, setScale] = useState('logarithmic');
   const [top, setTop] = useState(false);
 
   const traces = useSelector(selectTraces);
@@ -75,6 +127,8 @@ export function TraceView() {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const latencyChart = useRef({});
 
   const id = location.pathname.match(/\/traces\/(.*)/)[1];
   const trace = traces[id];
@@ -306,6 +360,136 @@ export function TraceView() {
 
   // console.log('graph:', graph);
 
+  const getOptions = useCallback(() => {
+    if (!trace) {
+      return null;
+    }
+
+    const types = [];
+    const baselineTime = trace.trace[0].startTime - 1;
+
+    const inner = (children, parentStartTime, x = 1) => {
+      const data = [];
+      for (const child of children) {
+        if (!types.includes(child.type)) {
+          types.push(child.type);
+        }
+        const low = ((child.startTime || parentStartTime) - baselineTime);
+        const high = ((child.endTime || parentStartTime + 1) - baselineTime);
+        data.push({
+          id: child.id,
+          name: child.type,
+          low,
+          high,
+          value: high - low,
+          color: colors[types.indexOf(child.type)],
+          x,
+        });
+        if (child.children?.length) {
+          data.push(...inner(child.children, child.startTime, x + 1));
+        }
+      }
+      return data;
+    }
+
+    const data = inner(trace.trace);
+
+    return {
+      chart: {
+        inverted: true,
+      },
+      title: {
+        align: 'left',
+        text: 'Latency Profile',
+      },
+      legend: {
+        enabled: false,
+      },
+      xAxis: [
+        {
+          visible: false,
+        },
+        {
+          reversed: false,
+          visible: false,
+          startOnTick: false,
+          endOnTick: false,
+          minPadding: 0,
+          maxPadding: 0,
+        },
+      ],
+      yAxis: [
+        {
+          type: scale,
+          visible: true,
+          title: { text: 'Milliseconds' },
+        },
+        {
+          visible: false,
+          min: 0,
+          maxPadding: 0,
+          startOnTick: false,
+          endOnTick: false,
+        },
+      ],
+      tooltip: {
+        headerFormat: '',
+        pointFormat: '<b>{point.name}</b> latency is <b>{point.value}</b>',
+      },
+      series: [
+        {
+          visible: true,
+          type: 'flame',
+          data,
+          // yAxis: 1,
+          // xAxis: 1,
+        },
+        {
+          visible: false,
+          pointRange: 2,
+          pointPlacement: 0.25,
+          type: 'flame',
+          data: [
+            {
+              name: 'root',
+              id: '20',
+              value: 1,
+              color: colors[0],
+              x: 0,
+              low: 0,
+              high: 10
+            },
+          ],
+        },
+        // {
+        //   visible: false,
+        //   // size: '100%',
+        //   // type: 'sunburst',
+        //   // data: [],
+        //   allowDrillToNode: true,
+        //   cursor: 'pointer',
+        //   levels: [
+        //     {
+        //       level: 1,
+        //       levelIsConstant: false,
+        //       dataLabels: {
+        //         enabled: false,
+        //       },
+        //     },
+        //   ],
+        //   dataLabels: {
+        //     textPath: {
+        //       attributes: {
+        //         dy: 5,
+        //       },
+        //       enabled: true,
+        //     },
+        //   },
+        // },
+      ],
+    };
+  }, [scale, trace]);
+
   useEffect(() => {
     dispatch(getTraceAsync(id));
 
@@ -337,6 +521,15 @@ export function TraceView() {
     }
   }, [trace]);
 
+  useEffect(() => {
+    const chart = latencyChart.current?.chart;
+    if (chart) {
+      chart.reflow(false);
+    }
+  }, [scale]);
+
+  const handleNodeClick = () => { };
+
   const navigateTop = () => {
     dispatch(getTraceAsync('latest'));
     setTop(true);
@@ -350,7 +543,8 @@ export function TraceView() {
     }
   };
 
-  const handleNodeClick = () => { };
+  const options = useMemo(getOptions, [scale, trace]);
+  // console.log('options:', options);
 
   if (!loaded) {
     return (
@@ -379,11 +573,12 @@ export function TraceView() {
             <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
               <Download filename={snakeCase(trace.name) + '.json'} payload={trace}>
                 <Button type="text" icon={<DownloadOutlined />}>
-                  Download
+                  Export
                 </Button>
               </Download>
               <Link onClick={navigateTop}>Top</Link>
               <Link to={`/traces`}>List</Link>
+              <Link onClick={() => setProfileOpen(true)}>Profile</Link>
               <Link onClick={() => setOpen(true)}>Lineage</Link>
             </div>
             {step ?
@@ -427,6 +622,39 @@ export function TraceView() {
             <Controls position="bottom-right" />
           </ReactFlow>
         </ReactFlowProvider>
+      </Drawer>
+      <Drawer
+        title="Profile"
+        placement="bottom"
+        closable={true}
+        onClose={() => setProfileOpen(false)}
+        open={profileOpen}
+        height={'50%'}
+      >
+        {options ?
+          <>
+            <HighchartsReact
+              ref={latencyChart}
+              highcharts={Highcharts}
+              options={options}
+            />
+            <Segmented
+              onChange={setScale}
+              value={scale}
+              options={[
+                {
+                  label: 'Log scale',
+                  value: 'logarithmic',
+                },
+                {
+                  label: 'Linear scale',
+                  value: 'linear',
+                },
+              ]}
+            />
+          </>
+          : null
+        }
       </Drawer>
     </>
   );

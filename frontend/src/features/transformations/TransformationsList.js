@@ -112,7 +112,7 @@ export function TransformationsList() {
 
   useEffect(() => {
     const tx = Object.values(transformations)
-      .find(t => t.correlationId === correlationId[t.id]);
+      .find(t => correlationId[t.id] && t.correlationId === correlationId[t.id]);
     if (tx) {
       setCorrelationId((curr) => ({ ...curr, [tx.id]: null }));
     }
@@ -264,7 +264,9 @@ export function TransformationsList() {
         open={isPreviewModalOpen}
         title="Content Preview"
         width={'75%'}
-        bodyStyle={{ height: 500 }}
+        styles={{
+          body: { height: 500 },
+        }}
         onCancel={onPreviewCancel}
         okButtonProps={{ style: { display: 'none' } }}
       >

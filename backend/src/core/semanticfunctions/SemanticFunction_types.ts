@@ -12,6 +12,7 @@ import { SemanticFunctionImplementation } from './SemanticFunctionImplementation
 
 export interface SemanticFunctionCallParams {
   args: any;
+  env?: string;
   messages?: Message[];
   history?: Message[],
   extraSystemPrompt?: string;

@@ -2,14 +2,17 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import merge from 'lodash.merge';
 
 import { delay } from '../../../core/conversions';
 
 import {
   fromOpenAIChatResponse,
   fromOpenAICompletionResponse,
+  fromOpenAIImageResponse,
   toOpenAIChatRequest,
   toOpenAICompletionRequest,
+  toOpenAIImageRequest,
 } from './conversions';
 
 function OpenAILLM({ __name, constants, logger }) {
@@ -45,12 +48,14 @@ function OpenAILLM({ __name, constants, logger }) {
     let res;
     try {
       const req = toOpenAIChatRequest(request);
+      logger.debug('req:', req);
       if (request.stream) {
         res = await openai.chat.completions.create(req, { responseType: 'stream' });
       } else {
         res = await openai.chat.completions.create(req);
       }
       const response = await fromOpenAIChatResponse(res, parserService);
+      logger.debug('response:', response);
       return {
         ...response,
         model: request.model,
@@ -125,30 +130,55 @@ function OpenAILLM({ __name, constants, logger }) {
     return openai.embeddings.create(request);
   }
 
-  async function createImage(prompt, { model = 'dall-e-3', n = 1, quality = 'standard', size = '1024x1024' }) {
-    const res = await openai.images.generate({
-      prompt,
-      n,
-      model,
-      size,
-      quality,
+  async function createImage(request) {
+    logger.debug('image request:', request);
+    const defaults = {
+      n: 1,
+      model: 'dall-e-3',
+      size: '1024x1024',
+      quality: 'standard',
       response_format: 'url',
-    });
-    return res.data;
+    };
+    const req = merge(toOpenAIImageRequest(request), defaults);
+    logger.debug('req:', req);
+    const res = await openai.images.generate(req);
+    logger.debug('res:', res);
+    const response = fromOpenAIImageResponse(res.data);
+    logger.debug('response:', response);
+    return {
+      ...response,
+      model: request.model,
+    };
   }
 
-  // DALL-E 2 only
+  // Only dall-e-2 is supported at this time.
   async function generateImageVariant(imageUrl, { n = 1, size = '1024x1024' }) {
-    const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+    const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0];
     const localFilePath = '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);
     await fs.promises.mkdir(dirname, { recursive: true });
     await downloadImage(imageUrl, localFilePath);
-    const res = await openai.images.create_variation(
-      fs.createReadStream(localFilePath),
+    const res = await openai.images.createVariation({
+      image: fs.createReadStream(localFilePath),
+      n,
+      size,
+    });
+    return res;
+  }
+
+  // Only dall-e-2 is supported at this time.
+  async function editImage(imageUrl, prompt, { n = 1, size = '1024x1024' }) {
+    const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0];
+    const localFilePath = '/var/data/images/' + filename;
+    const dirname = path.dirname(localFilePath);
+    await fs.promises.mkdir(dirname, { recursive: true });
+    await downloadImage(imageUrl, localFilePath);
+    const res = await openai.images.edit({
+      image: fs.createReadStream(localFilePath),
+      prompt,
       n,
       size
-    );
+    });
     return res;
   }
 
@@ -175,6 +205,7 @@ function OpenAILLM({ __name, constants, logger }) {
     createCompletion,
     createEmbedding,
     createImage,
+    editImage,
     generateImageVariant,
     getNumberTokens,
   };

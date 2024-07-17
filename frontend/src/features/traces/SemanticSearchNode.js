@@ -37,7 +37,10 @@ export default memo(({ id, data, isConnectable }) => {
         <div style={{ display: 'flex' }}>
           <div>semantic-search</div>
           <div style={{ flex: 1 }}></div>
-          <Link onClick={() => openSearch(data.index)}>Debug</Link>
+          {data.index ?
+            <Link onClick={() => openSearch(data.index)}>Debug</Link>
+            : null
+          }
         </div>
       </div>
       <div className="custom-node__body">

@@ -9,7 +9,7 @@ export function DocumentsService({ constants, mc, logger }) {
     const bucket = constants.FILE_BUCKET;
     logger.debug('Downloading %s from bucket %s', filepath, bucket);
     return new Promise((resolve, reject) => {
-      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
+      const localFilePath = `/var/data/${bucket}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       mc.statObject(bucket, filepath, (err, stat) => {

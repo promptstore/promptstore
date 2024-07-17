@@ -132,11 +132,13 @@ export function ContentService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertContent(content) {
+  async function upsertContent(content, uaername, partial) {
     const omittedFields = ['id', 'appId', 'contentId', 'text', 'hash', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedContent = await getContent(content.id);
     if (savedContent) {
-      content = { ...savedContent, ...content };
+      if (partial) {
+        content = { ...savedContent, ...content };
+      }
       const val = omit(content, omittedFields);
       const hash = hashStr(content.text);
       if (hash !== savedContent.hash) {

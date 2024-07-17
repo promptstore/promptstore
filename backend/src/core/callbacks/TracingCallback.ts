@@ -4,11 +4,37 @@ import uuid from 'uuid';
 
 import logger from '../../logger';
 
+import {
+  AgentOnStartResponse,
+  AgentOnEndResponse,
+} from '../../agents/Agent_types';
 import { MapArgumentsResponse, MapReturnTypeResponse } from '../common_types';
+import {
+  CompositionOnStartResponse,
+  CompositionOnEndResponse,
+} from '../compositions/Composition_types';
 import {
   InputGuardrailsOnEndResponse,
   InputGuardrailsOnStartResponse,
 } from '../guardrails/InputGuardrails_types';
+import {
+  CustomModelOnStartResponse,
+  CustomModelOnEndResponse,
+} from '../models/custom_model_types';
+import {
+  HuggingfaceModelOnStartResponse,
+  HuggingfaceModelOnEndResponse,
+} from '../models/huggingface_types';
+import {
+  CacheResponse,
+  ModelOnStartResponse,
+  ModelOnEndResponse,
+} from '../models/llm_types';
+import {
+  OutputProcessingResponse,
+  OutputGuardrailStartResponse,
+  OutputParserStartResponse,
+} from '../outputprocessing/OutputProcessingPipeline_types';
 import {
   PromptEnrichmentOnStartResponse,
   PromptEnrichmentOnEndResponse,
@@ -28,24 +54,6 @@ import {
   PromptTemplateOnEndResponse,
 } from '../promptenrichment/PromptTemplate_types';
 import {
-  CacheResponse,
-  ModelOnStartResponse,
-  ModelOnEndResponse,
-} from '../models/llm_types';
-import {
-  CustomModelOnStartResponse,
-  CustomModelOnEndResponse,
-} from '../models/custom_model_types';
-import {
-  HuggingfaceModelOnStartResponse,
-  HuggingfaceModelOnEndResponse,
-} from '../models/huggingface_types';
-import {
-  OutputProcessingResponse,
-  OutputGuardrailStartResponse,
-  OutputParserStartResponse,
-} from '../outputprocessing/OutputProcessingPipeline_types';
-import {
   SemanticFunctionImplementationOnStartResponse,
   SemanticFunctionImplementationOnEndResponse,
 } from '../semanticfunctions/SemanticFunctionImplementation_types';
@@ -54,10 +62,6 @@ import {
   SemanticFunctionOnStartResponse,
   SemanticFunctionOnEndResponse,
 } from '../semanticfunctions/SemanticFunction_types';
-import {
-  CompositionOnStartResponse,
-  CompositionOnEndResponse,
-} from '../compositions/Composition_types';
 import { Tracer } from '../tracing/Tracer';
 import { TraceCallbackParams } from '../tracing/Tracer_types';
 
@@ -72,15 +76,18 @@ export class TracingCallback extends Callback {
   username: string;
   tracesService: any;
   callDepth: number;
+  debug: boolean;
 
-  constructor({ workspaceId, username, tracesService, tracer }: TraceCallbackParams) {
+  constructor({ workspaceId, username, tracesService, tracer, debug }: TraceCallbackParams) {
     super();
+    logger.debug(`Constructing TracingCallback [debug=${debug}]`);
     this.workspaceId = workspaceId;
     this.username = username;
     this.tracesService = tracesService;
     this.tracer = tracer;
     this.startTime = [];
     this.callDepth = 0;
+    this.debug = debug;
   }
 
   clone() {
@@ -92,34 +99,36 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onCompositionStart({ name, args, model, modelParams, isBatch }: CompositionOnStartResponse) {
-    logger.debug('!! onCompositionStart');
+  onAgentStart(params: Partial<AgentOnStartResponse>) {
     const startTime = new Date();
     this.startTime.push(startTime);
+    const { name, args, model, modelParams } = params;
     if (!this.tracer) {
       const traceName = [name, startTime.toISOString()].join(' - ');
-      this.tracer = new Tracer(traceName, 'composition');
+      this.tracer = new Tracer(traceName, 'agent');
     }
     this.isComposition = true;
     this.callDepth += 1;
+    const event = {
+      id: uuid.v4(),
+      type: 'call-agent',
+      function: name,
+      model: {
+        model: model,
+        modelParams,
+      },
+      args,
+      startTime: startTime.getTime(),
+    };
+    if (this.debug) {
+      logger.debug('onAgentStart:', event);
+    }
     this.tracer
-      .push({
-        id: uuid.v4(),
-        type: 'call-composition',
-        function: name,
-        model: {
-          model: model,
-          modelParams,
-        },
-        isBatch,
-        args,
-        startTime: startTime.getTime(),
-      })
+      .push(event)
       .down();
   }
 
-  onCompositionEnd({ response, errors }: CompositionOnEndResponse) {
-    logger.debug('!! onCompositionEnd');
+  onAgentEnd({ errors, response }: AgentOnEndResponse) {
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -138,6 +147,74 @@ export class TracingCallback extends Callback {
         .addProperty('response', response)
         .addProperty('success', true)
         ;
+    }
+    this.callDepth -= 1;
+    if (this.debug) {
+      logger.debug('onAgentEnd:', this.tracer.currentStep());
+      logger.debug('callDepth:', this.callDepth);
+    }
+    if (this.callDepth === 0) {
+      const traceRecord = this.tracer.close();
+      logger.debug('traceRecord:', traceRecord);
+      this.tracesService.upsertTrace({ ...traceRecord, workspaceId: this.workspaceId }, this.username);
+    }
+  }
+
+  onAgentError(errors: any) {
+
+  }
+
+  onCompositionStart({ name, args, model, modelParams, isBatch }: CompositionOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    if (!this.tracer) {
+      const traceName = [name, startTime.toISOString()].join(' - ');
+      this.tracer = new Tracer(traceName, 'composition');
+    }
+    this.isComposition = true;
+    this.callDepth += 1;
+    const event = {
+      id: uuid.v4(),
+      type: 'call-composition',
+      function: name,
+      model: {
+        model: model,
+        modelParams,
+      },
+      isBatch,
+      args,
+      startTime: startTime.getTime(),
+    };
+    if (this.debug) {
+      logger.debug('onCompositionStart:', event);
+    }
+    this.tracer
+      .push(event)
+      .down();
+  }
+
+  onCompositionEnd({ response, errors }: CompositionOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer
+        .addProperty('response', response)
+        .addProperty('success', true)
+        ;
+    }
+    if (this.debug) {
+      logger.debug('onCompositionEnd:', this.tracer.currentStep());
     }
     this.callDepth -= 1;
     if (this.callDepth === 0) {
@@ -147,7 +224,9 @@ export class TracingCallback extends Callback {
   }
 
   onCompositionError(errors: any) {
-    logger.debug('!! onCompositionError');
+    if (this.debug) {
+      logger.debug('onCompositionError:', errors);
+    }
     this.tracer.push({
       type: 'error',
       errors,
@@ -155,7 +234,6 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
-    logger.debug('!! onSemanticFunctionStart');
     const startTime = new Date();
     this.startTime.push(startTime);
     if (!this.tracer && !this.isComposition) {
@@ -163,25 +241,28 @@ export class TracingCallback extends Callback {
       this.tracer = new Tracer(traceName);
     }
     this.callDepth += 1;
+    const event = {
+      id: uuid.v4(),
+      type: 'call-function',
+      function: name,
+      implementation: {
+        model: model,
+        modelParams,
+      },
+      isBatch,
+      args,
+      history,
+      startTime: startTime.getTime(),
+    };
+    if (this.debug) {
+      logger.debug('onSemanticFunctionStart:', event);
+    }
     this.tracer
-      .push({
-        id: uuid.v4(),
-        type: 'call-function',
-        function: name,
-        implementation: {
-          model: model,
-          modelParams,
-        },
-        isBatch,
-        args,
-        history,
-        startTime: startTime.getTime(),
-      })
+      .push(event)
       .down();
   }
 
   onSemanticFunctionEnd({ response, errors }: SemanticFunctionOnEndResponse) {
-    logger.debug('!! onSemanticFunctionEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -201,6 +282,9 @@ export class TracingCallback extends Callback {
         .addProperty('success', true)
         ;
     }
+    if (this.debug) {
+      logger.debug('onSemanticFunctionEnd:', this.tracer.currentStep());
+    }
     this.callDepth -= 1;
     if (this.callDepth === 0 && !this.isComposition) {
       const traceRecord = this.tracer.close();
@@ -209,7 +293,9 @@ export class TracingCallback extends Callback {
   }
 
   onSemanticFunctionError(errors: any) {
-    logger.debug('!! onSemanticFunctionError');
+    if (this.debug) {
+      logger.debug('onSemanticFunctionError:', errors);
+    }
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -218,19 +304,21 @@ export class TracingCallback extends Callback {
   }
 
   onValidateArguments(validatorResult: ValidatorResult) {
-    logger.debug('!! onValidateArguments');
-    this.tracer.push({
+    const event = {
       id: uuid.v4(),
       type: 'validate-args',
       instance: validatorResult.instance,
       schema: validatorResult.schema,
       valid: validatorResult.valid,
       errors: validatorResult.errors,
-    });
+    };
+    if (this.debug) {
+      logger.debug('onValidateArguments:', event);
+    }
+    this.tracer.push(event);
   }
 
   onMapArguments({ args, mapped, mappingTemplate, isBatch, source, errors }: MapArgumentsResponse) {
-    logger.debug('!! onMapArguments');
     if (isBatch) {
       this.tracer.push({
         id: uuid.v4(),
@@ -254,10 +342,12 @@ export class TracingCallback extends Callback {
         errors,
       });
     }
+    if (this.debug) {
+      logger.debug('onMapArguments:', this.tracer.currentStep());
+    }
   }
 
   onMapReturnType({ response, mapped, mappingTemplate, isBatch, errors }: MapReturnTypeResponse) {
-    logger.debug('!! onMapReturnType');
     if (isBatch) {
       this.tracer.push({
         id: uuid.v4(),
@@ -277,42 +367,50 @@ export class TracingCallback extends Callback {
         mappingTemplate,
         errors,
       });
+      if (this.debug) {
+        logger.debug('onMapReturnType:', this.tracer.currentStep());
+      }
     }
   }
 
   onExperiment({ experiments, implementation }: ExperimentResponse) {
-    logger.debug('!! onExperiment');
-    this.tracer.push({
+    const event = {
       id: uuid.v4(),
       type: 'select-experiment',
       experiments,
       implementation,
-    });
+    };
+    if (this.debug) {
+      logger.debug('onExperiment:', event);
+    }
+    this.tracer.push(event);
   }
 
   onSemanticFunctionImplementationStart({ args, history, modelType, model, modelParams, isBatch }: SemanticFunctionImplementationOnStartResponse) {
-    logger.debug('!! onSemanticFunctionImplementationStart');
     const startTime = new Date();
     this.startTime.push(startTime);
+    const event = {
+      id: uuid.v4(),
+      type: 'call-implementation',
+      implementation: {
+        modelType,
+        model: model,
+        modelParams,
+      },
+      isBatch,
+      args,
+      history,
+      startTime: startTime.getTime(),
+    };
+    if (this.debug) {
+      logger.debug('onSemanticFunctionImplementationStart:', event);
+    }
     this.tracer
-      .push({
-        id: uuid.v4(),
-        type: 'call-implementation',
-        implementation: {
-          modelType,
-          model: model,
-          modelParams,
-        },
-        isBatch,
-        args,
-        history,
-        startTime: startTime.getTime(),
-      })
+      .push(event)
       .down();
   }
 
   onSemanticFunctionImplementationEnd({ response, errors }: SemanticFunctionImplementationOnEndResponse) {
-    logger.debug('!! onSemanticFunctionImplementationEnd');
     const startTime = this.startTime.pop();
     const endTime = new Date();
     this.tracer
@@ -332,10 +430,15 @@ export class TracingCallback extends Callback {
         .addProperty('success', true)
         ;
     }
+    if (this.debug) {
+      logger.debug('onSemanticFunctionImplementationEnd:', this.tracer.currentStep());
+    }
   }
 
   onSemanticFunctionImplementationError(errors: any) {
-    logger.debug('!! onSemanticFunctionImplementationError');
+    if (this.debug) {
+      logger.debug('onSemanticFunctionImplementationError:', errors);
+    }
     this.tracer.push({
       id: uuid.v4(),
       type: 'error',
@@ -666,7 +769,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onPromptTemplateStart({ args, isBatch, messageTemplates, promptSetId, promptSetName }: PromptTemplateOnStartResponse) {
+  onPromptTemplateStart({ args, isBatch, messageTemplates, promptSetId, promptSetName, promptSetVersion }: PromptTemplateOnStartResponse) {
     logger.debug('!! onPromptTemplateStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -680,6 +783,7 @@ export class TracingCallback extends Callback {
         startTime: startTime.getTime(),
         promptSetId,
         promptSetName,
+        promptSetVersion,
       })
       .down();
   }
@@ -756,7 +860,7 @@ export class TracingCallback extends Callback {
     });
   }
 
-  onModelStart({ modelId, modelName, provider, request }: ModelOnStartResponse) {
+  onModelStart({ modelId, modelName, modelParams, provider, request }: ModelOnStartResponse) {
     logger.debug('!! onModelStart');
     const startTime = new Date();
     this.startTime.push(startTime);
@@ -767,7 +871,7 @@ export class TracingCallback extends Callback {
         modelName,
         provider,
         ...request,
-        modelParams: request.model_params,
+        modelParams,
         type: 'call-model',
         startTime: startTime.getTime(),
       })

@@ -9,7 +9,7 @@ import {
   getSettingsAsync,
   selectSettings,
   updateSettingAsync,
-} from '../promptSets/settingsSlice';
+} from '../settings/settingsSlice';
 
 const layout = {
   labelCol: { span: 4 },
@@ -34,8 +34,8 @@ export function CreatePromptSetModalForm({ open, onOk, onCancel }) {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getSettingsAsync({
-        key: 'skills',
-        workspaceId: null,
+        keys: ['skills'],
+        workspaceId,
       }));
     }
   }, [selectedWorkspace]);

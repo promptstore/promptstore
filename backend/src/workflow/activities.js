@@ -5,6 +5,7 @@ import sizeOf from 'image-size';
 import uuid from 'uuid';
 import startCase from 'lodash.startcase';
 import camelCase from 'lodash.camelcase';
+import snakeCase from 'lodash.snakecase';
 import { default as dayjs } from 'dayjs';
 import { UMAP } from 'umap-js';
 
@@ -42,6 +43,7 @@ const imageMimetypes = [
 export const createActivities = ({
   mc,
   logger,
+  constants,
   callLoggingService,
   dataSourcesService,
   destinationsService,
@@ -148,7 +150,7 @@ export const createActivities = ({
     const failed = [];
     const proms = [];
     for (let i = 0; i < json.length; i++) {
-      const evaluation = {
+      const evaln = {
         evaluationId: id,
         criteria,
         result: json[i],
@@ -157,13 +159,13 @@ export const createActivities = ({
       const logId = log.id;
       if (json[i] === 'N') {
         failed.push({
-          ...evaluation,
+          ...evaln,
           logId,
           input: log.modelUserInputText,
           completion: log.systemOutputText,
         });
       }
-      const evaluations = [evaluation];
+      const evaluations = [evaln];
       proms.push(callLoggingService.updateCallLog(logId, { evaluations }));
     }
     const updatedLogs = await Promise.all(proms);
@@ -177,13 +179,17 @@ export const createActivities = ({
       percentPassed: (logs.length - failed.length) / logs.length,
       embedding,
     };
-    const updatedEvaluation = await evaluationsService.upsertEvaluation(({
+    const updatedEvaluation = await evaluationsService.upsertEvaluation({
       ...evaluation,
       runs: [...(evaluation.runs || []), run],
-    }));
+    }, username);
     logger.debug('updated evaluation:', updatedEvaluation);
 
     return updatedEvaluation;
+  },
+
+  executeAgentNetwork(params) {
+    return executionsService.executeAgentNetwork(params);
   },
 
   executeComposition(params) {
@@ -231,175 +237,262 @@ export const createActivities = ({
   },
 
   async transform(transformation, workspaceId, username) {
-    // logger.info('transformation:', transformation);
+    logger.info('transformation:', transformation);
     // logger.info('workspaceId:', workspaceId);
     // logger.info('username:', username);
     const dataSource = await dataSourcesService.getDataSource(transformation.dataSourceId);
     const source = await secretsService.interpolateSecretsInObject(workspaceId, dataSource, ['connectionString']);
-    const all = transformation.features.some(f => f.column === '__all');
-    let cols;
-    if (!all) {
-      cols = transformation.features.map(f => f.column);
-    }
-    const columns = await sqlSourceService.getDataColumns(source, 25, cols);
-    const features = transformation.features || [];
-    logger.debug('features:', features);
-    const featureNames = [];
-    const result = {};
-    const cleanedFeatures = [];
-    const textNodeProperties = [];
-    for (const feature of features) {
-      let func;
-      if (feature.functionId !== '__pass') {
-        func = await functionsService.getFunction(feature.functionId);
-        if (!func) {
-          throw new Error('Function not found:', feature.functionId);
-        }
+    if (source.type === 'document') {
+
+      // load
+      const loaderProvider = 'minio';
+      const uploads = [];
+      for (const docId of source.documents) {
+        const upload = await uploadsService.getUpload(docId);
+        uploads.push(upload);
       }
-      let featureName;
-      if (feature.name) {
-        featureName = feature.name;
-      } else if (feature.functionId !== '__pass') {
-        featureName = func.name;
-      } else if (feature.column !== '__all') {
-        featureName = feature.column;
-      }
-      logger.debug('featureName:', featureName);
-      cleanedFeatures.push({ name: featureName, dataType: feature.type, mandatory: false });
-      featureNames.push(featureName);
-      if (feature.dataType === 'Vector') {
-        textNodeProperties.push(featureName);
-      }
-      if (feature.functionId === '__pass') {
-        if (feature.column === '__all') {
-          for (const key of Object.keys(columns)) {
-            result[key] = columns[key];
-          }
-          continue;
-        }
-        result[featureName] = columns[feature.column];
-        continue;
-      }
-      result[featureName] = [];
-      logger.debug('func:', func?.name);
-      if (func) {
-        let text;
-        if (feature.column === '__all') {
-          // TODO with or without structure
-          const values = Object.values(columns);
-          if (values.length) {
-            text = values[0].map(stringify);
-          }
-          for (const vals of values.slice(1)) {
-            text = text.map((t, i) => {
-              const t1 = stringify(vals[i]);
-              if (t1) {
-                return t + ' ' + t1;
-              }
-              return t;
-            });
-          }
-        } else {
-          text = columns[feature.column];
-        }
-        if (text) {
-          const args = { text };
-          const outputFormatter = {
-            name: 'output_formatter',
-            description: 'Output as JSON. Should always be used to format your response to the user.',
-            parameters: {
-              type: 'object',
-              properties: {
-                results: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: {
-                        type: 'integer',
-                        desciption: 'unique index of result',
-                      },
-                      [featureName]: {
-                        description: feature.description,
-                        type: getDestinationType(feature.dataType),
-                      },
-                    }
-                  }
-                }
-              },
-              required: ['results'],
-            },
+      const objectNames = uploads.map(u => {
+        const objectName = path.join(
+          String(source.workspaceId),
+          constants.DOCUMENTS_PREFIX,
+          u.filename
+        );
+        return { objectName, uploadId: u.id };
+      });
+      logger.debug('objectNames:', objectNames);
+      const documents = await loaderService.load(loaderProvider, {
+        dataSourceId: source.id,
+        dataSourceName: source.name,
+        objectNames,
+      });
+      logger.debug('documents:', documents);
+
+      // extract
+      const extractorProvider = 'text';
+      const chunks = await extractorService.getChunks(extractorProvider, documents, {
+        splitter: source.splitter,
+        chunkSize: source.chunkSize,
+        chunkOverlap: source.chunkOverlap,
+        workspaceId,
+        username,
+      });
+      logger.debug('chunks:', chunks);
+
+      // transform
+      const func = await functionsService.getFunction(transformation.functionId);
+      const nds = [];
+      const rls = [];
+      let i = 1;
+      const n = chunks.length - 1;
+      for (const chunk of chunks) {
+        logger.debug('processing chunk %d / %d', i, n);
+        try {
+          const args = {
+            allowedNodes: ['Company', 'Person', 'Movie'],
+            allowedRels: ['works_for', 'produced_movie'],
+            content: chunk.text,
           };
-          const functions = [outputFormatter];
-          const extraSystemPrompt = `Process each of the provided text items and return the results as a JSON list of objects using the output_formatter.`;
-          logger.debug('args:', args);
-          const { errors, response } = await executionsService.executeFunction({
-            workspaceId,
-            username,
-            batch: true,
+          const { response, errors } = await executionsService.executeFunction({
             func,
             args,
-            extraSystemPrompt,
-            params: {},
-            functions,
-            options: { batchResultKey: featureName },
-            // options: { batchResultKey: featureName, contentProp: '__all' },  // TODO - trial to standardise batch handling
+            params: { maxTokens: 2048 },
+            workspaceId,
+            username,
           });
           if (errors) {
-            logger.error('Error calling function "%s":', func.name, errors);
+            logger.error(errors);
+            return { status: 'error', errors };
+          }
+          logger.debug('response:', response);
+          const result = JSON.parse(response.choices[0].message.function_call.arguments);
+          // const result = JSON.parse(response.choices[0].message.content);
+          logger.debug('result:', result);
+          const { nodes, relationships } = result;
+          nds.push(...nodes);
+          rls.push(...relationships);
+        } catch (err) {
+          let message = err.message;
+          if (err.stack) {
+            message += '\n' + err.stack;
+          }
+          logger.error(message);
+        }
+        i += 1;
+      }
+      const graph = { nodes: nds, relationships: rls };
+      logger.debug('graph:', graph);
+
+      // load
+      const graphStoreProvider = 'neo4j';
+      const indexName = snakeCase(transformation.name);
+      await graphStoreService.addGraph(graphStoreProvider, indexName, graph);
+
+    } else if (source.type === 'sql') {
+      const all = transformation.features.some(f => f.column === '__all');
+      let cols;
+      if (!all) {
+        cols = transformation.features.map(f => f.column);
+      }
+      const columns = await sqlSourceService.getDataColumns(source, 25, cols);
+      const features = transformation.features || [];
+      logger.debug('features:', features);
+      const featureNames = [];
+      const result = {};
+      const cleanedFeatures = [];
+      const textNodeProperties = [];
+      for (const feature of features) {
+        let func;
+        if (feature.functionId !== '__pass') {
+          func = await functionsService.getFunction(feature.functionId);
+          if (!func) {
+            throw new Error('Function not found:', feature.functionId);
+          }
+        }
+        let featureName;
+        if (feature.name) {
+          featureName = feature.name;
+        } else if (feature.functionId !== '__pass') {
+          featureName = func.name;
+        } else if (feature.column !== '__all') {
+          featureName = feature.column;
+        }
+        logger.debug('featureName:', featureName);
+        cleanedFeatures.push({ name: featureName, dataType: feature.type, mandatory: false });
+        featureNames.push(featureName);
+        if (feature.dataType === 'Vector') {
+          textNodeProperties.push(featureName);
+        }
+        if (feature.functionId === '__pass') {
+          if (feature.column === '__all') {
+            for (const key of Object.keys(columns)) {
+              result[key] = columns[key];
+            }
             continue;
           }
-          const serializedJson = response.choices[0].message.function_call.arguments;
-          const json = JSON.parse(serializedJson);
-          result[featureName] = json;
+          result[featureName] = columns[feature.column];
+          continue;
+        }
+        result[featureName] = [];
+        logger.debug('func:', func?.name);
+        if (func) {
+          let text;
+          if (feature.column === '__all') {
+            // TODO with or without structure
+            const values = Object.values(columns);
+            if (values.length) {
+              text = values[0].map(stringify);
+            }
+            for (const vals of values.slice(1)) {
+              text = text.map((t, i) => {
+                const t1 = stringify(vals[i]);
+                if (t1) {
+                  return t + ' ' + t1;
+                }
+                return t;
+              });
+            }
+          } else {
+            text = columns[feature.column];
+          }
+          if (text) {
+            const args = { text };
+            const outputFormatter = {
+              name: 'output_formatter',
+              description: 'Output as JSON. Should always be used to format your response to the user.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  results: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: {
+                          type: 'integer',
+                          desciption: 'unique index of result',
+                        },
+                        [featureName]: {
+                          description: feature.description,
+                          type: getDestinationType(feature.dataType),
+                        },
+                      }
+                    }
+                  }
+                },
+                required: ['results'],
+              },
+            };
+            const functions = [outputFormatter];
+            const extraSystemPrompt = `Process each of the provided text items and return the results as a JSON list of objects using the output_formatter.`;
+            logger.debug('args:', args);
+            const { errors, response } = await executionsService.executeFunction({
+              workspaceId,
+              username,
+              batch: true,
+              func,
+              args,
+              extraSystemPrompt,
+              params: {},
+              functions,
+              options: { batchResultKey: featureName },
+              // options: { batchResultKey: featureName, contentProp: '__all' },  // TODO - trial to standardise batch handling
+            });
+            if (errors) {
+              logger.error('Error calling function "%s":', func.name, errors);
+              continue;
+            }
+            const serializedJson = response.choices[0].message.function_call.arguments;
+            const json = JSON.parse(serializedJson);
+            result[featureName] = json;
+          }
         }
       }
-    }
-    // logger.debug('result:', result);
-    const rows = convertColumnsToRows(featureNames, result);
-    // logger.debug('rows:', rows);
+      // logger.debug('result:', result);
+      const rows = convertColumnsToRows(featureNames, result);
+      // logger.debug('rows:', rows);
 
-    const schema = getDestinationSchema(cleanedFeatures);
-    if (transformation.destinationIds?.length) {
-      for (const destinationId of transformation.destinationIds) {
-        const destination = await destinationsService.getDestination(destinationId);
-        if (destination) {
-          await sqlSourceService.createTable(destination, rows, schema, source.connectionString);
+      const schema = getDestinationSchema(cleanedFeatures);
+      if (transformation.destinationIds?.length) {
+        for (const destinationId of transformation.destinationIds) {
+          const destination = await destinationsService.getDestination(destinationId);
+          if (destination) {
+            await sqlSourceService.createTable(destination, rows, schema, source.connectionString);
+          }
         }
       }
-    }
-    if (transformation.indexId || transformation.graphStoreProvider) {
-      // logger.debug('textNodeProperties:', textNodeProperties);
-      const nodeLabel = startCase(camelCase(transformation.name));
-      const indexSchema = getSchema({ jsonSchema: schema, textNodeProperties });
-      const props = indexSchema.properties.data.properties;
-      const chunks = rows.map((data, i) => createChunk(data, i, props, nodeLabel, textNodeProperties));
-      if (transformation.indexId) {
-        const indexer = new Indexer({
-          indexesService: indexesService,
-          llmService: llmService,
-          vectorStoreService: vectorStoreService,
-        });
-        const model = await modelsService.getModelByKey(workspaceId, transformation.embeddingModel);
-        const embeddingModel = {
-          provider: model.provider,
-          model: model.key,
-        };
-        // also looks up the index
-        await indexer.index(chunks, {
-          indexId: transformation.indexId,
-          nodeLabel,
-          schema: indexSchema,
-          embeddingModel,
-          vectorStoreProvider: transformation.vectorStoreProvider,
-        });
-      }
-      if (transformation.graphStoreProvider) {
-        const graphStore = GraphStore.create(transformation.graphStoreProvider, nodeLabel, {
-          executionsService,
-          graphStoreService,
-        });
-        graphStore.addChunksWithoutExtraction(chunks);
+      if (transformation.indexId || transformation.graphStoreProvider) {
+        // logger.debug('textNodeProperties:', textNodeProperties);
+        const nodeLabel = startCase(camelCase(transformation.name));
+        const indexSchema = getSchema({ jsonSchema: schema, textNodeProperties });
+        const props = indexSchema.properties.data.properties;
+        const chunks = rows.map((data, i) => createChunk(data, i, props, nodeLabel, textNodeProperties));
+        if (transformation.indexId) {
+          const indexer = new Indexer({
+            indexesService: indexesService,
+            llmService: llmService,
+            vectorStoreService: vectorStoreService,
+          });
+          const model = await modelsService.getModelByKey(workspaceId, transformation.embeddingModel);
+          const embeddingModel = {
+            provider: model.provider,
+            model: model.key,
+          };
+          // also looks up the index
+          await indexer.index(chunks, {
+            indexId: transformation.indexId,
+            nodeLabel,
+            schema: indexSchema,
+            embeddingModel,
+            vectorStoreProvider: transformation.vectorStoreProvider,
+          });
+        }
+        if (transformation.graphStoreProvider) {
+          const graphStore = GraphStore.create(transformation.graphStoreProvider, nodeLabel, {
+            executionsService,
+            graphStoreService,
+          });
+          graphStore.addChunksWithoutExtraction(chunks);
+        }
       }
     }
 

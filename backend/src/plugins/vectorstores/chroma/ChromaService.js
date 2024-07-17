@@ -274,38 +274,66 @@ function ChromaService({ __name, constants, logger }) {
             nResults: k,
             where,
           });
-        } else {
-          res = await collection.query({
-            queryTexts: query,
-            nResults: k,
-            where,
-          });
-        }
-        logger.debug('res:', res);
-        if (res.ids.length) {
-          return res.ids[0]
-            .map((id, i) => {
-              const dist = res.distances[0][i];
-              const metadata = res.metadatas[0][i];
-              const nodeLabel = metadata.nodeLabel;
-              delete metadata.nodeLabel;
-              let doc = {
-                ...metadata,
-                id,
-                text: res.documents[0][i],
-                dist,
-              };
-              return Object.entries(doc).reduce((a, [k, v]) => {
-                a[nodeLabel + '__' + k] = v;
+          logger.debug('res:', res);
+          if (res.ids.length) {
+            return res.ids[0]
+              .map((id, i) => {
+                const dist = res.distances[0][i];
+                const metadata = res.metadatas[0][i];
+                const nodeLabel = metadata.nodeLabel;
+                delete metadata.nodeLabel;
+                let doc = {
+                  ...metadata,
+                  id,
+                  text: res.documents[0][i],
+                  dist,
+                };
+                return Object.entries(doc).reduce((a, [k, v]) => {
+                  a[nodeLabel + '__' + k] = v;
+                  return a;
+                }, {});
+              })
+              .map(d => Object.entries(d).reduce((a, [k, v]) => {
+                const key = k.replace(/__/g, '.');
+                a[key] = v;
                 return a;
-              }, {});
-            })
-            .map(d => Object.entries(d).reduce((a, [k, v]) => {
-              const key = k.replace(/__/g, '.');
-              a[key] = v;
-              return a;
-            }, {}))
-            .map(unflatten);
+              }, {}))
+              .map(unflatten);
+          }
+        } else {
+          // still an embedding search and needs an embedding function
+          // res = await collection.query({
+          //   queryTexts: query,
+          //   nResults: k,
+          //   where,
+          // });
+          res = await collection.get({ where });
+          logger.debug('res:', res);
+          if (res.ids.length) {
+            return res.ids
+              .map((id, i) => {
+                const dist = 0;
+                const metadata = res.metadatas[i];
+                const nodeLabel = metadata.nodeLabel;
+                delete metadata.nodeLabel;
+                let doc = {
+                  ...metadata,
+                  id,
+                  text: res.documents[i],
+                  dist,
+                };
+                return Object.entries(doc).reduce((a, [k, v]) => {
+                  a[nodeLabel + '__' + k] = v;
+                  return a;
+                }, {});
+              })
+              .map(d => Object.entries(d).reduce((a, [k, v]) => {
+                const key = k.replace(/__/g, '.');
+                a[key] = v;
+                return a;
+              }, {}))
+              .map(unflatten);
+          }
         }
         return [];
       }

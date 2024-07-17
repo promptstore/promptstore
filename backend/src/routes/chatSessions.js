@@ -219,7 +219,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     for (const s of sessions) {
       const messages = [];
       for (const m of (s.messages || [])) {
-        if (m.role === 'user' && Array.isArray(m.content)) {
+        if (Array.isArray(m.content)) {
           const content = [];
           for (const c of m.content) {
             if (typeof c === 'string') {
@@ -245,7 +245,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   const getPresignedUrl = (objectName) => {
     return new Promise((resolve, reject) => {
-      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
+      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
         if (err) {
           logger.error('Error getting presigned url:', err);
           return reject(err);
@@ -336,6 +336,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         username,
         semanticFunctionName: 'create_summary_label',
         args,
+        env: values.env,
         params: {},
         extraIndexes: values.extraIndexes,
       });
@@ -407,6 +408,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           username,
           semanticFunctionName: 'create_summary_label',
           args,
+          env: values.env,
           params: {},
           extraIndexes: values.extraIndexes,
         });

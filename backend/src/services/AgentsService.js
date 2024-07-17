@@ -15,6 +15,23 @@ export function AgentsService({ pg, logger }) {
     };
   }
 
+  async function getAgentsCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM agents
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
+  }
+
   async function getAgents(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -47,14 +64,16 @@ export function AgentsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertAgent(agent, username) {
+  async function upsertAgent(agent, username, partial) {
     if (agent === null || typeof agent === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedAgent = await getAgent(agent.id);
     if (savedAgent) {
-      agent = { ...savedAgent, ...agent };
+      if (partial) {
+        agent = { ...savedAgent, ...agent, metricStoreSourceId: null };
+      }
       const val = omit(agent, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -94,6 +113,7 @@ export function AgentsService({ pg, logger }) {
   }
 
   return {
+    getAgentsCount,
     getAgents,
     getAgent,
     upsertAgent,

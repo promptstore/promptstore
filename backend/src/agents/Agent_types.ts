@@ -1,23 +1,39 @@
 import EventEmitter from 'events';
 
-import { ChatRequest, FunctionCall } from '../core/conversions/RosettaStone';
+import { ChatRequest, ContentType, FunctionCall, ModelParams } from '../core/conversions/RosettaStone';
 
 import { AgentCallback } from './AgentCallback';
 
 export interface AgentRunParams {
-  goal: string;  // the user query or goal to fulfill
+  args: any;
   allowedTools: string[];  // the set of tool keys the agent is allowed to run
   extraFunctionCallParams: any;  // extra params required by the various tools that aren't supplied by the model
   selfEvaluate: boolean;  // a flag to enable answer evaluation by another model
   callbacks: AgentCallback[];
+  parentAgentName?: string;
+}
+
+export interface Agent {
+
+  run: ({
+    args,
+    allowedTools,
+    extraFunctionCallParams,
+    selfEvaluate,
+    callbacks,
+  }: Partial<AgentRunParams>) => Promise<ContentType>;
+
 }
 
 export interface AgentOnStartResponse {
-  agentName: string;  // agent name
-  goal: string;  // the user query or goal to fulfill
+  name: string;  // agent name
+  args: any;
   allowedTools: string[];  // the set of tool keys the agent is allowed to run
   extraFunctionCallParams: any;  // extra params required by the various tools that aren't supplied by the model
   selfEvaluate: boolean;  // a flag to enable answer evaluation by another model
+  parent?: string;
+  model?: string;
+  modelParams?: Partial<ModelParams>;
 }
 
 export interface AgentOnEndParams {
@@ -26,9 +42,10 @@ export interface AgentOnEndParams {
 }
 
 export interface AgentOnEndResponse {
-  agentName: string;
+  name: string;
   response?: any;
   errors?: any;
+  parent?: string;
 }
 
 export interface ParsePlanResponse {
@@ -53,8 +70,10 @@ export interface EvaluateStepOnStartResponse {
 }
 
 export interface EvaluateTurnOnStartResponse {
+  name?: string;
   index: number;
   request?: ChatRequest;
+  parent?: string;
 }
 
 export interface EvaluateTurnOnEndResponse {
@@ -64,12 +83,16 @@ export interface EvaluateTurnOnEndResponse {
 }
 
 export interface FunctionCallOnStartResponse {
+  name?: string;
   call: FunctionCall;
   args: any;
+  parent?: string;
 }
 
 export interface FunctionCallOnEndResponse {
+  name?: string;
   response: any;
+  parent?: string;
 }
 
 export interface EvaluateOnStartResponse {

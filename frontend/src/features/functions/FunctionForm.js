@@ -1,10 +1,11 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   Col,
   Divider,
+  Dropdown,
   Form,
   Input,
   Modal,
@@ -13,12 +14,20 @@ import {
   Space,
   Switch,
 } from 'antd';
-import { CloseOutlined, DownloadOutlined, LinkOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  BlockOutlined,
+  CloseOutlined,
+  DownloadOutlined,
+  LinkOutlined,
+  MoreOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import SchemaForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import isEmpty from 'lodash.isempty';
 import * as dayjs from 'dayjs';
 import snakeCase from 'lodash.snakecase';
+import { v4 as uuidv4 } from 'uuid';
 
 import Download from '../../components/Download';
 import { ExperimentsModalInput } from '../../components/ExperimentsModalInput';
@@ -29,6 +38,7 @@ import { TagsInput } from '../../components/TagsInput';
 import NavbarContext from '../../contexts/NavbarContext';
 import UserContext from '../../contexts/UserContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+
 import {
   getDataSourcesAsync,
   selectDataSources,
@@ -51,11 +61,20 @@ import {
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
 import {
+  getRulesAsync,
+  selectRules,
+  selectLoading as selectRulesLoading,
+} from '../rules/rulesSlice';
+import {
   createSettingAsync,
   getSettingsAsync,
   selectSettings,
   updateSettingAsync,
-} from '../promptSets/settingsSlice';
+} from '../settings/settingsSlice';
+import {
+  duplicateObjectAsync,
+} from '../uploader/fileUploaderSlice';
+
 import {
   createFunctionAsync,
   getFunctionAsync,
@@ -92,6 +111,12 @@ const layout = {
   wrapperCol: { span: 20 },
 };
 
+const subFieldLayout = {
+  colon: false,
+  labelCol: { span: 24 },
+  wrapperCol: { span: 24 },
+};
+
 const returnTypeOptions = [
   {
     label: 'application/json',
@@ -106,6 +131,7 @@ const returnTypeOptions = [
 export function FunctionForm() {
 
   const [backOnSave, setBackOnSave] = useState(false);
+  const [correlationId, setCorrelationId] = useState(null);
   const [existingTags, setExistingTags] = useState([]);
   const [formData, setFormData] = useState(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -126,6 +152,8 @@ export function FunctionForm() {
   const outputParsersLoading = useSelector(selectOutputParsersLoading);
   const promptSets = useSelector(selectPromptSets);
   const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
+  const rulesets = useSelector(selectRules);
+  const rulesetsLoading = useSelector(selectRulesLoading);
   const settings = useSelector(selectSettings);
   const testResult = useSelector(selectTestResult);
   const testResultLoaded = useSelector(selectTestResultLoaded);
@@ -152,6 +180,15 @@ export function FunctionForm() {
 
   // console.log('func:', func);
 
+  const funcDownload = useMemo(() => {
+    if (func && modelsLoaded && promptSetsLoaded) {
+      const model = models[func.modelId];
+      const promptSet = promptSets[func.promptSetId];
+      return { ...func, model, promptSet };
+    }
+    return {};
+  }, [func, modelsLoaded, promptSetsLoaded]);
+
   const uiSchema = {
     "ui:submitButtonOptions": {
       "props": {
@@ -161,6 +198,17 @@ export function FunctionForm() {
       "submitText": "Run",
     },
   };
+
+  const environmentOptions = useMemo(() => {
+    const setting = Object.values(settings).find(s => s.key === 'environments');
+    if (setting) {
+      return setting.value.map(s => ({
+        label: s,
+        value: s,
+      }));
+    }
+    return [];
+  }, [settings]);
 
   const featureStoreOptions = useMemo(() => {
     const list = Object.values(dataSources)
@@ -173,16 +221,16 @@ export function FunctionForm() {
     return list;
   }, [dataSources]);
 
-  const inputGuardrailOptions = useMemo(() => {
-    const list = guardrails
-      .filter((g) => g.type === 'input')
-      .map((g) => ({
-        label: g.name,
-        value: g.key,
+  const graphSourceOptions = useMemo(() => {
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'graphstore')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
       }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
-  }, [guardrails]);
+  }, [dataSources]);
 
   const indexOptions = useMemo(() => {
     const list = Object.values(indexes)
@@ -194,9 +242,9 @@ export function FunctionForm() {
     return list;
   }, [indexes]);
 
-  const outputGuardrailOptions = useMemo(() => {
+  const inputGuardrailOptions = useMemo(() => {
     const list = guardrails
-      .filter((g) => g.type === 'output')
+      .filter((g) => g.type === 'input')
       .map((g) => ({
         label: g.name,
         value: g.key,
@@ -204,6 +252,28 @@ export function FunctionForm() {
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
   }, [guardrails]);
+
+  const metapromptOptions = useMemo(() => {
+    const list = Object.values(promptSets)
+      .filter(s => s.tags?.includes('metaprompt'))
+      .map((s) => ({
+        label: s.name,
+        value: s.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [promptSets]);
+
+  const metricStoreOptions = useMemo(() => {
+    const list = Object.values(dataSources)
+      .filter((ds) => ds.type === 'metricstore')
+      .map((ds) => ({
+        label: ds.name,
+        value: ds.id,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [dataSources]);
 
   const modelOptions = useMemo(() => {
     const list = Object.values(models)
@@ -217,17 +287,16 @@ export function FunctionForm() {
     return list;
   }, [models]);
 
-  const rerankerModelOptions = useMemo(() => {
-    const list = Object.values(models)
-      .filter(m => m.type === 'reranker')
-      .map((m) => ({
-        label: m.name,
-        value: m.id,
-        disabled: !!m.disabled,
+  const outputGuardrailOptions = useMemo(() => {
+    const list = guardrails
+      .filter((g) => g.type === 'output')
+      .map((g) => ({
+        label: g.name,
+        value: g.key,
       }));
     list.sort((a, b) => a.label < b.label ? -1 : 1);
     return list;
-  }, [models]);
+  }, [guardrails]);
 
   const outputParserOptions = useMemo(() => {
     const list = Object.values(outputParsers).map((p) => ({
@@ -247,7 +316,7 @@ export function FunctionForm() {
     return list;
   }, [promptSets]);
 
-  const promptSetVersionOptions = (index) => {
+  const promptSetVersionOptions = useCallback((index) => {
     const promptSetId = implementationsValue[index].promptSetId;
     if (promptSetId) {
       const promptSet = promptSets[promptSetId];
@@ -263,22 +332,32 @@ export function FunctionForm() {
       }
     }
     return [];
-  };
+  }, [implementationsValue, promptSets]);
+
+  const rerankerModelOptions = useMemo(() => {
+    const list = Object.values(models)
+      .filter(m => m.type === 'reranker')
+      .map((m) => ({
+        label: m.name,
+        value: m.id,
+        disabled: !!m.disabled,
+      }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [models]);
+
+  const rulesetOptions = useMemo(() => {
+    const list = Object.values(rulesets).map((r) => ({
+      label: r.name,
+      value: r.id,
+    }));
+    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    return list;
+  }, [rulesets]);
 
   const sqlSourceOptions = useMemo(() => {
     const list = Object.values(dataSources)
       .filter((ds) => ds.type === 'sql')
-      .map((ds) => ({
-        label: ds.name,
-        value: ds.id,
-      }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
-    return list;
-  }, [dataSources]);
-
-  const graphSourceOptions = useMemo(() => {
-    const list = Object.values(dataSources)
-      .filter((ds) => ds.type === 'graphstore')
       .map((ds) => ({
         label: ds.name,
         value: ds.id,
@@ -310,11 +389,12 @@ export function FunctionForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
-      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
+      dispatch(getRulesAsync({ workspaceId }));
+      dispatch(getSettingsAsync({ keys: ['environments', TAGS_KEY], workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -330,12 +410,14 @@ export function FunctionForm() {
       setBackOnSave(false);
       navigate('/functions');
     }
+    if (correlationId) {
+      const func = Object.values(functions).find(f => f.correlationId === correlationId);
+      if (func) {
+        navigate(`/functions/${func.id}/edit`);
+        setCorrelationId(null);
+      }
+    }
   }, [functions]);
-
-  const handleTest = (index) => {
-    setSelectedImplementation(index);
-    setIsTestModalOpen(true);
-  };
 
   const handleClose = () => {
     setIsTestModalOpen(false);
@@ -344,6 +426,24 @@ export function FunctionForm() {
       setFormData(null);
       dispatch(setTestResult({ result: null }));
     }, 200);
+  };
+
+  const handleDuplicate = async () => {
+    const correlationId = uuidv4();
+    const values = await form.validateFields();
+    const obj = { ...func, ...values };
+    dispatch(duplicateObjectAsync({
+      correlationId,
+      obj,
+      type: 'function',
+      workspaceId: selectedWorkspace.id,
+    }));
+    setCorrelationId(correlationId);
+  };
+
+  const handleTest = (index) => {
+    setSelectedImplementation(index);
+    setIsTestModalOpen(true);
   };
 
   const onCancel = () => {
@@ -456,9 +556,11 @@ export function FunctionForm() {
           title={'Test ' + func.name}
           okText={'Done'}
           width={800}
-          bodyStyle={{
-            maxHeight: 600,
-            overflowY: 'auto',
+          styles={{
+            body: {
+              maxHeight: 600,
+              overflowY: 'auto',
+            },
           }}
           okButtonProps={{ style: { display: 'none' } }}
         >
@@ -507,11 +609,32 @@ export function FunctionForm() {
             <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, alignItems: 'center' }}>
               {!isNew ?
                 <>
-                  <Download filename={snakeCase(func.name) + '.json'} payload={func}>
-                    <Button type="text" icon={<DownloadOutlined />}>
-                      Download
-                    </Button>
-                  </Download>
+                  <Dropdown arrow
+                    className="action-link"
+                    placement="bottom"
+                    menu={{
+                      items: [
+                        {
+                          key: 'duplicate',
+                          icon: <BlockOutlined />,
+                          label: (
+                            <Link onClick={handleDuplicate}>Duplicate</Link>
+                          ),
+                        },
+                        {
+                          key: 'download',
+                          icon: <DownloadOutlined />,
+                          label: (
+                            <Download filename={snakeCase(func?.name) + '.json'} payload={funcDownload}>
+                              <Link>Export</Link>
+                            </Download>
+                          )
+                        },
+                      ]
+                    }}
+                  >
+                    <MoreOutlined />
+                  </Dropdown>
                   <Link to={`/functions/${id}`}>View</Link>
                 </>
                 : null
@@ -624,6 +747,9 @@ export function FunctionForm() {
                       borderRight: 'none',
                       padding: '8px 20px',
                     }}>
+                      <Divider orientation="left" plain style={{ height: 32, marginTop: 0 }}>
+                        Model and Prompts
+                      </Divider>
                       <div style={{ display: 'flex' }}>
                         <Form.Item
                           name={[field.name, 'modelId']}
@@ -636,7 +762,7 @@ export function FunctionForm() {
                               message: 'Please select a model',
                             },
                           ]}
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, marginTop: '-16px' }}
                         >
                           <Select options={modelOptions} optionFilterProp="label" />
                         </Form.Item>
@@ -645,7 +771,7 @@ export function FunctionForm() {
                             type="link"
                             icon={<LinkOutlined />}
                             onClick={() => navigate(`/models/${implementationsValue?.[index]?.modelId}`)}
-                            style={{ marginTop: 32, width: 32 }}
+                            style={{ marginTop: 16, width: 32 }}
                           />
                           : null
                         }
@@ -700,6 +826,54 @@ export function FunctionForm() {
                               ))}
                             </Select>
                           </Form.Item>
+                          <div style={{ display: 'flex' }}>
+                            <Form.Item
+                              name={[field.name, 'metapromptId']}
+                              label="Metaprompt"
+                              labelCol={{ span: 24 }}
+                              wrapperCol={{ span: 24 }}
+                              style={{ flex: 1 }}
+                            >
+                              <Select
+                                allowClear
+                                options={metapromptOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            {implementationsValue?.[index]?.metapromptId ?
+                              <Button
+                                type="link"
+                                icon={<LinkOutlined />}
+                                onClick={() => navigate(`/prompt-sets/${implementationsValue?.[index]?.metapromptId}`)}
+                                style={{ marginTop: 32, width: 32 }}
+                              />
+                              : null
+                            }
+                          </div>
+                          {/* <div style={{ display: 'flex' }}>
+                            <Form.Item
+                              name={[field.name, 'retryPromptSetId']}
+                              label="Fix and retry Prompt"
+                              labelCol={{ span: 24 }}
+                              wrapperCol={{ span: 24 }}
+                              style={{ flex: 1 }}
+                            >
+                              <Select
+                                allowClear
+                                options={promptSetOptions}
+                                optionFilterProp="label"
+                              />
+                            </Form.Item>
+                            {implementationsValue?.[index]?.retryPromptSetId ?
+                              <Button
+                                type="link"
+                                icon={<LinkOutlined />}
+                                onClick={() => navigate(`/prompt-sets/${implementationsValue?.[index]?.retryPromptSetId}`)}
+                                style={{ marginTop: 32, width: 32 }}
+                              />
+                              : null
+                            }
+                          </div> */}
                         </>
                         : null
                       }
@@ -715,9 +889,8 @@ export function FunctionForm() {
                         </label>
                       </div>
                       <Form.Item
-                        colon={false}
+                        {...subFieldLayout}
                         name={[field.name, 'mappingData']}
-                        wrapperCol={{ span: 24 }}
                         initialValue={''}
                       >
                         <MappingModalInput
@@ -740,9 +913,8 @@ export function FunctionForm() {
                         </label>
                       </div>
                       <Form.Item
-                        colon={false}
+                        {...subFieldLayout}
                         name={[field.name, 'returnMappingData']}
-                        wrapperCol={{ span: 24 }}
                         initialValue={''}
                       >
                         <MappingModalInput
@@ -751,6 +923,16 @@ export function FunctionForm() {
                           disabledMessage="Have both model and function return types been defined?"
                           sourceTitle="Model Return"
                           targetTitle="Function Return"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        {...subFieldLayout}
+                        label="Environment"
+                        name={[field.name, 'environment']}
+                      >
+                        <Select allowClear
+                          optionFilterProp="label"
+                          options={environmentOptions}
                         />
                       </Form.Item>
                     </Col>
@@ -767,12 +949,10 @@ export function FunctionForm() {
                       </Divider>
                       <div style={{ display: 'flex' }}>
                         <Form.Item
-                          colon={false}
+                          {...subFieldLayout}
                           name={[field.name, 'dataSourceId']}
                           label="Online Feature Store"
-                          extra="Inject Features"
-                          labelCol={{ span: 24 }}
-                          wrapperCol={{ span: 24 }}
+                          // extra="Inject Features"
                           style={{ flex: 1, marginTop: '-16px' }}
                         >
                           <Select allowClear
@@ -794,12 +974,34 @@ export function FunctionForm() {
                       </div>
                       <div style={{ display: 'flex' }}>
                         <Form.Item
-                          colon={false}
+                          {...subFieldLayout}
+                          name={[field.name, 'metricStoreSourceId']}
+                          label="Metrics Store"
+                          style={{ flex: 1 }}
+                        >
+                          <Select allowClear
+                            loading={dataSourcesLoading}
+                            options={metricStoreOptions}
+                            optionFilterProp="label"
+                            placeholder="Select metrics store"
+                          />
+                        </Form.Item>
+                        {implementationsValue?.[index]?.dataSourceId ?
+                          <Button
+                            type="link"
+                            icon={<LinkOutlined />}
+                            onClick={() => navigate(`/data-sources/${implementationsValue?.[index]?.dataSourceId}`)}
+                            style={{ marginTop: 16, width: 32 }}
+                          />
+                          : null
+                        }
+                      </div>
+                      <div style={{ display: 'flex' }}>
+                        <Form.Item
+                          {...subFieldLayout}
                           name={[field.name, 'sqlSourceId']}
                           label="SQL Data Source"
-                          extra="Inject Metadata"
-                          labelCol={{ span: 24 }}
-                          wrapperCol={{ span: 24 }}
+                          // extra="Inject Metadata"
                           style={{ flex: 1 }}
                         >
                           <Select allowClear
@@ -821,12 +1023,10 @@ export function FunctionForm() {
                       </div>
                       <div style={{ display: 'flex' }}>
                         <Form.Item
-                          colon={false}
+                          {...subFieldLayout}
                           name={[field.name, 'graphSourceId']}
                           label="Knowledge Graph Source"
-                          extra="Inject Metadata"
-                          labelCol={{ span: 24 }}
-                          wrapperCol={{ span: 24 }}
+                          // extra="Inject Metadata"
                           style={{ flex: 1 }}
                         >
                           <Select allowClear
@@ -999,12 +1199,10 @@ export function FunctionForm() {
                             <Switch />
                           </Form.Item>
                           <Form.Item
-                            colon={false}
+                            {...subFieldLayout}
                             name={[field.name, 'rerankerModelId']}
                             label="Reranker Model"
                             extra="Rerank search results"
-                            labelCol={{ span: 24 }}
-                            wrapperCol={{ span: 24 }}
                             style={{ flex: 1 }}
                           >
                             <Select allowClear
@@ -1030,11 +1228,9 @@ export function FunctionForm() {
                         Guardrails
                       </Divider>
                       <Form.Item
-                        colon={false}
+                        {...subFieldLayout}
                         name={[field.name, 'inputGuardrails']}
-                        label="Input Guardrails"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
+                        label="Guardrails (input)"
                         style={{ marginTop: '-16px' }}
                       >
                         <Select allowClear
@@ -1046,11 +1242,9 @@ export function FunctionForm() {
                         />
                       </Form.Item>
                       <Form.Item
-                        colon={false}
+                        {...subFieldLayout}
                         name={[field.name, 'outputGuardrails']}
-                        label="Output Guardrails"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
+                        label="Guardrails (output)"
                       >
                         <Select allowClear
                           mode="multiple"
@@ -1061,11 +1255,22 @@ export function FunctionForm() {
                         />
                       </Form.Item>
                       <Form.Item
-                        colon={false}
+                        {...subFieldLayout}
+                        name={[field.name, 'rulesets']}
+                        label="Rulesets"
+                      >
+                        <Select allowClear
+                          mode="multiple"
+                          loading={rulesetsLoading}
+                          options={rulesetOptions}
+                          optionFilterProp="label"
+                          placeholder="Select rulesets"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        {...subFieldLayout}
                         name={[field.name, 'outputParser']}
                         label="Output Parser"
-                        labelCol={{ span: 24 }}
-                        wrapperCol={{ span: 24 }}
                       >
                         <Select allowClear
                           loading={outputParsersLoading}

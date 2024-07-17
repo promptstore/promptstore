@@ -461,8 +461,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/compositions', auth, async (req, res, next) => {
     const { username } = req.user;
     let values = req.body;
-    let composition = await compositionsService.upsertComposition(values, username);
-    const schedule = getSchedule(composition);
+    const schedule = getSchedule(values);
     if (hasValue(schedule)) {
       values = {
         compositionId: composition.id,
@@ -479,12 +478,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         address: constants.TEMPORAL_URL,
       });
       values = {
-        ...composition,
+        ...values,
         scheduleId,
         scheduleStatus: 'running',
       };
-      composition = await compositionsService.upsertComposition(values, username);
     }
+    const composition = await compositionsService.upsertComposition(values, username);
     const obj = createSearchableObject(composition);
     const chunkId = await indexObject(obj, composition.chunkId);
     if (!composition.chunkId) {

@@ -98,7 +98,7 @@ export const upsertUserAsync = (user) => async (dispatch) => {
 };
 
 export const setAdmin = () => async (dispatch) => {
-  const url = 'api/roles';
+  const url = '/api/roles';
   const res = await http.post(url, { role: 'admin' });
 };
 

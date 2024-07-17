@@ -47,6 +47,7 @@ interface GetInputParams {
 
 export class SemanticFunctionImplementation {
 
+  environment: string;
   model: Model;
   isDefault: boolean;
   argsMappingTemplate?: string;
@@ -63,6 +64,7 @@ export class SemanticFunctionImplementation {
   callbacks: Callback[];
 
   constructor({
+    environment,
     model,
     isDefault,
     argsMappingTemplate,
@@ -78,6 +80,7 @@ export class SemanticFunctionImplementation {
     dataMapper,
     callbacks,
   }: SemanticFunctionImplementationParams) {
+    this.environment = environment;
     this.model = model;
     this.isDefault = isDefault;
     this.argsMappingTemplate = argsMappingTemplate;
@@ -324,6 +327,7 @@ export class SemanticFunctionImplementation {
             ...(res.responseMetadata.hist || []),
             ...res.responseMetadata.prompts
           ]);
+
           responseMetadata = {
             ...res.responseMetadata,
             images,
@@ -345,7 +349,7 @@ export class SemanticFunctionImplementation {
         this.throwSemanticFunctionError(`model type ${this.model.modelType} not supported`, _callbacks);
       }
 
-      if (this.outputProcessingPipeline && this.outputProcessingPipeline.length) {
+      if (this.outputProcessingPipeline?.length) {
         response = await this.outputProcessingPipeline.call({ response, callbacks: _callbacks });
       }
 
@@ -359,6 +363,7 @@ export class SemanticFunctionImplementation {
       }, _callbacks);
 
       return { response, responseMetadata };
+
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ model: { model: modelKey, provider }, errors }, _callbacks);
@@ -713,6 +718,7 @@ export class SemanticFunctionImplementation {
 }
 
 interface SemanticFunctionImplementationOptions {
+  environment: string;
   isDefault: boolean;
   argsMappingTemplate?: string;
   returnMappingTemplate?: string;

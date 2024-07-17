@@ -113,7 +113,11 @@ function Neo4jService({ __name, constants, logger }) {
       return Object.values(nodeMapWithText);
 
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();
@@ -177,7 +181,11 @@ function Neo4jService({ __name, constants, logger }) {
         required: required[nodeLabel],
       };
     } catch (err) {
-      logger.error(err, err.stack);
+      let message = err.message;
+      if (err.stack) {
+        message += '\n' + err.stack;
+      }
+      logger.error(message);
       throw err;
     } finally {
       await session.close();

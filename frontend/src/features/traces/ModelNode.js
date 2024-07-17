@@ -10,7 +10,10 @@ export default memo(({ id, data, isConnectable }) => {
         {data.label}
       </div>
       <div className="custom-node__body">
-        <Link to={`/models/${data.modelId}`}>{data.modelName}</Link>
+        {data.modelId ?
+          <Link to={`/models/${data.modelId}`}>{data.modelName}</Link>
+          : null
+        }
       </div>
       <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
       <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />

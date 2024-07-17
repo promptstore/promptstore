@@ -57,50 +57,51 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       vectorStoreProvider,
       workspaceId,
     } = values;
-    const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
-    const embeddingModel = {
-      provider: model.provider,
-      model: model.key,
-    };
+    if (indexName) {
+      const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
+      const embeddingModel = {
+        provider: model.provider,
+        model: model.key,
+      };
 
-    let indexId = values.indexId;
-    // create index if new
-    if (indexId === 'new') {
-      const features = await getCleanedFeatures(values.features);
-      const schema = getDestinationSchema(features);
-      const indexer = new Indexer({
-        indexesService,
-        llmService,
-        vectorStoreService,
-      });
-      const index = await indexer.createIndex({
-        name: indexName,
-        schema,
-        workspaceId,
-        username,
-        embeddingModel,
-        vectorStoreProvider,
-        nodeLabel: startCase(camelCase(name)),
-      });
-      indexId = index.id;
+      let indexId = values.indexId;
+      // create index if new
+      if (indexId === 'new') {
+        const features = await getCleanedFeatures(values.features);
+        const schema = getDestinationSchema(features);
+        const indexer = new Indexer({
+          indexesService,
+          llmService,
+          vectorStoreService,
+        });
+        const index = await indexer.createIndex({
+          name: indexName,
+          schema,
+          workspaceId,
+          username,
+          embeddingModel,
+          vectorStoreProvider,
+          nodeLabel: startCase(camelCase(name)),
+        });
+        indexId = index.id;
+      }
+      values = {
+        ...values,
+        embeddingProvider: embeddingModel.provider,
+        indexId,
+      };
     }
-    values = {
-      ...values,
-      embeddingProvider: embeddingModel.provider,
-      indexId,
-    };
-    let transformation = await transformationsService.upsertTransformation(values, username);
     if (hasValue(values.schedule)) {
       const scheduleId = await workflowClient.scheduleTransformation(transformation, workspaceId, username, {
         address: constants.TEMPORAL_URL,
       });
       values = {
-        ...transformation,
+        ...values,
         scheduleId,
         scheduleStatus: 'running',
       };
-      transformation = await transformationsService.upsertTransformation(values, username);
     }
+    const transformation = await transformationsService.upsertTransformation(values, username);
     const obj = createSearchableObject(transformation);
     const chunkId = await indexObject(obj, transformation.chunkId);
     if (!transformation.chunkId) {

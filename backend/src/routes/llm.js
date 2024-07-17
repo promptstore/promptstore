@@ -2,6 +2,7 @@ import { default as dayjs } from 'dayjs';
 import fs from 'fs';
 import path from 'path';
 import uuid from 'uuid';
+import merge from 'lodash.merge';
 
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
@@ -66,7 +67,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           r = await createChatCompletion({ features, model, modelParams, prompts, provider });
           const { provider } = await modelsService.getModelByKey(workspaceId, r.model);
           const { prompt_tokens, completion_tokens } = r.usage || {};
-          const costComponents = creditCalculatorService.getCostComponents({
+          const costComponents = await creditCalculatorService.getCostComponents({
             name: `${r.model}_completion`,
             provider,
             model: r.model,
@@ -90,7 +91,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           const name = `${key}:${v}`;
           const { provider } = await modelsService.getModelByKey(workspaceId, r.model);
           const { prompt_tokens, completion_tokens } = r.usage || {};
-          const costComponents = creditCalculatorService.getCostComponents({
+          const costComponents = await creditCalculatorService.getCostComponents({
             name,
             provider,
             model: r.model,
@@ -118,7 +119,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         for (const r of response) {
           const { provider } = await modelsService.getModelByKey(workspaceId, r.model);
           const { prompt_tokens, completion_tokens } = r.usage || {};
-          const costComponents = creditCalculatorService.getCostComponents({
+          const costComponents = await creditCalculatorService.getCostComponents({
             name: `${r.model}_completion`,
             provider,
             model: r.model,
@@ -132,7 +133,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         response = await createChatCompletion({ features, model, modelParams, prompts, provider });
         const { provider } = await modelsService.getModelByKey(workspaceId, response.model);
         const { prompt_tokens, completion_tokens } = response.usage || {};
-        const costComponents = creditCalculatorService.getCostComponents({
+        const costComponents = await creditCalculatorService.getCostComponents({
           name: `${response.model}_completion`,
           provider,
           model: response.model,
@@ -180,6 +181,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     // TODO
     const {
       args,
+      env,
       messages,
       history,
       params,
@@ -202,6 +204,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           username,
           semanticFunctionName,
           args,
+          env,
           messages,
           history: cleanHistory(history),
           model,
@@ -220,6 +223,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         username,
         semanticFunctionName,
         args,
+        env,
         messages,
         history: cleanHistory(history),
         params,
@@ -318,7 +322,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/chat', auth, async (req, res) => {
-    // logger.debug('body:', req.body);
+    logger.debug('body:', req.body);
     const { username } = req.user;
     const { credits, errors } = await usersService.checkCredits(username);
     if (errors) {
@@ -334,19 +338,49 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       modelParams = {},
       originalMessages = [],
       promptSetId,
+      promptSetSkill,
       systemPromptInput,
       critiquePromptSetId,
       critiquePromptInput,
       criterion,
       systemPrompt,
+      textOverlay,
+      subText,
+      textColor,
       workspaceId,
       app,
     } = req.body;
+    let messages = [];
+    if (promptSetSkill) {
+      const pss = await promptSetsService.getPromptSetsBySkill(workspaceId, promptSetSkill);
+      const ps = pss[0];
+      if (ps && ps.prompts) {
+        const engine = ps.templateEngine || 'es6';
+        messages = ps.prompts.map(p => {
+          if (typeof p.prompt === 'string') {
+            return {
+              role: p.role,
+              content: fillTemplate(p.prompt, args || {}, engine),
+            };
+          }
+          return { role: p.role, content: p.prompt };
+        });
+      } else {
+        console.error(`prompt set with skill (${promptSetSkill}) not found or has no prompts`);
+      }
+    }
     let models = isCritic ? modelParams.criticModels : modelParams.models;
     if (!models || !models.length) {
       // TODO move values to settings
-      models = [{ model: 'gpt-3.5-turbo-0613', provider: 'openai' }];
+      models = [{ model: 'gpt-4o', provider: 'openai' }];
     }
+
+    let modelMap = {};
+    for (const model of models) {
+      modelMap[model.model] = await modelsService.getModelByKey(workspaceId, model.model);
+    }
+    const isVision = Object.values(modelMap).find(m => m.multimodal);
+    const isImagegen = Object.values(modelMap).find(m => m.type === 'imagegen');
 
     const startTimes = [];
     let startTime = new Date();
@@ -354,12 +388,22 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     startTimes.push(startTime);
     const traceName = ['chat', startTime.toISOString()].join(' - ');
     const tracer = new Tracer(traceName, 'chat');
+    if (systemPromptInput) {
+      messages.push({ role: 'system', content: systemPromptInput });
+    }
+    if (req.body.messages?.length) {
+      // const msgs = await convertMessagesWithImages(req.body.messages);
+      // messages.push(...msgs);
+      messages.push(...req.body.messages);
+    }
+    logger.debug('!! messages:', messages);
+
     tracer
       .push({
         id: uuid.v4(),
         type: 'chat',
         models,
-        messages: await convertMessagesWithImages(req.body.messages),
+        messages,
         args,
         startTime: startTime.getTime(),
       })
@@ -367,10 +411,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
     const messageTemplates = [];
     if (systemPrompt) {
-      messageTemplates.push({
-        role: 'system',
-        content: systemPrompt,
-      });
+      messageTemplates.push(...systemPrompt);
     }
     messageTemplates.push(...req.body.messages);
     startTime = new Date();
@@ -385,36 +426,51 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       });
 
     let sp;
-    if (systemPrompt) {
-      if (args) {
-        sp = fillTemplate(systemPrompt, args, engine);
-      } else {
-        sp = systemPrompt;
+
+    const getContent = (content) => {
+      if (typeof content === 'string') {
+        return fillTemplate(content, args, engine);
       }
-    }
-    let messages;
-    if (args) {
-      messages = req.body.messages.map(m => {
-        let content;
-        if (m.role === 'user' && Array.isArray(m.content)) {
-          content = [...m.content];
-          const index = content.findLastIndex(c => c.type === 'text');
-          content.splice(index, 1, {
-            type: 'text',
-            text: fillTemplate(content[index].text, args, engine),
-          });
-        } else {
-          content = fillTemplate(m.content, args, engine);
+      return content.map(c => {
+        if (c.type === 'text') {
+          return { ...c, text: fillTemplate(text, args, engine) };
         }
-        return {
-          role: m.role,
-          content,
-        };
+        return c;
       });
-    } else {
-      messages = req.body.messages;
     }
-    // // sort content objects with text content at the top
+
+    // if (systemPrompt) {
+    //   if (args) {
+    //     sp = systemPrompt.map(p => ({
+    //       role: p.role,
+    //       content: getContent(p.content),
+    //     }));
+    //   } else {
+    //     sp = systemPrompt;
+    //   }
+    // }
+    // if (args) {
+    //   messages.push(...req.body.messages.map(m => {
+    //     let content;
+    //     if (m.role === 'user' && Array.isArray(m.content)) {
+    //       content = [...m.content];
+    //       const index = content.findLastIndex(c => c.type === 'text');
+    //       content.splice(index, 1, {
+    //         type: 'text',
+    //         text: fillTemplate(content[index].text, args, engine),
+    //       });
+    //     } else {
+    //       content = fillTemplate(m.content, args, engine);
+    //     }
+    //     return {
+    //       role: m.role,
+    //       content,
+    //     };
+    //   }));
+    // } else {
+    //   messages.push(...req.body.messages);
+    // }
+    // sort content objects with text content at the top
     // messages = messages.map(m => {
     //   if (m.role === 'user' && Array.isArray(m.content)) {
     //     m.content.sort((a, b) => a.type > b.type ? -1 : 1);
@@ -424,7 +480,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
     const outputMessages = [];
     if (sp) {
-      outputMessages.push({ role: 'system', content: sp });
+      outputMessages.push(...sp);
     }
     outputMessages.push(...messages);
     startTime = startTimes.pop();
@@ -470,13 +526,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           });
           searchParams.queryEmbedding = response.data[0].embedding;
           const { prompt_tokens, completion_tokens } = response.usage || {};
-          const costComponents = creditCalculatorService.getCostComponents({
+          const costComponents = await creditCalculatorService.getCostComponents({
             name: `${indexName}_embedding`,
             provider: embeddingProvider,
             model: embeddingModel,
             batch: false,
             inputTokens: prompt_tokens,
             outputTokens: completion_tokens,
+            workspaceId,
           });
           creditBalance -= costComponents.totalCost * 1000;
         }
@@ -515,20 +572,47 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         ;
     }
 
-    const model_params = {
-      max_tokens: modelParams.maxTokens,
-      n: 1,
-      temperature: modelParams.temperature,
-
-      // the following are invalid parameters for gpt-4-vision-preview
-      // top_p: modelParams.topP,
-      // stop: modelParams.stop,
-      // presence_penalty: modelParams.presencePenalty,
-      // frequency_penalty: modelParams.frequencyPenalty,
-      // top_k: modelParams.topK,
-    };
+    let model_params;
+    if (isVision) {
+      model_params = {
+        max_tokens: modelParams.maxTokens,
+        n: 1,
+        temperature: modelParams.temperature,
+      };
+    } else if (isImagegen) {
+      model_params = {
+        n: 1,
+        quality: modelParams.quality,
+        responseFormat: modelParams.responseFormat,
+        size: modelParams.size,
+        style: modelParams.style,
+        aspect_ratio: modelParams.aspect_ratio,
+        negative_prompt: modelParams.negative_prompt,
+        seed: modelParams.seed,
+        output_format: modelParams.output_format,
+        cfg_scale: modelParams.cfg_scale,
+        clip_guidance_preset: modelParams.clip_guidance_preset,
+        sampler: modelParams.sampler,
+        samples: modelParams.samples,
+        steps: modelParams.steps,
+        style_preset: modelParams.style_preset,
+        extras: modelParams.extras,
+      };
+    } else {
+      model_params = {
+        max_tokens: modelParams.maxTokens,
+        n: 1,
+        temperature: modelParams.temperature,
+        top_p: modelParams.topP,
+        stop: modelParams.stop,
+        presence_penalty: modelParams.presencePenalty,
+        frequency_penalty: modelParams.frequencyPenalty,
+        top_k: modelParams.topK,
+      };
+    }
 
     const images = [];
+    const prompts = [];
     const proms = [];
     for (const { model, provider } of models) {
       const prompt = {
@@ -536,11 +620,13 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         history: cleanMessages(model, history),
         messages: cleanMessages(model, messages),
       };
-      let request = {
+      prompts.push(prompt);
+      const request = {
         model,
         model_params,
         prompt,
       };
+      logger.debug('!! prompts:', prompts);
 
       startTime = new Date();
       startTimes.push(startTime);
@@ -549,6 +635,8 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           id: uuid.v4(),
           type: 'call-model',
           model,
+          modelId: modelMap[model]?.id,
+          modelName: modelMap[model]?.name,
           modelParams: model_params,
           prompt: {
             context: prompt.context,
@@ -560,30 +648,36 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .down();
 
       const ims = [];
-      for (const msg of prompt.messages) {
-        if (Array.isArray(msg.content)) {
-          for (const c of msg.content) {
-            if (c.type === 'image_url') {
-              const filename = c.objectName.split('/').pop();
-              const upload = await uploadsService.getUploadByFilename(filename);
-              let width = 1024, height = 1024;
-              if (upload) {
-                width = upload.width;
-                height = upload.height;
-              }
-              ims.push({ width, height });
-            }
-          }
-        }
-      }
-      images.push(ims);
+      // for (const msg of prompt.messages) {
+      //   if (Array.isArray(msg.content)) {
+      //     for (const c of msg.content) {
+      //       if (c.type === 'image_url') {
+      //         const filename = c.objectName.split('/').pop();
+      //         const upload = await uploadsService.getUploadByFilename(filename);
+      //         let width = 1024, height = 1024;
+      //         if (upload) {
+      //           width = upload.width;
+      //           height = upload.height;
+      //         }
+      //         ims.push({ width, height });
+      //       }
+      //     }
+      //   }
+      // }
+      // images.push(ims);
 
-      proms.push(llmService.createChatCompletion(provider, request));
+      if (isImagegen) {
+        proms.push(llmService.createImage(provider, request));
+      } else {
+        proms.push(llmService.createChatCompletion(provider, request));
+      }
     }
     const completions = await Promise.all(proms);
 
     let i = 0;
     for (const completion of completions) {
+      logger.debug('completion:', completion);
+
       startTime = startTimes.pop();
       endTime = new Date();
       tracer
@@ -594,22 +688,26 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .addProperty('response', await convertResponseWithImages(completion))
         .addProperty('success', true)
         ;
-      const { provider } = await modelsService.getModelByKey(workspaceId, completion.model);
+      const { provider } = modelMap[completion.model];
       const { prompt_tokens, completion_tokens } = completion.usage || {};
-      const costComponents = creditCalculatorService.getCostComponents({
+      const costComponents = await creditCalculatorService.getCostComponents({
         name: `${completion.model}_chat`,
         provider,
         model: completion.model,
         batch: false,
         inputTokens: prompt_tokens,
         outputTokens: completion_tokens,
-        image: images[i],
-        imageCount: images[i].length,
+        // image: images[i],
+        // imageCount: images[i].length,
+        workspaceId,
       });
+      logger.debug('costComponents:', costComponents);
       creditBalance -= costComponents.totalCost * 1000;
       i += 0;
     }
-    await usersService.upsertUser({ username, credits: creditBalance });
+    if (!isNaN(creditBalance)) {
+      await usersService.upsertUser({ username, credits: creditBalance }, true);
+    }
 
     startTime = startTimes.pop();
     endTime = new Date();
@@ -649,9 +747,10 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     // to make sure the message used as an argument is also included
     const curMessages = [...history, ...userMessages];
 
+    const sessionType = isImagegen ? 'imagegen' : 'design';
     let session;
     if (app === 'promptstore') {
-      const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'design');
+      const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, sessionType);
       if (lastSession) {
         session = await chatSessionsService.upsertChatSession({
           ...lastSession,
@@ -663,6 +762,9 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           critiquePromptSetId,
           critiquePromptInput,
           criterion,
+          textOverlay,
+          subText,
+          textColor,
         }, username);
       } else {
         session = await chatSessionsService.upsertChatSession({
@@ -675,13 +777,21 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           critiquePromptSetId,
           critiquePromptInput,
           criterion,
-          type: 'design',
+          textOverlay,
+          subText,
+          textColor,
+          type: sessionType,
           workspaceId,
         }, username);
       }
     }
 
-    res.json({ completions, lastSession: session, traceId: id, creditBalance });
+    res.json({
+      completions: completions.map((c, i) => ({ ...c, originalPrompt: prompts[i] })),
+      lastSession: session,
+      traceId: id,
+      creditBalance,
+    });
   });
 
   // const formatMessage = (m) => {
@@ -746,6 +856,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.json(providers);
   });
 
+  app.get('/api/providers/imagegen', auth, (req, res, next) => {
+    const providers = llmService.getImageProviders();
+    res.json(providers);
+  });
+
   app.post('/api/embedding', auth, async (req, res) => {
     const { username } = req.user;
     const { credits, errors } = await usersService.checkCredits(username);
@@ -755,16 +870,17 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const { input, model, provider, workspaceId } = req.body;
     const response = await llmService.createEmbedding(provider, { model, input });
     const { prompt_tokens, completion_tokens } = response.usage || {};
-    const costComponents = creditCalculatorService.getCostComponents({
+    const costComponents = await creditCalculatorService.getCostComponents({
       name: model,
       provider,
       model: model,
       batch: false,
       inputTokens: prompt_tokens,
       outputTokens: completion_tokens,
+      workspaceId,
     });
     const creditBalance = credits - costComponents.totalCost * 1000;
-    await usersService.upsertUser({ username, credits: creditBalance });
+    await usersService.upsertUser({ username, credits: creditBalance }, true);
     res.json(response.data[0].embedding);
   });
 
@@ -794,7 +910,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     if (errors) {
       return res.status(500).json({ errors });
     }
-    // logger.debug('body:', req.body);
+    logger.debug('body:', req.body);
     const {
       model,
       n,
@@ -820,7 +936,18 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         return res.sendStatus(500);
       }
     }
-    const response = await llmService.createImage('openai', p, { model, n, quality, size });
+    logger.debug('p:', p);
+    const request = {
+      prompt: {
+        messages: [
+          {
+            role: 'user',
+            content: p,
+          },
+        ],
+      },
+    };
+    const response = await llmService.createImage('openai', request, { model, n, quality, size });
     const [width, height] = getDims(size);
     const costComponents = creditCalculatorService.getImageCostComponents(
       model,
@@ -833,12 +960,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       response
     );
     const creditBalance = credits - costComponents.totalCost * 1000;
-    await usersService.upsertUser({ username, credits: creditBalance });
+    await usersService.upsertUser({ username, credits: creditBalance }, true);
     const dirname = path.join('/var/data/images/', String(sourceId));
     await fs.promises.mkdir(dirname, { recursive: true });
     const promises = [];
-    for (const { url } of response) {
-      promises.push(saveImage(sourceId, dirname, url));
+    for (const { image_url } of response.choices[0].message.content) {
+      promises.push(saveImage(sourceId, dirname, image_url.url));
     }
     const urls = await Promise.all(promises);
     logger.debug('urls:', urls);
@@ -873,7 +1000,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, 24 * 60 * 60, (err, presignedUrl) => {
+        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
           if (err) {
             logger.error('Error getting presigned url:', err);
             return reject(err);
@@ -913,7 +1040,32 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       response
     );
     const creditBalance = credits - costComponents.totalCost * 1000;
-    await usersService.upsertUser({ username, credits: creditBalance });
+    await usersService.upsertUser({ username, credits: creditBalance }, true);
+    res.json(response.data);
+  });
+
+  app.post('/api/edit-image', auth, async (req, res, next) => {
+    const { username } = req.user;
+    const { credits, errors } = await usersService.checkCredits(username);
+    if (errors) {
+      return res.status(500).json({ errors });
+    }
+    const { imageUrl, n, prompt, size, workspaceId } = req.body;
+    const response = await llmService.editImage('openai', imageUrl, prompt, { n, size });
+    const [width, height] = getDims(size);
+    // TODO - the cost model doesn't currently account for this type of request
+    const costComponents = creditCalculatorService.getImageCostComponents(
+      'image-variant',
+      'openai',
+      'image-variant',
+      false,
+      'standard',
+      width,
+      height,
+      response
+    );
+    const creditBalance = credits - costComponents.totalCost * 1000;
+    await usersService.upsertUser({ username, credits: creditBalance }, true);
     res.json(response.data);
   });
 

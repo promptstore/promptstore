@@ -54,7 +54,7 @@ import {
   getSettingsAsync,
   selectLoading as selectSettingsLoading,
   selectSettings,
-} from '../promptSets/settingsSlice';
+} from '../settings/settingsSlice';
 import { intersects } from '../../utils';
 
 const { Content, Sider } = Layout;
@@ -172,7 +172,7 @@ export function RagTester() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      title: 'RAG Tester',
+      title: 'RAG Testing',
     }));
     return () => {
       onReset();
@@ -188,7 +188,7 @@ export function RagTester() {
       // dispatch(getFunctionsByTagAsync({ tag: 'rag', workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getChatSessionsAsync({ workspaceId, type: 'rag' }));
-      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
+      dispatch(getSettingsAsync({ keys: [TAGS_KEY], workspaceId }));
     }
   }, [selectedWorkspace]);
 

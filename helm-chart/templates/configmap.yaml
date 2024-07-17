@@ -48,10 +48,13 @@ data:
   GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini,cohere|Cohere|./plugins/llms/cohere,anthropic|Anthropic|./plugins/llms/anthropic"
+  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini,cohere|Cohere|./plugins/llms/cohere,anthropic|Anthropic|./plugins/llms/anthropic,stabilityai|Stability AI|./plugins/llms/stabilityai"
 
   # Loader plugins
   LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia,crawler|Web Crawler|./plugins/loaders/crawler,gcs|GCS Document Loader|./plugins/loaders/gcs,s3|S3 Document Loader|./plugins/loaders/s3,googledrive|Google Drive Loader|./plugins/loaders/googledrive,gmail|Gmail Loader|./plugins/loaders/gmail,confluence|Confluence Loader|./plugins/loaders/confluence,notion|Notion Loader|./plugins/loaders/notion,googlesearch|Google Search Loader|./plugins/loaders/googlesearch"
+
+  # Metric store plugins
+  METRIC_STORE_PLUGINS: "metricflow|MetricFlow|./plugins/metricstores/metricflow"
 
   # Model Provider plugins
   MODEL_PROVIDER_PLUGINS: "huggingface|Hugging Face|./plugins/modelproviders/huggingface"
@@ -66,7 +69,7 @@ data:
   SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql,clickhouse|ClickHouse|./plugins/sqlsources/clickhouse,bigquery|BigQuery|./plugins/sqlsources/bigquery"
 
   # Tool plugins
-  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira"
+  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira,metricflow|MetricFlow Query|./plugins/tools/metricflow,clickhouse|ClickHouse|./plugins/tools/clickhouse,clickhouse_resolver|ClickHouse Entity Resolver|./plugins/tools/clickhouse_resolver,metrics|Metrics|./plugins/tools/metrics"
 
   # Vector store plugins
   VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j,chroma|Chroma Vector Store|./plugins/vectorstores/chroma,elasticsearch|Elasticsearch|./plugins/vectorstores/elasticsearch"
@@ -203,7 +206,7 @@ data:
   # Redis
   SEARCH_API: "{{ .Values.vecsearch.api_url }}"
 
-  NEO4J_AUTH: "neo4j/changeme"
+  NEO4J_AUTH: "{{ .Values.neo4j.auth }}"
   NEO4J_server_memory_pagecache_size: "1G"
   NEO4J_server_memory_heap_initial__size: "1G"
   NEO4J_server_memory_heap_max__size: "2G"
@@ -226,6 +229,9 @@ data:
   SEARCH_NODE_LABEL: "{{ .Values.promptstore.search_node_label }}"
   SEARCH_WORKSPACE: "{{ .Values.promptstore.search_workspace }}"
   SEARCH_VECTORSTORE_PROVIDER: "{{ .Values.promptstore.search_vectorstore_provider }}"
+
+  RULES_ENGINE_SERVICE_URL: "{{ .Values.promptstore.rules_engine_service_url }}"
+  SYSTEM_WORKSPACE_ID: "{{ .Values.promptstore.system_workspace_id }}"
 
 kind: ConfigMap
 metadata:

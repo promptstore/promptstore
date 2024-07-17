@@ -26,14 +26,6 @@ function Gpt4AllLLM({ __name, constants, logger }) {
     return response.map((c) => ({ prompt: input, text: c.generation }));
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
-  }
-
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
-  }
-
   function getNumberTokens(model, text) {
     throw new Error('Not implemented');
   }
@@ -44,8 +36,6 @@ function Gpt4AllLLM({ __name, constants, logger }) {
     createCompletion,
     fetchChatCompletion,
     fetchCompletion,
-    createImage,
-    generateImageVariant,
     getNumberTokens,
   };
 

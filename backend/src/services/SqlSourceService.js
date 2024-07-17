@@ -5,6 +5,11 @@ export function SqlSourceService({ logger, registry }) {
     return instance.createTable(destination, data, schema, connectionString);
   };
 
+  function getCategoricalValues(source) {
+    const instance = registry[source.dialect];
+    return instance.getCategoricalValues(source);
+  };
+
   function getData(source, limit, columns) {
     const instance = registry[source.dialect];
     return instance.getData(source, limit, columns);
@@ -39,6 +44,7 @@ export function SqlSourceService({ logger, registry }) {
 
   return {
     createTable,
+    getCategoricalValues,
     getData,
     getDataColumns,
     getDDL,

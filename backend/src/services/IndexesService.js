@@ -16,6 +16,32 @@ export function IndexesService({ pg, logger }) {
     };
   }
 
+  async function getIndexesCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      WITH records_by_type AS (
+        SELECT id
+        , CASE WHEN engine <> '' THEN 'vectorIndex' ELSE 'graph' END AS index_type
+        FROM doc_indexes
+        WHERE workspace_id = $1 OR workspace_id = 1
+        OR (val->>'isPublic')::boolean = true
+      )
+      SELECT index_type, COUNT(id) AS k
+      FROM records_by_type
+      GROUP BY index_type
+    `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows.reduce((a, row) => {
+      a[row.index_type] = row.k;
+      return a;
+    }, {});
+  }
+
   async function getIndexes(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -88,14 +114,16 @@ export function IndexesService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertIndex(index, username) {
+  async function upsertIndex(index, username, partial) {
     if (index === null || typeof index === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'vectorStoreProvider', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedIndex = await getIndex(index.id);
     if (savedIndex) {
-      index = { ...savedIndex, ...index };
+      if (partial) {
+        index = { ...savedIndex, ...index };
+      }
       const val = omit(index, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -135,6 +163,7 @@ export function IndexesService({ pg, logger }) {
   }
 
   return {
+    getIndexesCount,
     getIndexes,
     getIndexByKey,
     getIndexByName,

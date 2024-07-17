@@ -44,17 +44,17 @@ export class AgentTracingCallback extends AgentCallback {
     this.startTime = [];
   }
 
-  onAgentStart({ agentName, goal, allowedTools, extraFunctionCallParams, selfEvaluate }: AgentOnStartResponse) {
+  onAgentStart({ name, args, allowedTools, extraFunctionCallParams, selfEvaluate }: AgentOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
-    const traceName = [agentName, startTime.toISOString()].join(' - ');
+    const traceName = [name, startTime.toISOString()].join(' - ');
     this.tracer = new Tracer(traceName, 'agent');
     this.tracer
       .push({
         id: uuid.v4(),
         type: 'plan-and-execute agent',
-        agentName,
-        goal,
+        name,
+        args,
         allowedTools,
         extraFunctionCallParams,
         selfEvaluate,

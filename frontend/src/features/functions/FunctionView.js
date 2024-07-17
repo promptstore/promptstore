@@ -1,14 +1,26 @@
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Card, Descriptions, Layout, Space, Tag, Table, Typography } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Dropdown,
+  Layout,
+  Space,
+  Tag,
+  Table,
+  Typography,
+} from 'antd';
+import { BlockOutlined, DownloadOutlined, MoreOutlined } from '@ant-design/icons';
 import snakeCase from 'lodash.snakecase';
 import ReactFlow, { ReactFlowProvider } from 'reactflow';
+import { v4 as uuidv4 } from 'uuid';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+
 import {
   getDataSourcesAsync,
   selectDataSources,
@@ -29,6 +41,9 @@ import {
   selectLoaded as selectPromptSetsLoaded,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
+import {
+  duplicateObjectAsync,
+} from '../uploader/fileUploaderSlice';
 
 import {
   getFunctionAsync,
@@ -57,11 +72,13 @@ const reactFlowProps = {
 
 export function FunctionView() {
 
+  const [correlationId, setCorrelationId] = useState(null);
+
   const functions = useSelector(selectFunctions);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
   const promptSets = useSelector(selectPromptSets);
-  const promptsSetsLoaded = useSelector(selectPromptSetsLoaded);
+  const promptSetsLoaded = useSelector(selectPromptSetsLoaded);
   const models = useSelector(selectModels);
   const modelsLoaded = useSelector(selectModelsLoaded);
   const dataSources = useSelector(selectDataSources);
@@ -79,9 +96,18 @@ export function FunctionView() {
   const id = location.pathname.match(/\/functions\/(.*)/)[1];
   const func = functions[id];
 
+  const funcDownload = useMemo(() => {
+    if (func && modelsLoaded && promptSetsLoaded) {
+      const model = models[func.modelId];
+      const promptSet = promptSets[func.promptSetId];
+      return { ...func, model, promptSet };
+    }
+    return {};
+  }, [func, modelsLoaded, promptSetsLoaded]);
+
   const graphs = useMemo(() => {
     const graphs = [];
-    if (func && promptsSetsLoaded && modelsLoaded && dataSourcesLoaded && indexesLoaded) {
+    if (func && promptSetsLoaded && modelsLoaded && dataSourcesLoaded && indexesLoaded) {
       let x = 0;
       let y = 0;
       let i = 1;
@@ -399,7 +425,7 @@ export function FunctionView() {
       }
     }
     return graphs;
-  }, [func, promptsSetsLoaded, modelsLoaded, dataSourcesLoaded, indexesLoaded]);
+  }, [func, promptSetsLoaded, modelsLoaded, dataSourcesLoaded, indexesLoaded]);
 
   // console.log('func:', func);
   // console.log('graphs:', graphs);
@@ -422,6 +448,27 @@ export function FunctionView() {
       dispatch(getIndexesAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
+
+  useEffect(() => {
+    if (correlationId) {
+      const func = Object.values(functions).find(f => f.correlationId === correlationId);
+      if (func) {
+        navigate(`/functions/${func.id}`);
+        setCorrelationId(null);
+      }
+    }
+  }, [functions]);
+
+  const handleDuplicate = () => {
+    const correlationId = uuidv4();
+    dispatch(duplicateObjectAsync({
+      correlationId,
+      obj: func,
+      type: 'function',
+      workspaceId: selectedWorkspace.id,
+    }));
+    setCorrelationId(correlationId);
+  };
 
   const columns = [
     {
@@ -501,15 +548,36 @@ export function FunctionView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <Link to={`/functions`}>List</Link>
                 <Link to={`/functions/${id}/edit`}>Edit</Link>
-                <Download filename={snakeCase(func.name) + '.json'} payload={func}>
-                  <Button type="text" icon={<DownloadOutlined />}>
-                    Download
-                  </Button>
-                </Download>
+                <Dropdown arrow
+                  className="action-link"
+                  placement="bottom"
+                  menu={{
+                    items: [
+                      {
+                        key: 'duplicate',
+                        icon: <BlockOutlined />,
+                        label: (
+                          <Link onClick={handleDuplicate}>Duplicate</Link>
+                        ),
+                      },
+                      {
+                        key: 'download',
+                        icon: <DownloadOutlined />,
+                        label: (
+                          <Download filename={snakeCase(func?.name) + '.json'} payload={funcDownload}>
+                            <Link>Export</Link>
+                          </Download>
+                        )
+                      },
+                    ]
+                  }}
+                >
+                  <MoreOutlined />
+                </Dropdown>
               </div>
             }
             loading={loading}
-            style={{ marginRight: 16, minWidth: 952 }}
+            style={{ marginRight: 16 }}
           >
             <Descriptions column={1} layout="vertical">
               <Descriptions.Item label="description">
@@ -539,11 +607,11 @@ export function FunctionView() {
                 : null
               }
               <Descriptions.Item label="implementations">
-                <Space wrap>
+                <div style={{ width: '100%' }}>
                   {graphs.map((g, i) =>
-                    <fieldset key={'g' + i}>
+                    <fieldset key={'g' + i} style={{ marginBottom: 20 }}>
                       <legend>{i + 1}. {models[func.implementations?.[i]?.modelId]?.name}</legend>
-                      <div style={{ height: 700, width: 900, padding: 16 }}>
+                      <div style={{ height: 700, width: '100%', padding: 16 }}>
                         <ReactFlowProvider>
                           <ReactFlow
                             {...reactFlowProps}
@@ -556,7 +624,7 @@ export function FunctionView() {
                       </div>
                     </fieldset>
                   )}
-                </Space>
+                </div>
               </Descriptions.Item>
             </Descriptions>
           </Card>

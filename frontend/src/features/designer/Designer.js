@@ -190,7 +190,7 @@ export function Designer() {
   useEffect(() => {
     setNavbarState((state) => ({
       ...state,
-      title: 'Prompt Design',
+      title: 'Prompt Testing',
     }));
     if (id) {
       setPromptsCollapsed(false);
@@ -259,11 +259,28 @@ export function Designer() {
 
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
-      return Object.values(promptSets).map((s) => ({
+      const list = Object.values(promptSets).map((s) => ({
         key: s.id,
         label: s.name,
         value: s.id,
       }));
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      return list;
+    }
+    return [];
+  }, [promptSets]);
+
+  const evalPromptSetOptions = useMemo(() => {
+    if (promptSets) {
+      const list = Object.values(promptSets)
+        .filter(s => s.tags?.includes('eval'))
+        .map((s) => ({
+          key: s.id,
+          label: s.name,
+          value: s.id,
+        }));
+      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      return list;
     }
     return [];
   }, [promptSets]);
@@ -320,10 +337,29 @@ export function Designer() {
       }
     }
     return null;
-  }
+  };
+
+  // ensure assistant messages have content arrays
+  const cleanHistory = (history) => {
+    const messages = [];
+    for (const m of history) {
+      if (m.role === 'assistant' && typeof m.content === 'string') {
+        messages.push({ ...m, content: [m.content] });
+      } else {
+        messages.push(m);
+      }
+    }
+    return messages;
+  };
 
   const handleChatSubmit = async (values) => {
-    // console.log('values:', values);
+    if (!modelParams.models?.length) {
+      messageApi.warning({
+        content: 'You must select a valid model',
+        duration: 5,
+      });
+      return;
+    }
     const app = values.app;
     let history = [];
     let messages = values.messages;
@@ -332,9 +368,7 @@ export function Designer() {
     history = messages.slice(0, index);
     messages = messages.slice(index);
     if (app) {
-      console.log('app:', app);
       if (app.function) {
-        console.log('messages:', messages)
         const functionId = app.function;
         const userMessage = messages[messages.length - 1];
         const content = userMessage.content.replace(/@\w+/g, '');
@@ -366,9 +400,13 @@ export function Designer() {
           engine = ps.templateEngine || 'es6';
           sp = ps.prompts
             .filter(p => p.role === 'system')
-            .map(p => p.prompt)
-            .join('\n\n')
-            ;
+            .flatMap(p => {
+              if (typeof p.prompt === 'string') {
+                return { type: 'text', text: p.prompt };
+              }
+              return p.prompt;
+            });
+
           if (contentVar || varsSchema) {
             const nonSystemMessages = ps.prompts
               .filter(p => p.role !== 'system')
@@ -402,12 +440,18 @@ export function Designer() {
               ...history,
             ];
           }
+          history = cleanHistory(history);
         } else {
           console.error(`prompt set with id (${promptSet}) not found or has no prompts`);
         }
       } else if (systemPrompt) {
-        // TODO ignore variables?
-        sp = systemPrompt;
+        // TODO ignore variables? allow both prompt set selection and additional system prompt content?
+        sp = [
+          {
+            role: 'system',
+            content: systemPrompt,
+          }
+        ];
       }
       if (messages.length > 1) {
         let content = [];
@@ -832,13 +876,13 @@ export function Designer() {
               <Divider />
               <div style={{ display: 'flex' }}>
                 <Form.Item
-                  label="Critique Prompt Template"
+                  label="Eval Prompt Template"
                   name="critiquePromptSet"
                   style={{ marginBottom: 16, width: critiquePromptSetValue ? 202 : 234 }}
                 >
                   <Select allowClear
                     loading={promptSetsLoading}
-                    options={promptSetOptions}
+                    options={evalPromptSetOptions}
                     optionFilterProp="label"
                   />
                 </Form.Item>
@@ -853,7 +897,7 @@ export function Designer() {
                 }
               </div>
               <Form.Item
-                label="Critique prompt"
+                label="Eval prompt"
                 name="critiquePrompt"
                 extra="Instead of template"
               >
@@ -875,7 +919,7 @@ export function Designer() {
               </Button>
             </Form>
           </Sider>
-          <Content>
+          <Content style={{ minWidth: 325 }}>
             <div style={{ marginLeft: -8 }}>
               <Button
                 type="text"
@@ -994,16 +1038,25 @@ export function Designer() {
 }
 
 const formatMessage = (m) => {
-  if (Array.isArray(m.content)) {
-    if (m.role === 'assistant') {
+  if (m.role === 'assistant') {
+    if (Array.isArray(m.content)) {
       return {
         key: uuidv4(),
         role: m.role,
-        content: m.content.map(msg => ({
-          key: uuidv4(),
-          content: msg.content,
-          model: msg.model,
-        })),
+        content: m.content.map(msg => {
+          if (typeof msg === 'string') {
+            return {
+              key: uuidv4(),
+              content: msg,
+            }
+          } else {
+            return {
+              key: uuidv4(),
+              content: msg.content,
+              model: msg.model,
+            }
+          }
+        }),
       };
     }
   }

@@ -35,6 +35,7 @@ export class PromptTemplate {
   promptSetName: string;
   messages: Message[];
   schema?: object;
+  snippets?: object;
   templateFiller?: TemplateFiller;
   validator?: Validator;
   callbacks: Callback[];
@@ -44,6 +45,7 @@ export class PromptTemplate {
     promptSetName,
     messages,
     schema,
+    snippets,
     templateEngine,
     templateFiller,
     validator,
@@ -53,6 +55,7 @@ export class PromptTemplate {
     this.promptSetName = promptSetName;
     this.messages = messages;
     this.schema = schema;
+    this.snippets = snippets;
     this.templateFiller =
       templateFiller ||
       ((content: string, args: object) => fillTemplate(content, args, templateEngine)) as TemplateFiller
@@ -79,15 +82,16 @@ export class PromptTemplate {
         args = this.checkContextLength(args, contextWindow, maxOutputTokens, maxTokens, model);
         // logger.debug('new args:', args);
       }
+      const myargs = { ...args, ...this.snippets };
       const _messages = this.messages.map((message) => ({
         role: message.role,
-        content: fillContent(this.templateFiller, args, message.content),
+        content: fillContent(this.templateFiller, myargs, message.content),
       }));
       // append the enriched messages to the enriched prompts
       if (messages) {
         _messages.push(...messages.map((message) => ({
           role: message.role,
-          content: fillContent(this.templateFiller, args, message.content),
+          content: fillContent(this.templateFiller, myargs, message.content),
         })));
       }
       this.onEnd({ messages: await convertMessagesWithImages(_messages) }, _callbacks);
@@ -225,6 +229,7 @@ interface PromptTemplateOptions {
   promptSetId: number;
   promptSetName: string;
   schema?: object;
+  snippets?: object;
   templateEngine?: string;
   callbacks?: Callback[];
 }

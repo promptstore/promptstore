@@ -21,6 +21,7 @@ import * as utils from '../utils';
 import { Step } from './Action_types';
 import { AgentCallback } from './AgentCallback';
 import {
+  Agent,
   AgentOnEndParams,
   AgentRunParams,
 } from './Agent_types';
@@ -42,7 +43,7 @@ export default ({ logger, services }) => {
     vectorStoreService,
   } = services;
 
-  class PlanAndExecuteAgent {
+  class PlanAndExecuteAgent implements Agent {
 
     name: string;
     isChat: boolean;
@@ -55,7 +56,9 @@ export default ({ logger, services }) => {
     callbacks: AgentCallback[];
     currentCallbacks: AgentCallback[];
     useFunctions: boolean;
-    semanticFunction: any;
+    semanticFunctions: any[];
+    compositions: any[];
+    subAgents: any[];
 
     constructor({
       name,
@@ -67,7 +70,9 @@ export default ({ logger, services }) => {
       username,
       callbacks,
       useFunctions,
-      semanticFunction,
+      semanticFunctions,
+      compositions,
+      subAgents,
     }) {
       this.name = name;
       this.isChat = isChat;
@@ -83,19 +88,21 @@ export default ({ logger, services }) => {
       this.history = [];
       this.callbacks = callbacks || [];
       this.useFunctions = useFunctions;
-      this.semanticFunction = semanticFunction;
+      this.semanticFunctions = semanticFunctions;
+      this.compositions = compositions;
+      this.subAgents = subAgents;
     }
 
     reset() {
       this.history = [];
     }
 
-    async run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
+    async run({ args, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
       this.currentCallbacks = [...this.callbacks, ...callbacks];
       for (let callback of this.currentCallbacks) {
         callback.onAgentStart({
-          agentName: this.name,
-          goal,
+          name: this.name,
+          args,
           allowedTools,
           extraFunctionCallParams,
           selfEvaluate,
@@ -105,8 +112,10 @@ export default ({ logger, services }) => {
       const functions = this._getFunctions(allowedTools);
       const toolDefinitions = getToolDefinitions(functions);
 
+      logger.debug('toolDefinitions:', toolDefinitions)
+
       // query
-      const args = { content: goal, toolDefinitions };
+      args = { content: args.goal, toolDefinitions };
       try {
         const plan = await this._getPlan(args);
         for (let callback of this.currentCallbacks) {
@@ -126,7 +135,7 @@ export default ({ logger, services }) => {
           ],
         };
         for (const step of plan) {
-          const content = this._getReturnContent(goal, previousSteps, step);
+          const content = this._getReturnContent(args.goal, previousSteps, step);
           console.log('\n!!!!! STEP:\n', step, '\n', content, '\n!!!!!\n');
           const message = new UserMessage(content);
           const request = {
@@ -163,7 +172,7 @@ export default ({ logger, services }) => {
               extraFunctionCallParams,
               this.modelParams,
               functions,
-              goal,
+              args.goal,
               previousSteps,
               step,
               selfEvaluate
@@ -291,13 +300,46 @@ export default ({ logger, services }) => {
           },
         });
       }
-      if (allowedTools.includes('semanticFunction')) {
-        functions.push({
-          id: uuid.v4(),
-          name: this.semanticFunction.name,
-          description: this.semanticFunction.description,
-          parameters: this.semanticFunction.arguments,
-        });
+      if (this.subAgents?.length) {
+        for (const agent of this.subAgents) {
+          functions.push({
+            id: uuid.v4(),
+            name: agent.name,
+            description: agent.description,
+            parameters: {
+              type: 'object',
+              properties: {
+                goal: {
+                  type: 'string',
+                  description: 'The goal that the agent is tasked to achieve.'
+                }
+              }
+            },
+          });
+        }
+      }
+      if (this.semanticFunctions?.length) {
+        for (const fn of this.semanticFunctions) {
+          functions.push({
+            id: uuid.v4(),
+            name: fn.name,
+            description: fn.description,
+            parameters: fn.arguments,
+          });
+        }
+      }
+      if (this.compositions?.length) {
+        for (const comp of this.compositions) {
+          const requestNode = comp.flow.nodes?.find((n: any) => n.type === 'requestNode');
+          if (requestNode) {
+            functions.push({
+              id: uuid.v4(),
+              name: comp.name,
+              description: comp.description,
+              parameters: requestNode.data.arguments,
+            });
+          }
+        }
       }
       if (functions.length === 0) {
         functions = undefined;
@@ -444,6 +486,9 @@ export default ({ logger, services }) => {
       for (let callback of this.currentCallbacks) {
         callback.onFunctionCallStart({ call, args });
       }
+      let agent: any;
+      let composition: any;
+      let func: any;
       let response: any;
       try {
         if (call.name === 'searchIndex') {
@@ -473,11 +518,11 @@ export default ({ logger, services }) => {
             { k: 5, queryEmbedding }
           );
           response = searchResponse.hits.join(PARA_DELIM);
-        } else if (call.name === this.semanticFunction?.name) {
+        } else if (func = this.semanticFunctions.find(f => f.name === call.name)) {
           const functionResponse = await executionsService.executeFunction({
             workspaceId: this.workspaceId,
             username: this.username,
-            func: this.semanticFunction,
+            func,
             args,
             params: { maxTokens: 1024 },
           });
@@ -487,9 +532,27 @@ export default ({ logger, services }) => {
           } else {
             response = message.content;
           }
+        } else if (composition = this.compositions.find(c => c.name === call.name)) {
+          const compositionResponse = await executionsService.executeComposition({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            composition,
+            args,
+            params: { maxTokens: 1024 },
+          });
+          const content = compositionResponse.response.myargs.content;
+          response = { choices: [{ message: { content } }] };
+        } else if (agent = this.subAgents.find(a => a.name === call.name)) {
+          const agentResponse = await executionsService.executeAgent({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            agent,
+            args,
+          });
+          response = agentResponse.content;
         } else {
           if (call.name === 'email') {
-            args.agentName = this.name;
+            args.name = this.name;
             args.email = email;
           }
           response = await toolService.call(call.name, args);
@@ -539,7 +602,7 @@ Answer:`
     _onEnd({ response, errors }: AgentOnEndParams) {
       for (let callback of this.currentCallbacks) {
         callback.onAgentEnd({
-          agentName: this.name,
+          name: this.name,
           response,
           errors,
         });

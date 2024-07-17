@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -28,6 +29,7 @@ import { TagsInput } from '../../components/TagsInput';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import {
   getModelsAsync,
+  selectLoaded as selectModelsLoaded,
   selectLoading as selectModelsLoading,
   selectModels,
 } from '../models/modelsSlice';
@@ -41,12 +43,22 @@ import {
   selectLoading as selectSettingsLoading,
   selectSettings,
   updateSettingAsync,
-} from '../promptSets/settingsSlice';
+} from '../settings/settingsSlice';
 
 import { VariationModalForm } from './VariationModalForm';
 import {
   optionsMap,
+  imageQualityOptions,
+  imageResponseFormatOptions,
+  dalleImageSizeOptions,
+  stabilityImageSizeOptions,
+  imageStyleOptions,
+  imageAspectRatioOptions,
+  imageOutputFormatOptions,
+  imageStylePresetOptions,
 } from './options';
+
+const { TextArea } = Input;
 
 export const initialValues = {
   maxTokens: 1024,
@@ -62,6 +74,7 @@ export const initialValues = {
 };
 
 export function ModelParamsForm({
+  createImage,
   hasImage,
   includes,
   onChange,
@@ -90,6 +103,7 @@ export function ModelParamsForm({
   const [selectedVariationValues, setSelectedVariationValues] = useState([]);
 
   const models = useSelector(selectModels);
+  const modelsLoaded = useSelector(selectModelsLoaded);
   const modelsLoading = useSelector(selectModelsLoading);
   const promptSets = useSelector(selectPromptSets);
   const settingsLoading = useSelector(selectSettingsLoading);
@@ -102,6 +116,18 @@ export function ModelParamsForm({
   const dispatch = useDispatch();
 
   const [form] = Form.useForm();
+  const modelsValue = Form.useWatch('models', form);
+
+  const modelKeys = useMemo(() => {
+    if (modelsLoaded && modelsValue) {
+      return modelsValue.map(id => models[id].key);
+    }
+    return [];
+  }, [modelsLoaded, modelsValue]);
+
+  const hasModelKeyStartingWith = useCallback((str) => {
+    return modelKeys.some(key => key.startsWith(str));
+  }, [modelKeys]);
 
   const variationsFormResetCallbackRef = useRef();
 
@@ -132,7 +158,14 @@ export function ModelParamsForm({
   const modelOptions = useMemo(() => {
     if (models) {
       const list = Object.values(models)
-        .filter((m) => m.type === 'gpt' && !m.disabled && (hasImage ? m.multimodal : true))
+        .filter((m) => {
+          return (
+            (m.type === 'gpt' || m.type === 'imagegen') &&
+            !m.disabled &&
+            (hasImage ? m.multimodal : true) &&
+            (createImage ? m.type === 'imagegen' : true)
+          );
+        })
         .map((m) => ({
           key: m.id,
           label: m.name,
@@ -142,7 +175,7 @@ export function ModelParamsForm({
       return list;
     }
     return [];
-  }, [models, hasImage]);
+  }, [models, createImage, hasImage]);
 
   const modelConfigOptions = useMemo(() => {
     if (settings) {
@@ -490,6 +523,121 @@ export function ModelParamsForm({
               <Form.Item
                 label="Allow Emojis"
                 name="allowEmojis"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+              : null
+            }
+            {includes['imageQuality'] ?
+              <Form.Item
+                label="Image Quality"
+                name="quality"
+              >
+                <Select allowClear
+                  options={imageQualityOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageResponseFormat'] ?
+              <Form.Item
+                label="Image Response Format"
+                name="response_format"
+              >
+                <Select allowClear
+                  options={imageResponseFormatOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageSize'] && hasModelKeyStartingWith('dall-e') ?
+              <Form.Item
+                label="DALL&#x2022;E Image Size"
+                name="size"
+              >
+                <Select allowClear
+                  options={dalleImageSizeOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageSize'] && hasModelKeyStartingWith('stability') ?
+              <Form.Item
+                label="Stability Image Size"
+                name="size"
+              >
+                <Select allowClear
+                  options={stabilityImageSizeOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageStyle'] && hasModelKeyStartingWith('dall-e') ?
+              <Form.Item
+                label="DALL&#x2022;E Image Style"
+                name="style"
+              >
+                <Select allowClear
+                  options={imageStyleOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageStyle'] && hasModelKeyStartingWith('stability') ?
+              <Form.Item
+                label="Stability Image Style"
+                name="style_preset"
+              >
+                <Select allowClear
+                  options={imageStylePresetOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['imageAspectRatio'] ?
+              <Form.Item
+                label="Aspect Ratio"
+                name="aspect_ratio"
+              >
+                <Select allowClear
+                  options={imageAspectRatioOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['negativePrompt'] ?
+              <Form.Item
+                label="Negative Prompt"
+                name="negative_prompt"
+              >
+                <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
+              </Form.Item>
+              : null
+            }
+            {includes['imageOutputFormat'] ?
+              <Form.Item
+                label="Output Format"
+                name="output_format"
+              >
+                <Select allowClear
+                  options={imageOutputFormatOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+              : null
+            }
+            {includes['disablePromptRewriting'] && hasModelKeyStartingWith('dall-e') ?
+              <Form.Item
+                label="Disable Prompt Rewriting"
+                name="promptRewritingDisabled"
                 valuePropName="checked"
               >
                 <Switch />

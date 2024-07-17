@@ -33,3 +33,6 @@ backend/src/config/serviceAccountKey.json
 token.json
 credentials.json
 keys/*.json
+.rules.env
+scratch*
+.vscode/

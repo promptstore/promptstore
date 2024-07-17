@@ -132,15 +132,16 @@ export class Pipeline {
     let index = params.index;
     if (!this._vectorStoreProvider && !this._graphStoreProvider) {
       // determine from params
-      if (params.indexId === 'new' || !params.indexId) {
-        this.vectorStoreProvider = params.vectorStoreProvider;
-        this.graphStoreProvider = params.graphStoreProvider;
-      } else {
-        if (!index) {
-          index = await this.getExistingIndex(params.indexId);
-        }
+      if (index) {
         this.vectorStoreProvider = index.vectorStoreProvider;
         this.graphStoreProvider = index.graphStoreProvider;
+      } else if (params.indexId && params.indexId !== 'new') {
+        index = await this.getExistingIndex(params.indexId);
+        this.vectorStoreProvider = index.vectorStoreProvider;
+        this.graphStoreProvider = index.graphStoreProvider;
+      } else {
+        this.vectorStoreProvider = params.vectorStoreProvider;
+        this.graphStoreProvider = params.graphStoreProvider;
       }
     }
     if (!this._vectorStoreProvider && !this._graphStoreProvider) {
@@ -205,6 +206,8 @@ export class Pipeline {
 
   async extractAndIndex(documents: Document[], params: RunParams, extractor: Extractor, index?: any, suffix?: string) {
     const { workspaceId, username } = params;
+
+    logger.debug('!! params:', params);
 
     // Extract
     const rawChunks = await extractor.getChunks(documents, params);

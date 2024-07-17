@@ -100,14 +100,16 @@ export function UploadsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertUpload(upload, username) {
+  async function upsertUpload(upload, username, partial) {
     if (upload === null || typeof upload === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'userId', 'filename'];
     const savedUpload = await getUpload(upload.id);
     if (savedUpload) {
-      upload = { ...savedUpload, ...upload };
+      if (partial) {
+        upload = { ...savedUpload, ...upload };
+      }
       const val = omit(upload, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

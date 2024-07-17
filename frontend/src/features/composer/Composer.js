@@ -21,9 +21,12 @@ import {
   MailOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  NodeExpandOutlined,
   RedoOutlined,
+  RobotOutlined,
   SearchOutlined,
   ShareAltOutlined,
+  SketchOutlined,
   SwapOutlined,
   ToolOutlined,
   UploadOutlined,
@@ -76,11 +79,13 @@ import {
   updateCompositionAsync,
 } from './compositionsSlice';
 
+import AgentNode from './AgentNode';
 import CompositionNode from './CompositionNode';
 import DataSourceNode from './DataSourceNode';
 import EmbeddingNode from './EmbeddingNode';
 import ExtractorNode from './ExtractorNode';
 import FunctionNode from './FunctionNode';
+import FunctionRouterNode from './FunctionRouterNode';
 import GraphStoreNode from './GraphStoreNode';
 import IndexNode from './IndexNode';
 import JoinerNode from './JoinerNode';
@@ -91,6 +96,7 @@ import OutputNode from './OutputNode';
 import RequestNode from './RequestNode';
 import ScheduleNode from './ScheduleNode';
 import ToolNode from './ToolNode';
+import TransformerNode from './TransformerNode';
 import VectorStoreNode from './VectorStoreNode';
 
 import 'reactflow/dist/style.css';
@@ -114,10 +120,12 @@ const minimapStyle = {
 };
 
 const nodeTypes = {
+  agentNode: AgentNode,
   compositionNode: CompositionNode,
   embeddingNode: EmbeddingNode,
   extractorNode: ExtractorNode,
   functionNode: FunctionNode,
+  functionRouterNode: FunctionRouterNode,
   graphStoreNode: GraphStoreNode,
   indexNode: IndexNode,
   joinerNode: JoinerNode,
@@ -129,28 +137,32 @@ const nodeTypes = {
   scheduleNode: ScheduleNode,
   sourceNode: DataSourceNode,
   toolNode: ToolNode,
+  transformerNode: TransformerNode,
   vectorStoreNode: VectorStoreNode,
 };
 
 const proOptions = { hideAttribution: true };
 
 const validConnections = {
-  compositionNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
+  agentNode: ['agentNode', 'compositionNode', 'functionNode', 'functionRouterNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
+  compositionNode: ['agentNode', 'compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
   functionNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  indexNode: ['sourceNode'],
-  joinerNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  functionRouterNode: ['agentNode', 'functionNode'],
+  indexNode: ['extractorNode', 'sourceNode', 'transformerNode'],
+  joinerNode: ['agentNode', 'compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
   loopNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
   mapperNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  outputNode: ['compositionNode', 'functionNode', 'indexNode', 'joinerNode', 'mapperNode', 'toolNode', 'vectorStoreNode', 'graphStoreNode'],
+  outputNode: ['agentNode', 'compositionNode', 'functionNode', 'functionRouterNode', 'indexNode', 'joinerNode', 'mapperNode', 'toolNode', 'vectorStoreNode', 'graphStoreNode'],
   requestNode: [],
   scheduleNode: [],
   sourceNode: ['scheduleNode'],
-  toolNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  loaderNode: ['scheduleNode'],
-  extractorNode: ['loaderNode', 'scheduleNode'],
+  toolNode: ['compositionNode', 'functionNode', 'functionRouterNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
+  loaderNode: ['scheduleNode', 'requestNode'],
+  extractorNode: ['loaderNode', 'scheduleNode', 'requestNode'],
+  transformerNode: ['extractorNode', 'loaderNode'],
   embeddingNode: ['extractorNode'],
-  vectorStoreNode: ['embeddingNode', 'extractorNode'],
-  graphStoreNode: ['extractorNode'],
+  vectorStoreNode: ['embeddingNode', 'extractorNode', 'transformerNode'],
+  graphStoreNode: ['extractorNode', 'transformerNode'],
 };
 
 export function Composer() {
@@ -306,7 +318,7 @@ export function Composer() {
         },
       }));
     }
-    navigate('/compositions');
+    // navigate('/compositions');
   };
 
   const getId = () => uuidv4();
@@ -360,6 +372,18 @@ export function Composer() {
     return position;
   }
 
+  const addAgentNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'agentNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
   const addCompositionNode = () => {
     const id = getId();
     const newNode = {
@@ -400,34 +424,6 @@ export function Composer() {
     setNodes((nds) => nds.concat(newNode));
   };
 
-  const addVectorStoreNode = (vectorStoreProvider) => {
-    const id = getId();
-    const newNode = {
-      id,
-      type: 'vectorStoreNode',
-      data: {
-        vectorStoreProvider,
-      },
-      position: getNewPosition(),
-      zIndex: 1001,
-    };
-    setNodes((nds) => nds.concat(newNode));
-  };
-
-  const addGraphStoreNode = (graphStoreProvider) => {
-    const id = getId();
-    const newNode = {
-      id,
-      type: 'graphStoreNode',
-      data: {
-        graphStoreProvider,
-      },
-      position: getNewPosition(),
-      zIndex: 1001,
-    };
-    setNodes((nds) => nds.concat(newNode));
-  };
-
   const addExtractorNode = (extractor) => {
     const id = getId();
     const newNode = {
@@ -448,6 +444,32 @@ export function Composer() {
       id,
       type: 'functionNode',
       data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addFunctionRouterNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'functionRouterNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addGraphStoreNode = (graphStoreProvider) => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'graphStoreNode',
+      data: {
+        graphStoreProvider,
+      },
       position: getNewPosition(),
       zIndex: 1001,
     };
@@ -559,6 +581,32 @@ export function Composer() {
       id,
       type: 'toolNode',
       data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addTransformerNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'transformerNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes((nds) => nds.concat(newNode));
+  };
+
+  const addVectorStoreNode = (vectorStoreProvider) => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'vectorStoreNode',
+      data: {
+        vectorStoreProvider,
+      },
       position: getNewPosition(),
       zIndex: 1001,
     };
@@ -696,9 +744,11 @@ export function Composer() {
           title={'Test ' + composition?.name}
           cancelText="Close"
           width={800}
-          bodyStyle={{
-            maxHeight: 600,
-            overflowY: 'auto',
+          styles={{
+            body: {
+              maxHeight: 600,
+              overflowY: 'auto',
+            },
           }}
           okButtonProps={{ style: { display: 'none' } }}
         >
@@ -796,6 +846,20 @@ export function Composer() {
                         icon: <ApartmentOutlined />,
                         onClick: addCompositionNode,
                         title: 'Add Sub-composition Node',
+                      },
+                      {
+                        key: 'agent',
+                        label: 'Agent',
+                        icon: <RobotOutlined />,
+                        onClick: addAgentNode,
+                        title: 'Add Agent Node',
+                      },
+                      {
+                        key: 'function-router',
+                        label: 'Function Router',
+                        icon: <NodeExpandOutlined />,
+                        onClick: addFunctionRouterNode,
+                        title: 'Add Function Router Node',
                       },
                       {
                         key: 'tool',
@@ -1028,6 +1092,13 @@ export function Composer() {
                         ]
                       },
                       {
+                        key: 'transformer',
+                        label: 'Transformer',
+                        icon: <SketchOutlined />,
+                        onClick: addTransformerNode,
+                        title: 'Add Transformer Node',
+                      },
+                      {
                         key: 'embedding',
                         label: 'Embedding',
                         icon: <BarcodeOutlined />,
@@ -1138,6 +1209,12 @@ export function Composer() {
                 <Input />
               </Form.Item>
               <Form.Item
+                label="Description"
+                name="description"
+              >
+                <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
+              </Form.Item>
+              <Form.Item
                 label="Type"
                 name="type"
               >
@@ -1215,6 +1292,16 @@ export function Composer() {
           {typeValue === 'flow' ?
             <div className="wrapper" ref={reactFlowWrapper}>
               <ReactFlow
+                attributionPosition="top-right"
+                defaultViewport={{ x: 0, y: 0, zoom: 1.5 }}
+                // fitView
+                fitViewOptions={fitViewOptions}
+                isValidConnection={({ source, target }) => {
+                  const sourceNode = nodes.find(nd => nd.id === source);
+                  const targetNode = nodes.find(nd => nd.id === target);
+                  return validConnections[targetNode.type].includes(sourceNode.type);
+                }}
+                nodeTypes={nodeTypes}
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
@@ -1225,18 +1312,8 @@ export function Composer() {
                 // onNodeDrag={onNodeDrag}
                 // onNodeDragStop={onNodeDragStop}
                 onInit={onInit}
-                // fitView
-                snapToGrid
-                defaultViewport={{ x: 0, y: 0, zoom: 1.5 }}
-                fitViewOptions={fitViewOptions}
-                attributionPosition="top-right"
-                nodeTypes={nodeTypes}
                 proOptions={proOptions}
-                isValidConnection={({ source, target }) => {
-                  const sourceNode = nodes.find(nd => nd.id === source);
-                  const targetNode = nodes.find(nd => nd.id === target);
-                  return validConnections[targetNode.type].includes(sourceNode.type);
-                }}
+                snapToGrid
               >
                 <MiniMap style={minimapStyle} zoomable pannable />
                 <Controls />

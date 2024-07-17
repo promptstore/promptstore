@@ -20,6 +20,12 @@ export function GraphStoreService({ logger, registry }: PluginServiceParams): Gr
     return instance.dropData(indexName);
   };
 
+  async function getGraph(graphstore: string, indexName: string) {
+    logger.debug("get graph with index name '%s', graphstore:", indexName, graphstore);
+    const instance = registry[graphstore] as GraphStore;
+    return instance.getGraph(indexName);
+  };
+
   function getSchema(graphstore: string, params: SchemaParams) {
     logger.debug('get schema, graphstore:', graphstore);
     const instance = registry[graphstore] as GraphStore;
@@ -37,8 +43,9 @@ export function GraphStoreService({ logger, registry }: PluginServiceParams): Gr
   return {
     addGraph,
     dropData,
-    getSchema,
+    getGraph,
     getGraphStores,
+    getSchema,
   }
 
 }

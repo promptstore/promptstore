@@ -966,7 +966,10 @@ body { font-family: sans-serif, Helvetica, Arial; font-size: 14px; line-height: 
 
 .image-preview-modal .image-box { position: relative; width: calc(100% - 575px); height: 100%; }
 
-.image-preview-modal .image-box img { position: relative; max-width: 100%; max-height: 100%; margin: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.image-preview-modal .image-box img { 
+    position: relative; 
+    /* max-width: 100%; max-height: 100%; margin: auto;  */
+    left: 50%; top: 50%; transform: translate(-50%, -50%); }
 
 .image-preview-modal .detail-box { width: 575px; top: 0; position: absolute; right: 0; padding: 20px; box-sizing: border-box; height: 100%; padding-left: 40px; background-color: #444; }
 

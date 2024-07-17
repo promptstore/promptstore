@@ -544,10 +544,10 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const id = req.params.id;
     const dataSource = await dataSourcesService.getDataSource(id);
     let schema;
-    if (dataSource.type === 'sql') {
-      schema = await sqlSourceService.getSchema(dataSource);
-      logger.debug('schema:', schema);
-    }
+    // if (dataSource.type === 'sql') {
+    //   schema = await sqlSourceService.getSchema(dataSource);
+    //   logger.debug('schema:', schema);
+    // }
     res.json({ ...dataSource, schema });
   });
 
@@ -687,7 +687,6 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { appId, uploadId, values } = req.body;
     let dataSource = await dataSourcesService.upsertDataSource(values, username);
     if (appId) {
-      const app = appsService.getApp(appId);
       await appsService.upsertApp({
         id: appId,
         documents: {
@@ -695,7 +694,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
             dataSource: dataSource.id,
           },
         },
-      });
+      }, username, true);
     }
     const obj = createSearchableObject(dataSource);
     const chunkId = await indexObject(obj, dataSource.chunkId);

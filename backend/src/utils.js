@@ -2,7 +2,9 @@ import Handlebars from 'handlebars';
 import StackTrace from 'stacktrace-js/stacktrace.js';
 import axios from 'axios';
 import fs from 'fs';
+import cloneDeep from 'lodash.clonedeep';
 import get from 'lodash.get';
+import set from 'lodash.set';
 import isObject from 'lodash.isobject';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -366,6 +368,7 @@ export const formatAlgolia = (requests, hits, nodeLabel, attributesForFacets = [
   // hits = hits.map(unflatten);
   // -----------
 
+  const query = requests[0].params.query;
   const nbHits = hits.length;
 
   hits = hits.map((val) => {
@@ -410,7 +413,7 @@ export const formatAlgolia = (requests, hits, nodeLabel, attributesForFacets = [
       },
       total: 2,
     },
-    query: requests[0].params.query,
+    query,
     renderingContent: {},
     serverTimeMS: 3,
   };
@@ -807,3 +810,40 @@ export const deepDiffMapperChangesOnly = function () {
     }
   }
 }();
+
+export const merge = (target, source, diff, actions) => {
+  const targetValue = cloneDeep(target);
+  const conflicts = [];
+  for (const [key, val] of Object.entries(diff)) {
+
+    const evaluate = (path, v) => {
+      if (v.type === 'created') {
+        set(targetValue, path, get(source, path));
+      } else if (v.type === 'updated') {
+        if (v.updated !== null && typeof v !== 'undefined') {
+          const key = path.join('.');
+          const action = actions?.[key];
+          if (action === 'replace') {
+            set(targetValue, path, get(source, path));
+          } else if (action === 'concat') {
+            set(targetValue, path, get(targetValue, path) + CONCAT_SEP + get(source, path));
+          } else if (action === 'leave') {
+            // leave target unchanged
+          } else {
+            conflicts.push(path);
+          }
+        }
+      } else if (!v.type) {
+        for (const [k1, v1] of Object.entries(v)) {
+          evaluate([...path, k1], v1);
+        }
+      }
+    };
+
+    evaluate([key], val);
+  }
+  return {
+    merged: targetValue,
+    conflicts,
+  };
+};

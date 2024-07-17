@@ -103,10 +103,10 @@ export class UserMessage implements OpenAIMessage {
 export class SystemMessage implements OpenAIMessage {
 
   role = MessageRole.system;
-  content: string;
+  content: ContentType;
   name?: string;
 
-  constructor(content: string, name?: string) {
+  constructor(content: ContentType, name?: string) {
     this.content = content;
     this.name = name;
   }

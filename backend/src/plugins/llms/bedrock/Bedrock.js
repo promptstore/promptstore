@@ -1,3 +1,4 @@
+import Minio from 'minio';
 import { countTokens } from '@anthropic-ai/tokenizer';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
@@ -15,8 +16,20 @@ import {
   fromCohereLegacyChatResponse,
   toCohereLegacyChatRequest,
 } from './cohere_conversions';
+import {
+  fromStabilityAIBedrockImageResponse,
+  toStabilityAIBedrockImageRequest,
+} from './stabilityai_conversions';
 
 function Bedrock({ __name, constants, logger }) {
+
+  const mc = new Minio.Client({
+    endPoint: constants.S3_ENDPOINT,
+    port: parseInt(constants.S3_PORT, 10),
+    useSSL: constants.ENV !== 'dev',
+    accessKey: constants.AWS_ACCESS_KEY,
+    secretKey: constants.AWS_SECRET_KEY,
+  });
 
   let _client;
 
@@ -99,7 +112,24 @@ function Bedrock({ __name, constants, logger }) {
     return createChatCompletion(request);
   }
 
-  function createImage(prompt, options) {
+  async function createImage(request) {
+    const req = toStabilityAIBedrockImageRequest(request);
+    const { modelId, body } = req;
+    const client = getClient();
+    const res = await client.send(new InvokeModelCommand({
+      modelId,
+      contentType: 'application/json',
+      accept: '*/*',
+      body: Buffer.from(JSON.stringify(body)),
+    }));
+    const parsed = JSON.parse(Buffer.from(res.body));
+    if (modelId.startsWith('stability')) {
+      const response = await fromStabilityAIBedrockImageResponse(parsed, mc, constants, logger);
+      return {
+        ...response,
+        model: modelId,
+      };
+    }
     throw new Error('Not implemented');
   }
 

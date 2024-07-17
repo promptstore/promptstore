@@ -22,7 +22,7 @@ function ClickHouseSource({ __name, constants, logger }) {
   const connections = {};
 
   async function getConnection(url, database, username, password) {
-    if (!connections[url]) {
+    if (!connections[url] || true) {
       const options = {
         url,
         port: 8123,
@@ -51,37 +51,96 @@ function ClickHouseSource({ __name, constants, logger }) {
     return connections[url];
   }
 
-  async function getDDL(source) {
+  async function getSchema(source) {
+    return getDDL(source);
+  }
+
+  async function getCategoricalValues(source) {
+    const { username, password } = source.credentials || {};
+    const database = source.databaseName;
+    const client = await getConnection(source.databaseHost, database, username, password);
+    const columnsStr = source.categoricalColumns;
+    if (!columnsStr) {
+      return {};
+    }
+    const columns = columnsStr.split(',').map(col => col.trim());
+    if (!columns.length) {
+      return {};
+    }
+    const values = {};
+    for (const col of columns) {
+      const index = col.lastIndexOf('.');
+      const table = col.substring(0, index);
+      const column = col.substring(index + 1);
+      const sql = `SELECT DISTINCT ${column} FROM ${table}`;
+      logger.debug('sql:', sql);
+      const rows = await client.query(sql).toPromise();
+      logger.debug('rows:', rows);
+      values[col] = rows.map(row => row[column]);
+    }
+    return values;
+  }
+
+  async function getTestDDL(source) {
     const meta = {};
     for (const filepath of files) {
       const schema = loadJson(filepath);
       const name = filepath.split('/').pop().split('.')[0];
       meta[name] = { schema };
     }
-    const context = Object.entries(meta).map(([name, meta]) => schemaToDDL(source.databaseName, name, meta)).join('\n\n');
+    const context = Object.entries(meta).reduce((a, [name, meta]) => {
+      a[name] = schemaToDDL(source.databaseName, name, meta);
+      return a;
+    }, {});
     logger.debug('context:', context);
     return Promise.resolve(context);
   }
 
-  async function getDDLX(source) {
-    const { username, password } = source.credentials || {};
-    const database = source.databaseName;
-    const client = await getConnection(source.databaseHost, database, username, password);
-    const rows = await query(client, 'tables', { database });
-    const meta = {};
-    for (const { name } of rows) {
-      const proms = [];
-      for (const type of types) {
-        proms.push(query(client, type, { name }));
+  async function getDDL(source) {
+    logger.debug('source:', source);
+    try {
+      const { username, password } = source.credentials || {};
+      const database = source.databaseName;
+      const client = await getConnection(source.databaseHost, database, username, password);
+      let allowedTables = [];
+      if (source.tables) {
+        allowedTables = source.tables.split(',').map(t => t.trim());
       }
-      const resolved = await Promise.all(proms);
-      meta[name] = resolved.reduce((a, v, i) => {
-        a[types[i]] = v.rows;
+      logger.debug('allowedTables:', allowedTables);
+      const rows = await query(client, 'tables', { database });
+      const meta = {};
+      for (const { name } of rows) {
+        logger.debug('table name:', name);
+        if (allowedTables.length && !allowedTables.includes(name)) {
+          continue;
+        }
+        // const proms = [];
+        // for (const type of types) {
+        //   proms.push(query(client, type, { name, database }));
+        // }
+        // const resolved = await Promise.all(proms);
+        const resolved = [];
+        for (const type of types) {
+          const rows = await query(client, type, { name, database });
+          resolved.push(rows);
+        }
+        logger.debug('resolved:', resolved);
+        meta[name] = resolved.reduce((a, v, i) => {
+          a[types[i]] = v;
+          return a;
+        }, {});
+      }
+      // logger.debug('meta:', meta);
+      // return Object.entries(meta).map(([name, meta]) => schemaToDDL(name, meta)).join('\n\n');
+      const context = Object.entries(meta).reduce((a, [name, meta]) => {
+        a[name] = schemaToDDL(source.databaseName, name, meta);
         return a;
       }, {});
+      return Object.values(context).join('/n/n');
+    } catch (err) {
+      logger.error('Error getting DDL:', err.message, err.stack);
+      return {};
     }
-    logger.debug('meta:', meta);
-    return Object.entries(meta).map(([name, meta]) => schemaToDDL(name, meta)).join('\n\n');
   }
 
   function schemaToDDL(database, name, { schema }) {
@@ -127,15 +186,18 @@ function ClickHouseSource({ __name, constants, logger }) {
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     const filepath = `${__dirname}/sql/${type}.sql`;
     const template = fs.readFileSync(filepath).toString();
+    logger.debug('vars:', vars)
     const sql = fillTemplate(template, vars);
-    // logger.debug('sql:', sql);
+    logger.debug('sql:', sql);
     return client.query(sql).toPromise();
   };
 
   return {
     __name,
+    getCategoricalValues,
     getSample,
     getDDL,
+    getSchema,
   };
 
 }

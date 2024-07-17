@@ -132,18 +132,18 @@ export function TracesList() {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
+  const handleReset = (clearFilters) => {
+    clearFilters();
+    setSearchText('');
+    setSearchedColumn('');
+  };
+
   const handleSearch = (selectedKeys, confirm, dataIndex) => {
     // console.log('handleSearch - selectedKeys:', selectedKeys);
     // console.log('handleSearch - dataIndex:', dataIndex);
     confirm();
     setSearchText(selectedKeys[0]);
     setSearchedColumn(dataIndex);
-  };
-
-  const handleReset = (clearFilters) => {
-    clearFilters();
-    setSearchText('');
-    setSearchedColumn('');
   };
 
   const getColumnSearchProps = (dataIndex) => ({
@@ -499,7 +499,7 @@ export function TracesList() {
           </Button>
           <Download filename={'traces.json'} payload={selectedTraces}>
             <Button type="text" icon={<DownloadOutlined />}>
-              Download
+              Export
             </Button>
           </Download>
           <div style={{ flex: 1 }}></div>

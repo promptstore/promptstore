@@ -39,16 +39,32 @@ export const {
   startLoad,
 } = settingsSlice.actions;
 
-export const getSettingsAsync = ({ workspaceId, key }) => async (dispatch) => {
+export const getSettingsAsync = ({ workspaceId, keys }) => async (dispatch) => {
   dispatch(startLoad());
-  let url;
-  if (workspaceId) {
-    url = `/api/workspaces/${workspaceId}/settings/${key}`;
-  } else {
-    url = `/api/settings/${key}`;
+  dispatch(resetSettings());
+  let url = `/api/workspaces/${workspaceId}/settings`;
+  if (keys) {
+    url += '?keys=' + keys.join(',');
   }
   const res = await http.get(url);
-  dispatch(setSettings({ settings: res.data }));
+  const settings = res.data;
+  dispatch(setSettings({ settings }));
+};
+
+export const getSettingAsync = (id) => async (dispatch) => {
+  dispatch(startLoad());
+  const url = `/api/settings-by-id/${id}`;
+  const res = await http.get(url);
+  const setting = res.data;
+  dispatch(setSettings({ settings: setting ? [setting] : [] }));
+};
+
+export const getSettingByKeyAsync = (workspaceId, key) => async (dispatch) => {
+  dispatch(startLoad());
+  const url = `/api/workspaces/${workspaceId}/settings/${key}`;
+  const res = await http.get(url);
+  const settings = res.data;
+  dispatch(setSettings({ settings }));
 };
 
 export const createSettingAsync = ({ values }) => async (dispatch) => {
@@ -64,7 +80,6 @@ export const updateSettingAsync = ({ id, values }) => async (dispatch) => {
 };
 
 export const deleteSettingsAsync = ({ ids }) => async (dispatch, getState) => {
-  const { settings } = getState().settings;
   if (ids.length) {
     const url = `/api/settings?ids=${ids.join(',')}`;
     await http.delete(url);

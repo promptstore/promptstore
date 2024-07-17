@@ -10,6 +10,8 @@ import Icon, {
   AppstoreOutlined,
   BlockOutlined,
   BookOutlined,
+  CameraOutlined,
+  CheckSquareOutlined,
   CodeOutlined,
   CodepenOutlined,
   CommentOutlined,
@@ -19,17 +21,21 @@ import Icon, {
   EyeOutlined,
   FileOutlined,
   FileSearchOutlined,
+  FlagOutlined,
   FolderOpenOutlined,
   FolderOutlined,
   FunctionOutlined,
   HomeOutlined,
   IssuesCloseOutlined,
   LockOutlined,
+  MoreOutlined,
   NodeIndexOutlined,
   NotificationOutlined,
   PlaySquareOutlined,
+  RadarChartOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
+  SettingOutlined,
   ShareAltOutlined,
   SketchOutlined,
   TeamOutlined,
@@ -39,7 +45,6 @@ import useLocalStorageState from 'use-local-storage-state';
 
 import MyLogo from '../images/promptstore_logo_colour.png';
 import { GrafanaLogo } from '../logos/GrafanaLogo';
-import { MageLogo } from '../logos/MageLogo';
 import { TemporalLogo } from '../logos/TemporalLogo';
 
 const { Sider } = Layout;
@@ -49,7 +54,13 @@ function SideMenu({ isDarkMode, isWorkspaceSelected, currentUser }) {
   const [collapsed, setCollapsed] = useLocalStorageState('ps-side-menu', { defaultValue: false });
 
   return (
-    <Sider id="menu" collapsible collapsed={collapsed} onCollapse={setCollapsed} theme={isDarkMode ? 'dark' : 'light'}>
+    <Sider id="menu"
+      collapsible
+      collapsed={collapsed}
+      onCollapse={setCollapsed}
+      theme={isDarkMode ? 'dark' : 'light'}
+      width={235}
+    >
       <NavLink to="/" className={'logo-image' + (collapsed ? ' collapsed' : '')}>
         <div>
           <div><img src={MyLogo} alt="Prompt Store" /></div>
@@ -68,7 +79,6 @@ function SideMenu({ isDarkMode, isWorkspaceSelected, currentUser }) {
 }
 
 const LokiIcon = (props) => (<Icon component={GrafanaLogo} {...props} />);
-const MageIcon = (props) => (<Icon component={MageLogo} {...props} />);
 const TemporalIcon = (props) => (<Icon component={TemporalLogo} {...props} />);
 
 const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
@@ -114,7 +124,14 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             key: 'prompt-designer',
             icon: <CommentOutlined />,
             label: (
-              <NavLink to="/design">Prompt Design</NavLink>
+              <NavLink to="/design">Prompt Testing</NavLink>
+            ),
+          },
+          {
+            key: 'imagegen',
+            icon: <CameraOutlined />,
+            label: (
+              <NavLink to="/imagegen">Image Generation</NavLink>
             ),
           },
         ],
@@ -152,6 +169,27 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
               <NavLink to="/agents">Agents</NavLink>
             ),
           },
+          {
+            key: 'agent-networks',
+            icon: <RadarChartOutlined />,
+            label: (
+              <NavLink to="/agent-networks">Agent-Networks</NavLink>
+            ),
+          },
+        ],
+      },
+      {
+        key: 'guardrails',
+        icon: <CheckSquareOutlined />,
+        label: 'Guardrails',
+        children: [
+          {
+            key: 'rules',
+            icon: <FlagOutlined />,
+            label: (
+              <NavLink to="/rules">Rulesets</NavLink>
+            ),
+          },
         ],
       },
       {
@@ -185,7 +223,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
       {
         key: 'knowledge',
         icon: <DeploymentUnitOutlined />,
-        label: 'Knowledge',
+        label: 'Knowledge Engineering',
         children: [
           {
             key: 'documents',
@@ -233,7 +271,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             key: 'ragtester',
             icon: <FileSearchOutlined />,
             label: (
-              <NavLink to="/rag">RAG Tester</NavLink>
+              <NavLink to="/rag">RAG Testing</NavLink>
             ),
           },
         ],
@@ -261,14 +299,6 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           <Link to={process.env.REACT_APP_TEMPORAL_WEB_URL} target="_blank" rel="noopener noreferrer">Background Jobs</Link>
         ),
       },
-      // {
-      //   key: 'pipelines',
-      //   icon: <MageIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
-      //   style: { display: 'flex', alignItems: 'center' },
-      //   label: (
-      //     <Link to={process.env.REACT_APP_MAGE_WEB_URL} target="_blank" rel="noopener noreferrer">Data Pipelines</Link>
-      //   ),
-      // },
       {
         key: 'monitoring',
         icon: <LokiIcon style={{ width: 16, marginLeft: -1, marginRight: -1 }} />,
@@ -321,6 +351,13 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
 
     const settingsMenuItems = [
       {
+        key: 'settings',
+        icon: <SettingOutlined />,
+        label: (
+          <NavLink to="/settings">Settings</NavLink>
+        ),
+      },
+      {
         key: 'users',
         icon: <UserOutlined />,
         label: (
@@ -341,11 +378,18 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
           <NavLink to="/mirrors">Mirrors</NavLink>
         ),
       },
+      {
+        key: 'admin-functions',
+        icon: <MoreOutlined />,
+        label: (
+          <NavLink to="/admin">Admin Functions</NavLink>
+        ),
+      },
     ];
 
     sideMenuItems = [...sideMenuItems, ...[
       {
-        key: 'settings',
+        key: 'admin',
         icon: <ControlOutlined />,
         label: 'Settings',
         children: settingsMenuItems,

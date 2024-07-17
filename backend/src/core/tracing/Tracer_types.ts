@@ -5,4 +5,5 @@ export interface TraceCallbackParams {
   username: string;
   tracesService: any;
   tracer?: Tracer;
+  debug?: boolean;
 }

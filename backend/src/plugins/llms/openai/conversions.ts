@@ -1,3 +1,5 @@
+import uuid from 'uuid';
+
 import {
   PARA_DELIM,
   ChatCompletionChoice,
@@ -16,11 +18,15 @@ import {
 import {
   OpenAIChatCompletionResponse,
   OpenAICompletionResponse,
+  OpenAIImageResponse,
 } from '../../../core/models/openai_types';
 
 const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
   'gpt-4',
+  'gpt-4o',
+  'gpt-4o-2024-05-13',
   'gpt-4-1106-preview',
+  'gpt-4-0125-preview',
   'gpt-4-0613',
   'gpt-3.5-turbo',
   'gpt-3.5-turbo-1106',
@@ -30,6 +36,8 @@ const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
 const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
   'gpt-4-1106-preview',
   'gpt-3.5-turbo-1106',
+  'gpt-4o',
+  'gpt-4o-2024-05-13',
 ];
 
 export function toOpenAIChatRequest(request: ChatRequest) {
@@ -83,6 +91,7 @@ export async function fromOpenAIChatResponse(
   response: OpenAIChatCompletionResponse,
   parserService: ParserService,
 ) {
+  logger.debug('response:', response);
   const {
     id,
     created,
@@ -348,5 +357,58 @@ export async function fromOpenAICompletionResponse(
     choices,
     n: choices.length,
     usage,
+  };
+}
+
+export function toOpenAIImageRequest(request: ChatRequest) {
+  const {
+    model,
+    model_params,
+    user,
+  } = request;
+  const {
+    n,
+    quality,
+    response_format,
+    size,
+    style,
+    promptRewritingDisabled,
+  } = model_params || {};
+  let messages: Message[] = createOpenAIMessages(request.prompt);
+  let prompt = messages.map(m => m.content).join(PARA_DELIM);
+  if (promptRewritingDisabled) {
+    prompt += PARA_DELIM + 'I NEED to test how the tool works with extremely simple prompts. DO NOT add any detail, just use it AS-IS:';
+  }
+  return {
+    model,
+    prompt,
+    user,
+    n,
+    quality,
+    response_format,
+    size,
+    style,
+  };
+}
+
+export function fromOpenAIImageResponse(responses: OpenAIImageResponse[]) {
+  const choices = responses.map(({ url, revised_prompt }, index) => ({
+    index,
+    message: {
+      role: MessageRole.assistant,
+      content: [
+        {
+          type: 'image_url',
+          image_url: { url },
+        },
+      ],
+    },
+    revisedPrompt: revised_prompt,
+  }));
+  return {
+    id: uuid.v4(),
+    created: new Date(),
+    n: choices.length,
+    choices,
   };
 }

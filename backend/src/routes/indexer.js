@@ -649,7 +649,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
             documents: docs,
           };
 
-          await appsService.upsertApp(values);
+          await appsService.upsertApp(values, username, true);
         }
         const obj = createSearchableObject(index, { source: 'unstructured' });
         indexObject(obj);

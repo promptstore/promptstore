@@ -68,14 +68,16 @@ export function DestinationsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertDestination(destination, username) {
+  async function upsertDestination(destination, username, partial) {
     if (destination === null || typeof destination === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedDestination = await getDestination(destination.id);
     if (savedDestination) {
-      destination = { ...savedDestination, ...destination };
+      if (partial) {
+        destination = { ...savedDestination, ...destination };
+      }
       const val = omit(destination, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

@@ -1,0 +1,245 @@
+.ui-predicate__row.ui-predicate__row--comparison {
+  padding: 10px 20px;
+  position: relative;
+}
+
+.ui-predicate__row.ui-predicate__row--comparison select,
+.ui-predicate__row.ui-predicate__row--comparison input,
+.ui-predicate__logic {
+  background-color: #fff;
+  border: none;
+  /* border-bottom: 1px solid hsl(0, 0%, 94%); */
+  border-bottom: 1px solid #6554C0;
+}
+
+.ui-predicate__row.ui-predicate__row--comparison input:focus {
+  /* border-bottom: 1px solid #93c7ef; */
+  border: 1px solid #9e8cff;
+}
+
+.ui-predicate__row--compound {
+  /* border: 3px solid  hsl(0,0%,94%); */
+  /* margin-left: 20px;
+  margin-top: 4px;
+  padding: 8px 16px; */
+  padding-top: 4px;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound {
+  border: 1px solid #93c7ef;
+}
+
+.reach {
+  color: #999;
+  font-size: 0.85em;
+  display: flex;
+  flex-direction: row;
+}
+
+.reach [role="progressbar"] {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  width: 240px;
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%);
+}
+
+.reach label {
+  width: 160px;
+  text-align: right;
+}
+
+.reach div {
+  width: 60px;
+  text-align: right;
+}
+
+.outofrange {
+  color: #CC5500 !important;
+}
+
+.inrange {
+  color: green !important;
+}
+
+.ui-predicate__row--compound .reach {
+  left: 20px;
+  padding: 8px 7px;
+  position: absolute;
+}
+
+.ui-predicate__row--compound .count {
+  margin-left: 3px;
+  margin-right: 10px;
+  width: 100px;
+}
+
+.ui-predicate__row--compound .count span {
+  color: #6db7ef;
+  margin-left: 3px;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound {
+  margin-top: 20px;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound .reach {
+  display: none;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound .ui-predicate__row:last-child .reach {
+  display: flex;
+}
+
+.ui-predicate__row,
+.ui-predicate__row--compound {
+  margin-bottom: 12px;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound .ui-predicate__row,
+.ui-predicate__row--compound .ui-predicate__row--compound .ui-predicate__row--compound {
+  margin-bottom: 0;
+}
+
+.ui-predicate__row--compound .ui-predicate__row--compound .ui-predicate__row:last-child,
+.ui-predicate__row--compound .ui-predicate__row--compound .ui-predicate__row--compound:last-child {
+  margin-bottom: 12px;
+}
+
+.ui-predicate__option button {
+  background-color: #fff;
+  border: 1px solid hsl(0, 0%, 94%);
+  color: hsl(0, 0%, 75%);
+  font-weight: 500;
+  margin-left: 8px;
+  transition-duration: 0.4s;
+}
+
+.ui-predicate__option button:hover {
+  border: 1px solid hsl(0, 0%, 75%);
+  background-color: hsl(0, 0%, 75%);
+  color: #fff;
+}
+
+.ui-predicate__operators {
+  max-width: 175px;
+}
+
+.null-percent [role=progressbar]>span {
+  background-color: 'red';
+}
+
+.barchart-tooltip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px 24px;
+  background: #93c7ef;
+  color: rgb(24, 32, 38);
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.barchart-tooltip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 14px;
+  width: 100%;
+  line-height: 1;
+  color: #93c7ef;
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+  top: 100%;
+  left: 0;
+}
+
+.card {
+  cursor: pointer;
+  height: 180px;
+  position: relative;
+}
+
+.pvtVal,
+.pvtTotal {
+  cursor: pointer;
+}
+
+.pvtVal:hover,
+.pvtTotal:hover {
+  background-color: orange;
+}
+
+.pvtVal:active,
+.pvtTotal:active {
+  background-color: orange;
+}
+
+.Pane2 {
+  background-color: #fff;
+  overflow-y: auto;
+  z-index: 102;
+}
+
+.Resizer.horizontal,
+.Resizer.horizontal:hover {
+  z-index: 103;
+}
+
+.Resizer.horizontal:after {
+  left: calc(50% - 20px);
+}
+
+/* Round helper settings */
+
+#vizhelpers.rounded .bp3-card {
+  border-radius: 127px;
+  font-size: .8em;
+  height: 127px;
+  min-width: 127px;
+  padding-left: 0;
+  padding-right: 0;
+  width: 127px;
+}
+
+#vizhelpers.rounded .highlight {
+  border-radius: 127px;
+  width: 127px;
+}
+
+#vizhelpers.rounded .bp3-card img {
+  border-radius: 9px;
+  height: 44px !important;
+  margin-top: 14px;
+}
+
+.ui-predicate__row.ui-predicate__row--comparison select,
+.ui-predicate__row.ui-predicate__row--comparison input,
+.ui-predicate__logic {
+  background-color: #FAFBFC;
+}
+
+.ui-predicate__row.ui-predicate__row--comparison input {
+  /* border: 1px solid hsl(0, 0%, 94%); */
+  border: 1px solid #6554C0;
+}
+
+.ui-predicate__option button {
+  background-color: rgba(9, 30, 66, 0.08);
+  color: #000;
+}
+
+.ui-predicate__col {
+  margin-bottom: 10px !important;
+}
+
+.ui-predicate__col input,
+.ui-predicate__col select {
+  outline: none;
+}
+
+.barchart-tooltip {
+  /* they're invisible, placing them at the top stops the body scrolling */
+  top: 0;
+  z-index: 1000;
+}

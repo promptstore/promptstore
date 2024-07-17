@@ -23,14 +23,14 @@ function EmailService({ __key, __name, constants, logger }) {
    * @param {*} params 
    * @returns 
    */
-  async function call({ agentName, email, message }) {
-    logger.debug('Sending email using the following parameters:', { agentName, email, message });
+  async function call({ name, email, message }) {
+    logger.debug('Sending email using the following parameters:', { name, email, message });
     const res = await client.send({
       from: sender,
       to: [{ email }],
       template_uuid: constants.MAILTRAP_TEMPLATE_UUID,
       template_variables: {
-        agent_name: agentName,
+        agent_name: name,
         message,
       },
     });

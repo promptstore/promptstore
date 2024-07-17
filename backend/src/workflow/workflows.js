@@ -1,6 +1,15 @@
 import { proxyActivities } from '@temporalio/workflow';
 
-const { evaluate, executeComposition, index, logCall, reload, transform, upload } = proxyActivities({
+const {
+  evaluate,
+  executeAgentNetwork,
+  executeComposition,
+  index,
+  logCall,
+  reload,
+  transform,
+  upload,
+} = proxyActivities({
   scheduleToCloseTimeout: '20m',
   startToCloseTimeout: '10m',
   retry: {
@@ -10,6 +19,10 @@ const { evaluate, executeComposition, index, logCall, reload, transform, upload 
 
 export function evaluates(evaluation, workspaceId, username) {
   return evaluate(evaluation, workspaceId, username);
+}
+
+export function executeAgentNetworks(params) {
+  return executeAgentNetwork(params);
 }
 
 export function executeCompositions(params) {

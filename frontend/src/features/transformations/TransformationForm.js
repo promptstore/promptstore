@@ -41,6 +41,7 @@ import {
 import {
   getFunctionsAsync,
   selectFunctions,
+  selectLoading as selectFunctionsLoading,
 } from '../functions/functionsSlice';
 import {
   getIndexesAsync,
@@ -187,6 +188,7 @@ export function TransformationForm() {
   const destinations = useSelector(selectDestinations);
   const destinationsLoading = useSelector(selectDestinationsLoading);
   const functions = useSelector(selectFunctions);
+  const functionsLoading = useSelector(selectFunctionsLoading);
   const graphStoresLoaded = useSelector(selectGraphStoresLoaded);
   const graphStoresLoading = useSelector(selectGraphStoresLoading);
   const graphStores = useSelector(selectGraphStores);
@@ -212,8 +214,11 @@ export function TransformationForm() {
   const dataSourceIdValue = Form.useWatch('dataSourceId', form);
   const destinationIdsValue = Form.useWatch('destinationIds', form);
   const indexValue = Form.useWatch('indexId', form);
+  const functionIdValue = Form.useWatch('functionId', form);
 
-  // console.log('source:', dataSources[dataSourceIdValue]);
+  const source = dataSources[dataSourceIdValue];
+
+  console.log('source:', source);
 
   const id = location.pathname.match(/\/transformations\/(.*)/)[1];
   const isNew = id === 'new';
@@ -236,7 +241,7 @@ export function TransformationForm() {
     return null;
   }, [transformations]);
 
-  // console.log('transformation:', transformation);
+  console.log('transformation:', transformation);
 
   const columnOptions = useMemo(() => {
     if (dataSourceIdValue && dataSources) {
@@ -370,20 +375,21 @@ export function TransformationForm() {
       dispatch(getDestinationsAsync({ workspaceId }));
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getDataSourcesAsync({ type: 'sql', workspaceId }));
+      dispatch(getDataSourcesAsync({ type: 'document', workspaceId }));
     }
   }, [selectedWorkspace]);
 
-  useEffect(() => {
-    if (dataSourceIdValue && dataSources) {
-      const ds = dataSources[dataSourceIdValue];
-      if (ds && !ds.schema) {
-        dispatch(getDataSourceAsync(dataSourceIdValue));
-      }
-      // if (ds && !ds.content) {
-      //   dispatch(getDataSourceContentAsync(dataSourceIdValue));
-      // }
-    }
-  }, [dataSourceIdValue, dataSources]);
+  // useEffect(() => {
+  //   if (dataSourceIdValue && dataSources) {
+  //     const ds = dataSources[dataSourceIdValue];
+  //     if (ds && !ds.schema) {
+  //       dispatch(getDataSourceAsync(dataSourceIdValue));
+  //     }
+  //     // if (ds && !ds.content) {
+  //     //   dispatch(getDataSourceContentAsync(dataSourceIdValue));
+  //     // }
+  //   }
+  // }, [dataSourceIdValue, dataSources]);
 
   useEffect(() => {
     if (indexValue === 'new' && !vectorStoresLoaded) {
@@ -837,7 +843,7 @@ export function TransformationForm() {
             scheduleStatus={transformation?.scheduleStatus}
           />
         </Form.Item>
-        {dataSourceIdValue ?
+        {source?.type === 'sql' ?
           <>
             <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginBottom: 16 }}>
               <Divider orientation="left" plain style={{ fontWeight: 600, margin: 0 }}>
@@ -856,6 +862,53 @@ export function TransformationForm() {
                   />
                 )}
               </Form.List>
+            </Form.Item>
+          </>
+          : null
+        }
+        {source?.type === 'document' ?
+          <>
+            <Form.Item wrapperCol={{ offset: 4, span: 14 }} style={{ marginBottom: 16 }}>
+              <Divider orientation="left" plain style={{ fontWeight: 600, margin: 0 }}>
+                Transformation
+              </Divider>
+            </Form.Item>
+            <Form.Item
+              label="Function"
+              wrapperCol={{ span: 14 }}
+            >
+              <Form.Item
+                name="functionId"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please select the transformation function',
+                  },
+                ]}
+                style={{
+                  display: 'inline-block',
+                  marginBottom: 0,
+                  width: 'calc(100% - 32px)',
+                }}
+              >
+                <Select allowClear showSearch
+                  loading={functionsLoading}
+                  optionFilterProp="children"
+                  options={functionOptions}
+                  placeholder="Search to select a function"
+                  filterOption={(input, option) => (option?.label ?? '').includes(input)}
+                  filterSort={(a, b) =>
+                    (a?.label ?? '').toLowerCase().localeCompare((b?.label ?? '').toLowerCase())
+                  }
+                />
+              </Form.Item>
+              <Button
+                disabled={!functionIdValue}
+                type="link"
+                icon={<LinkOutlined />}
+                onClick={() => navigate(`/functions/${functionIdValue}`)}
+                style={{ width: 32 }}
+              />
             </Form.Item>
           </>
           : null

@@ -1,16 +1,22 @@
-import { useContext, useEffect, useMemo } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
-import { Button, Card, Descriptions, Layout, Space, Table, Tag, Typography } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
-import * as dayjs from 'dayjs';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Card, Descriptions, Dropdown, Layout, Space, Table, Tag, Typography } from 'antd';
+import { BlockOutlined, DownloadOutlined, MoreOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
+import * as dayjs from 'dayjs';
 import rehypeRaw from 'rehype-raw';
 import snakeCase from 'lodash.snakecase';
+import { v4 as uuidv4 } from 'uuid';
 
 import Download from '../../components/Download';
 import NavbarContext from '../../contexts/NavbarContext';
+import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { formatNumber, getBaseURL } from '../../utils';
+
+import {
+  duplicateObjectAsync,
+} from '../uploader/fileUploaderSlice';
 
 import {
   getModelAsync,
@@ -25,14 +31,18 @@ const { Content, Sider } = Layout;
 
 export function ModelView() {
 
+  const [correlationId, setCorrelationId] = useState(null);
+
   const models = useSelector(selectModels);
   const loaded = useSelector(selectLoaded);
   const loading = useSelector(selectLoading);
 
   const { setNavbarState } = useContext(NavbarContext);
+  const { selectedWorkspace } = useContext(WorkspaceContext);
 
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const id = location.pathname.match(/\/models\/(.*)/)[1];
   const model = models[id];
@@ -47,6 +57,27 @@ export function ModelView() {
     }));
     dispatch(getModelAsync(id));
   }, []);
+
+  useEffect(() => {
+    if (correlationId) {
+      const model = Object.values(models).find(m => m.correlationId === correlationId);
+      if (model) {
+        navigate(`/models/${model.id}`);
+        setCorrelationId(null);
+      }
+    }
+  }, [models]);
+
+  const handleDuplicate = () => {
+    const correlationId = uuidv4();
+    dispatch(duplicateObjectAsync({
+      correlationId,
+      obj: model,
+      type: 'model',
+      workspaceId: selectedWorkspace.id,
+    }));
+    setCorrelationId(correlationId);
+  };
 
   const columns = [
     {
@@ -117,11 +148,32 @@ export function ModelView() {
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <Link to={`/models`}>List</Link>
                 <Link to={`/models/${id}/edit`}>Edit</Link>
-                <Download filename={snakeCase(model.name) + '.json'} payload={model}>
-                  <Button type="text" icon={<DownloadOutlined />}>
-                    Download
-                  </Button>
-                </Download>
+                <Dropdown arrow
+                  className="action-link"
+                  placement="bottom"
+                  menu={{
+                    items: [
+                      {
+                        key: 'duplicate',
+                        icon: <BlockOutlined />,
+                        label: (
+                          <Link onClick={handleDuplicate}>Duplicate</Link>
+                        ),
+                      },
+                      {
+                        key: 'download',
+                        icon: <DownloadOutlined />,
+                        label: (
+                          <Download filename={snakeCase(model?.name) + '.json'} payload={model}>
+                            <Link>Export</Link>
+                          </Download>
+                        )
+                      },
+                    ]
+                  }}
+                >
+                  <MoreOutlined />
+                </Dropdown>
               </div>
             }
             loading={loading}

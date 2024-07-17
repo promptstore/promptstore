@@ -10,6 +10,7 @@ import {
   ModelParams,
 } from '../core/conversions/RosettaStone';
 import {
+  AssistantMessage,
   FunctionMessage,
   OpenAIMessageImpl,
   UserMessage,
@@ -42,7 +43,13 @@ export default ({ logger, services }) => {
     vectorStoreService,
   } = services;
 
-  class MKRLAgent {
+  /**
+   * Modular Reasoning, Knowledge and Language (MRKL)
+   * https://arxiv.org/abs/2205.00445
+   * 
+   * An implementation of the MRKL paper using ReAct (Reason + Action)
+   */
+  class MRKLAgent {
 
     name: string;
     model: string;
@@ -58,7 +65,10 @@ export default ({ logger, services }) => {
     currentCallbacks: AgentCallback[];
     useFunctions: boolean;
     promptSetSkill: string;
-    semanticFunction: any;
+    semanticFunctions: any[];
+    compositions: any[];
+    subAgents: any[];
+    parentAgentName: string;
 
     constructor({
       isChat = false,
@@ -70,7 +80,9 @@ export default ({ logger, services }) => {
       username,
       callbacks,
       useFunctions = false,
-      semanticFunction,
+      semanticFunctions,
+      compositions,
+      subAgents,
     }) {
       this.name = name;
       this.isChat = isChat;
@@ -89,25 +101,29 @@ export default ({ logger, services }) => {
       this.maxIterations = 6;
       this.maxExecutionTime = 30000;
       this.useFunctions = useFunctions;
-      this.semanticFunction = semanticFunction;
+      this.semanticFunctions = semanticFunctions;
+      this.compositions = compositions;
+      this.subAgents = subAgents;
 
       // TODO
-      this.promptSetSkill = useFunctions ? 'react_plan' : 'react_plan';
+      this.promptSetSkill = useFunctions ? 'react_plan_1' : 'react_plan';
     }
 
     reset() {
       this.history = [];
     }
 
-    async run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
+    async run({ args, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [], parentAgentName }: AgentRunParams) {
       this.currentCallbacks = [...this.callbacks, ...callbacks];
+      this.parentAgentName = parentAgentName;
       for (let callback of this.currentCallbacks) {
         callback.onAgentStart({
-          agentName: this.name,
-          goal,
+          name: this.name,
+          args,
           allowedTools,
           extraFunctionCallParams,
           selfEvaluate,
+          parent: this.parentAgentName,
         });
       }
 
@@ -115,8 +131,8 @@ export default ({ logger, services }) => {
       let elapsedTime = 0.0;
 
       const functions = this._getFunctions(allowedTools);
-      const args = {
-        content: goal,
+      args = {
+        content: args.goal,
         agent_scratchpad: '',  // TODO variables should be optional by default
 
         // deprecated - using universal model calling instead
@@ -136,6 +152,7 @@ export default ({ logger, services }) => {
               messages: [...messages],
             },
           };
+          this.history.push(...messages);
 
           if (this.useFunctions) {
             request.functions = functions;
@@ -143,6 +160,7 @@ export default ({ logger, services }) => {
 
           for (let callback of this.currentCallbacks) {
             callback.onEvaluateTurnStart({
+              name: this.name,
               index: iterations,
               request,
             });
@@ -157,9 +175,9 @@ export default ({ logger, services }) => {
           }
           if (done) {
             this._onEnd({ response: content });
+            logger.debug('Return agent response:', content);
             return content;
           }
-          this.history.push(...messages);
           let message: Message;
           if (this.useFunctions && name) {
             message = new FunctionMessage(content, name);
@@ -222,13 +240,46 @@ export default ({ logger, services }) => {
           },
         });
       }
-      if (allowedTools.includes('semanticFunction')) {
-        functions.push({
-          id: uuid.v4(),
-          name: this.semanticFunction.name,
-          description: this.semanticFunction.description,
-          parameters: this.semanticFunction.arguments,
-        });
+      if (this.subAgents?.length) {
+        for (const agent of this.subAgents) {
+          functions.push({
+            id: uuid.v4(),
+            name: agent.name,
+            description: agent.description,
+            parameters: {
+              type: 'object',
+              properties: {
+                goal: {
+                  type: 'string',
+                  description: 'The goal that the agent is tasked to achieve.'
+                }
+              }
+            },
+          });
+        }
+      }
+      if (this.semanticFunctions?.length) {
+        for (const fn of this.semanticFunctions) {
+          functions.push({
+            id: uuid.v4(),
+            name: fn.name,
+            description: fn.description,
+            parameters: fn.arguments,
+          });
+        }
+      }
+      if (this.compositions?.length) {
+        for (const comp of this.compositions) {
+          const requestNode = comp.flow.nodes?.find((n: any) => n.type === 'requestNode');
+          if (requestNode) {
+            functions.push({
+              id: uuid.v4(),
+              name: comp.name,
+              description: comp.description,
+              parameters: requestNode.data.arguments,
+            });
+          }
+        }
       }
       if (functions.length === 0) {
         functions = undefined;
@@ -259,6 +310,8 @@ export default ({ logger, services }) => {
       for (let callback of this.currentCallbacks) {
         callback.onObserveModelEnd({
           response: { ...response },
+          parent: this.parentAgentName,
+          name: this.name,
         });
       }
 
@@ -272,16 +325,25 @@ export default ({ logger, services }) => {
             name: call.name,
           };
         }
-        if (final) {
-          return { done: true, content };
+
+        // TODO
+        // standardise response format with 'Plan & Execute' Agent,
+        // which returns JSON
+        if (final || (content as string).includes('Final Answer:')) {
+          const mycontent = (content as string).split('Final Answer:')[1].trim();
+          return { done: true, content: mycontent };
         }
-        const { error, retriable } = this._getParseError(content as string);
-        if (retriable) {
-          return { done: false, content: this._makeObservation(error) };
-        }
-        this._throwAgentError(error);
+
+        this.history.push(new AssistantMessage(content as string));
+        return { done: false, content: this._makeObservation(content as string) };
+        // const { error, retriable } = this._getParseError(content as string);
+        // if (retriable) {
+        //   return { done: false, content: this._makeObservation(error) };
+        // }
+        // this._throwAgentError(error);
       }
 
+      this.history.push(new AssistantMessage(content as string));
       return this._processResponse(content as string, extraFunctionCallParams);
     }
 
@@ -289,10 +351,10 @@ export default ({ logger, services }) => {
       try {
         const action = this._parseResponse(content);
         if (action instanceof AgentAction) {
-          const args = { input: action.toolInput };
+          const args = action.toolInput;
           const call = {
             name: action.action,
-            arguments: JSON.stringify(args),
+            arguments: args,
           };
           const functionOutput = await this._callFunction(call, extraFunctionCallParams);
           return {
@@ -324,11 +386,26 @@ export default ({ logger, services }) => {
     }
 
     async _callFunction(call: FunctionCall, extraFunctionCallParams: any) {
+      logger.debug('call:', call, this.subAgents);
       const { email, indexName } = extraFunctionCallParams;
-      let args = JSON.parse(call.arguments);
-      for (let callback of this.currentCallbacks) {
-        callback.onFunctionCallStart({ call, args });
+      let args: any;
+      try {
+        args = JSON.parse(call.arguments);
+      } catch (err) {
+        logger.error('Error parsing call arguments:', String(err), call.arguments);
+        return "I don't know how to answer that";
       }
+      for (let callback of this.currentCallbacks) {
+        callback.onFunctionCallStart({
+          name: this.name,
+          call,
+          args,
+          parent: this.parentAgentName,
+        });
+      }
+      let agent: any;
+      let composition: any;
+      let func: any;
       let response: any;
       try {
         if (call.name === 'searchIndex') {
@@ -358,11 +435,11 @@ export default ({ logger, services }) => {
             { k: 5, queryEmbedding }
           );
           response = searchResponse.hits.join(PARA_DELIM);
-        } else if (call.name === this.semanticFunction?.name) {
+        } else if (func = (this.semanticFunctions || []).find(f => f.name === call.name)) {
           const functionResponse = await executionsService.executeFunction({
             workspaceId: this.workspaceId,
             username: this.username,
-            func: this.semanticFunction,
+            func,
             args,
             params: { maxTokens: 1024 },
           });
@@ -372,30 +449,61 @@ export default ({ logger, services }) => {
           } else {
             response = message.content;
           }
+        } else if (composition = (this.compositions || []).find(c => c.name === call.name)) {
+          const compositionResponse = await executionsService.executeComposition({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            composition,
+            args,
+            params: { maxTokens: 1024 },
+          });
+          const content = compositionResponse.response.myargs.content;
+          response = { choices: [{ message: { content } }] };
+        } else if (agent = (this.subAgents || []).find(a => a.name === call.name)) {
+          let parent = this.name;
+          if (this.parentAgentName) {
+            parent = this.parentAgentName + ' - ' + parent;
+          }
+          const agentResponse = await executionsService.executeAgent({
+            workspaceId: this.workspaceId,
+            username: this.username,
+            agent,
+            args,
+            callbacks: this.currentCallbacks,
+            parentAgentName: parent,
+          });
+          logger.debug('agentResponse:', agentResponse);
+          response = agentResponse;
         } else {
           if (call.name === 'email') {
-            args.agentName = this.name;
+            args.name = this.name;
             args.email = email;
           }
-          response = await toolService.call(call.name, args);
+          response = await toolService.call(call.name, args, false);
         }
       } catch (err) {
-        console.log('Error calling tool:', call.name);
+        console.log('Error calling tool:', call.name, err.message, err.stack);
         response = 'Invalid tool call';
       }
       for (let callback of this.currentCallbacks) {
-        callback.onFunctionCallEnd({ response });
+        callback.onFunctionCallEnd({
+          name: this.name,
+          response,
+          parent: this.parentAgentName,
+        });
       }
       return response;
     }
 
     _parseResponse(content: string) {
       const hasFinalAnswer = content.includes(FINAL_ANSWER_ACTION);
+      logger.debug('hasFinalAnswer:', hasFinalAnswer);
       const actionRegex = new RegExp(
         /Action\s*\d*\s*:[\s]*(.*?)[\s]*Action\s*\d*\s*Input\s*\d*\s*:[\s]*(.*)/,
-        'gs'
+        's'
       );
       const actionMatch = content.match(actionRegex);
+      logger.debug('_parseResponse actionMatch:', actionMatch);
       if (actionMatch) {
         const action = actionMatch[1];
         if (hasFinalAnswer) {
@@ -418,11 +526,13 @@ export default ({ logger, services }) => {
         if (!input.startsWith('SELECT ')) {
           input = trim(input, '"');
         }
+        logger.debug('input:', input);
 
         return new AgentAction(action, input, content);
 
       } else if (hasFinalAnswer) {
         const output = content.split(FINAL_ANSWER_ACTION)[1].trim();
+        logger.debug('output:', output);
         const returnValues = { output };
         return new AgentFinish(returnValues, content);
       }
@@ -440,8 +550,8 @@ export default ({ logger, services }) => {
 
     _getParseError(content: string) {
       // determine parser exception and whether to try again
-      const re1 = new RegExp(/Action\s*\d*\s*:[\s]*(.*?)/, 'gs');
-      const re2 = new RegExp(/[\s]*Action\s*\d*\s*Input\s*\d*\s*:[\s]*(.*)/, 'gs');
+      const re1 = new RegExp(/Action\s*\d*\s*:[\s]*(.*?)/, 's');
+      const re2 = new RegExp(/[\s]*Action\s*\d*\s*Input\s*\d*\s*:[\s]*(.*)/, 's');
       const match1 = content.match(re1);
       const match2 = content.match(re2);
       if (!match1) {
@@ -468,9 +578,10 @@ export default ({ logger, services }) => {
     _onEnd({ response, errors }: AgentOnEndParams) {
       for (let callback of this.currentCallbacks) {
         callback.onAgentEnd({
-          agentName: this.name,
+          name: this.name,
           response,
           errors,
+          parent: this.parentAgentName,
         });
       }
     }
@@ -497,6 +608,6 @@ export default ({ logger, services }) => {
 
   }
 
-  return MKRLAgent;
+  return MRKLAgent;
 
 }

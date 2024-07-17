@@ -366,13 +366,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { batch, stream } = req.query;
 
     // TODO
-    const { args, messages, history, params, workspaceId, extraIndexes } = req.body;
+    const { args, env, messages, history, params, workspaceId, extraIndexes } = req.body;
 
     const { errors, response, responseMetadata } = await executionsService.executeFunction({
       workspaceId: workspaceId || SYSTEM_WORKSPACE_ID,
       username,
       semanticFunctionName,
       args,
+      env,
       messages,
       history,
       params: params || {},
@@ -453,8 +454,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { username } = req.user;
     const batch = req.query.batch;
     // logger.debug('body:', req.body);
-    let { args, params, functions, workspaceId } = req.body;
-    if (!params) params = {};
+    let { args, env, params, functions, workspaceId } = req.body;
+    if (!params) params = { maxTokens: 2048 };
     if (!workspaceId) workspaceId = SYSTEM_WORKSPACE_ID;
     const inputParams = {
       workspaceId,
@@ -488,6 +489,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
           returnSchema: JSON.stringify(composition.returnSchema),
           input: composition.description,
         },
+        env,
         params: params || {},
         batch: isTruthy(batch),
       });

@@ -2,7 +2,7 @@ import isEmpty from 'lodash.isempty';
 
 import searchFunctions from '../searchFunctions';
 
-export default ({ app, auth, constants, logger, services }) => {
+export default ({ app, auth, constants, logger, mc, services }) => {
 
   const OBJECT_TYPE = 'prompt-sets';
 
@@ -10,15 +10,65 @@ export default ({ app, auth, constants, logger, services }) => {
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
+  const getPresignedUrl = (objectName) => {
+    return new Promise((resolve, reject) => {
+      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+        if (err) {
+          logger.error('Error getting presigned url:', err);
+          return reject(err);
+        }
+        logger.debug('presigned url:', presignedUrl);
+        let imageUrl;
+        if (constants.ENV === 'dev') {
+          const u = new URL(presignedUrl);
+          imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+        } else {
+          imageUrl = presignedUrl;
+        }
+        resolve(imageUrl);
+      });
+    });
+  };
+
   app.get('/api/workspaces/:workspaceId/prompt-sets', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
+    const { username } = req.user;
     const { skill } = req.query;
+
     let promptSets;
     if (skill) {
-      promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, skill);
+      const pss = await promptSetsService.getPromptSetsBySkill(workspaceId, skill);
+
+      // update presigned images
+      promptSets = [];
+      for (const ps of pss) {
+        const prompts = [];
+        for (const p of ps.prompts) {
+          let content;
+          if (Array.isArray(p.prompt)) {
+            content = [];
+            for (const c of p.prompt) {
+              if (c.type === 'image_url') {
+                const url = await getPresignedUrl(c.objectName);
+                content.push({ ...c, image_url: { url } });
+              } else {
+                content.push(c);
+              }
+            }
+          } else {
+            content = p.prompt;
+          }
+          prompts.push({ ...p, prompt: content })
+        }
+        const promptSet = await promptSetsService.upsertPromptSet({ ...ps, prompts }, username);
+        promptSets.push(promptSet);
+      }
+
     } else {
       promptSets = await promptSetsService.getPromptSets(workspaceId);
     }
+    logger.debug('promptSets:', promptSets);
+
     res.json(promptSets);
   });
 
@@ -30,7 +80,27 @@ export default ({ app, auth, constants, logger, services }) => {
 
   app.get('/api/prompt-sets/:id', auth, async (req, res, next) => {
     const id = req.params.id;
-    const promptSet = await promptSetsService.getPromptSet(id);
+    const { username } = req.user;
+    const ps = await promptSetsService.getPromptSet(id);
+    const prompts = [];
+    for (const p of ps.prompts) {
+      let content;
+      if (Array.isArray(p.prompt)) {
+        content = [];
+        for (const c of p.prompt) {
+          if (c.type === 'image_url') {
+            const url = await getPresignedUrl(c.objectName);
+            content.push({ ...c, image_url: { url } });
+          } else {
+            content.push(c);
+          }
+        }
+      } else {
+        content = p.prompt;
+      }
+      prompts.push({ ...p, prompt: content });
+    }
+    const promptSet = await promptSetsService.upsertPromptSet({ ...ps, prompts }, username);
     res.json(promptSet);
   });
 

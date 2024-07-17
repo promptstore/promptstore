@@ -215,7 +215,9 @@ export function IndexModal({
       open={open}
       title="Index"
       width={width}
-      bodyStyle={{ marginBottom: 24, minHeight: 200 }}
+      styles={{
+        body: { marginBottom: 24, minHeight: 200 },
+      }}
     >
       <Form
         {...layout}

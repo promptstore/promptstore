@@ -150,7 +150,7 @@ export function CompositionsList() {
                 </span>
                 <Download filename={'compositions.json'} payload={selectedCompositions}>
                   <Button type="text" icon={<DownloadOutlined />}>
-                    Download
+                    Export
                   </Button>
                 </Download>
               </>

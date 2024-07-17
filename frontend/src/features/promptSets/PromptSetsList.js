@@ -43,6 +43,12 @@ import {
   selectModels,
 } from '../models/modelsSlice';
 import {
+  getSettingsAsync,
+  selectLoading as selectSettingsLoading,
+  selectSettings,
+} from '../settings/settingsSlice';
+import {
+  duplicateObjectAsync,
   objectUploadAsync,
   selectUploading,
 } from '../uploader/fileUploaderSlice';
@@ -53,11 +59,6 @@ import {
   selectLoading,
   selectPromptSets,
 } from './promptSetsSlice';
-import {
-  getSettingsAsync,
-  selectLoading as selectSettingsLoading,
-  selectSettings,
-} from './settingsSlice';
 
 const { Search } = Input;
 
@@ -67,6 +68,7 @@ const TAGS_KEY = 'promptSetTags';
 export function PromptSetsList() {
 
   const [filterPublic, setFilterPublic] = useLocalStorageState('public-prompt-sets', { defaultValue: false });
+  const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-prompt-sets', { defaultValue: false });
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('prompt-sets-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('prompt-sets-list-page', { defaultValue: 1 });
@@ -95,7 +97,8 @@ export function PromptSetsList() {
           .filter((ps) => ps.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
           .filter((ps) => selectedTags?.length ? intersects(ps.tags, selectedTags) : true)
           .filter((ps) => filterTemplates ? ps.isTemplate : true)
-          .filter((ps) => filterPublic ? ps.isPublic : true)
+          .filter((ps) => filterPublic ? true : !ps.isPublic)
+          .filter((ps) => filterSystem ? true : !ps.isSystem)
           .map((ps) => ({
             key: ps.id,
             name: ps.name,
@@ -106,11 +109,12 @@ export function PromptSetsList() {
             tags: ps.tags,
             isTemplate: ps.isTemplate,
             isPublic: ps.isPublic,
+            isSystem: ps.isSystem,
           }));
       list.sort((a, b) => a.name > b.name ? 1 : -1);
       return list;
     }
-  }, [promptSets, searchValue, filterPublic, filterTemplates, selectedTags]);
+  }, [promptSets, searchValue, filterSystem, filterPublic, filterTemplates, selectedTags]);
 
   const tagOptions = useMemo(() => {
     const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
@@ -145,7 +149,7 @@ export function PromptSetsList() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getSettingsAsync({ key: TAGS_KEY, workspaceId: null }));
+      dispatch(getSettingsAsync({ keys: [TAGS_KEY], workspaceId }));
       dispatch(getPromptSetsAsync({
         workspaceId,
         minDelay: layout === 'grid' ? 1000 : 0,
@@ -173,12 +177,12 @@ export function PromptSetsList() {
     }
   }, [loaded, promptSets]);
 
-  // const prevFunctions = usePrevious({ functions });
+  // const previous = usePrevious({ functions });
 
   // useEffect(() => {
   //   const a = Object.keys(functions);
   //   if (a.length) {
-  //     const b = Object.keys(prevFunctions?.functions || {});
+  //     const b = Object.keys(previous?.functions || {});
   //     const diff = difference(a, b);
   //     if (diff.length) {
   //       const func = functions[diff[0]];
@@ -202,6 +206,15 @@ export function PromptSetsList() {
       ...map,
     }));
   }, [functions]);
+
+  const handleDuplicate = (key) => {
+    const ps = promptSets[key];
+    dispatch(duplicateObjectAsync({
+      obj: ps,
+      type: 'promptSet',
+      workspaceId: selectedWorkspace.id,
+    }));
+  };
 
   const createFunction = (key) => {
     const model = Object.values(models).find(m => m.key === DEFAULT_MODEL_KEY);
@@ -312,10 +325,10 @@ export function PromptSetsList() {
     {
       title: 'Tags',
       dataIndex: 'tags',
-      render: (_, { tags = [] }) => (
-        <Space size={[8, 8]} wrap>
+      render: (_, { key, tags = [] }) => (
+        <Space size={[0, 8]} wrap>
           {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
+            <Tag key={`${key}-${tag}`}>{tag}</Tag>
           ))}
         </Space>
       )
@@ -343,14 +356,14 @@ export function PromptSetsList() {
             onClick={() => navigate(`/design/${record.key}`)}
             style={{ paddingLeft: 0 }}
           >
-            Design
+            Test
           </Button>
           {createdFunctions[record.key]?.func ?
             <Button type="link"
               onClick={() => navigate(`/functions/${createdFunctions[record.key].func}/edit`)}
               style={{ paddingLeft: 0 }}
             >
-              Link to function
+              Function
             </Button>
             :
             <Button type="link"
@@ -358,9 +371,15 @@ export function PromptSetsList() {
               onClick={() => createFunction(record.key)}
               style={{ paddingLeft: 0 }}
             >
-              Create Function
+              Create Fn
             </Button>
           }
+          <Button type="link"
+            onClick={() => handleDuplicate(record.key)}
+            style={{ paddingLeft: 0 }}
+          >
+            Duplicate
+          </Button>
         </Space>
       ),
     },
@@ -426,7 +445,7 @@ export function PromptSetsList() {
                 </span>
                 <Download filename={'prompt_sets.json'} payload={selectedPromptSets}>
                   <Button type="text" icon={<DownloadOutlined />}>
-                    Download
+                    Export
                   </Button>
                 </Download>
               </>
@@ -461,6 +480,13 @@ export function PromptSetsList() {
             />
             <div>Public</div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={filterSystem}
+              onChange={setFilterSystem}
+            />
+            <div>System</div>
+          </div>
           <Upload
             name="upload"
             showUploadList={false}
@@ -472,7 +498,7 @@ export function PromptSetsList() {
               icon={<UploadOutlined />}
               loading={uploading}
             >
-              Upload
+              Import
             </Button>
           </Upload>
           <div style={{ flex: 1 }}></div>
@@ -518,12 +544,12 @@ export function PromptSetsList() {
                     {p.tags?.length ?
                       <Space wrap size="small">
                         <div className="inline-label">tags</div>
-                        {p.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                        {p.tags.map(t => <Tag key={t} style={{ margin: 0 }}>{t}</Tag>)}
                       </Space>
                       : null
                     }
                     <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
-                      <Link to={`/design/${p.key}`}>Design</Link>
+                      <Link to={`/design/${p.key}`}>Test</Link>
                       <Link to={`/prompt-sets/${p.key}/edit`}>Edit</Link>
                       <Link to={`/prompt-sets/${p.key}`}>View</Link>
                     </div>

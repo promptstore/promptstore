@@ -45,14 +45,16 @@ export function AppsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertApp(app, username) {
+  async function upsertApp(app, username, partial) {
     if (app === null || typeof app === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedApp = await getApp(app.id);
     if (savedApp) {
-      app = { ...savedApp, ...app };
+      if (partial) {
+        app = { ...savedApp, ...app };
+      }
       const val = omit(app, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

@@ -16,6 +16,23 @@ export function DataSourcesService({ pg, logger }) {
     };
   }
 
+  async function getDataSourcesCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM data_sources
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
+  }
+
   async function getDataSources(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -88,14 +105,16 @@ export function DataSourcesService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertDataSource(dataSource, username) {
+  async function upsertDataSource(dataSource, username, partial) {
     if (dataSource === null || typeof dataSource === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'type', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedDataSource = await getDataSource(dataSource.id);
     if (savedDataSource) {
-      dataSource = { ...savedDataSource, ...dataSource };
+      if (partial) {
+        dataSource = { ...savedDataSource, ...dataSource };
+      }
       const val = omit(dataSource, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -135,6 +154,7 @@ export function DataSourcesService({ pg, logger }) {
   }
 
   return {
+    getDataSourcesCount,
     getDataSources,
     getDataSourcesByType,
     getDataSourceByName,

@@ -59,6 +59,7 @@ export class SemanticFunction {
 
   async call({
     args,
+    env,
     messages,
     history,
     extraSystemPrompt,
@@ -94,7 +95,7 @@ export class SemanticFunction {
       }
 
       // get implementation
-      const impl = this.getImplementation(_callbacks, model?.model);
+      const impl = this.getImplementation(_callbacks, model?.model, env);
       if (!impl) {
         this.throwSemanticFunctionError('implementation not found.', _callbacks);
       }
@@ -163,14 +164,18 @@ export class SemanticFunction {
     return impl;
   }
 
-  getImplementation(callbacks: Callback[], model?: string) {
+  getImplementation(callbacks: Callback[], model?: string, env?: string) {
     let impl: SemanticFunctionImplementation;
+    if (this.experiments) {
+      return this.getImplementationFromExperiment(callbacks);
+    }
+    if (env) {
+      impl = this.implementations.find(impl => impl.environment === env);
+      if (impl) return impl;
+    }
     if (model) {
       impl = this.implementations.find(impl => impl.model.model === model);
       if (impl) return impl;
-    }
-    if (this.experiments) {
-      return this.getImplementationFromExperiment(callbacks);
     }
     impl = this.implementations.find(impl => impl.isDefault);
     if (!impl) {

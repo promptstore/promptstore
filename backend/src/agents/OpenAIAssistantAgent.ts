@@ -162,12 +162,12 @@ export default ({ constants, logger, services }) => {
       });
     }
 
-    async run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
+    async run({ args, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
       this.currentCallbacks = [...this.callbacks, ...callbacks];
       for (let callback of this.currentCallbacks) {
         callback.onAgentStart({
-          agentName: this.name,
-          goal,
+          name: this.name,
+          args,
           allowedTools,
           extraFunctionCallParams,
           selfEvaluate,
@@ -184,8 +184,8 @@ export default ({ constants, logger, services }) => {
       }));
       const toolDescriptions: string = toolService.getToolsList(allowedTools);
       const toolNames: string = toolService.getToolNames(allowedTools);
-      const args = {
-        content: goal,
+      args = {
+        content: args.goal,
         agent_scratchpad: '',  // TODO variables should be optional by default
 
         // deprecated - using universal model calling instead
@@ -206,7 +206,7 @@ export default ({ constants, logger, services }) => {
         const systemMessages = prompts.slice(0, idx + 1);
         logger.debug('systemMessages:', systemMessages);
         let messages = prompts.slice(idx + 1);
-        messages.push(new UserMessage(goal));
+        messages.push(new UserMessage(args.goal));
         logger.debug('messages:', messages);
         const systemPrompt = getText(systemMessages);
         logger.debug('systemPrompt:', systemPrompt);
@@ -453,7 +453,7 @@ export default ({ constants, logger, services }) => {
           response = searchResponse.hits.join(PARA_DELIM);
         } else {
           if (call.name === 'email') {
-            args.agentName = this.name;
+            args.name = this.name;
             args.email = email;
           }
           response = await toolService.call(call.name, args);
@@ -547,7 +547,7 @@ export default ({ constants, logger, services }) => {
     _onEnd({ response, errors }: AgentOnEndParams) {
       for (let callback of this.currentCallbacks) {
         callback.onAgentEnd({
-          agentName: this.name,
+          name: this.name,
           response,
           errors,
         });

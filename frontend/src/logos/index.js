@@ -9,4 +9,5 @@ export { Llama2Logo } from './Llama2Logo';
 export { LlamaApiLogo } from './LlamaApiLogo';
 export { MistralAILogo } from './MistralAILogo';
 export { OpenAILogo } from './OpenAILogo';
+export { StabilityAILogo } from './StabilityAILogo';
 export { VertexAILogo } from './VertexAILogo';

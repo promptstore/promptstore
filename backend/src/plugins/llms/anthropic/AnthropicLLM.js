@@ -24,7 +24,7 @@ function AnthropicLLM({ __name, constants, logger }) {
     let res;
     try {
       const req = await toAnthropicV1ChatRequest(request);
-      // logger.debug('req:', req);
+      logger.debug('req:', req);
       res = await anthropic.messages.create(req);
       // logger.debug('res:', res);
       return fromAnthropicV1ChatResponse(res, parserService);
@@ -55,14 +55,6 @@ function AnthropicLLM({ __name, constants, logger }) {
     return createChatCompletion(request, parserService, retryCount);
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
-  }
-
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
-  }
-
   function getNumberTokens(model, text) {
     throw new Error('Not implemented');
   }
@@ -71,8 +63,6 @@ function AnthropicLLM({ __name, constants, logger }) {
     __name,
     createChatCompletion,
     createCompletion,
-    createImage,
-    generateImageVariant,
     getNumberTokens,
   };
 

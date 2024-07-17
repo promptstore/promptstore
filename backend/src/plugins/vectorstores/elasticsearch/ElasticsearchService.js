@@ -63,9 +63,10 @@ function ElasticsearchService({ __name, constants, logger }) {
     }
   }
 
+  // schema mappings are added dynamically when you add data
   async function createIndex(indexName, schema, params) {
     try {
-      return await getClient().indices.create({
+      const index = await getClient().indices.create({
         index: indexName,
         settings: {
           analysis: {
@@ -79,6 +80,8 @@ function ElasticsearchService({ __name, constants, logger }) {
           },
         },
       });
+      logger.debug('created elasticsearch index:', index);
+      return index;
     } catch (err) {
       let message = err.message;
       if (err.stack) {

@@ -4,7 +4,7 @@ namespace: "promptstore"
 imagePullSecret:
 containerRegistry:
 
-version: "0.6.80"
+version: "0.6.91"
 
 port: "5000"
 
@@ -268,3 +268,12 @@ vecsearch:
   api_url:
 
 ########
+
+clickhouse:
+  url:
+  database:
+  username:
+  password:
+
+neo4j:
+  auth:

@@ -87,14 +87,16 @@ export function CompositionsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertComposition(composition, username) {
+  async function upsertComposition(composition, username, partial) {
     if (composition === null || typeof composition === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedComposition = await getComposition(composition.id);
     if (savedComposition) {
-      composition = { ...savedComposition, ...composition };
+      if (partial) {
+        composition = { ...savedComposition, ...composition };
+      }
       const val = omit(composition, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

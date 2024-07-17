@@ -65,18 +65,6 @@ export const getTraceAsync = (id) => async (dispatch, getState) => {
   dispatch(setTraces({ traces }));
 };
 
-export const createTraceAsync = ({ values }) => async (dispatch) => {
-  const url = '/api/traces';
-  const res = await http.post(url, values);
-  dispatch(setTraces({ traces: [res.data] }));
-};
-
-export const updateTraceAsync = ({ id, values }) => async (dispatch) => {
-  const url = `/api/traces/${id}`;
-  const res = await http.put(url, values);
-  dispatch(setTraces({ traces: [res.data] }));
-};
-
 export const deleteTracesAsync = ({ ids }) => async (dispatch) => {
   const url = `/api/traces?ids=${ids.join(',')}`;
   await http.delete(url);

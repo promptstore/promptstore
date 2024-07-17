@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Card, Descriptions, Layout, Statistic, Table, Typography } from 'antd';
 import {
   CheckOutlined,
@@ -36,11 +36,6 @@ import {
 dayjs.extend(customParseFormat);
 
 const { Content, Sider } = Layout;
-
-const layout = {
-  labelCol: { span: 4 },
-  wrapperCol: { span: 20 },
-};
 
 const criteriaOptions = [
   {
@@ -101,7 +96,6 @@ export function EvaluationRuns() {
 
   const dispatch = useDispatch();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const id = location.pathname.match(/\/evaluation-runs\/(.*)/)[1];
   const evaluation = evaluations[id];
@@ -232,7 +226,7 @@ export function EvaluationRuns() {
           ellipsis={{ expandable: true, rows: 2 }}
           style={{ whiteSpace: 'pre-wrap' }}
         >
-          {decodeEntities(convertContentTypeToString(prompt.messages[0].content).trim())}
+          {decodeEntities(convertContentTypeToString(prompt.messages?.[0].content).trim())}
         </Typography.Paragraph>
       ),
     },

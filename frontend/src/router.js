@@ -13,6 +13,9 @@ import Login from './components/accounts/Login';
 import Profile from './components/accounts/Profile';
 import OAuth2Popup from './features/Login/OAuth2Popup';
 import { About } from './features/about/About';
+import { AdminFunctions } from './features/adminFunctions/AdminFunctions';
+import { AgentNetwork } from './features/agentNetworks/AgentNetwork';
+import { AgentNetworksList } from './features/agentNetworks/AgentNetworksList';
 import { Agents } from './features/agents/Agents';
 import { Analyst } from './features/apps/Analyst';
 import { AppChat } from './features/apps/AppChat';
@@ -36,6 +39,7 @@ import { FunctionForm } from './features/functions/FunctionForm';
 import { FunctionView } from './features/functions/FunctionView';
 import { FunctionsList } from './features/functions/FunctionsList';
 import { Home } from './features/home/Home';
+import { ImageGen } from './features/imagegen/ImageGen';
 import { IndexForm } from './features/indexes/IndexForm';
 import { IndexesList } from './features/indexes/IndexesList';
 import { MirrorsList } from './features/mirrors/MirrorsList';
@@ -50,7 +54,11 @@ import { PromptSetsList } from './features/promptSets/PromptSetsList';
 import { PromptSetForm } from './features/promptSets/PromptSetForm';
 import { PromptSetView } from './features/promptSets/PromptSetView';
 import { RagTester } from './features/ragtester/RagTester';
+import { RulesList } from './features/rules/RulesList';
+import { RuleForm } from './features/rules/RuleForm';
 import { Secrets } from './features/secrets/Secrets';
+import { SettingsList } from './features/settings/SettingsList';
+import { SettingsForm } from './features/settings/SettingsForm';
 import { TracesDashboard } from './features/traces/TracesDashboard';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
@@ -99,7 +107,10 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                   <Routes>
                     <Route exact path="/profile" element={<Profile />} />
                     <Route path="/about" element={<About />} />
+                    <Route path="/agent-networks/:id" element={<AgentNetwork />} />
+                    <Route path="/agent-networks" element={<AgentNetworksList />} />
                     <Route path="/agents" element={<Agents />} />
+                    <Route path="/admin" element={<AdminFunctions />} />
                     <Route path="/apps-edit/:id" element={<AppFormNew />} />
                     <Route path="/apps/:id" element={<AppChat />} />
                     {/* <Route path="/apps/:id" element={<AppView />} /> */}
@@ -122,6 +133,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     <Route path="/functions" element={<FunctionsList />} />
                     <Route path="/graphs" element={<IndexesList />} />
                     <Route path="/home" element={<Home />} />
+                    <Route path="/imagegen" element={<ImageGen />} />
                     <Route path="/indexes/:id" element={<IndexForm />} />
                     <Route path="/indexes" element={<IndexesList />} />
                     <Route path="/mirrors/:id" element={<MirrorForm />} />
@@ -139,6 +151,10 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     <Route path="/traces" element={<TracesList />} />
                     <Route path="/traces-dash" element={<TracesDashboard />} />
                     <Route path="/datasets" element={<TrainingList />} />
+                    <Route path="/rules/:id" element={<RuleForm />} />
+                    <Route path="/rules" element={<RulesList />} />
+                    <Route path="/settings/:id" element={<SettingsForm />} />
+                    <Route path="/settings" element={<SettingsList />} />
                     <Route path="/transformations/:id" element={<TransformationForm />} />
                     <Route path="/transformations" element={<TransformationsList />} />
                     <Route path="/uploads" element={<FileUploader />} />

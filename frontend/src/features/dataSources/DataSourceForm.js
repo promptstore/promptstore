@@ -30,6 +30,7 @@ import { FeastFormFields } from './FeastFormFields';
 import { FeatureStoreFormFields } from './FeatureStoreFormFields';
 import { FolderFormFields } from './FolderFormFields';
 import { GraphStoreFormFields } from './GraphStoreFormFields';
+import { MetricStoreFormFields } from './MetricStoreFormFields';
 import { Neo4jFormFields } from './Neo4jFormFields';
 import { SQLFormFields } from './SQLFormFields';
 import { TextDocumentFormFields } from './TextDocumentFormFields';
@@ -163,6 +164,13 @@ const httpMethodOptions = [
   },
 ];
 
+const metricstoreOptions = [
+  {
+    label: 'MetricFlow',
+    value: 'metricflow',
+  },
+];
+
 const splitterOptions = [
   {
     label: 'Delimiter',
@@ -209,6 +217,10 @@ const typeOptions = [
   {
     label: 'Knowledge Graph',
     value: 'graphstore',
+  },
+  {
+    label: 'Metrics Store',
+    value: 'metricstore',
   },
   {
     label: 'SQL',
@@ -455,6 +467,13 @@ export function DataSourceForm() {
         {typeValue === 'graphstore' ?
           <GraphStoreFormFields
             graphstoreOptions={graphstoreOptions}
+          />
+          : null
+        }
+        {typeValue === 'metricstore' ?
+          <MetricStoreFormFields
+            metricstoreOptions={metricstoreOptions}
+            httpMethodOptions={httpMethodOptions}
           />
           : null
         }

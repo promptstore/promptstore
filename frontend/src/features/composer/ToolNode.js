@@ -58,6 +58,7 @@ export default memo(({ id, data, isConnectable }) => {
         </div>
         <Handle type="target" position={Position.Left} isConnectable={isConnectable} />
         <Handle type="source" position={Position.Right} id="a" isConnectable={isConnectable} />
+        <Handle type="source" position={Position.Right} id="error" isConnectable={isConnectable} />
       </div>
     </>
   );

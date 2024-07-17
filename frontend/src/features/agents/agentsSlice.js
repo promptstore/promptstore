@@ -105,6 +105,7 @@ let events;
 
 export const runAgentAsync = ({ agent, workspaceId }) => async (dispatch) => {
   dispatch(startRun());
+  dispatch(resetAgentOutput());
   const correlationId = uuidv4();
   http.post('/api/agent-executions/', { agent, correlationId, workspaceId })
     .then(() => {
@@ -140,7 +141,7 @@ const listen = (correlationId, dispatch, retries = 0) => {
     console.error('EventSource error:', err);
     events.close();
     if (retries < MAX_RETRY_COUNT) {
-      setTimeout(() => listen(dispatch, retries + 1), 1000);
+      setTimeout(() => listen(correlationId, dispatch, retries + 1), 1000);
     } else {
       // fallback to polling
       const timeout = 120000;

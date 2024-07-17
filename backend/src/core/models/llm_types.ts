@@ -5,6 +5,7 @@ import {
   ChatResponse,
   EmbeddingRequest,
   EmbeddingResponse,
+  ModelParams,
 } from '../conversions/RosettaStone';
 import {
   ParserService,
@@ -23,6 +24,8 @@ export interface LLMService {
 
   generateImageVariant?(provider: string, imageUrl: string, options: any): Promise<any>;
 
+  editImage?(provider: string, imageUrl: string, prompt: string, options: any): Promise<any>;
+
   getNumberTokens(provider: string, model: string, text: string): number;
 
   rerank(provider: string, model: string, documents: string[], query: string, topN: number): any;
@@ -36,6 +39,8 @@ export interface LLMService {
   getEmbeddingProviders(): Array<any>
 
   getRerankerProviders(): Array<any>
+
+  getImageProviders(): Array<any>
 
 }
 
@@ -52,6 +57,8 @@ export interface LLM {
   createImage(prompt: string, options: any): Promise<any>;
 
   generateImageVariant(imageUrl: string, options: any): Promise<any>;
+
+  editImage(imageUrl: string, prompt: string, options: any): Promise<any>;
 
   getNumberTokens(model: string, text: string): number;
 
@@ -91,6 +98,7 @@ export interface ModelOnStartResponse {
   modelName?: string;
   provider: string;
   request: ChatRequest;
+  modelParams?: ModelParams;
 }
 
 export interface ModelOnEndParams {
@@ -99,8 +107,11 @@ export interface ModelOnEndParams {
 }
 
 export interface ModelOnEndResponse {
+  name?: string;
   errors?: any;
+  parent?: string;
   response?: ChatResponse;
+  output?: any;
 }
 
 export type ModelOnStartCallbackFunction = (params: ModelOnStartResponse) => void;

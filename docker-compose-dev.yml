@@ -152,11 +152,23 @@ services:
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
 
   chromadb:
-    image: ghcr.io/chroma-core/chroma:latest
+    image: ghcr.io/chroma-core/chroma:0.5.4.dev9
     volumes:
       - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/chroma/chroma:/chroma/chroma/"
     ports:
       - 8001:8000
+
+  # rules_service:
+  #   build:
+  #     context: ../europarules/
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - 6000:6000
+  #   env_file:
+  #     - .rules.env
+  #   depends_on:
+  #     - postgresql
+  #       # condition: service_healthy
 
   # magic:
   #     image: mageai/mageai:latest

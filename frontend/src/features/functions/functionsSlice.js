@@ -118,10 +118,10 @@ export const deleteFunctionsAsync = ({ ids }) => async (dispatch) => {
   dispatch(removeFunctions({ ids }));
 };
 
-export const runTestAsync = ({ args, modelId, model, name, workspaceId }) => async (dispatch) => {
+export const runTestAsync = ({ args, env, modelId, model, name, workspaceId }) => async (dispatch) => {
   dispatch(startTest());
   const url = `/api/executions/${name}`;
-  const res = await http.post(url, { args, params: { modelId, model: model }, workspaceId });
+  const res = await http.post(url, { args, env, params: { modelId, model: model, maxTokens: 4096 }, workspaceId });
   const { response, responseMetadata } = res.data;
   dispatch(setTestResult({ result: response }));
   dispatch(setCredits({ credits: responseMetadata.creditBalance }));

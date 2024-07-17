@@ -100,14 +100,16 @@ export function EvaluationsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertEvaluation(evaluation, username) {
+  async function upsertEvaluation(evaluation, username, partial) {
     if (evaluation === null || typeof evaluation === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedEvaluation = await getEvaluation(evaluation.id);
     if (savedEvaluation) {
-      const evaluation = { ...savedEvaluation, ...evaluation };
+      if (partial) {
+        evaluation = { ...savedEvaluation, ...evaluation };
+      }
       const val = omit(evaluation, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`

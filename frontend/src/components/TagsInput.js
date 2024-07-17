@@ -9,8 +9,8 @@ import {
 import { PlusOutlined } from '@ant-design/icons';
 
 const tagInputStyle = {
+  marginRight: 8,
   width: 78,
-  verticalAlign: 'top',
 };
 
 const tagPlusStyle = {
@@ -158,6 +158,7 @@ export function TagsInput({ existingTags = [], onChange, value }) {
           value={inputValue}
           onChange={(value) => handleAutocompleteChange(value)}
           onBlur={() => handleInputConfirm()}
+          style={{ height: 24 }}
         >
           <Input
             ref={inputRef}

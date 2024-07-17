@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, Card, List, Progress, Space, Typography } from 'antd';
+import { Button, Card, List, Progress, Space, Statistic, Typography } from 'antd';
 import { AlertOutlined } from '@ant-design/icons';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
@@ -25,6 +25,12 @@ import {
   selectWorkspaces,
 } from '../workspaces/workspacesSlice';
 
+import {
+  getStatisticsAsync,
+  selectLoading as selectStatisticsLoading,
+  selectStatistics,
+} from './statisticsSlice';
+
 const { Text, Title } = Typography;
 
 export function Home() {
@@ -35,8 +41,12 @@ export function Home() {
   const appsLoading = useSelector(selectAppsLoading);
   const contents = useSelector(selectContents);
   const contentsLoading = useSelector(selectContentsLoading);
+  const statistics = useSelector(selectStatistics);
+  const statisticsLoading = useSelector(selectStatisticsLoading);
   const workspaces = useSelector(selectWorkspaces);
   const workspacesLoading = useSelector(selectWorkspacesLoading);
+
+  // console.log('statistics:', statistics);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { currentUser } = useContext(UserContext);
@@ -74,19 +84,21 @@ export function Home() {
     }));
   }, []);
 
-  useEffect(() => {
-    if (currentUser) {
-      // dispatch(getContentsForReviewAsync({ userId: currentUser.username }));
-      // dispatch(getContentsByFilterAsync({
-      //   // status: 'deployed',
-      //   username: currentUser.username,
-      // }));
-    }
-  }, [currentUser]);
+  // useEffect(() => {
+  //   if (currentUser) {
+  //     // dispatch(getContentsForReviewAsync({ userId: currentUser.username }));
+  //     // dispatch(getContentsByFilterAsync({
+  //     //   // status: 'deployed',
+  //     //   username: currentUser.username,
+  //     // }));
+  //   }
+  // }, [currentUser]);
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getAppsAsync({ workspaceId: selectedWorkspace.id }));
+      const workspaceId = selectedWorkspace.id;
+      dispatch(getAppsAsync({ workspaceId }));
+      dispatch(getStatisticsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
 
@@ -109,69 +121,84 @@ export function Home() {
         Prompt Store
       </Title>
       <div style={{ marginTop: 40 }}>
-        <Space align="start" size="large" wrap={true}>
-          <Card loading={workspacesLoading} title="My Workspaces" style={{ minHeight: 271, width: 350 }}>
-            <List
-              dataSource={workspacesData}
-              renderItem={(item) => (
-                <List.Item key={item.key}>
-                  <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
-                </List.Item>
-              )}
-            />
-          </Card>
-          <Card loading={appsLoading} title="My Apps" style={{ minHeight: 271, width: 350 }}>
-            <List
-              dataSource={appsData}
-              renderItem={(item) => (
-                <List.Item key={item.key}>
-                  <Link to={`/apps/${item.key}`}>{item.title}</Link>
-                </List.Item>
-              )}
-            />
-          </Card>
-          <Card loading={contentsLoading} title="Recent Activity" style={{ minHeight: 271, width: 600 }}>
-            <List
-              dataSource={contentsData}
-              renderItem={(item, i) => (
-                <List.Item key={item.key}>
-                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                    <div style={{ alignItems: 'center', display: 'flex', width: '100%' }}>
-                      <div style={{ flex: 1, width: '100%' }}>
-                        <Text style={{ fontSize: '1em', fontStyle: 'italic' }}>
-                          {item.title}
-                          {copied[item.key] &&
-                            <span
-                              style={{ color: '#888', fontSize: '0.85em', marginLeft: 8 }}
-                            >
-                              Copied!
-                            </span>
-                          }
-                        </Text>
-                      </div>
-                      <div style={{ marginLeft: 8, width: 12 }}>
-                        <CopyToClipboard
-                          text={item.title}
-                          onCopy={() => onCopy(item.key)}
-                        >
-                          <button
-                            style={{ background: 'none', border: 'none', color: '#888', fontSize: '0.85em' }}
-                            title="Copy to clipboard"
+        <Space direction="vertical" size="large">
+          <Space align="start" size="large" wrap={true}>
+            {Object.entries(statistics).map(([key, stat]) =>
+              <Card bordered={false} key={key}>
+                <Statistic
+                  formatter={(value) => <Link to={`/${key}`}>{value}</Link>}
+                  loading={statisticsLoading}
+                  style={{ width: 170 }}
+                  title={stat.title}
+                  value={stat.value}
+                />
+              </Card>
+            )}
+          </Space>
+          <Space align="start" size="large" wrap={true}>
+            <Card loading={workspacesLoading} title="My Workspaces" style={{ minHeight: 271, width: 350 }}>
+              <List
+                dataSource={workspacesData}
+                renderItem={(item) => (
+                  <List.Item key={item.key}>
+                    <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
+                  </List.Item>
+                )}
+              />
+            </Card>
+            <Card loading={appsLoading} title="My Apps" style={{ minHeight: 271, width: 350 }}>
+              <List
+                dataSource={appsData}
+                renderItem={(item) => (
+                  <List.Item key={item.key}>
+                    <Link to={`/apps/${item.key}`}>{item.title}</Link>
+                  </List.Item>
+                )}
+              />
+            </Card>
+            <Card loading={contentsLoading} title="Recent Activity" style={{ minHeight: 271, width: 600 }}>
+              <List
+                dataSource={contentsData}
+                renderItem={(item, i) => (
+                  <List.Item key={item.key}>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                      <div style={{ alignItems: 'center', display: 'flex', width: '100%' }}>
+                        <div style={{ flex: 1, width: '100%' }}>
+                          <Text style={{ fontSize: '1em', fontStyle: 'italic' }}>
+                            {item.title}
+                            {copied[item.key] &&
+                              <span
+                                style={{ color: '#888', fontSize: '0.85em', marginLeft: 8 }}
+                              >
+                                Copied!
+                              </span>
+                            }
+                          </Text>
+                        </div>
+                        <div style={{ marginLeft: 8, width: 12 }}>
+                          <CopyToClipboard
+                            text={item.title}
+                            onCopy={() => onCopy(item.key)}
                           >
-                            <i className="icon-copy" />
-                          </button>
-                        </CopyToClipboard>
+                            <button
+                              style={{ background: 'none', border: 'none', color: '#888', fontSize: '0.85em' }}
+                              title="Copy to clipboard"
+                            >
+                              <i className="icon-copy" />
+                            </button>
+                          </CopyToClipboard>
+                        </div>
                       </div>
+                      <Progress
+                        percent={getPercent(i)}
+                        style={{ fontSize: '0.85em', marginTop: 8, width: '100%' }}
+                      />
                     </div>
-                    <Progress
-                      percent={getPercent(i)}
-                      style={{ fontSize: '0.85em', marginTop: 8, width: '100%' }}
-                    />
-                  </div>
-                </List.Item>
-              )}
-            />
-          </Card>
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </Space>
         </Space>
       </div>
     </div>

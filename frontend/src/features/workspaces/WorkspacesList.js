@@ -77,6 +77,12 @@ export function WorkspacesList() {
   const onDelete = () => {
     dispatch(deleteWorkspacesAsync({ ids: selectedRowKeys }));
     setSelectedRowKeys([]);
+    if (selectedRowKeys.includes(selectedWorkspace.id)) {
+      setSelectedWorkspace(null);
+      setTimeout(() => {
+        window.location.reload();
+      }, 20);
+    }
   };
 
   const onSelectChange = (newSelectedRowKeys) => {

@@ -39,14 +39,6 @@ function MistralLLM({ __name, constants, logger }) {
     return createChatCompletion(request);
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
-  }
-
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
-  }
-
   function getNumberTokens(model, text) {
     throw new Error('Not implemented');
   }
@@ -56,8 +48,6 @@ function MistralLLM({ __name, constants, logger }) {
     createChatCompletion,
     createCompletion,
     createEmbedding,
-    createImage,
-    generateImageVariant,
     getNumberTokens,
   };
 

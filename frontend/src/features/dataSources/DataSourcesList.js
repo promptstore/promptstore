@@ -54,7 +54,7 @@ export function DataSourcesList() {
       key: ds.id,
       name: ds.name,
       type: ds.type,
-      instance: ds.featurestore || ds.documentType || ds.dialect || ds.graphstore,
+      instance: ds.featurestore || ds.documentType || ds.dialect || ds.graphstore || ds.metricstore,
       documentId: ds.documentId,
       documents: ds.documents,
       baseUrl: ds.baseUrl,
@@ -403,7 +403,9 @@ export function DataSourcesList() {
         open={isPreviewModalOpen}
         title="Content Preview"
         width={'75%'}
-        bodyStyle={{ height: 500, overflowY: 'auto' }}
+        styles={{
+          body: { height: 500, overflowY: 'auto' },
+        }}
         onCancel={onPreviewCancel}
         onOk={onPreviewCancel}
       >

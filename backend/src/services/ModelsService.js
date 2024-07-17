@@ -15,6 +15,23 @@ export function ModelsService({ pg, logger }) {
     };
   }
 
+  async function getModelsCount(workspaceId) {
+    if (workspaceId === null || typeof workspaceId === 'undefined') {
+      return -1;
+    }
+    let q = `
+      SELECT COUNT(id) AS k
+      FROM models
+      WHERE workspace_id = $1 OR workspace_id = 1
+      OR (val->>'isPublic')::boolean = true
+      `;
+    const { rows } = await pg.query(q, [workspaceId]);
+    if (rows.length === 0) {
+      return 0;
+    }
+    return rows[0].k;
+  }
+
   async function getModels(workspaceId) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
@@ -128,14 +145,16 @@ export function ModelsService({ pg, logger }) {
     return mapRow(rows[0]);
   }
 
-  async function upsertModel(model, username) {
+  async function upsertModel(model, username, partial) {
     if (model === null || typeof model === 'undefined') {
       return null;
     }
     const omittedFields = ['id', 'workspaceId', 'name', 'created', 'createdBy', 'modified', 'modifiedBy'];
     const savedModel = await getModel(model.id);
     if (savedModel) {
-      model = { ...savedModel, ...model };
+      if (partial) {
+        model = { ...savedModel, ...model };
+      }
       const val = omit(model, omittedFields);
       const modified = new Date();
       const { rows } = await pg.query(`
@@ -175,6 +194,7 @@ export function ModelsService({ pg, logger }) {
   }
 
   return {
+    getModelsCount,
     getModels,
     getModelsByName,
     getModelsByType,

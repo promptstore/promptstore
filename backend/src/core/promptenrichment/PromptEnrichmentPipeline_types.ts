@@ -104,6 +104,47 @@ export interface FeatureStoreEnrichmentParams {
   callbacks?: Callback[];
 }
 
+export interface MetricStoreParams {
+  environmentId: string;
+  httpMethod: string;
+  url: string;
+}
+
+interface MetricStore {
+  name: string;
+  params: MetricStoreParams;
+}
+
+export interface OnMetricStoreEnrichmentEndParams {
+  enrichedArgs?: any;
+  errors?: any;
+}
+
+export interface MetricStoreEnrichmentOnStartResponse {
+  metricStore: MetricStore;
+  args: any;
+  isBatch: boolean;
+}
+
+export interface MetricStoreEnrichmentOnEndResponse {
+  metricStore: MetricStore;
+  enrichedArgs?: any;
+  errors?: any;
+}
+
+export type MetricStoreEnrichmentOnStartCallbackFunction = (params: MetricStoreEnrichmentOnStartResponse) => void;
+
+export type MetricStoreEnrichmentOnEndCallbackFunction = (params: MetricStoreEnrichmentOnEndResponse) => void;
+
+export type MetricStoreEnrichmentOnErrorCallbackFunction = (errors: any) => void;
+
+export interface MetricStoreEnrichmentParams {
+  metricStoreService: any;
+  metricstore: string;
+  metricStoreParams: MetricStoreParams;
+  callbacks?: Callback[];
+}
+
 export interface IndexParams {
   nodeLabel: string;
   indexContentPropertyPath: string;
@@ -257,4 +298,14 @@ export interface GraphEnrichmentParams {
   graphSourceInfo: any;
   graphStoreService: GraphStoreService;
   callbacks?: Callback[];
+}
+
+export interface Snippet {
+  id: string;
+  key: string;
+  content: string;
+  created: string;
+  createdBy: string;
+  modified?: string;
+  modifiedBy?: string;
 }

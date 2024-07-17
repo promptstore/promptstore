@@ -111,7 +111,10 @@ export default memo(({ id, data, isConnectable }) => {
         <div style={{ display: 'flex' }}>
           {data.label}
           <div style={{ flex: 1 }}></div>
-          <Link onClick={() => viewHits(data.vectorStoreProvider, data.indexName, data.hits)}>Hits</Link>
+          {data.hits?.length ?
+            <Link onClick={() => viewHits(data.vectorStoreProvider, data.indexName, data.hits)}>Hits</Link>
+            : null
+          }
         </div>
       </div>
       <div className="custom-node__body">

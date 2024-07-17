@@ -262,6 +262,7 @@ export default ({ app, auth, constants, logger, services }) => {
     let values = req.body;
     let app = await appsService.upsertApp(values, username);
     if (values.allowUpload) {
+      // app must first be created
       const dataSource = await createDataSource(app, username);
       values = { ...app, dataSourceId: dataSource.id };
       app = await appsService.upsertApp(values, username);

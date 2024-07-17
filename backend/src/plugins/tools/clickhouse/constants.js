@@ -1,0 +1,7 @@
+export default {
+  CLICKHOUSE_DESCRIPTION: 'Execute or run a SQL query on a live database',
+  CLICKHOUSE_URL: process.env.CLICKHOUSE_URL,
+  CLICKHOUSE_DATABASE: process.env.CLICKHOUSE_DATABASE,
+  CLICKHOUSE_USERNAME: process.env.CLICKHOUSE_USERNAME,
+  CLICKHOUSE_PASSWORD: process.env.CLICKHOUSE_PASSWORD,
+}

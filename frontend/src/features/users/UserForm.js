@@ -54,7 +54,7 @@ export function UserForm() {
   };
 
   const onFinish = (values) => {
-    console.log('values:', values);
+    // console.log('values:', values);
     values.credits = +(values.credits || 0);
     if (isNaN(values.credits)) {
       values.credits = DEFAULT_CREDITS;

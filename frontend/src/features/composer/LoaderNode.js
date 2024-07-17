@@ -108,14 +108,17 @@ const ObjectStorageFields = () => {
         <Input />
       </Form.Item>
       <Form.Item
-        label="Recursive"
-        name="recursive"
-        valuePropName="checked"
         labelCol={{ span: 0 }}
-        colon={false}
-        style={{ display: 'inline-block', marginLeft: 8 }}
       >
-        <Switch />
+        <Form.Item
+          colon={false}
+          label="Recursive"
+          name="recursive"
+          style={{ display: 'inline-block' }}
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
       </Form.Item>
     </>
   );

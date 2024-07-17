@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { http } from '../../http';
 import { setCompositions } from '../composer/compositionsSlice';
+import { setImages } from '../imagegen/imagesSlice';
 import { setMessages } from '../designer/chatSlice';
 import { setFunctions } from '../functions/functionsSlice';
 import { setModels } from '../models/modelsSlice';
@@ -119,7 +120,7 @@ export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, 
             content: [
               {
                 type: 'image_url',
-                objectName: res.data.name,
+                objectName: res.data.objectName,
                 image_url: {
                   url: res.data.imageUrl,
                 },
@@ -127,6 +128,7 @@ export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, 
             ],
           }]
         }));
+        dispatch(setImages({ images: [res.data] }));
       } else {
         const { uploads } = getState().fileUploader;
         dispatch(setUploads({
@@ -148,6 +150,22 @@ export const fileUploadAsync = (workspaceId, file, isImage) => async (dispatch, 
       }
     }
   }, 5000);
+};
+
+export const duplicateObjectAsync = ({ correlationId, obj, type, workspaceId }) => async (dispatch) => {
+  dispatch(startUpload());
+  const res = await http.post('/api/object-duplicates', { obj, type, workspaceId });
+  const newObj = { ...res.data, correlationId };
+  if (type === 'promptSet') {
+    dispatch(setPromptSets({ promptSets: [newObj] }));
+  } else if (type === 'function') {
+    dispatch(setFunctions({ functions: [newObj] }));
+  } else if (type === 'model') {
+    dispatch(setModels({ models: [newObj] }));
+  } else if (type === 'composition') {
+    dispatch(setCompositions({ compositions: [newObj] }));
+  }
+  dispatch(uploaded());
 };
 
 export const objectUploadAsync = ({ file, type, workspaceId }) => async (dispatch) => {

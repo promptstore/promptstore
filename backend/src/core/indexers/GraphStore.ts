@@ -20,15 +20,20 @@ export interface Relationship {
 }
 
 export interface Graph {
+  indexName?: string;
   nodes: Node[];
   relationships?: Relationship[];
+}
+
+interface GraphSchema {
+  nodes: any[];
+  edges: any[];
 }
 
 export interface AddChunksParams {
   workspaceId: number;
   username: string;
-  allowedNodes: string[];
-  allowedRels: string[];
+  graphSchema: GraphSchema;
 }
 
 export interface GraphStoreServicesParams {
@@ -43,6 +48,8 @@ export interface GraphStoreService {
   addGraph(graphstore: string, indexName: string, graph: Graph): void;
 
   dropData(graphstore: string, indexName: string): void;
+
+  getGraph(graphstore: string, indexName: string): Promise<Graph>;
 
   getSchema(graphstore: string, params?: Partial<SchemaParams>): Promise<Schema>;
 
@@ -72,6 +79,10 @@ export abstract class GraphStore {
 
       dropData(indexName: string) {
         return this.graphStoreService.dropData(graphstore, indexName);
+      }
+
+      getGraph(indexName: string) {
+        return this.graphStoreService.getGraph(graphstore, indexName);
       }
 
       getSchema(params: Partial<Neo4jSchemaParams>) {
@@ -105,8 +116,7 @@ export abstract class GraphStore {
     const {
       workspaceId,
       username,
-      allowedNodes,
-      allowedRels,
+      graphSchema,
     } = params;
     const { response, errors } = await this.executionsService.executeFunction({
       workspaceId,
@@ -114,8 +124,8 @@ export abstract class GraphStore {
       semanticFunctionName: 'extract_graph',
       args: {
         content: chunk.text,
-        allowedNodes,
-        allowedRels,
+        allowedNodes: graphSchema?.nodes,
+        allowedRels: graphSchema?.edges,
       },
       params: {
         maxTokens: 4096,
@@ -135,6 +145,8 @@ export abstract class GraphStore {
   abstract addGraph(indexName: string, graph: Graph): void;
 
   abstract dropData(indexName: string): void;
+
+  abstract getGraph(indexName: string): Promise<Graph>;
 
   abstract getSchema(params?: Partial<SchemaParams>): Promise<Schema>;
 

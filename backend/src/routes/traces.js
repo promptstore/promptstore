@@ -1,8 +1,13 @@
 import { default as dayjs } from 'dayjs';
+import uuid from 'uuid';
+
+import { TracingCallback } from '../core/callbacks/TracingCallback';
 
 export default ({ app, auth, logger, services }) => {
 
   const { tracesService } = services;
+
+  const traces = {};
 
   app.get('/api/workspaces/:workspaceId/traces', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
@@ -106,9 +111,83 @@ export default ({ app, auth, logger, services }) => {
 
   app.post('/api/traces', auth, async (req, res, next) => {
     const { username } = req.user;
-    const values = req.body;
-    const trace = await tracesService.upsertTrace(values, username);
-    res.json(trace);
+    let { event, id, userId, workspaceId } = req.body;
+    id ||= uuid.v4();
+    const { type } = event;
+    logger.debug('type:', type, id);
+    userId ||= username;
+    const callback = traces[id];
+    if (type === 'trace') {
+      logger.debug('Create TracingCallback');
+      const callback = new TracingCallback({
+        tracesService,
+        username,
+        workspaceId: +workspaceId,
+        debug: true,
+      });
+      traces[id] = callback;
+    } else if (type === 'agent-start') {
+      const {
+        args,
+        extra_function_call_params,
+        model,
+        llm_params,
+        tools,
+      } = event;
+      const name = event.name || event.type + ' - ' + new Date().toISOString();
+      callback.onAgentStart({
+        allowedTools: tools,
+        args,
+        extraFunctionCallParams: extra_function_call_params,
+        model,
+        modelParams: llm_params,
+        name,
+      });
+    } else if (type === 'agent-end') {
+      const { response } = event;
+      callback.onAgentEnd({
+        response,
+      });
+    } else if (type === 'prompt-template-start') {
+      const { args, message_templates, prompt_set_name, prompt_set_version } = event;
+      callback.onPromptTemplateStart({
+        args,
+        messageTemplates: message_templates,
+        promptSetName: prompt_set_name,
+        promptSetVersion: prompt_set_version,
+      });
+    } else if (type === 'prompt-template-end') {
+      const { messages } = event;
+      callback.onPromptTemplateEnd({
+        messages,
+      });
+    } else if (type === 'model-start') {
+      const { llm_params, provider, request } = event;
+      callback.onModelStart({
+        modelParams: llm_params,
+        provider,
+        request,
+      });
+    } else if (type === 'model-end') {
+      const { response, output } = event;
+      callback.onModelEnd({
+        response,
+        output,
+      });
+    } else if (type === 'tool-start') {
+      const { call } = event;
+      callback.onFunctionCallStart({
+        name: call.name,
+        args: call.arguments,
+      });
+    } else if (type === 'tool-end') {
+      const { response, output } = event;
+      callback.onFunctionCallEnd({
+        response,
+        output,
+      });
+    }
+    res.json(id);
   });
 
   app.put('/api/traces/:id', auth, async (req, res, next) => {

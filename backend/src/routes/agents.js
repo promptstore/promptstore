@@ -5,11 +5,16 @@ import { AgentEventEmitterCallback } from '../agents/AgentEventEmitterCallback';
 import { AgentTracingCallback } from '../agents/AgentTracingCallback';
 import searchFunctions from '../searchFunctions';
 
-export default ({ agents, app, auth, constants, logger, services }) => {
+export default ({ app, auth, constants, logger, services }) => {
 
   const OBJECT_TYPE = 'agents';
 
-  const { agentsService, functionsService, toolService, tracesService } = services;
+  const {
+    agentsService,
+    executionsService,
+    toolService,
+    tracesService,
+  } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -299,64 +304,20 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     events = [];
 
     const { correlationId } = req.body;
-    let {
-      agentType,
-      allowedTools,
+    const {
+      id: agentId,
       goal,
-      indexName,
-      isChat,
-      model,
-      name,
-      provider,
-      selfEvaluate,
-      useFunctions,
-      functionId,
     } = req.body.agent;
     const workspaceId = req.body.workspaceId;
     const { email, username } = (req.user || {});
-    model = model || 'gpt-3.5-turbo-0613';
-    const modelParams = { max_tokens: 1024 };
+
     const emitter = new EventEmitter();
     const callbacks = [
-      new AgentTracingCallback({ workspaceId, username, tracesService }),
-      new AgentDebugCallback({ workspaceId, username }),
+      // new AgentTracingCallback({ workspaceId, username, tracesService }),
+      // new AgentDebugCallback({ workspaceId, username }),
       new AgentEventEmitterCallback({ workspaceId, username, emitter }),
     ];
-    let semanticFunction;
-    if (allowedTools?.includes('semanticFunction') && functionId) {
-      semanticFunction = await functionsService.getFunction(functionId);
-    }
-    const options = {
-      name,
-      isChat,
-      model,
-      modelParams,
-      provider,
-      workspaceId,
-      username,
-      callbacks,
-      useFunctions,
-      semanticFunction,
-    };
-    let agent;
-    if (agentType === 'plan') {
-      agent = new agents.PlanAndExecuteAgent(options);
-    } else if (agentType === 'openai') {
-      agent = new agents.OpenAIAssistantAgent(options);
-    } else if (agentType === 'react') {
-      agent = new agents.MKRLAgent(options);
-    } else {
-      const errors = [
-        {
-          message: 'Unsupported agent type: ' + agentType,
-        },
-      ];
-      return res.status(400).json({ errors });
-    }
-    const extraFunctionCallParams = {
-      email: process.env.EMAIL_OVERRIDE || email,
-      indexName,
-    };
+
     let done = false;
     events = [];
     emitter.on('event', (data) => {
@@ -366,7 +327,12 @@ export default ({ agents, app, auth, constants, logger, services }) => {
       addEvent(data);
       done = true;
     });
-    await agent.run({ goal, allowedTools, extraFunctionCallParams, selfEvaluate });
+    logger.debug('goal:', goal);
+
+    // TODO add callbacks
+    const args = { email, goal };
+    await executionsService.executeAgent({ agentId, args, callbacks, workspaceId, username });
+
     if (correlationId) {
       jobs[correlationId] = events;
     }
@@ -375,21 +341,6 @@ export default ({ agents, app, auth, constants, logger, services }) => {
     setTimeout(() => {
       delete jobs[correlationId];
     }, 10 * 60 * 1000);
-
-
-    // TODO the following may not be necessary if it is the client that
-    // is closing the connection early.
-    // UPDATE it was the client
-    /*
-    const waitUntilDone = (retryCount = 0) => new Promise((resolve) => {
-      if (done || retryCount > 10) {
-        return resolve();
-      }
-      setTimeout(waitUntilDone, 1000, retryCount + 1);
-    });
-
-    await waitUntilDone();
-    ** *******************/
 
     res.json({ status: 'OK' });
   });
