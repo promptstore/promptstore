@@ -8,7 +8,7 @@ import { formatTextAsJson, getInput, hashStr } from '../utils.js';
 
 import CoreModelAdapter from './CoreModelAdapter.ts';
 
-export function ExecutionsService({ logger, rc, services }) {
+export function ExecutionsService({ constants, logger, mc, rc, services }) {
 
   let _agents;
   let _services = services;
@@ -55,7 +55,9 @@ export function ExecutionsService({ logger, rc, services }) {
     if (!_adapter) {
       _adapter = CoreModelAdapter({
         agents: _agents,
+        constants,
         logger,
+        mc,
         rc,
         services: {
           agentsService,

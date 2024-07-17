@@ -26,6 +26,7 @@ import {
   transformerNode,
   vectorStoreNode,
 } from '../core/compositions/Composition';
+import { ContentType } from '../core/conversions/RosettaStone';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
 import { CompletionService } from '../core/models/llm_types';
 import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
@@ -64,7 +65,7 @@ const FACT_EXTRACTION_FUNCTION = 'extract_facts';
 const QUERY_REWRITE_FUNCTION = 'rewrite_query';
 const SUMMARIZE_FUNCTION = 'summarize';
 
-export default ({ agents, logger, rc, services }) => {
+export default ({ agents, constants, logger, mc, rc, services }) => {
 
   const {
     agentsService,
@@ -90,13 +91,51 @@ export default ({ agents, logger, rc, services }) => {
     vectorStoreService,
   } = services;
 
-  function createPromptTemplate(promptTemplateInfo: any, snippets: object, callbacks: Callback[]) {
-    const messages = promptTemplateInfo.prompts
-      .map((p: { role: string; prompt: string; }) => ({
+  const getPresignedUrl = (objectName: string) => {
+    return new Promise((resolve, reject) => {
+      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err: any, presignedUrl: string) => {
+        if (err) {
+          logger.error('Error getting presigned url:', err);
+          return reject(err);
+        }
+        logger.debug('presigned url:', presignedUrl);
+        let imageUrl: string;
+        if (constants.ENV === 'dev') {
+          const u = new URL(presignedUrl);
+          imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+        } else {
+          imageUrl = presignedUrl;
+        }
+        resolve(imageUrl);
+      });
+    });
+  };
+
+  async function createPromptTemplate(promptTemplateInfo: any, snippets: object, callbacks: Callback[]) {
+    const rawMessages = [];
+    let p: { role: string; prompt: string; };
+    for (p of promptTemplateInfo.prompts) {
+      let content: ContentType;
+      if (Array.isArray(p.prompt)) {
+        content = [];
+        for (const c of p.prompt) {
+          if (c.type === 'image_url') {
+            const url = await getPresignedUrl(c.objectName);
+            content.push({ ...c, image_url: { url } });
+          } else {
+            content.push(c);
+          }
+        }
+      } else {
+        content = p.prompt;
+      }
+      rawMessages.push({
         role: p.role,
-        content: p.prompt,
-      }))
-      .map(message);
+        content,
+      });
+    }
+    const messages = rawMessages.map(message);
+
     return promptTemplate({
       promptSetId: promptTemplateInfo.id,
       promptSetName: promptTemplateInfo.name,
@@ -366,7 +405,7 @@ export default ({ agents, logger, rc, services }) => {
         return a;
       }, {});
     }
-    const promptTemplate = createPromptTemplate(promptTemplateInfo, snippets, callbacks);
+    const promptTemplate = await createPromptTemplate(promptTemplateInfo, snippets, callbacks);
     return promptEnrichmentPipeline({ callbacks })(steps, promptTemplate);
   }
 

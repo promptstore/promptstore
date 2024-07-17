@@ -37,6 +37,26 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     vectorStoreService,
   } = services;
 
+  const getPresignedUrl = (objectName) => {
+    return new Promise((resolve, reject) => {
+      mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+        if (err) {
+          logger.error('Error getting presigned url:', err);
+          return reject(err);
+        }
+        logger.debug('presigned url:', presignedUrl);
+        let imageUrl;
+        if (constants.ENV === 'dev') {
+          const u = new URL(presignedUrl);
+          imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+        } else {
+          imageUrl = presignedUrl;
+        }
+        resolve(imageUrl);
+      });
+    });
+  };
+
   /*
   app.post('/api/completion', auth, async (req, res, next) => {
     const { username } = req.user;
@@ -356,15 +376,31 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       const ps = pss[0];
       if (ps && ps.prompts) {
         const engine = ps.templateEngine || 'es6';
-        messages = ps.prompts.map(p => {
+        for (const p of ps.prompts) {
           if (typeof p.prompt === 'string') {
-            return {
+            messages.push({
               role: p.role,
               content: fillTemplate(p.prompt, args || {}, engine),
-            };
+            });
+          } else {
+            let content;
+            if (Array.isArray(p.prompt)) {
+              content = [];
+              for (const c of p.prompt) {
+                if (c.type === 'image_url') {
+                  const url = await getPresignedUrl(c.objectName);
+                  content.push({ ...c, image_url: { url } });
+                } else {
+                  content.push(c);
+                }
+              }
+            } else {
+              content = p.prompt;
+            }
+
+            messages.push({ role: p.role, content });
           }
-          return { role: p.role, content: p.prompt };
-        });
+        }
       } else {
         console.error(`prompt set with skill (${promptSetSkill}) not found or has no prompts`);
       }

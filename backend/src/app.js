@@ -383,7 +383,13 @@ const auth = VerifyToken;
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
 const executionsService = ExecutionsService({
+  constants: {
+    BASE_URL,
+    ENV,
+    FILE_BUCKET,
+  },
   logger,
+  mc,
   rc,
   services: {
     agentNetworksService,

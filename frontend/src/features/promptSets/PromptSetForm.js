@@ -562,7 +562,7 @@ export function PromptSetForm() {
       dispatch(updatePromptSetAsync({ id, values }));
     }
     updateExistingTags(values.tags || []);
-    // setBackOnSave(true);
+    setBackOnSave(true);
   };
 
   const cleanVersion = (ver) => ({ ...ver, id: ver.id || uuidv4() });

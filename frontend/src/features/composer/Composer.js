@@ -318,7 +318,7 @@ export function Composer() {
         },
       }));
     }
-    // navigate('/compositions');
+    navigate('/compositions');
   };
 
   const getId = () => uuidv4();
