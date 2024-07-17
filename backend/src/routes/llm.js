@@ -1036,21 +1036,25 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           return reject(err);
         }
         logger.info('File uploaded successfully.');
-        mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
-          if (err) {
-            logger.error('Error getting presigned url:', err);
-            return reject(err);
-          }
-          logger.debug('presigned url:', presignedUrl);
-          let imageUrl;
-          if (constants.ENV === 'dev') {
-            const u = new URL(presignedUrl);
-            imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
-          } else {
-            imageUrl = presignedUrl;
-          }
-          resolve({ imageUrl, objectName });
+        resolve({
+          imageUrl: constants.BASE_URL + '/api/proxy/images/' + objectName,
+          objectName,
         });
+        // mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+        //   if (err) {
+        //     logger.error('Error getting presigned url:', err);
+        //     return reject(err);
+        //   }
+        //   logger.debug('presigned url:', presignedUrl);
+        //   let imageUrl;
+        //   if (constants.ENV === 'dev') {
+        //     const u = new URL(presignedUrl);
+        //     imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+        //   } else {
+        //     imageUrl = presignedUrl;
+        //   }
+        //   resolve({ imageUrl, objectName });
+        // });
       });
     });
   };
