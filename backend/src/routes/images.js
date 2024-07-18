@@ -729,7 +729,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.get('/api/proxy/images/*', async (req, res) => {
-    const objectName = req.originalUrl.slice('/api/proxy/images'.length);
+    const objectName = decodeURI(req.originalUrl.slice('/api/proxy/images/'.length));
     logger.debug('objectName:', objectName);
     mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
       if (err) {
@@ -737,17 +737,22 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         return res.sendStatus(500);
       }
       logger.debug('presignedUrl:', presignedUrl);
-      const resp = await axios.get(presignedUrl, {
-        responseType: 'stream',
-      });
-      for (const key in resp.headers) {
-        if (resp.headers.hasOwnProperty(key)) {
-          const element = resp.headers[key];
-          res.header(key, element);
+      try {
+        const resp = await axios.get(presignedUrl, {
+          responseType: 'stream',
+        });
+        for (const key in resp.headers) {
+          if (resp.headers.hasOwnProperty(key)) {
+            const element = resp.headers[key];
+            res.header(key, element);
+          }
         }
+        res.status(resp.status);
+        resp.data.pipe(res);
+      } catch (err) {
+        logger.error(err);
+        return res.sendStatus(500);
       }
-      res.status(resp.status);
-      resp.data.pipe(res);
     });
   });
 
