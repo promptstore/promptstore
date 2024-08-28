@@ -70,7 +70,7 @@ function S3DocumentLoader({ __name, constants, logger }) {
     for (let { etag, objectName, size, uploadId } of objectNames) {
       try {
         const prom = new Promise(async (resolve, reject) => {
-          const localFilePath = `/var/data/${bucket}/${objectName}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${objectName}`;
           const dirname = path.dirname(localFilePath);
           fs.mkdirSync(dirname, { recursive: true });
           const options = {

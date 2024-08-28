@@ -997,7 +997,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     );
     const creditBalance = credits - costComponents.totalCost * 1000;
     await usersService.upsertUser({ username, credits: creditBalance }, true);
-    const dirname = path.join('/var/data/images/', String(sourceId));
+    const dirname = path.join(constants.FILESTORE_PREFIX + '/var/data/images/', String(sourceId));
     await fs.promises.mkdir(dirname, { recursive: true });
     const promises = [];
     for (const { image_url } of response.choices[0].message.content) {

@@ -142,7 +142,7 @@ function GmailDocumentLoader({ __name, constants, logger }) {
       try {
         const prom = new Promise(async (resolve, reject) => {
           const filename = id + '.txt';
-          const localFilePath = `/var/data/${bucket}/${filename}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${filename}`;
           const dirname = path.dirname(localFilePath);
           fsmod.mkdirSync(dirname, { recursive: true });
           const gmail = await getClient();

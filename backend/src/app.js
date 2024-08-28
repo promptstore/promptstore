@@ -84,6 +84,7 @@ const BASE_URL = process.env.BASE_URL;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
+const FILESTORE_PREFIX = process.env.FILESTORE_PREFIX || process.env.HOME;
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
 const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
 const PORT = process.env.PORT || '5000';
@@ -459,6 +460,7 @@ const options = {
     DOCUMENTS_PREFIX,
     ENV,
     FILE_BUCKET,
+    FILESTORE_PREFIX,
     IMAGES_PREFIX,
     MAILTRAP_INVITE_TEMPLATE_UUID,
     S3_ENDPOINT,

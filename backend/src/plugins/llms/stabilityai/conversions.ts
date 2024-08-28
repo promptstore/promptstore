@@ -37,7 +37,7 @@ export function toStabilityAIImageRequest(request: ChatRequest) {
 const saveFile = (base64: Buffer, index: number, mc: any, constants: any, logger: any) => {
   return new Promise((resolve, reject) => {
     const filename = uuid.v4() + '.png';
-    const localFilePath = '/var/data/images/' + filename;
+    const localFilePath = constants.FILESTORE_PREFIX + '/var/data/images/' + filename;
     const objectName = path.join(String(constants.WORKSPACE_ID), constants.IMAGES_PREFIX, filename);
     logger.debug('bucket:', constants.FILE_BUCKET);
     logger.debug('objectName:', objectName);

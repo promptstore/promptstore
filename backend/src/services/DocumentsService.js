@@ -9,7 +9,7 @@ export function DocumentsService({ constants, mc, logger }) {
     const bucket = constants.FILE_BUCKET;
     logger.debug('Downloading %s from bucket %s', filepath, bucket);
     return new Promise((resolve, reject) => {
-      const localFilePath = `/var/data/${bucket}/${filepath}`;
+      const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       mc.statObject(bucket, filepath, (err, stat) => {
@@ -65,7 +65,7 @@ export function DocumentsService({ constants, mc, logger }) {
 
   function read(filepath, maxBytes = 0) {
     return new Promise((resolve, reject) => {
-      const localFilePath = `/var/data/${constants.FILE_BUCKET}/${filepath}`;
+      const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${constants.FILE_BUCKET}/${filepath}`;
       const dirname = path.dirname(localFilePath);
       fs.mkdirSync(dirname, { recursive: true });
       const fileStream = fs.createWriteStream(localFilePath);

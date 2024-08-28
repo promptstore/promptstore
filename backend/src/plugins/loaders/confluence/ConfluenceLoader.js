@@ -67,7 +67,7 @@ function ConfluenceLoader({ __name, constants, logger }) {
       try {
         const prom = new Promise(async (resolve, reject) => {
           const filename = id + '.html';
-          const localFilePath = `/var/data/${bucket}/${filename}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${filename}`;
           const dirname = path.dirname(localFilePath);
           fs.mkdirSync(dirname, { recursive: true });
           const client = await getClient();

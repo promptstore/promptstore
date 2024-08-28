@@ -40,8 +40,8 @@ function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useLocalStorageState('workspace', { defaultValue: null });
 
   const navbarContextValue = { isDarkMode, navbarState, setNavbarState, setIsDarkMode };
-  const workspaceContextValue = { selectedWorkspace, setSelectedWorkspace };
   const userContextValue = { currentUser, setCurrentUser };
+  const workspaceContextValue = { selectedWorkspace, setSelectedWorkspace };
 
   const authStatusChecked = useSelector(selectAuthStatusChecked);
   const currentUsr = useSelector(selectCurrentUser);

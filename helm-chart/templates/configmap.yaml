@@ -3,6 +3,7 @@ data:
   ENV: "prod"
   FILE_BUCKET: "{{ .Values.appname }}"
   DOCUMENTS_PREFIX: "documents"
+  FILESTORE_PREFIX: ""
   IMAGES_PREFIX: "images"
   PORT: "{{ .Values.port }}"
   PROJECT_NAME: "{{ .Values.appname }}"

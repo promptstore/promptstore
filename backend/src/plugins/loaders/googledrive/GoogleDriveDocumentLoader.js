@@ -148,7 +148,7 @@ function GoogleDriveDocumentLoader({ __name, constants, logger }) {
     for (let { id, objectName, size, uploadId } of objectNames) {
       try {
         const prom = new Promise(async (resolve, reject) => {
-          const localFilePath = `/var/data/${bucket}/${objectName}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${objectName}`;
           const dirname = path.dirname(localFilePath);
           fsmod.mkdirSync(dirname, { recursive: true });
           const fileStream = fsmod.createWriteStream(localFilePath);

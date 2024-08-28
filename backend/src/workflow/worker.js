@@ -55,6 +55,7 @@ const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 const BASE_URL = process.env.BASE_URL;
 const FILE_BUCKET = process.env.FILE_BUCKET;
+const FILESTORE_PREFIX = process.env.FILESTORE_PREFIX || process.env.HOME;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
@@ -240,6 +241,7 @@ const services = {
 const options = {
   constants: {
     DOCUMENTS_PREFIX,
+    FILESTORE_PREFIX,
   },
   logger,
   mc,

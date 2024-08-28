@@ -67,7 +67,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     } else {
       promptSets = await promptSetsService.getPromptSets(workspaceId);
     }
-    logger.debug('promptSets:', promptSets);
+    // logger.debug('promptSets:', promptSets);
 
     res.json(promptSets);
   });

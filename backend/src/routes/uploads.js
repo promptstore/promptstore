@@ -30,7 +30,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
-  const upload = multer({ dest: '/var/data' });
+  const upload = multer({ dest: constants.FILESTORE_PREFIX + '/var/data' });
 
   // cache of results to poll
   const jobs = {};

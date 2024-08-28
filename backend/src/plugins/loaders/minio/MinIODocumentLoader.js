@@ -59,7 +59,7 @@ function MinIODocumentLoader({ __name, constants, logger }) {
     bucket = bucket || constants.FILE_BUCKET;
     for (const { objectName, uploadId } of objectNames) {
       const prom = new Promise((resolve, reject) => {
-        const localFilePath = `/var/data/${bucket}/${objectName}`;
+        const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${objectName}`;
         const dirname = path.dirname(localFilePath);
         fs.mkdirSync(dirname, { recursive: true });
         const fileStream = fs.createWriteStream(localFilePath);

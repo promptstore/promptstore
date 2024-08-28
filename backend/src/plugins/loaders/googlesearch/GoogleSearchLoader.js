@@ -59,7 +59,7 @@ function GoogleSearchLoader({ __name, constants, logger }) {
         const prom = new Promise(async (resolve, reject) => {
           const filename = objectName + '.txt';
           const mimetype = 'text/plain';
-          const localFilePath = `/var/data/${bucket}/${filename}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${filename}`;
           const dirname = path.dirname(localFilePath);
           fs.mkdirSync(dirname, { recursive: true });
           const content = await getPage(link);

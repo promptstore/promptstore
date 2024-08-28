@@ -68,7 +68,7 @@ function GCSDocumentLoader({ __name, constants, logger }) {
     for (const { objectName, uploadId } of objectNames) {
       try {
         const prom = new Promise(async (resolve, reject) => {
-          const localFilePath = `/var/data/${bucket}/${objectName}`;
+          const localFilePath = constants.FILESTORE_PREFIX + `/var/data/${bucket}/${objectName}`;
           const dirname = path.dirname(localFilePath);
           fs.mkdirSync(dirname, { recursive: true });
           const options = { destination: localFilePath };

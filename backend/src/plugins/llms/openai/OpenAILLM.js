@@ -154,7 +154,7 @@ function OpenAILLM({ __name, constants, logger }) {
   // Only dall-e-2 is supported at this time.
   async function generateImageVariant(imageUrl, { n = 1, size = '1024x1024' }) {
     const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0];
-    const localFilePath = '/var/data/images/' + filename;
+    const localFilePath = constants.FILESTORE_PREFIX + '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);
     await fs.promises.mkdir(dirname, { recursive: true });
     await downloadImage(imageUrl, localFilePath);
@@ -169,7 +169,7 @@ function OpenAILLM({ __name, constants, logger }) {
   // Only dall-e-2 is supported at this time.
   async function editImage(imageUrl, prompt, { n = 1, size = '1024x1024' }) {
     const filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0];
-    const localFilePath = '/var/data/images/' + filename;
+    const localFilePath = constants.FILESTORE_PREFIX + '/var/data/images/' + filename;
     const dirname = path.dirname(localFilePath);
     await fs.promises.mkdir(dirname, { recursive: true });
     await downloadImage(imageUrl, localFilePath);
