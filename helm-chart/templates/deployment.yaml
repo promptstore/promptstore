@@ -240,6 +240,11 @@ spec:
                 configMapKeyRef:
                   key: GCS_BUCKET
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_LEARNLM_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_LEARNLM_URL
+                  name: "{{ .Values.appname }}"
             - name: GPT4ALL_API
               valueFrom:
                 configMapKeyRef:
@@ -510,6 +515,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: "{{ .Values.appname }}"
+            - name: GOOGLE_GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_GEMINI_API_KEY
                   name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:
@@ -892,6 +902,11 @@ spec:
                 configMapKeyRef:
                   key: GCS_BUCKET
                   name: "{{ .Values.appname }}"
+            - name: GOOGLE_LEARNLM_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_LEARNLM_URL
+                  name: "{{ .Values.appname }}"
             - name: GPT4ALL_API
               valueFrom:
                 configMapKeyRef:
@@ -1162,6 +1177,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: "{{ .Values.appname }}"
+            - name: GOOGLE_GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_GEMINI_API_KEY
                   name: "{{ .Values.appname }}"
             - name: LLAMAAPI_API_KEY
               valueFrom:

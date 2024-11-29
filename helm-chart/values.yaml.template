@@ -159,6 +159,8 @@ gemini:
   project_id:
   project_location:
   service_account_key_file:
+  learnlm_url:
+  api_key:
 
 # gpt4all - ./plugins/llms/gpt4all
 gpt4all:

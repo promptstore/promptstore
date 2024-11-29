@@ -37,6 +37,7 @@ function UnstructuredService({ __name, constants, logger }) {
     for (const doc of documents) {
       logger.debug('doc:', doc);
       const content = await extract(doc.filepath, doc.originalname, doc.mimetype);
+      logger.debug('content:', content);
       const createdDateTime = new Date().toISOString();
       for (const el of content) {
         const text = el.text.trim();

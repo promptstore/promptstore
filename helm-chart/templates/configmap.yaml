@@ -135,6 +135,7 @@ data:
   GOOGLE_PROJECT_ID: "{{ .Values.gemini.project_id }}"
   GOOGLE_PROJECT_LOCATION: "{{ .Values.gemini.project_location }}"
   GCS_BUCKET: "{{ .Values.appname }}"
+  GOOGLE_LEARNLM_URL: "{{ .Values.gemini.learnlm_url }}"
 
   # gpt4all - ./plugins/llms/gpt4all
   GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"

@@ -94,6 +94,7 @@ interface ImageURL {
 export interface ImageContent {
   type: string;
   image_url: ImageURL;
+  base64: string;
   objectName?: string;
 }
 

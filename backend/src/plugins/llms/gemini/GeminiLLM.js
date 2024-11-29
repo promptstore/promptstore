@@ -1,16 +1,36 @@
 import axios from 'axios';
 import { Storage } from '@google-cloud/storage';
 import { VertexAI } from '@google-cloud/vertexai';
+import aiplatform from '@google-cloud/aiplatform';
+import uuid from 'uuid';
 
+import { MessageRole } from '../../../core/conversions';
 import {
   fromGeminiChatResponse,
   toGeminiChatRequest,
 } from './conversions';
 
+const { PredictionServiceClient } = aiplatform.v1;
+const { helpers } = aiplatform;
+
 function GeminiLLM({ __name, constants, logger }) {
 
   let _chatClient;
   let _storage;
+  let _predictionServiceClient;
+
+  const clientOptions = {
+    apiEndpoint: `${constants.GOOGLE_PROJECT_LOCATION}-aiplatform.googleapis.com`,
+  };
+
+  const endpoint = `projects/${constants.GOOGLE_PROJECT_ID}/locations/${constants.GOOGLE_PROJECT_LOCATION}/publishers/google/models/imagen-3.0-generate-001`;
+
+  function getPredictionServiceClient() {
+    if (!_predictionServiceClient) {
+      _predictionServiceClient = new PredictionServiceClient(clientOptions);
+    }
+    return _predictionServiceClient;
+  }
 
   function getChatClient() {
     if (!_chatClient) {
@@ -37,6 +57,11 @@ function GeminiLLM({ __name, constants, logger }) {
         .on('error', reject)
         .on('finish', resolve);
     });
+  }
+
+  async function sendRestRequest(request) {
+    const res = await axios.post(`${constants.GOOGLE_LEARNLM_URL}?key=${constants.GOOGLE_GEMINI_API_KEY}`, request);
+    return res.data;
   }
 
   /**
@@ -93,10 +118,17 @@ function GeminiLLM({ __name, constants, logger }) {
       safetySettings: chatRequest.safetySettings,
       tools,
     };
-    // logger.debug(model, 'request:', req);
-    const stream = await genModel.generateContent(req);
-    const res = await stream;
-    const response = await fromGeminiChatResponse(res.response, parser);
+    logger.debug(model, 'request:', req);
+    let response;
+    // LearnLM not currently supported by VertexAI client
+    if (model === 'learnlm-1.5-pro-experimental') {
+      const res = await sendRestRequest(req);
+      response = await fromGeminiChatResponse(res, parser);
+    } else {
+      const stream = await genModel.generateContent(req);
+      const res = await stream;
+      response = await fromGeminiChatResponse(res.response, parser);
+    }
     return { ...response, model };
   }
 
@@ -112,12 +144,144 @@ function GeminiLLM({ __name, constants, logger }) {
     throw new Error('Not implemented');
   }
 
-  function createImage(prompt, options) {
-    throw new Error('Not implemented');
+  async function createImage(prompt, options) {
+    logger.debug('prompt:', prompt);
+    const promptText = {
+      prompt: prompt.prompt.messages[0].content,
+    };
+    const instanceValue = helpers.toValue(promptText);
+    const instances = [instanceValue];
+
+    const parameter = {
+      sampleCount: 1,
+      // You can't use a seed value and watermark at the same time.
+      // seed: 100,
+      // addWatermark: false,
+      aspectRatio: '1:1',
+      safetyFilterLevel: 'block_some',
+      personGeneration: 'allow_adult',
+    };
+    const parameters = helpers.toValue(parameter);
+
+    const request = {
+      endpoint,
+      instances,
+      parameters,
+    };
+
+    logger.debug('request:', request);
+
+    const content = [];
+
+    // Predict request
+    const predictionServiceClient = getPredictionServiceClient();
+    const [response] = await predictionServiceClient.predict(request);
+    logger.debug('response:', response);
+    const predictions = response.predictions;
+    if (predictions.length === 0) {
+      console.log(
+        'No image was generated. Check the request parameters and prompt.'
+      );
+    } else {
+      for (const prediction of predictions) {
+        const buff = Buffer.from(
+          prediction.structValue.fields.bytesBase64Encoded.stringValue,
+          'base64'
+        );
+        content.push({
+          type: 'base64',
+          base64: buff,
+        });
+      }
+    }
+    const choices = [
+      {
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content,
+        },
+      }
+    ];
+    return {
+      id: uuid.v4(),
+      created: new Date(),
+      n: choices.length,
+      choices,
+    };
   }
 
-  function generateImageVariant(imageUrl, options) {
-    throw new Error('Not implemented');
+  async function generateImageVariant(imageUrl, options) {
+    const res = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const encodedImage = Buffer.from(res.data, 'binary').toString('base64');
+    const promptObj = {
+      // prompt: prompt.prompt.messages[0].content,
+      prompt: 'Change the player to photorealistic image of a female player.',
+      image: { bytesBase64Encoded: encodedImage },
+    };
+    const instanceValue = helpers.toValue(promptObj);
+    const instances = [instanceValue];
+
+    const parameter = {
+      sampleCount: 1,
+      // You can't use a seed value and watermark at the same time.
+      seed: 100,
+      // addWatermark: false,
+      // Controls the strength of the prompt
+      // 0-9 (low strength), 10-20 (medium strength), 21+ (high strength)
+      guidanceScale: 21,
+      // aspectRatio: '1:1',
+      // safetyFilterLevel: 'block_some',
+      // personGeneration: 'allow_adult',
+    };
+    const parameters = helpers.toValue(parameter);
+
+    const request = {
+      endpoint,
+      instances,
+      parameters,
+    };
+
+    logger.debug('request:', request);
+
+    const content = [];
+
+    // Predict request
+    const predictionServiceClient = getPredictionServiceClient();
+    const [response] = await predictionServiceClient.predict(request);
+    logger.debug('response:', response);
+    const predictions = response.predictions;
+    if (predictions.length === 0) {
+      console.log(
+        'No image was generated. Check the request parameters and prompt.'
+      );
+    } else {
+      for (const prediction of predictions) {
+        const buff = Buffer.from(
+          prediction.structValue.fields.bytesBase64Encoded.stringValue,
+          'base64'
+        );
+        content.push({
+          type: 'base64',
+          base64: buff,
+        });
+      }
+    }
+    const choices = [
+      {
+        index: 0,
+        message: {
+          role: MessageRole.assistant,
+          content,
+        },
+      }
+    ];
+    return {
+      id: uuid.v4(),
+      created: new Date(),
+      n: choices.length,
+      choices,
+    };
   }
 
   function getNumberTokens(model, text) {

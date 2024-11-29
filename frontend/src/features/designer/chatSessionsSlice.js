@@ -38,7 +38,6 @@ export const {
   setChatSessions,
   setTestResult,
   startLoad,
-  startTest,
 } = chatSessionsSlice.actions;
 
 export const getChatSessionsAsync = ({ workspaceId, type }) => async (dispatch) => {

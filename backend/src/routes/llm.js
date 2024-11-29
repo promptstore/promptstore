@@ -1,8 +1,8 @@
 import { default as dayjs } from 'dayjs';
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
 import uuid from 'uuid';
-import merge from 'lodash.merge';
 
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
@@ -983,11 +983,13 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         ],
       },
     };
-    const response = await llmService.createImage('openai', request, { model, n, quality, size });
+    // const provider = 'openai';
+    const provider = 'gemini';
+    const response = await llmService.createImage(provider, request, { model, n, quality, size });
     const [width, height] = getDims(size);
     const costComponents = creditCalculatorService.getImageCostComponents(
       model,
-      'openai',
+      provider,
       model,
       false,
       quality,
@@ -1000,8 +1002,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const dirname = path.join(constants.FILESTORE_PREFIX + '/var/data/images/', String(sourceId));
     await fs.promises.mkdir(dirname, { recursive: true });
     const promises = [];
-    for (const { image_url } of response.choices[0].message.content) {
-      promises.push(saveImage(sourceId, dirname, image_url.url));
+    for (const { type, base64, image_url } of response.choices[0].message.content) {
+      if (type === 'base64') {
+        promises.push(saveBase64Image(sourceId, dirname, base64));
+      } else {
+        promises.push(saveImage(sourceId, dirname, image_url.url));
+      }
     }
     const urls = await Promise.all(promises);
     logger.debug('urls:', urls);
@@ -1059,6 +1065,42 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     });
   };
 
+  const saveBase64Image = (sourceId, dirname, buff) => {
+    return new Promise(async (resolve, reject) => {
+      const filename = uuid.v4() + '.png';
+      const localFilePath = path.join(dirname, filename);
+      logger.debug('localFilePath:', localFilePath);
+      const writeFile = util.promisify(fs.writeFile);
+      await writeFile(localFilePath, buff);
+      const metadata = {
+        'Content-Type': 'image/png',
+      };
+      const objectName = path.join(String(sourceId), constants.IMAGES_PREFIX, filename);
+      logger.debug('bucket:', constants.FILE_BUCKET);
+      logger.debug('objectName:', objectName);
+      mc.fPutObject(constants.FILE_BUCKET, objectName, localFilePath, metadata, (err, etag) => {
+        if (err) {
+          let message;
+          if (err instanceof Error) {
+            message = err.message;
+            if (err.stack) {
+              message += '\n' + err.stack;
+            }
+          } else {
+            message = err.toString();
+          }
+          logger.error(message);
+          return reject(err);
+        }
+        logger.info('File uploaded successfully.');
+        resolve({
+          imageUrl: constants.BASE_URL + '/api/proxy/images/' + objectName,
+          objectName,
+        });
+      });
+    });
+  };
+
   app.post('/api/gen-image-variant', auth, async (req, res, next) => {
     const { username } = req.user;
     const { credits, errors } = await usersService.checkCredits(username);
@@ -1066,22 +1108,37 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       return res.status(500).json({ errors });
     }
     const { imageUrl, n, size, workspaceId } = req.body;
-    const response = await llmService.generateImageVariant('openai', imageUrl, { n, size });
-    const [width, height] = getDims(size);
+    // const response = await llmService.generateImageVariant('openai', imageUrl, { n, size });
+    const response = await llmService.generateImageVariant('gemini', imageUrl, { n, size });
+    // const [width, height] = getDims(size);
     // TODO - the cost model doesn't currently account for this type of request
-    const costComponents = creditCalculatorService.getImageCostComponents(
-      'image-variant',
-      'openai',
-      'image-variant',
-      false,
-      'standard',
-      width,
-      height,
-      response
-    );
-    const creditBalance = credits - costComponents.totalCost * 1000;
-    await usersService.upsertUser({ username, credits: creditBalance }, true);
-    res.json(response.data);
+    // const costComponents = creditCalculatorService.getImageCostComponents(
+    //   'image-variant',
+    //   // 'openai',
+    //   'gemini',
+    //   'image-variant',
+    //   false,
+    //   'standard',
+    //   // width,
+    //   // height,
+    //   response
+    // );
+    // const creditBalance = credits - costComponents.totalCost * 1000;
+    // await usersService.upsertUser({ username, credits: creditBalance }, true);
+    const dirname = path.join(constants.FILESTORE_PREFIX + '/var/data/images/', String(workspaceId));
+    await fs.promises.mkdir(dirname, { recursive: true });
+    const promises = [];
+    for (const { type, base64, image_url } of response.choices[0].message.content) {
+      if (type === 'base64') {
+        promises.push(saveBase64Image(workspaceId, dirname, base64));
+      } else {
+        promises.push(saveImage(workspaceId, dirname, image_url.url));
+      }
+    }
+    const urls = await Promise.all(promises);
+    logger.debug('urls:', urls);
+    res.json(urls);
+    // res.json(response.data);
   });
 
   app.post('/api/edit-image', auth, async (req, res, next) => {

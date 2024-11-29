@@ -123,33 +123,33 @@ services:
     ports:
       - 8000:8000
 
-  neo4j:
-    image: neo4j:5.15.0
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    env_file:
-      - ".env.neo4j"
-    volumes:
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/backups:/backups"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/conf:/var/lib/neo4j/conf"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/data:/data"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/import:/import"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
+  # neo4j:
+  #   image: neo4j:5.15.0
+  #   ports:
+  #     - "7474:7474"
+  #     - "7687:7687"
+  #   env_file:
+  #     - ".env.neo4j"
+  #   volumes:
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/backups:/backups"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/conf:/var/lib/neo4j/conf"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/data:/data"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j/import:/import"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
 
-  neo4j1:
-    image: neo4j:5.15.0
-    ports:
-      - "7475:7474"
-      - "7688:7687"
-    env_file:
-      - ".env.neo4j"
-    volumes:
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/backups:/backups"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/conf:/var/lib/neo4j/conf"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/data:/data"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/import:/import"
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
+  # neo4j1:
+  #   image: neo4j:5.15.0
+  #   ports:
+  #     - "7475:7474"
+  #     - "7688:7687"
+  #   env_file:
+  #     - ".env.neo4j"
+  #   volumes:
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/backups:/backups"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/conf:/var/lib/neo4j/conf"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/data:/data"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/import:/import"
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
 
   chromadb:
     image: ghcr.io/chroma-core/chroma:0.5.4.dev9

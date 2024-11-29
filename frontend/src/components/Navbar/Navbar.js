@@ -82,11 +82,11 @@ function Navbar() {
 
   useEffect(() => {
     dispatch(getCurrentUserAsync());
-    document.addEventListener('keydown', handleKeyDown);
+    // document.addEventListener('keydown', handleKeyDown);
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
+    // return () => {
+    //   document.removeEventListener('keydown', handleKeyDown);
+    // }
   }, []);
 
   const workspacesList = useMemo(() => {
