@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, Form, Input } from 'antd';
 
+import CookieManager from '../../CookieManager';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   upsertUserAsync,
@@ -33,8 +34,38 @@ export default function Login() {
     try {
       setError('');
       setLoading(true);
-      const userCredential = await login(email, password);
-      // console.log('userCredential:', userCredential);
+      let userCredential;
+      console.log('REACT_APP_NO_AUTH:', process.env.REACT_APP_NO_AUTH);
+      if (process.env.REACT_APP_NO_AUTH === 'true') {
+        const photoURL = 'https://api.dicebear.com/7.x/initials/svg?seed=AU';
+        const user = {
+          displayName: email,
+          email,
+          photoURL,
+          uid: email,
+          roles: ['admin'],
+          fullName: 'Anon User',
+          firstName: 'Anon',
+          lastName: 'User',
+          username: email,
+        };
+        userCredential = {
+          user: {
+            ...user,
+            auth: {
+              currentUser: {
+                ...user,
+                providerData: [user],
+              },
+            },
+          },
+        };
+        CookieManager.set('accessToken', email, { days: 90, path: '/', secure: true });
+        CookieManager.set('currentUser', JSON.stringify(user), { days: 90, path: '/', secure: true });
+      } else {
+        userCredential = await login(email, password);
+      }
+      console.log('userCredential:', userCredential);
       const u = userCredential.user;
       const [firstName, lastName] = (u.displayName || '').split(' ');
       const user = {
@@ -46,6 +77,8 @@ export default function Login() {
         photoURL: u.photoURL,
       };
       dispatch(upsertUserAsync({ user }));
+      // navigate('/');
+      window.location.replace('/');
     } catch (e) {
       setError('Failed to login');
     }

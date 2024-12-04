@@ -6,6 +6,8 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
+import CookieManager from '../CookieManager';
+
 const DEFAULT_USER = {
   email: 'test.account@promptstore.dev',
   roles: ['admin'],
@@ -50,24 +52,31 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    if (process.env.REACT_APP_FIREBASE_API_KEY) {
-      let unsubscribe;
-      import('../config/firebase.js')
-        .then(({ default: auth }) => {
-          unsubscribe = auth.onIdTokenChanged((user) => {
-            setCurrentUser(user);
-            setLoading(false);
+    const email = CookieManager.get('accessToken');
+    if (process.env.REACT_APP_NO_AUTH === 'true' && email) {
+      const currentUser = CookieManager.get('currentUser');
+      setCurrentUser(JSON.parse(currentUser));
+      setLoading(false);
+    } else {
+      if (process.env.REACT_APP_FIREBASE_API_KEY) {
+        let unsubscribe;
+        import('../config/firebase.js')
+          .then(({ default: auth }) => {
+            unsubscribe = auth.onIdTokenChanged((user) => {
+              setCurrentUser(user);
+              setLoading(false);
+            });
           });
-        });
 
-      return () => {
-        if (unsubscribe) {
-          unsubscribe();
-        }
-      };
+        return () => {
+          if (unsubscribe) {
+            unsubscribe();
+          }
+        };
+      }
+      setCurrentUser(DEFAULT_USER);
+      setLoading(false);
     }
-    setCurrentUser(DEFAULT_USER);
-    setLoading(false);
   }, []);
 
   const value = {

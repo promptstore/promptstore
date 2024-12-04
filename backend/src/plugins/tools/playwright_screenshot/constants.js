@@ -9,4 +9,5 @@ export default {
   AWS_SECRET_KEY: process.env.AWS_SECRET_KEY,
   ENV: process.env.ENV,
   BASE_URL: process.env.BASE_URL,
+  FILESTORE_PREFIX: process.env.FILESTORE_PREFIX,
 }

@@ -84,13 +84,15 @@ const BASE_URL = process.env.BASE_URL;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 const FILE_BUCKET = process.env.FILE_BUCKET || 'promptstore';
 const FRONTEND_DIR = process.env.FRONTEND_DIR || '../../frontend';
-const FILESTORE_PREFIX = process.env.FILESTORE_PREFIX || process.env.HOME;
+const FILESTORE_PREFIX = process.env.FILESTORE_PREFIX || process.env.HOME || '';
 const IMAGES_PREFIX = process.env.IMAGES_PREFIX || 'images';
 const MAILTRAP_INVITE_TEMPLATE_UUID = process.env.MAILTRAP_INVITE_TEMPLATE_UUID;
 const PORT = process.env.PORT || '5000';
 const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
+
+const NO_AUTH = process.env.NO_AUTH === 'true';
 
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
@@ -352,23 +354,36 @@ const VerifyToken = async (req, res, next) => {
       }
     }
   }
-  // otherwise look for api key
-  const apiKey = req.headers.apikey;
-  if (apiKey) {
-    const resp = await workspacesService.getUsernameByApiKey(apiKey);
-    let user;
-    if (resp) {
-      user = await usersService.getUser(resp.username);
+  if (NO_AUTH) {
+    const email = req.headers.apikey;
+    if (email) {
+      logger.debug('email:', decodeURIComponent(email));
+      const user = await usersService.getUserByEmail(decodeURIComponent(email));
+      logger.debug('user:', user);
       if (user) {
         req.user = user;
         return next();
       }
-    } else {
-      if (apiKey === process.env.PROMPTSTORE_API_KEY) {
-        user = await usersService.getUser('test.account@promptstore.dev');
+    }
+  } else {
+    // otherwise look for api key
+    const apiKey = req.headers.apikey;
+    if (apiKey) {
+      const resp = await workspacesService.getUsernameByApiKey(apiKey);
+      let user;
+      if (resp) {
+        user = await usersService.getUser(resp.username);
         if (user) {
           req.user = user;
           return next();
+        }
+      } else {
+        if (apiKey === process.env.PROMPTSTORE_API_KEY) {
+          user = await usersService.getUser('test.account@promptstore.dev');
+          if (user) {
+            req.user = user;
+            return next();
+          }
         }
       }
     }

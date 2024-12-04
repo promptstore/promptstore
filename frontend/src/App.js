@@ -6,6 +6,7 @@ import useLocalStorageState from 'use-local-storage-state';
 import { ReactFlowProvider } from 'reactflow';
 import isEmpty from 'lodash.isempty';
 
+import CookieManager from './CookieManager';
 import ErrorMessage from './components/ErrorMessage';
 import { AuthProvider } from './contexts/AuthContext';
 import NavbarContext from './contexts/NavbarContext';
@@ -49,7 +50,6 @@ function App() {
 
   const dispatch = useDispatch();
 
-
   /* Keycloak SSO ***********/
 
   // useEffect(() => {
@@ -89,8 +89,19 @@ function App() {
   }, [authStatusChecked]);
 
   useEffect(() => {
-    if (process.env.REACT_APP_FIREBASE_API_KEY) {
-      console.log('using firebase');
+    if (process.env.REACT_APP_NO_AUTH === 'true') {
+      const email = CookieManager.get('accessToken');
+      if (email) {
+        console.log('Using anon account:', email);
+        setToken({ accessToken: encodeURIComponent(email) });
+        const currentUser = CookieManager.get('currentUser');
+        setCurrentUser(JSON.parse(currentUser));
+        setReady(1);
+      } else if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+    } else if (process.env.REACT_APP_FIREBASE_API_KEY) {
+      console.log('Using firebase');
       let unsubscribe;
       import('./config/firebase.js')
         .then(({ default: auth }) => {
@@ -129,7 +140,7 @@ function App() {
       };
 
     } else if (process.env.REACT_APP_PROMPTSTORE_API_KEY) {
-      console.log('using service account ');
+      console.log('Using service account');
       setToken({ accessToken: process.env.REACT_APP_PROMPTSTORE_API_KEY });
       setCurrentUser(defaultUser);
       dispatch(getWorkspacesAsync());
