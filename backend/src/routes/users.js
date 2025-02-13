@@ -32,7 +32,8 @@ export default ({ app, auth, logger, services }) => {
   });
 
   app.post('/api/users', auth, async (req, res) => {
-    const user = await usersService.upsertUser(req.body);
+    logger.debug('req.body:', req.body);
+    const user = await usersService.upsertUser(req.body, true);
     res.json(user);
   });
 

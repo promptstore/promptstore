@@ -10,6 +10,7 @@ import {
   ContentObject,
   ContentType,
   Function,
+  FunctionCall,
   ImageContent,
   ParserService,
   MessageRole,
@@ -22,7 +23,8 @@ import {
 import {
   GeminiChatResponse,
   GeminiContent,
-  GeminiTools,
+  GeminiSystemInstruction,
+  GeminiTool,
 } from './gemini_types';
 
 function getGeminiRole(role: MessageRole) {
@@ -136,14 +138,30 @@ export function toGeminiChatRequest(request: ChatRequest) {
     stop,
   } = model_params;
   let contents: GeminiContent[];
-  let tools: GeminiTools;
+  let tools: GeminiTool[];
   if (model === 'gemini-1.0-pro-vision') {
     contents = createGeminiVisionContents(prompt, functions);
   } else {
     contents = createGeminiContents(prompt);
     if (functions) {
-      tools = {
-        function_declarations: functions,
+      tools = [
+        {
+          function_declarations: functions,
+        }
+      ];
+    }
+  }
+  let systemInstruction: GeminiSystemInstruction;
+  if (prompt.context?.system_prompt) {
+    if (typeof prompt.context.system_prompt === 'string') {
+      systemInstruction = {
+        role: 'system',
+        parts: [{ text: prompt.context.system_prompt }],
+      };
+    } else {
+      systemInstruction = {
+        role: 'system',
+        parts: prompt.context.system_prompt as TextContent[],
       };
     }
   }
@@ -170,6 +188,7 @@ export function toGeminiChatRequest(request: ChatRequest) {
   }
   return {
     model,
+    systemInstruction,
     contents,
     generation_config: {
       temperature,
@@ -282,12 +301,21 @@ export async function fromGeminiChatResponse(
           }));
           citation_metadata = { citation_sources };
         }
+        const part = c.content.parts[0];
+        let function_call: FunctionCall;
+        if (part.functionCall) {
+          function_call = {
+            name: part.functionCall.name,
+            arguments: JSON.stringify(part.functionCall.args),
+          };
+        }
         return {
           index: i,
           finish_reason: c.finishReason.toString(),
           message: {
             role: MessageRole.assistant,
-            content: c.content.parts[0].text,
+            content: part.text,
+            function_call,
             citation_metadata,
           },
           safety_ratings: c.safetyRatings?.map(r => ({

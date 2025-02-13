@@ -491,19 +491,30 @@ export class SemanticFunctionImplementation {
       await this.inputGuardrails.call({ messages: prompts, callbacks });
     }
 
+    let tools;
     if (returnTypeSchema && !functions) {
       const outputFormatter = new Func(
         'output_formatter',
         'Output formatter. Should always be used to format your response to the user.',
         returnTypeSchema
       );
-      functions = [outputFormatter.toJSON()];
+      if (model.provider === 'openai') {
+        tools = [
+          {
+            type: 'function',
+            function: outputFormatter.toJSON(),
+          },
+        ];
+      } else {
+        functions = [outputFormatter.toJSON()];
+      }
     }
 
     const request = {
       model: model.model,
       model_params: { ...modelParams, max_tokens: maxTokens },
       functions,
+      tools,
       prompt: {
         context,
         history: hist,

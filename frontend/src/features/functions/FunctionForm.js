@@ -419,6 +419,12 @@ export function FunctionForm() {
     }
   }, [functions]);
 
+  useEffect(() => {
+    if (returnTypeValue === 'text/plain') {
+      form.setFieldsValue({ returnTypeSchema: null });
+    }
+  }, [returnTypeValue]);
+
   const handleClose = () => {
     setIsTestModalOpen(false);
     setTimeout(() => {

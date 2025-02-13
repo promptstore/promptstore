@@ -79,6 +79,9 @@ export function UsersService({ pg, logger }) {
         user = { ...savedUser, ...user };
       }
       const val = omit(user, omittedFields);
+      if (val.credits === null || typeof val.credits === 'undefined') {
+        val.credits = 2000;
+      }
       const { rows } = await pg.query(
         `UPDATE users ` +
         `SET val = $1 ` +
@@ -89,7 +92,12 @@ export function UsersService({ pg, logger }) {
       return mapRow(rows[0]);
 
     } else {
-      const val = omit(user, omittedFields)
+      const val = omit(user, omittedFields);
+      logger.debug('val before:', val);
+      if (val.credits === null || typeof val.credits === 'undefined') {
+        val.credits = 2000;
+      }
+      logger.debug('val after:', val);
       const { rows } = await pg.query(
         `INSERT INTO users (username, val) ` +
         `VALUES ($1, $2) RETURNING *`,

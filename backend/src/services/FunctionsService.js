@@ -130,23 +130,27 @@ export function FunctionsService({ pg, logger }) {
   }
 
   async function getFunctionByName(workspaceId, name) {
-    if (workspaceId === null || typeof workspaceId === 'undefined') {
-      return null;
-    }
-    if (name === null || typeof name === 'undefined') {
-      return null;
-    }
-    let q = `
+    try {
+      if (workspaceId === null || typeof workspaceId === 'undefined') {
+        return null;
+      }
+      if (name === null || typeof name === 'undefined') {
+        return null;
+      }
+      let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM functions
       WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
       AND name = $2
       `;
-    const { rows } = await pg.query(q, [workspaceId, name]);
-    if (rows.length === 0) {
-      return null;
+      const { rows } = await pg.query(q, [workspaceId, name]);
+      if (rows.length === 0) {
+        return null;
+      }
+      return mapRow(rows[0]);
+    } catch (err) {
+      logger.error(err);
     }
-    return mapRow(rows[0]);
   }
 
   async function getFunction(id) {

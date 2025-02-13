@@ -187,12 +187,18 @@ export interface SafetySetting {
   threshold: HarmBlockThreshold;  // Controls the probability threshold at which harm is blocked.
 }
 
+export interface OpenAIToolInput {
+  function: Function;
+  type: string;  // literal = "function"
+}
+
 export interface ChatRequest {
   model: string;
   prompt: ChatPrompt;
   model_params?: Partial<ChatModelParams>;
   functions?: Function[];  // A list of functions the model may generate JSON inputs for.
   function_call?: FunctionCallType | object;
+  tools?: OpenAIToolInput[];
   best_of?: number;
   stream?: boolean;
   user?: string;

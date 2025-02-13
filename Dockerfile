@@ -1,7 +1,7 @@
-FROM node:20.9
+FROM --platform=linux/amd64 node:20.9
 
 RUN apt-get update && \
-    apt-get install -y graphicsmagick && \
+    apt-get install -y graphicsmagick libpango1.0-dev && \
     wget -O ghostscript-fonts-std-8.11.tar.gz https://sourceforge.net/projects/gs-fonts/files/gs-fonts/8.11%20%28base%2035%2C%20GPL%29/ghostscript-fonts-std-8.11.tar.gz/download && \
     mkdir /usr/share/fonts/type1/gsfonts && \
     tar xf ghostscript-fonts-std-8.11.tar.gz -C /usr/share/fonts/type1/gsfonts --strip-components=1

@@ -19,10 +19,16 @@ export function ModelsService({ pg, logger }) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return -1;
     }
+    // let q = `
+    //   SELECT COUNT(id) AS k
+    //   FROM models
+    //   WHERE workspace_id = $1 OR workspace_id = 1
+    //   OR (val->>'isPublic')::boolean = true
+    //   `;
     let q = `
       SELECT COUNT(id) AS k
       FROM models
-      WHERE workspace_id = $1 OR workspace_id = 1
+      WHERE workspace_id = $1
       OR (val->>'isPublic')::boolean = true
       `;
     const { rows } = await pg.query(q, [workspaceId]);
@@ -36,10 +42,16 @@ export function ModelsService({ pg, logger }) {
     if (workspaceId === null || typeof workspaceId === 'undefined') {
       return [];
     }
+    // let q = `
+    //   SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+    //   FROM models
+    //   WHERE workspace_id = $1 OR workspace_id = 1
+    //   OR (val->>'isPublic')::boolean = true
+    //   `;
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE workspace_id = $1 OR workspace_id = 1
+      WHERE workspace_id = $1
       OR (val->>'isPublic')::boolean = true
       `;
     const { rows } = await pg.query(q, [workspaceId]);
@@ -56,10 +68,16 @@ export function ModelsService({ pg, logger }) {
     if (name === null || typeof name === 'undefined') {
       return [];
     }
+    // let q = `
+    //   SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+    //   FROM models
+    //   WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+    //   AND name LIKE $2 || '%'
+    //   `;
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
       AND name LIKE $2 || '%'
       `;
     const { rows } = await pg.query(q, [workspaceId, name]);
@@ -76,10 +94,16 @@ export function ModelsService({ pg, logger }) {
     if (type === null || typeof type === 'undefined') {
       return [];
     }
+    // let q = `
+    //   SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+    //   FROM models
+    //   WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+    //   AND val->>'type' = $2
+    //   `;
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
       AND val->>'type' = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, type]);
@@ -96,10 +120,16 @@ export function ModelsService({ pg, logger }) {
     if (key === null || typeof key === 'undefined') {
       return null;
     }
+    // let q = `
+    //   SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+    //   FROM models
+    //   WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+    //   AND val->>'key' = $2
+    //   `;
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
       AND val->>'key' = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, key]);
@@ -116,10 +146,16 @@ export function ModelsService({ pg, logger }) {
     if (name === null || typeof name === 'undefined') {
       return null;
     }
+    // let q = `
+    //   SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+    //   FROM models
+    //   WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+    //   AND name = $2
+    //   `;
     let q = `
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
-      WHERE (workspace_id = $1 OR workspace_id = 1 OR (val->>'isPublic')::boolean = true)
+      WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
       AND name = $2
       `;
     const { rows } = await pg.query(q, [workspaceId, name]);

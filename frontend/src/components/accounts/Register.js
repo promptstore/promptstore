@@ -31,7 +31,7 @@ export default function Register() {
       if (user) {
         try {
           updateUserProfile(currentUser, { displayName: user.fullName });
-          navigate('/profile');
+          window.location.href = '/';
         } catch (err) {
           let message = err.message;
           if (err.stack) {
@@ -64,7 +64,7 @@ export default function Register() {
         email,
         credits: DEFAULT_CREDITS,
       };
-      dispatch(upsertUserAsync({ user }));
+      dispatch(upsertUserAsync(user));
     } catch (e) {
       console.error(e);
       setError('Failed to register');

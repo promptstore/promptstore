@@ -107,12 +107,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   app.post('/api/prompt-sets', auth, async (req, res, next) => {
     const { username } = req.user;
     const values = req.body;
-    try {
-      values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
-    } catch (err) {
-      logger.warn(err);
-      // proceed without summary
-    }
+    // try {
+    //   values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
+    // } catch (err) {
+    //   logger.warn(err);
+    //   // proceed without summary
+    // }
     let ps = await promptSetsService.upsertPromptSet(values, username);
     const obj = createSearchableObject(ps);
     const chunkId = await indexObject(obj, ps.chunkId);
@@ -126,12 +126,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const { id } = req.params;
     const { username } = req.user;
     const values = req.body;
-    try {
-      values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
-    } catch (err) {
-      logger.warn(err);
-      // proceed without summary
-    }
+    // try {
+    //   values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
+    // } catch (err) {
+    //   logger.warn(err);
+    //   // proceed without summary
+    // }
     let ps = await promptSetsService.upsertPromptSet({ ...values, id }, username);
     const obj = createSearchableObject(ps);
     const chunkId = await indexObject(obj, ps.chunkId);

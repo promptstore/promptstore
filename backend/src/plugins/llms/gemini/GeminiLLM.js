@@ -113,6 +113,7 @@ function GeminiLLM({ __name, constants, logger }) {
       tools = chatRequest.tools;
     }
     const req = {
+      systemInstruction: chatRequest.systemInstruction,
       contents,
       generationConfig: chatRequest.generationConfig,
       safetySettings: chatRequest.safetySettings,
@@ -127,6 +128,7 @@ function GeminiLLM({ __name, constants, logger }) {
     } else {
       const stream = await genModel.generateContent(req);
       const res = await stream;
+      logger.debug(model, 'raw response:', res.response);
       response = await fromGeminiChatResponse(res.response, parser);
     }
     return { ...response, model };

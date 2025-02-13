@@ -213,7 +213,7 @@ export default ({ app, auth, constants, logger, services }) => {
     if (user.roles && user.roles.indexOf['admin'] !== -1) {
       workspaces = await workspacesService.getWorkspaces(limit, start);
     } else {
-      workspaces = await workspacesService.getWorkspacesByUser(user.id, limit, start);
+      workspaces = await workspacesService.getWorkspacesByUser(user.username, limit, start);
     }
     res.json(workspaces);
   });
@@ -534,13 +534,12 @@ export default ({ app, auth, constants, logger, services }) => {
       const user = await usersService.getUserByEmail(email);
       logger.debug('found existing user:', user || 'No');
       if (user) {
-        const { id, fullName, email, username } = user;
-        members.push({ id, fullName, email, username });
+        const { fullName, email, username } = user;
+        members.push({ fullName, email, username });
       } else {
-        const newUser = await usersService.upsertUser({ username: email, email, fullName: email });
+        const newUser = await usersService.upsertUser({ username: email, email, fullName: email, credits: 2000 });
         logger.debug('newUser:', newUser);
         members.push({
-          id: newUser.id,
           email,
           username: email,
           fullName: email,

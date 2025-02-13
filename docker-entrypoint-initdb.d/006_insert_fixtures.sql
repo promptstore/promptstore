@@ -8,8 +8,8 @@ VALUES
 
 INSERT INTO public.workspaces (name, created_by, modified_by, val)
 VALUES 
-    ('System Space', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"key":"system-space","members":[{"id":1,"fullName":"System Account","username":"sys.account@promptstore.dev","email":"sys.account@promptstore.dev"},{"id":2,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}]}'),
-    ('Test Space', 'test.account@promptstore.dev', 'test.account@promptstore.dev', '{"key":"test-space","members":[{"id":2,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}],"apiKeys":{"41317739-f8e4-4419-b64b-30666e255391":{"name":"Test","username":"test.account@promptstore.dev","created":"2023-09-26T08:33:36.649Z","id":1}}}')
+    ('System Space', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"key":"system-space","members":[{"fullName":"System Account","username":"sys.account@promptstore.dev","email":"sys.account@promptstore.dev"},{"id":2,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}]}'),
+    ('Test Space', 'test.account@promptstore.dev', 'test.account@promptstore.dev', '{"key":"test-space","members":[{"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}],"apiKeys":{"41317739-f8e4-4419-b64b-30666e255391":{"name":"Test","username":"test.account@promptstore.dev","created":"2023-09-26T08:33:36.649Z","id":1}}}')
     ;
 
 INSERT INTO public.settings (workspace_id, key, created_by, modified_by, val)

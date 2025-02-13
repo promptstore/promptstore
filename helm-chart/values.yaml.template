@@ -1,10 +1,10 @@
 appname: "promptstore"
 namespace: "promptstore"
 
-imagePullSecret:
-containerRegistry:
+imagePullSecret: "gcr-secret"
+containerRegistry: "gcr.io/apt-phenomenon-243802"
 
-version: "0.6.94"
+version: "0.7.02"
 
 port: "5000"
 

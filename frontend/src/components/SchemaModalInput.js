@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Modal } from 'antd';
+import { Button, Flex, Modal } from 'antd';
 import { JsonSchemaEditor } from '@markmo/json-schema-editor-antd';
 import { CheckOutlined } from '@ant-design/icons';
 import isEmpty from 'lodash.isempty';
@@ -50,6 +50,14 @@ export function SchemaModalInput({
     return false;
   }, []);
 
+  const reset = () => {
+    if (typeof onChange === 'function') {
+      onChange(null);
+    }
+    setIsModalOpen(false);
+    setState(null);
+  };
+
   return (
     <>
       <Modal
@@ -59,6 +67,11 @@ export function SchemaModalInput({
         title={title}
         width={'75%'}
       >
+        <Flex align="center" justify="flex-end">
+          <Button onClick={reset}>
+            Clear
+          </Button>
+        </Flex>
         <div className="bodyScroll">
           <JsonSchemaEditor
             onChange={setState}

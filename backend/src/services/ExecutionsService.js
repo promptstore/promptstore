@@ -267,14 +267,19 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     batch = false,
     debug = false,
   }) => {
-    logger.debug('env:', env);
+    // logger.debug('env:', env);
+    // logger.debug('workspaceId:', workspaceId);
+    // logger.debug('semanticFunctionName:', semanticFunctionName);
     if (!params) params = {};
+    // logger.debug('params:', params);
     const { credits, errors } = await usersService.checkCredits(username);
+    // logger.debug('credits:', credits);
     if (errors) {
       return { errors };
     }
     let creditBalance = credits;
     const semanticFunctionInfo = func || await functionsService.getFunctionByName(workspaceId, semanticFunctionName);
+    logger.debug('semanticFunctionInfo:', semanticFunctionInfo);
     if (!semanticFunctionInfo) {
       const errors = [
         {
@@ -314,6 +319,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
         };
       }
     }
+    logger.debug('args:', args);
 
     const executor = new LocalExecutor();
 
@@ -366,7 +372,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
         const totalCost = responseMetadata.totalCost + costComponents.totalCost;
         creditBalance -= totalCost * 1000;
         if (!isNaN(creditBalance)) {
-          await usersService.upsertUser({ username, credits: creditBalance });
+          await usersService.upsertUser({ username, credits: creditBalance }, true);
         }
         const costs = [...(responseMetadata.costs || []), costComponents];
         responseMetadata = {

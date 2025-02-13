@@ -9,6 +9,7 @@ import {
   ParserService,
   Message,
   MessageRole,
+  OpenAIToolInput,
   createOpenAIMessages,
   logger,
 } from '../../../core/conversions';
@@ -24,7 +25,10 @@ import {
 const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
   'gpt-4',
   'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4o-mini-2024-07-18',
   'gpt-4o-2024-05-13',
+  'gpt-4o-2024-08-06',
   'gpt-4-1106-preview',
   'gpt-4-0125-preview',
   'gpt-4-0613',
@@ -39,6 +43,19 @@ const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
   'gpt-4o',
   'gpt-4o-2024-05-13',
 ];
+
+function isFunctionCallingModel(model: string) {
+  const models = [
+    ...OPENAI_MODELS_SUPPORTING_FUNCTIONS,
+    ...OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING,
+  ];
+  for (const m of models) {
+    if (model.startsWith(m)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export function toOpenAIChatRequest(request: ChatRequest) {
   const {
@@ -60,13 +77,16 @@ export function toOpenAIChatRequest(request: ChatRequest) {
   let functions: Function[];
   let function_call: FunctionCallType | object;
   let messages: Message[];
-  if (OPENAI_MODELS_SUPPORTING_FUNCTIONS.includes(model)) {
+  let tools: OpenAIToolInput[];
+  if (isFunctionCallingModel(model)) {
     functions = request.functions;
     function_call = request.function_call;
     messages = createOpenAIMessages(request.prompt);
+    tools = request.tools;
   } else {
     logger.debug('model "%s" doesn\'t support function calling', model);
     logger.debug('functions:', request.functions);
+    logger.debug('tools:', request.tools);
     messages = createOpenAIMessages(request.prompt, request.functions, buildToolsPrompt);
   }
   return {
@@ -74,6 +94,7 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     messages,
     functions,
     function_call,
+    tools,
     stream,
     user,
     temperature,
@@ -99,7 +120,9 @@ export async function fromOpenAIChatResponse(
     usage,
   } = response;
   let choices: ChatCompletionChoice[];
-  if (OPENAI_MODELS_SUPPORTING_FUNCTIONS.includes(model)) {
+  logger.debug('model:', model);
+  if (isFunctionCallingModel(model)) {
+    logger.debug('function calling model!');
     const candidates = response.choices;
     if (candidates.length) {
       const candidate = candidates[0];
@@ -134,16 +157,30 @@ export async function fromOpenAIChatResponse(
       }
     }
     if (!choices) {
-      choices = response.choices.map(c => ({
-        finish_reason: c.finish_reason,
-        index: c.index,
-        message: {
-          role: c.message.role,
-          content: c.message.content,
-          name: c.message.name,
-          function_call: c.message.function_call,
+      choices = response.choices.map(c => {
+        if (c.message.tool_calls) {
+          return {
+            finish_reason: c.finish_reason,
+            index: c.index,
+            message: {
+              role: c.message.role,
+              content: c.message.content,
+              name: c.message.name,
+              tool_calls: c.message.tool_calls,
+            }
+          };
         }
-      }));
+        return {
+          finish_reason: c.finish_reason,
+          index: c.index,
+          message: {
+            role: c.message.role,
+            content: c.message.content,
+            name: c.message.name,
+            function_call: c.message.function_call,
+          }
+        };
+      });
     }
   } else {
     const candidates = response.choices;

@@ -62,7 +62,7 @@ import {
 
 const { Search } = Input;
 
-const DEFAULT_MODEL_KEY = 'gpt-3.5-turbo-0613';
+const DEFAULT_MODEL_KEY = 'gpt-4o-mini';
 const TAGS_KEY = 'promptSetTags';
 
 export function PromptSetsList() {
@@ -72,7 +72,7 @@ export function PromptSetsList() {
   const [filterTemplates, setFilterTemplates] = useLocalStorageState('filter-templates', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('prompt-sets-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('prompt-sets-list-page', { defaultValue: 1 });
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useLocalStorageState('prompt-sets-search-value', { defaultValue: '' });
   const [selectedTags, setSelectedTags] = useLocalStorageState('selected-promptset-tags', { defaultValue: [] });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [numItems, setNumItems] = useLocalStorageState('prompt-sets-num-items', { defaultValue: 12 });
@@ -267,9 +267,9 @@ export function PromptSetsList() {
     setSelectedRowKeys([]);
   };
 
-  const onSearch = debounce((q) => {
-    setSearchValue(q);
-  }, 1000);
+  // const onSearch = debounce((q) => {
+  //   setSearchValue(q);
+  // }, 1000);
 
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -288,15 +288,15 @@ export function PromptSetsList() {
         </div>
       )
     },
-    {
-      title: 'Summary',
-      dataIndex: 'summary',
-      render: (_, { summary }) => (
-        <Typography.Text ellipsis style={{ minWidth: 250 }}>
-          {summary}
-        </Typography.Text>
-      )
-    },
+    // {
+    //   title: 'Summary',
+    //   dataIndex: 'summary',
+    //   render: (_, { summary }) => (
+    //     <Typography.Text ellipsis style={{ minWidth: 250 }}>
+    //       {summary}
+    //     </Typography.Text>
+    //   )
+    // },
     {
       title: 'Skill',
       dataIndex: 'skill',
@@ -454,8 +454,10 @@ export function PromptSetsList() {
           </div>
           <Search allowClear
             placeholder="search filter"
-            onSearch={onSearch}
+            // onSearch={onSearch}
+            onChange={ev => setSearchValue(ev.target.value)}
             style={{ width: 220 }}
+            value={searchValue}
           />
           {/* <Select allowClear mode="multiple"
             options={tagOptions}

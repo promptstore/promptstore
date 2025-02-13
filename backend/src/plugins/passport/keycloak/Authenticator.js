@@ -114,7 +114,7 @@ function Authenticator({ __name, constants, logger, app, passport, usersService 
         userInfoURL: `${host}/realms/${realm}/protocol/openid-connect/userinfo`,
       },
       async (accessToken, refreshToken, profile, done) => {
-        // logger.log('debug', 'user: %s', profile);
+        logger.log('debug', 'profile: %s', profile);
         await usersService.upsertUser(profile);
         return done(null, {
           ...profile,

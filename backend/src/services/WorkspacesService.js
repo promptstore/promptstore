@@ -24,15 +24,15 @@ export function WorkspacesService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
-  async function getWorkspacesByUser(userId, limit = 999, start = 0) {
+  async function getWorkspacesByUser(username, limit = 999, start = 0) {
     let q = `
       SELECT id, name, created, created_by, modified, modified_by, val
       FROM workspaces p
-      WHERE $1 = ANY(json_property_to_int_array(p.val->'members', 'id'))
+      WHERE $1 = ANY(json_property_to_varchar_array(p.val->'members', 'username'))
       OR (val->>'isPublic')::boolean = true
       LIMIT $2 OFFSET $3
       `;
-    const { rows } = await pg.query(q, [userId, limit, start]);
+    const { rows } = await pg.query(q, [username, limit, start]);
     return rows.map(mapRow);
   }
 

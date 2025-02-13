@@ -24,11 +24,17 @@ interface GeminiPartVideoMetadata {
   end_offset: VideoOffset;
 }
 
+export interface GeminiPartFunctionCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
 interface GeminiContentPart {
   text: string;  // The text instructions or chat dialogue to include in the prompt.
   inline_data: GeminiPartInlineData;  // Serialized bytes data of the image or video. You can specify at most 1 image with inlineData. To specify up to 16 images, use fileData.
   file_data: GeminiPartFileData;
   video_metadata: GeminiPartVideoMetadata;  // For video input, the start and end offset of the video in Duration format. For example, to specify a 10 second clip starting at 1:00, set "start_offset": { "seconds": 60 } and "end_offset": { "seconds": 70 }.
+  functionCall?: GeminiPartFunctionCall;
 }
 
 export interface GeminiContent {
@@ -36,7 +42,7 @@ export interface GeminiContent {
   parts: Partial<GeminiContentPart>[];  // Ordered parts that make up the input. Parts may have different MIME types. For gemini-pro, only the text field is valid. The token limit is 32k. For gemini-pro-vision, you may specify either text only, text and up to 16 images, or text and 1 video. The token limit is 16k.
 }
 
-export interface GeminiTools {
+export interface GeminiTool {
   function_declarations: Function[];
 }
 
@@ -49,10 +55,16 @@ interface GeminiGenerationConfig {
   stop_sequences: string[];  // Maximum 5 items in the list.
 }
 
+export interface GeminiSystemInstruction {
+  role: string;
+  parts: Partial<GeminiContentPart>[];
+}
+
 export interface GeminiChatRequest {
+  system_instruction?: GeminiSystemInstruction;
   model: string;
   contents: GeminiContent[];
-  tools?: GeminiTools;  // A piece of code that enables the system to interact with external systems to perform an action, or set of actions, outside of knowledge and scope of the model.
+  tools?: GeminiTool[];  // A piece of code that enables the system to interact with external systems to perform an action, or set of actions, outside of knowledge and scope of the model.
   safety_settings?: SafetySetting[];
   generation_config: Partial<GeminiGenerationConfig>;
 }

@@ -166,7 +166,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     <Route path="/" element={<Home />} />
                   </Routes>
                 </Content>
-                <Footer style={{ textAlign: 'center' }}>Prompt Store ©2024</Footer>
+                <Footer style={{ textAlign: 'center' }}>Prompt Store ©2025</Footer>
               </Layout>
             </Layout>
           </WithPrivateRoute>

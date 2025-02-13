@@ -18,23 +18,35 @@ function Choices({ step }) {
               function call
             </Typography.Text>
           </div>
-          :
-          <div key={'output-' + i}>
-            <Content content={choice.message.content} />
-            {/* <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+          : (
+            choice.message.tool_calls ?
+              <div key={'output-' + i}>
+                <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
+                  <div>name: {choice.message.tool_calls[0]?.function.name}</div>
+                  <div>arguments: <JsonView src={choice.message.tool_calls[0]?.function.arguments} /></div>
+                </Typography.Paragraph>
+                <Typography.Text type="secondary">
+                  tool call
+                </Typography.Text>
+              </div>
+              :
+              <div key={'output-' + i}>
+                <Content content={choice.message.content} />
+                {/* <Typography.Paragraph className={i === 0 ? 'first' : ''} style={{ whiteSpace: 'pre-wrap' }}>
               {typeof choice.message.content === 'string' ?
                 decodeEntities(choice.message.content)
                 :
                 JSON.stringify(choice.message.content)
               }
             </Typography.Paragraph> */}
-            {choice.finish_reason ?
-              <Typography.Text type="secondary">
-                finish reason: {choice.finish_reason}
-              </Typography.Text>
-              : null
-            }
-          </div>
+                {choice.finish_reason ?
+                  <Typography.Text type="secondary">
+                    finish reason: {choice.finish_reason}
+                  </Typography.Text>
+                  : null
+                }
+              </div>
+          )
       ))}
     </div>
   );

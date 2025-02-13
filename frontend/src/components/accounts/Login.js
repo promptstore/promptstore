@@ -76,10 +76,11 @@ export default function Login() {
         email: u.email,
         photoURL: u.photoURL,
       };
-      dispatch(upsertUserAsync({ user }));
+      dispatch(upsertUserAsync(user));
       // navigate('/');
-      window.location.replace('/');
+      window.location.href = '/';
     } catch (e) {
+      console.error('Error logging in:', e);
       setError('Failed to login');
     }
     setLoading(false);

@@ -77,7 +77,7 @@ export function FunctionsList() {
   const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-functions', { defaultValue: false });
   const [layout, setLayout] = useLocalStorageState('functions-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
-  const [searchValue, setSearchValue] = useState('');
+  const [searchValue, setSearchValue] = useLocalStorageState('functions-search-value', { defaultValue: '' });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', { defaultValue: [] });
   const [selectedProviders, setSelectedProviders] = useLocalStorageState('selected-function-providers', { defaultValue: [] });
@@ -235,9 +235,9 @@ export function FunctionsList() {
     setSelectedRowKeys([]);
   };
 
-  const onSearch = debounce((q) => {
-    setSearchValue(q);
-  }, 1000);
+  // const onSearch = debounce((q) => {
+  //   setSearchValue(q);
+  // }, 1000);
 
   const onSelectChange = (newSelectedRowKeys) => {
     setSelectedRowKeys(newSelectedRowKeys);
@@ -420,8 +420,10 @@ export function FunctionsList() {
           </div>
           <Search allowClear
             placeholder="search filter"
-            onSearch={onSearch}
+            // onSearch={onSearch}
             style={{ width: 220 }}
+            onChange={ev => setSearchValue(ev.target.value)}
+            value={searchValue}
           />
           <Select allowClear mode="multiple"
             options={modelOptions}
