@@ -4,6 +4,7 @@ const {
   evaluate,
   executeAgentNetwork,
   executeComposition,
+  executeTestScenario,
   index,
   logCall,
   reload,
@@ -13,8 +14,8 @@ const {
   scheduleToCloseTimeout: '20m',
   startToCloseTimeout: '10m',
   retry: {
-    maximumAttempts: 2,
-  }
+    maximumAttempts: 1,
+  },
 });
 
 export function evaluates(evaluation, workspaceId, username) {
@@ -27,6 +28,10 @@ export function executeAgentNetworks(params) {
 
 export function executeCompositions(params) {
   return executeComposition(params);
+}
+
+export function executeTestScenarios(params) {
+  return executeTestScenario(params);
 }
 
 export function indexs(params, loaderProvider, extractorProviders) {

@@ -37,6 +37,7 @@ import settingsReducer from '../features/settings/settingsSlice';
 import statisticsReducer from '../features/home/statisticsSlice';
 import templatesReducer from '../features/promptSets/templatesSlice';
 import toolsReducer from '../features/agents/toolsSlice';
+import testScenariosReducer from '../features/testScenarios/testScenariosSlice';
 import traceAnalyticsReducer from '../features/traces/traceAnalyticsSlice';
 import tracesReducer from '../features/traces/tracesSlice';
 import trainingReducer from '../features/training/trainingSlice';
@@ -83,6 +84,7 @@ export const store = configureStore({
     settings: settingsReducer,
     statistics: statisticsReducer,
     templates: templatesReducer,
+    testScenarios: testScenariosReducer,
     tools: toolsReducer,
     traceAnalytics: traceAnalyticsReducer,
     traces: tracesReducer,

@@ -14,8 +14,8 @@ backend/storage/
 examples/health_tracker/
 README_internal.md
 helm-chart/values.yaml
-k8s/loki-virtualservice.yaml
-k8s/openaiplatform-virtualservice.yaml
+helm-chart/values-*.yaml
+k8s/
 openaiplatform/
 backend/src/plugins/loaders/gmail/keys/
 backend/src/plugins/loaders/googledrive/keys/
@@ -27,7 +27,7 @@ mage_data/
 metadata.yaml
 backend/src/plugins/tools/bigquery/keys/
 backend/src/plugins/tools/bigquery_sql/keys/
-backend/src/config/serviceAccountKey.json
+backend/src/config/*.json
 .env.local
 .env.local.*
 token.json
@@ -36,3 +36,9 @@ keys/*.json
 .rules.env
 scratch*
 .vscode/
+backend/src/workflow/ca.key
+backend/src/workflow/ca.pem
+gcp/
+backups/
+build-*.sh
+*.yaml

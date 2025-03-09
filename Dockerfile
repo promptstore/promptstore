@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:20.9
+FROM node:20.9
 
 RUN apt-get update && \
     apt-get install -y graphicsmagick libpango1.0-dev && \

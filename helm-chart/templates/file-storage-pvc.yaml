@@ -4,7 +4,7 @@ metadata:
   name: file-storage-pvc
   namespace: "{{ .Values.namespace }}"
 spec:
-  storageClassName: nfs
+  # storageClassName: nfs
   accessModes:
     - ReadWriteOnce
   resources:

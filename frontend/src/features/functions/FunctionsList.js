@@ -51,11 +51,7 @@ import {
   selectLoading as selectSettingsLoading,
   selectSettings,
 } from '../settings/settingsSlice';
-import {
-  duplicateObjectAsync,
-  objectUploadAsync,
-  selectUploading,
-} from '../uploader/fileUploaderSlice';
+import { duplicateObjectAsync, objectUploadAsync, selectUploading } from '../uploader/fileUploaderSlice';
 import { getColor, intersects } from '../../utils';
 
 import {
@@ -71,17 +67,26 @@ const { Search } = Input;
 const TAGS_KEY = 'functionTags';
 
 export function FunctionsList() {
-
-  const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('functions-filter-multimodal', { defaultValue: false });
+  const [filterMultimodal, setFilterMultimodal] = useLocalStorageState('functions-filter-multimodal', {
+    defaultValue: false,
+  });
   const [filterPublic, setFilterPublic] = useLocalStorageState('public-functions', { defaultValue: false });
-  const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-functions', { defaultValue: false });
+  const [filterSystem, setFilterSystem] = useLocalStorageState('inherited-functions', {
+    defaultValue: false,
+  });
   const [layout, setLayout] = useLocalStorageState('functions-layout', { defaultValue: 'grid' });
   const [page, setPage] = useLocalStorageState('functions-list-page', { defaultValue: 1 });
   const [searchValue, setSearchValue] = useLocalStorageState('functions-search-value', { defaultValue: '' });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', { defaultValue: [] });
-  const [selectedProviders, setSelectedProviders] = useLocalStorageState('selected-function-providers', { defaultValue: [] });
-  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', { defaultValue: [] });
+  const [selectedImpls, setSelectedImpls] = useLocalStorageState('selected-function-impls', {
+    defaultValue: [],
+  });
+  const [selectedProviders, setSelectedProviders] = useLocalStorageState('selected-function-providers', {
+    defaultValue: [],
+  });
+  const [selectedTags, setSelectedTags] = useLocalStorageState('selected-function-tags', {
+    defaultValue: [],
+  });
   const [numItems, setNumItems] = useLocalStorageState('functions-num-items', { defaultValue: 12 });
 
   const functions = useSelector(selectFunctions);
@@ -103,18 +108,34 @@ export function FunctionsList() {
       return [...Array(numItems).keys()].map(key => ({ key }));
     } else {
       const list = Object.values(functions)
-        .filter((func) => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
-        .filter((func) => selectedTags?.length ? intersects(func.tags, selectedTags) : true)
-        .filter((func) => selectedImpls?.length ? intersects(func.implementations.map(impl => impl.modelId), selectedImpls) : true)
-        .filter((func) => filterMultimodal ? func.implementations.some(impl => models[impl.modelId]?.multimodal) : true)
-        .filter((func) => filterPublic ? true : !func.isPublic)
-        .filter((func) => filterSystem ? true : !func.isSystem)
-        .filter((func) =>
-          selectedProviders?.length && modelsLoaded ?
-            intersects(func.implementations.map(impl => models[impl.modelId]?.provider), selectedProviders) ||
-            intersects(func.implementations.map(impl => models[impl.modelId]?.type), selectedProviders)
-            : true)
-        .map((func) => ({
+        .filter(func => func.name.toLowerCase().indexOf(searchValue.toLowerCase()) !== -1)
+        .filter(func => (selectedTags?.length ? intersects(func.tags, selectedTags) : true))
+        .filter(func =>
+          selectedImpls?.length
+            ? intersects(
+                func.implementations.map(impl => impl.modelId),
+                selectedImpls
+              )
+            : true
+        )
+        .filter(func =>
+          filterMultimodal ? func.implementations.some(impl => models[impl.modelId]?.multimodal) : true
+        )
+        .filter(func => (filterPublic ? true : !func.isPublic))
+        .filter(func => (filterSystem ? true : !func.isSystem))
+        .filter(func =>
+          selectedProviders?.length && modelsLoaded
+            ? intersects(
+                func.implementations.map(impl => models[impl.modelId]?.provider),
+                selectedProviders
+              ) ||
+              intersects(
+                func.implementations.map(impl => models[impl.modelId]?.type),
+                selectedProviders
+              )
+            : true
+        )
+        .map(func => ({
           key: func.id,
           name: func.name,
           implementations: func.implementations,
@@ -123,18 +144,28 @@ export function FunctionsList() {
           isSystem: func.isSystem,
           description: func.description,
         }));
-      list.sort((a, b) => a.name > b.name ? 1 : -1);
+      list.sort((a, b) => (a.name > b.name ? 1 : -1));
       return list;
     }
-  }, [functions, filterMultimodal, filterPublic, filterSystem, models, modelsLoaded, searchValue, selectedImpls, selectedTags, selectedProviders]);
+  }, [
+    functions,
+    filterMultimodal,
+    filterPublic,
+    filterSystem,
+    models,
+    modelsLoaded,
+    searchValue,
+    selectedImpls,
+    selectedTags,
+    selectedProviders,
+  ]);
 
   const modelOptions = useMemo(() => {
-    const list = Object.values(models)
-      .map((m) => ({
-        label: m.name,
-        value: m.id,
-      }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    const list = Object.values(models).map(m => ({
+      label: m.name,
+      value: m.id,
+    }));
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [models]);
 
@@ -146,18 +177,22 @@ export function FunctionsList() {
       },
     ];
     if (providers.all) {
-      list.push(...providers.all.map(p => ({
-        label: p.name,
-        value: p.key,
-      })));
+      list.push(
+        ...providers.all.map(p => ({
+          label: p.name,
+          value: p.key,
+        }))
+      );
     }
     if (providers.custom) {
-      list.push(...providers.custom.map(p => ({
-        label: p.name,
-        value: p.key,
-      })));
+      list.push(
+        ...providers.custom.map(p => ({
+          label: p.name,
+          value: p.key,
+        }))
+      );
     }
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [providers]);
 
@@ -184,7 +219,7 @@ export function FunctionsList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: '/functions/new/edit',
       title: 'Semantic Functions',
@@ -199,10 +234,12 @@ export function FunctionsList() {
       dispatch(getModelsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
       dispatch(getSettingsAsync({ keys: [TAGS_KEY], workspaceId }));
-      dispatch(getFunctionsAsync({
-        workspaceId,
-        minDelay: layout === 'grid' ? 1000 : 0,
-      }));
+      dispatch(
+        getFunctionsAsync({
+          workspaceId,
+          minDelay: layout === 'grid' ? 1000 : 0,
+        })
+      );
     }
   }, [selectedWorkspace]);
 
@@ -221,13 +258,15 @@ export function FunctionsList() {
     }
   }, [loaded, functions]);
 
-  const handleDuplicate = (key) => {
+  const handleDuplicate = key => {
     const func = functions[key];
-    dispatch(duplicateObjectAsync({
-      obj: func,
-      type: 'function',
-      workspaceId: selectedWorkspace.id,
-    }));
+    dispatch(
+      duplicateObjectAsync({
+        obj: func,
+        type: 'function',
+        workspaceId: selectedWorkspace.id,
+      })
+    );
   };
 
   const onDelete = () => {
@@ -239,7 +278,7 @@ export function FunctionsList() {
   //   setSearchValue(q);
   // }, 1000);
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
@@ -251,24 +290,22 @@ export function FunctionsList() {
         <div style={{ minWidth: 250 }}>
           <Link to={`/functions/${key}`}>{name}</Link>
         </div>
-      )
+      ),
     },
     {
       title: 'Implementations',
       dataIndex: 'implementations',
       render: (_, { implementations = [] }) => (
         <Space size={[0, 8]} wrap>
-          {implementations.map((impl, i) => (
-            impl.modelId && modelsLoaded && models[impl.modelId] ?
-              <Tag key={'impl-' + i}
-                color={getColor(models[impl.modelId].type, isDarkMode)}
-              >
+          {implementations.map((impl, i) =>
+            impl.modelId && modelsLoaded && models[impl.modelId] ? (
+              <Tag key={'impl-' + i} color={getColor(models[impl.modelId].type, isDarkMode)}>
                 {models[impl.modelId].key}
               </Tag>
-              : null
-          ))}
+            ) : null
+          )}
         </Space>
-      )
+      ),
     },
     {
       title: 'Public',
@@ -278,18 +315,18 @@ export function FunctionsList() {
         <div style={{ fontSize: '1.5em' }}>
           <span>{isPublic ? <CheckOutlined /> : ''}</span>
         </div>
-      )
+      ),
     },
     {
       title: 'Tags',
       dataIndex: 'tags',
       render: (_, { tags = [] }) => (
         <Space size={[8, 8]} wrap>
-          {tags.map((tag) => (
+          {tags.map(tag => (
             <Tag key={tag}>{tag}</Tag>
           ))}
         </Space>
-      )
+      ),
     },
     {
       title: 'Action',
@@ -298,22 +335,17 @@ export function FunctionsList() {
       width: 225,
       render: (_, record) => (
         <Space size="small" wrap>
-          <Button type="link"
-            onClick={() => navigate(`/functions/${record.key}`)}
-            style={{ paddingLeft: 0 }}
-          >
+          <Button type="link" onClick={() => navigate(`/functions/${record.key}`)} style={{ paddingLeft: 0 }}>
             View
           </Button>
-          <Button type="link"
+          <Button
+            type="link"
             onClick={() => navigate(`/functions/${record.key}/edit`)}
             style={{ paddingLeft: 0 }}
           >
             Edit
           </Button>
-          <Button type="link"
-            onClick={() => handleDuplicate(record.key)}
-            style={{ paddingLeft: 0 }}
-          >
+          <Button type="link" onClick={() => handleDuplicate(record.key)} style={{ paddingLeft: 0 }}>
             Duplicate
           </Button>
         </Space>
@@ -324,9 +356,7 @@ export function FunctionsList() {
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
-    selections: [
-      Table.SELECTION_ALL,
-    ],
+    selections: [Table.SELECTION_ALL],
   };
 
   const hasSelected = selectedRowKeys.length > 0;
@@ -342,18 +372,20 @@ export function FunctionsList() {
       }
     }
     return fns;
-  }, [functions, loaded, modelsLoaded, promptSetsLoaded]);
+  }, [functions, loaded, modelsLoaded, promptSetsLoaded, selectedRowKeys]);
 
-  const onUpload = (info) => {
+  const onUpload = info => {
     if (info.file.status === 'uploading') {
       return;
     }
     if (info.file.status === 'done') {
-      dispatch(objectUploadAsync({
-        file: info.file,
-        type: 'function',
-        workspaceId: selectedWorkspace.id,
-      }));
+      dispatch(
+        objectUploadAsync({
+          file: info.file,
+          type: 'function',
+          workspaceId: selectedWorkspace.id,
+        })
+      );
     }
   };
 
@@ -365,10 +397,10 @@ export function FunctionsList() {
         title: <Typography.Text ellipsis>{t.label}</Typography.Text>,
         key: t.value,
       })),
-    }
+    },
   ];
 
-  const selectFolder = (selectedKeys) => {
+  const selectFolder = selectedKeys => {
     if (selectedKeys[0] === 'all') {
       setSelectedTags([]);
     } else {
@@ -384,10 +416,10 @@ export function FunctionsList() {
         title: <Typography.Text ellipsis>{p.label}</Typography.Text>,
         key: p.value,
       })),
-    }
+    },
   ];
 
-  const selectProvider = (selectedKeys) => {
+  const selectProvider = selectedKeys => {
     if (selectedKeys[0] === 'all') {
       setSelectedProviders([]);
     } else {
@@ -404,28 +436,28 @@ export function FunctionsList() {
             <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
               Delete
             </Button>
-            {hasSelected ?
+            {hasSelected ? (
               <>
-                <span>
-                  Selected {selectedRowKeys.length} items
-                </span>
+                <span>Selected {selectedRowKeys.length} items</span>
                 <Download filename={'functions.json'} payload={selectedFunctions}>
                   <Button type="text" icon={<DownloadOutlined />}>
                     Export
                   </Button>
                 </Download>
               </>
-              : null
-            }
+            ) : null}
           </div>
-          <Search allowClear
+          <Search
+            allowClear
             placeholder="search filter"
             // onSearch={onSearch}
             style={{ width: 220 }}
             onChange={ev => setSearchValue(ev.target.value)}
             value={searchValue}
           />
-          <Select allowClear mode="multiple"
+          <Select
+            allowClear
+            mode="multiple"
             options={modelOptions}
             optionFilterProp="label"
             loading={modelsLoading}
@@ -444,24 +476,15 @@ export function FunctionsList() {
             value={selectedTags}
           /> */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Switch
-              checked={filterPublic}
-              onChange={setFilterPublic}
-            />
+            <Switch checked={filterPublic} onChange={setFilterPublic} />
             <div>Public</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Switch
-              checked={filterSystem}
-              onChange={setFilterSystem}
-            />
+            <Switch checked={filterSystem} onChange={setFilterSystem} />
             <div>System</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Switch
-              checked={filterMultimodal}
-              onChange={setFilterMultimodal}
-            />
+            <Switch checked={filterMultimodal} onChange={setFilterMultimodal} />
             <div>Multimodal</div>
           </div>
           <Upload
@@ -483,11 +506,11 @@ export function FunctionsList() {
             options={[
               {
                 label: <UnorderedListOutlined />,
-                value: 'list'
+                value: 'list',
               },
               {
                 label: <AppstoreOutlined />,
-                value: 'grid'
+                value: 'grid',
               },
             ]}
           />
@@ -496,9 +519,7 @@ export function FunctionsList() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="folders">
               <div className="heading-wrapper">
-                <div className="heading">
-                  Tags
-                </div>
+                <div className="heading">Tags</div>
               </div>
               <Tree
                 defaultExpandAll
@@ -510,9 +531,7 @@ export function FunctionsList() {
             </div>
             <div className="folders">
               <div className="heading-wrapper">
-                <div className="heading">
-                  Providers
-                </div>
+                <div className="heading">Providers</div>
               </div>
               <Tree
                 defaultExpandAll
@@ -523,42 +542,47 @@ export function FunctionsList() {
               />
             </div>
           </div>
-          {layout === 'grid' ?
+          {layout === 'grid' ? (
             <Space wrap size="large">
-              {data.map(f =>
-                <Card key={f.key} className="function-card" title={f.name} style={{ width: 350, height: 225 }} loading={loading}>
+              {data.map(f => (
+                <Card
+                  key={f.key}
+                  className="function-card"
+                  title={f.name}
+                  style={{ width: 350, height: 225 }}
+                  loading={loading}
+                >
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: 121 }}>
-                    <Typography.Text ellipsis>
-                      {f.description}
-                    </Typography.Text>
+                    <Typography.Text ellipsis>{f.description}</Typography.Text>
                     <Space size={8} wrap>
                       <div className="inline-label">imps</div>
-                      {f.implementations?.map((impl) => (
-                        impl.modelId && modelsLoaded && models[impl.modelId] ?
-                          <Tag key={impl.modelId}
-                            color={getColor(models[impl.modelId].type, isDarkMode)}
-                          >
+                      {f.implementations?.map(impl =>
+                        impl.modelId && modelsLoaded && models[impl.modelId] ? (
+                          <Tag key={impl.modelId} color={getColor(models[impl.modelId].type, isDarkMode)}>
                             {models[impl.modelId].key}
                           </Tag>
-                          : null
-                      ))}
+                        ) : null
+                      )}
                     </Space>
-                    {f.tags?.length ?
+                    {f.tags?.length ? (
                       <Space size={8} wrap>
                         <div className="inline-label">tags</div>
-                        {f.tags.map(t => <Tag key={t}>{t}</Tag>)}
+                        {f.tags.map(t => (
+                          <Tag key={t}>{t}</Tag>
+                        ))}
                       </Space>
-                      : null
-                    }
-                    <div style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}>
+                    ) : null}
+                    <div
+                      style={{ display: 'flex', flexDirection: 'row-reverse', gap: 16, marginTop: 'auto' }}
+                    >
                       <Link to={`/functions/${f.key}/edit`}>Edit</Link>
                       <Link to={`/functions/${f.key}`}>View</Link>
                     </div>
                   </div>
                 </Card>
-              )}
+              ))}
             </Space>
-            :
+          ) : (
             <Table
               rowSelection={rowSelection}
               columns={columns}
@@ -570,14 +594,14 @@ export function FunctionsList() {
               }}
               rowClassName="function-list-row"
             />
-          }
+          )}
         </div>
       </div>
     </>
   );
-};
+}
 
-const beforeUpload = (file) => {
+const beforeUpload = file => {
   // console.log('file:', file);
 
   const isJSON = file.type === 'application/json';

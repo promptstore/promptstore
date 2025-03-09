@@ -2,6 +2,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RouterProvider } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
+import { StyleProvider } from '@ant-design/cssinjs';
 import useLocalStorageState from 'use-local-storage-state';
 import { ReactFlowProvider } from 'reactflow';
 import isEmpty from 'lodash.isempty';
@@ -12,15 +13,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import NavbarContext from './contexts/NavbarContext';
 import UserContext from './contexts/UserContext';
 import WorkspaceContext from './contexts/WorkspaceContext';
-import {
-  getCurrentUserAsync,
-  selectCurrentUser,
-  selectAuthStatusChecked,
-} from './features/users/usersSlice';
-import {
-  getWorkspacesAsync,
-  selectWorkspaces,
-} from './features/workspaces/workspacesSlice';
+import { getCurrentUserAsync, selectCurrentUser, selectAuthStatusChecked } from './features/users/usersSlice';
+import { getWorkspacesAsync, selectWorkspaces } from './features/workspaces/workspacesSlice';
 
 import defaultUser from './defaultUser';
 import router from './router';
@@ -32,7 +26,6 @@ import 'instantsearch.css/themes/satellite.css';
 const { defaultAlgorithm, darkAlgorithm } = theme;
 
 function App() {
-
   const [currentUser, setCurrentUser] = useState(null);
   const [isDarkMode, setIsDarkMode] = useLocalStorageState('darkMode', { defaultValue: false });
   const [navbarState, setNavbarState] = useState({});
@@ -103,42 +96,40 @@ function App() {
     } else if (process.env.REACT_APP_FIREBASE_API_KEY) {
       console.log('Using firebase');
       let unsubscribe;
-      import('./config/firebase.js')
-        .then(({ default: auth }) => {
-          // console.log('auth:', auth);
-          // Adds an observer for changes to the signed-in user's ID token, 
-          // which includes sign-in, sign-out, and token refresh events. This 
-          // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged` 
-          // had prior to 4.0.0.
-          // `onAuthStateChanged` - Prior to 4.0.0, this triggered the observer 
-          // when users were signed in, signed out, or when the user's ID token 
-          // changed in situations such as token expiry or password change. After 
-          // 4.0.0, the observer is only triggered on sign-in or sign-out.
-          // current version - ^10.1.0
-          unsubscribe = auth.onIdTokenChanged(async (user) => {
-            // console.log('user:', user);
-            if (user) {
-              const accessToken = await user.getIdToken();
-              // console.log('accessToken:', accessToken);
-              if (accessToken) {
-                setToken({ accessToken });
-                setCurrentUser((cur) => {
-                  if (cur) {
-                    return { ...cur, ...user };
-                  }
-                  return user;
-                });
-              }
+      import('./config/firebase.js').then(({ default: auth }) => {
+        // console.log('auth:', auth);
+        // Adds an observer for changes to the signed-in user's ID token,
+        // which includes sign-in, sign-out, and token refresh events. This
+        // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged`
+        // had prior to 4.0.0.
+        // `onAuthStateChanged` - Prior to 4.0.0, this triggered the observer
+        // when users were signed in, signed out, or when the user's ID token
+        // changed in situations such as token expiry or password change. After
+        // 4.0.0, the observer is only triggered on sign-in or sign-out.
+        // current version - ^10.1.0
+        unsubscribe = auth.onIdTokenChanged(async user => {
+          // console.log('user:', user);
+          if (user) {
+            const accessToken = await user.getIdToken();
+            // console.log('accessToken:', accessToken);
+            if (accessToken) {
+              setToken({ accessToken });
+              setCurrentUser(cur => {
+                if (cur) {
+                  return { ...cur, ...user };
+                }
+                return user;
+              });
             }
-          });
+          }
         });
+      });
 
       return () => {
         if (unsubscribe) {
           unsubscribe();
         }
       };
-
     } else if (process.env.REACT_APP_PROMPTSTORE_API_KEY) {
       console.log('Using service account');
       setToken({ accessToken: process.env.REACT_APP_PROMPTSTORE_API_KEY });
@@ -153,7 +144,7 @@ function App() {
       if (!currentUsr) {
         dispatch(getCurrentUserAsync());
       } else {
-        setCurrentUser((current) => current ? { ...current, ...currentUsr } : currentUsr);
+        setCurrentUser(current => (current ? { ...current, ...currentUsr } : currentUsr));
         dispatch(getWorkspacesAsync());
         setReady(1);
       }
@@ -171,9 +162,7 @@ function App() {
     }
   }, [ready, selectedWorkspace, workspaces]);
 
-  const Loading = () => (
-    <div style={{ margin: '20px 40px' }}>Loading...</div>
-  );
+  const Loading = () => <div style={{ margin: '20px 40px' }}>Loading...</div>;
 
   // if (ready < 2 && !authStatusChecked) {
   //   return (
@@ -197,8 +186,10 @@ function App() {
             <WorkspaceContext.Provider value={workspaceContextValue}>
               <NavbarContext.Provider value={navbarContextValue}>
                 <ReactFlowProvider>
-                  <ErrorMessage />
-                  <RouterProvider router={router({ currentUser, isDarkMode, selectedWorkspace })} />
+                  <StyleProvider>
+                    <ErrorMessage />
+                    <RouterProvider router={router({ currentUser, isDarkMode, selectedWorkspace })} />
+                  </StyleProvider>
                 </ReactFlowProvider>
               </NavbarContext.Provider>
             </WorkspaceContext.Provider>

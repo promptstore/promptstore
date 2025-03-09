@@ -1,4 +1,4 @@
-\connect promptstore
+-- \connect promptstore
 
 -- Table: public.file_uploads
 
@@ -1107,3 +1107,81 @@ CREATE INDEX agent_networks_workspace_id_key
     ON public."agent_networks" USING btree
     (workspace_id)
     TABLESPACE pg_default;
+
+
+-- Table: public."test_scenarios"
+
+DROP TABLE IF EXISTS public."test_scenarios";
+
+-- Sequence: public."test_scenarios_id_seq"
+
+DROP SEQUENCE IF EXISTS public."test_scenarios_id_seq";
+
+CREATE SEQUENCE public."test_scenarios_id_seq" AS bigint;
+
+CREATE TABLE public."test_scenarios"
+(
+    id integer NOT NULL DEFAULT nextval('"test_scenarios_id_seq"'::regclass),
+    workspace_id integer,
+    name character varying(255) COLLATE pg_catalog."default",
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "test_scenarios_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."test_scenarios"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."test_scenarios_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."test_scenarios_id_seq"
+    OWNED BY public."test_scenarios"."id";
+
+
+-- Table: public."test_cases"
+
+DROP TABLE IF EXISTS public."test_cases";
+
+-- Sequence: public."test_cases_id_seq"
+
+DROP SEQUENCE IF EXISTS public."test_cases_id_seq";
+
+CREATE SEQUENCE public."test_cases_id_seq" AS bigint;
+
+CREATE TABLE public."test_cases"
+(
+    id integer NOT NULL DEFAULT nextval('"test_cases_id_seq"'::regclass),
+    workspace_id integer,
+    test_scenario_id integer,
+    function_id integer,
+    input json,
+    output json,
+    rating integer,
+    created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    created_by character varying(255) COLLATE pg_catalog."default",
+    modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+    modified_by character varying(255) COLLATE pg_catalog."default",
+    val json,
+    CONSTRAINT "test_cases_pkey" PRIMARY KEY (id)
+)
+WITH (
+    OIDS = FALSE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE public."test_cases"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."test_cases_id_seq"
+    OWNER to psadmin;
+
+ALTER SEQUENCE public."test_cases_id_seq"
+    OWNED BY public."test_cases"."id";

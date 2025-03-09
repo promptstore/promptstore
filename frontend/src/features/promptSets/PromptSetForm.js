@@ -60,25 +60,15 @@ import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { wordsDiff } from '../../utils/PatienceDiff';
 
 import { VersionsModal } from '../apps/Playground/VersionsModal';
-import {
-  selectMessages,
-} from '../designer/chatSlice';
-import {
-  getFunctionsByPromptSetAsync,
-  resetFunctions,
-  selectFunctions,
-} from '../functions/functionsSlice';
+import { selectMessages } from '../designer/chatSlice';
+import { getFunctionsByPromptSetAsync, resetFunctions, selectFunctions } from '../functions/functionsSlice';
 import {
   createSettingAsync,
   getSettingsAsync,
   selectSettings,
   updateSettingAsync,
 } from '../settings/settingsSlice';
-import {
-  duplicateObjectAsync,
-  fileUploadAsync,
-  selectUploading,
-} from '../uploader/fileUploaderSlice';
+import { duplicateObjectAsync, fileUploadAsync, selectUploading } from '../uploader/fileUploaderSlice';
 
 import { SnippetModal } from './SnippetModal';
 import { TemplateModal } from './TemplateModal';
@@ -136,22 +126,21 @@ function PromptField({ attributes, listeners, onChange, value }) {
           <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path>
         </svg>
       </button>
-      {Array.isArray(value) ?
+      {Array.isArray(value) ? (
         <Image src={value[0].image_url.url} width={200} />
-        :
+      ) : (
         <TextArea
           autoSize={{ minRows: 3, maxRows: 14 }}
           onChange={onChange}
           placeholder="Prompt"
           value={value}
         />
-      }
+      )}
     </div>
   );
 }
 
 function SortableItem({ field, index, remove }) {
-
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: field.key,
   });
@@ -165,27 +154,18 @@ function SortableItem({ field, index, remove }) {
   return (
     <div ref={setNodeRef} style={style}>
       <div style={{ flex: 1 }}>
-        <Form.Item
-          {...field}
-          name={[field.name, 'prompt']}
-        >
+        <Form.Item {...field} name={[field.name, 'prompt']}>
           <PromptField attributes={attributes} listeners={listeners} />
         </Form.Item>
       </div>
       <div style={{ width: 100, marginLeft: 8 }}>
-        <Form.Item
-          name={[field.name, 'role']}
-          initialValue="user"
-        >
-          <Select allowClear
-            optionFilterProp="label"
-            options={roleOptions}
-            placeholder="Role"
-          />
+        <Form.Item name={[field.name, 'role']} initialValue="user">
+          <Select allowClear optionFilterProp="label" options={roleOptions} placeholder="Role" />
         </Form.Item>
       </div>
       <div style={{ width: 32, marginLeft: 0 }}>
-        <Button type="text"
+        <Button
+          type="text"
           icon={<CloseOutlined />}
           className="dynamic-delete-button"
           onClick={() => remove(field.name)}
@@ -196,7 +176,6 @@ function SortableItem({ field, index, remove }) {
 }
 
 export function PromptSetForm() {
-
   const [backOnSave, setBackOnSave] = useState(false);
   const [correlationId, setCorrelationId] = useState(null);
   const [existingTags, setExistingTags] = useState([]);
@@ -246,11 +225,11 @@ export function PromptSetForm() {
   // console.log('skills:', skills);
 
   const skillOptions = useMemo(() => {
-    const list = skills.map((skill) => ({
+    const list = skills.map(skill => ({
       label: skill,
       value: skill,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [skills]);
 
@@ -263,7 +242,7 @@ export function PromptSetForm() {
       username: s.username,
       promptSet: s.promptSet,
     }));
-    vs.sort((a, b) => a.created < b.created ? 1 : -1);
+    vs.sort((a, b) => (a.created < b.created ? 1 : -1));
     return vs;
   }, [promptSet]);
 
@@ -281,14 +260,11 @@ export function PromptSetForm() {
           >
             {title}
           </Link>
-          <div
-            className="text-secondary"
-            style={{ marginTop: 5 }}
-          >
+          <div className="text-secondary" style={{ marginTop: 5 }}>
             {dayjs(created).format(TIME_FORMAT)}
           </div>
-        </div >
-      )
+        </div>
+      ),
     },
   ];
 
@@ -321,12 +297,12 @@ export function PromptSetForm() {
     return [];
   }, [settings]);
 
-  const openVersion = async (id) => {
+  const openVersion = async id => {
     if (!tempForm) {
       const values = await form.validateFields();
       setTempForm(values);
     }
-    const ver = promptSet.versions.find((v) => v.id === id);
+    const ver = promptSet.versions.find(v => v.id === id);
     // not sure why this line is needed
     // otherwise nested properties in `arguments` are not updated
     form.setFieldValue('arguments', null);
@@ -344,7 +320,7 @@ export function PromptSetForm() {
   };
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'Prompt Template',
@@ -368,10 +344,12 @@ export function PromptSetForm() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
-      dispatch(getSettingsAsync({
-        key: ['environments', 'skills', 'snippets', TAGS_KEY],
-        workspaceId,
-      }));
+      dispatch(
+        getSettingsAsync({
+          key: ['environments', 'skills', 'snippets', TAGS_KEY],
+          workspaceId,
+        })
+      );
     }
   }, [selectedWorkspace]);
 
@@ -400,7 +378,7 @@ export function PromptSetForm() {
     }
   }, [promptSets]);
 
-  const addNewSkill = (ev) => {
+  const addNewSkill = ev => {
     ev.preventDefault();
     if (newSkill && selectedWorkspace) {
       const newSkills = [...skills, newSkill];
@@ -429,10 +407,12 @@ export function PromptSetForm() {
 
   useEffect(() => {
     if (promptSet) {
-      dispatch(getFunctionsByPromptSetAsync({
-        workspaceId: selectedWorkspace.id,
-        promptSetId: promptSet.id,
-      }));
+      dispatch(
+        getFunctionsByPromptSetAsync({
+          workspaceId: selectedWorkspace.id,
+          promptSetId: promptSet.id,
+        })
+      );
     }
   }, [promptSet]);
 
@@ -442,7 +422,7 @@ export function PromptSetForm() {
         role: m.role,
         prompt: m.content,
       }));
-      console.log('prompts:', prompts)
+      console.log('prompts:', prompts);
       form.setFieldValue('prompts', [...(promptSet.prompts || []), ...prompts]);
     }
   }, [messages]);
@@ -451,14 +431,14 @@ export function PromptSetForm() {
     setSnippetModalOpen(true);
   };
 
-  const useTemplate = (template) => {
+  const useTemplate = template => {
     form.setFieldValue('isTypesDefined', template.isTypesDefined);
     form.setFieldValue('arguments', template.arguments);
     form.setFieldValue('prompts', template.prompts);
     setTemplateModalOpen(false);
   };
 
-  const handleSnippetCreate = (form) => {
+  const handleSnippetCreate = form => {
     const { key, content } = form;
     const setting = Object.values(settings).find(s => s.key === 'snippets');
     if (setting) {
@@ -469,7 +449,7 @@ export function PromptSetForm() {
           ...value[index],
           key,
           content,
-          modified: (new Date()).toISOString(),
+          modified: new Date().toISOString(),
           modifiedBy: currentUser.username,
         });
       } else {
@@ -477,7 +457,7 @@ export function PromptSetForm() {
           id: uuidv4(),
           key,
           content,
-          created: (new Date()).toISOString(),
+          created: new Date().toISOString(),
           createdBy: currentUser.username,
         });
       }
@@ -489,7 +469,7 @@ export function PromptSetForm() {
           id: uuidv4(),
           key,
           content,
-          created: (new Date()).toISOString(),
+          created: new Date().toISOString(),
           createdBy: currentUser.username,
         },
       ];
@@ -503,7 +483,7 @@ export function PromptSetForm() {
     setSnippetModalOpen(false);
   };
 
-  const handleSnippetDelete = (key) => {
+  const handleSnippetDelete = key => {
     if (key) {
       const setting = Object.values(settings).find(s => s.key === 'snippets');
       if (setting) {
@@ -519,7 +499,7 @@ export function PromptSetForm() {
     }
   };
 
-  const handleSnippetEdit = (key) => {
+  const handleSnippetEdit = key => {
     const setting = Object.values(settings).find(s => s.key === 'snippets');
     if (setting) {
       const value = setting.value || [];
@@ -533,7 +513,7 @@ export function PromptSetForm() {
 
   const handleSnippetModalCancel = () => {
     setSnippetModalOpen(false);
-  }
+  };
 
   const handleTemplateModalCancel = () => {
     setTemplateModalOpen(false);
@@ -543,7 +523,7 @@ export function PromptSetForm() {
     navigate('/prompt-sets');
   };
 
-  const onFinish = (values) => {
+  const onFinish = values => {
     if (isNew) {
       if (selectedWorkspace) {
         values = {
@@ -565,7 +545,7 @@ export function PromptSetForm() {
     setBackOnSave(true);
   };
 
-  const cleanVersion = (ver) => ({ ...ver, id: ver.id || uuidv4() });
+  const cleanVersion = ver => ({ ...ver, id: ver.id || uuidv4() });
 
   const saveAndCreateVersion = async () => {
     let values = await form.validateFields();
@@ -573,24 +553,31 @@ export function PromptSetForm() {
     let diff;
     if (versions && versions.length) {
       const previousVersion = versions[versions.length - 1];
-      const aWords = (previousVersion.promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
-      const bWords = (promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
+      const aWords = (previousVersion.promptSet.prompts || [])
+        .map(p => p.prompt)
+        .join(' ')
+        .split(/\s+/);
+      const bWords = (promptSet.prompts || [])
+        .map(p => p.prompt)
+        .join(' ')
+        .split(/\s+/);
       // TODO get the words in `bWords` that are different
       diff = wordsDiff(aWords, bWords, 5);
     } else {
       diff = ['Initial', 'version'];
     }
     if (diff.length) {
-      const title = diff.join(' ');
+      // const title = diff.join(' ');
+      const version = (versions || []).length + 1;
       versions = [
         ...(versions || []).map(cleanVersion),
         {
           id: uuidv4(),
-          created: (new Date()).toISOString(),
+          created: new Date().toISOString(),
           promptSet: omit(promptSet, ['versions']),
-          title,
+          title: `Version ${version}`,
           username: currentUser.username,
-          version: (versions || []).length + 1,
+          version,
         },
       ];
     }
@@ -604,10 +591,10 @@ export function PromptSetForm() {
     navigate('/prompt-sets');
   };
 
-  const updateExistingTags = (tags) => {
+  const updateExistingTags = tags => {
     const setting = Object.values(settings).find(s => s.key === TAGS_KEY);
     const newTags = [...new Set([...existingTags, ...tags])];
-    newTags.sort((a, b) => a < b ? -1 : 1);
+    newTags.sort((a, b) => (a < b ? -1 : 1));
     const values = {
       workspaceId: selectedWorkspace.id,
       key: TAGS_KEY,
@@ -620,7 +607,7 @@ export function PromptSetForm() {
     }
   };
 
-  const handleChange = (info) => {
+  const handleChange = info => {
     if (info.file.status === 'uploading') {
       return;
     }
@@ -632,13 +619,11 @@ export function PromptSetForm() {
   const uploadButton = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 15px' }}>
       {uploading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div>
-        {uploading ? 'Uploading...' : 'Upload Image'}
-      </div>
+      <div>{uploading ? 'Uploading...' : 'Upload Image'}</div>
     </div>
   );
 
-  const onNewSkillChange = (ev) => {
+  const onNewSkillChange = ev => {
     setNewSkill(ev.target.value);
   };
 
@@ -650,16 +635,13 @@ export function PromptSetForm() {
   );
 
   function Code({ children }) {
-    return (
-      <code style={{ color: 'chocolate', fontSize: '0.9em', whiteSpace: 'nowrap' }}>{children}</code>
-    );
+    return <code style={{ color: 'chocolate', fontSize: '0.9em', whiteSpace: 'nowrap' }}>{children}</code>;
   }
 
   function PromptList({ fields, errors, add, move, remove }) {
-
     const [activeId, setActiveId] = useState(null);
 
-    const handleDragStart = (ev) => {
+    const handleDragStart = ev => {
       setActiveId(ev.active.id);
     };
 
@@ -670,7 +652,7 @@ export function PromptSetForm() {
         const to = fields.findIndex(f => f.key === over.id);
         move(from, to);
       }
-    }
+    };
 
     return (
       <>
@@ -684,11 +666,7 @@ export function PromptSetForm() {
         >
           <SortableContext items={fields} strategy={verticalListSortingStrategy}>
             {fields.map((field, index) => (
-              <SortableItem key={field.key}
-                field={field}
-                index={index}
-                remove={remove}
-              />
+              <SortableItem key={field.key} field={field} index={index} remove={remove} />
             ))}
           </SortableContext>
           <DragOverlay>
@@ -703,12 +681,7 @@ export function PromptSetForm() {
         </DndContext>
         <Form.Item>
           <div style={{ marginLeft: 30 }}>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => add()}
-              style={{ width: '100%' }}
-              type="dashed"
-            >
+            <Button icon={<PlusOutlined />} onClick={() => add()} style={{ width: '100%' }} type="dashed">
               Add Message
             </Button>
             <Form.ErrorList errors={errors} />
@@ -743,47 +716,49 @@ export function PromptSetForm() {
                       <Space direction="horizontal" wrap={true}>
                         <span style={{ whiteSpace: 'nowrap' }}>Available variables:</span>
                         <Tag key="maxTokens">maxTokens</Tag>
-                        {vars.map((v) => (
+                        {vars.map(v => (
                           <Tag key={v}>{v}</Tag>
                         ))}
                       </Space>
-                      {templateEngineValue === 'es6' ?
+                      {templateEngineValue === 'es6' ? (
                         <div className="prompt-help">
                           <div>
                             Use <Code>{'${<var>}'}</Code> notation to insert a variable.
                           </div>
                         </div>
-                        : null
-                      }
-                      {templateEngineValue === 'handlebars' ?
+                      ) : null}
+                      {templateEngineValue === 'handlebars' ? (
                         <div className="prompt-help">
                           <div>
-                            Use <Code>{'{{<var>}}'}</Code> notation to insert a variable.
-                            Wrap a conditional block using:
+                            Use <Code>{'{{<var>}}'}</Code> notation to insert a variable. Wrap a conditional
+                            block using:
                           </div>
                           <div>
                             <Code>{'{{#if <var>}}<text-block>{{else}}<alt-block>{{/if}}'}</Code>
                           </div>
-                          <div>
-                            or if testing that a variable is a non-empty list:
-                          </div>
+                          <div>or if testing that a variable is a non-empty list:</div>
                           <div>
                             <Code>{'{{#ifmulitple <var>}}<text-block>{{else}}<alt-block>{{/if}}'}</Code>
                           </div>
                           <div>
-                            To enumerate a list variable as a comma-separated list,
-                            use: <Code>{'{{list <var>}}'}</Code>
+                            To enumerate a list variable as a comma-separated list, use:{' '}
+                            <Code>{'{{list <var>}}'}</Code>
                           </div>
                           <div>
-                            <Link to={process.env.REACT_APP_HANDLEBARS_GUIDE_URL} target="_blank" rel="noopener noreferrer">See this guide</Link> for
-                            a more indepth discussion.
+                            <Link
+                              to={process.env.REACT_APP_HANDLEBARS_GUIDE_URL}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              See this guide
+                            </Link>{' '}
+                            for a more indepth discussion.
                           </div>
                         </div>
-                        : null
-                      }
+                      ) : null}
                     </>
-                  )
-                }
+                  ),
+                },
               ]}
             />
           </div>
@@ -800,12 +775,14 @@ export function PromptSetForm() {
     const correlationId = uuidv4();
     const values = await form.validateFields();
     const obj = { ...promptSet, ...values };
-    dispatch(duplicateObjectAsync({
-      correlationId,
-      obj,
-      type: 'promptSet',
-      workspaceId: selectedWorkspace.id,
-    }));
+    dispatch(
+      duplicateObjectAsync({
+        correlationId,
+        obj,
+        type: 'promptSet',
+        workspaceId: selectedWorkspace.id,
+      })
+    );
     setCorrelationId(correlationId);
   };
 
@@ -813,11 +790,21 @@ export function PromptSetForm() {
     handleVersionRollback(selectedRowKeys[0]);
   };
 
-  const handleVersionRollback = (selectedVersion) => {
-    const ver = promptSet.versions.find((v) => v.id === selectedVersion);
+  const handleDelete = () => {
+    handleVersionDelete(selectedRowKeys[0]);
+  };
+
+  const handleVersionRollback = selectedVersion => {
+    const ver = promptSet.versions.find(v => v.id === selectedVersion);
     if (ver) {
-      const aWords = (promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
-      const bWords = (ver.promptSet.prompts || []).map(p => p.prompt).join(' ').split(/\s+/);
+      const aWords = (promptSet.prompts || [])
+        .map(p => p.prompt)
+        .join(' ')
+        .split(/\s+/);
+      const bWords = (ver.promptSet.prompts || [])
+        .map(p => p.prompt)
+        .join(' ')
+        .split(/\s+/);
       const diff = wordsDiff(aWords, bWords, 5);
       let versions = promptSet.versions;
       if (diff.length) {
@@ -826,7 +813,7 @@ export function PromptSetForm() {
           ...(versions || []).map(cleanVersion),
           {
             id: uuidv4(),
-            created: (new Date()).toISOString(),
+            created: new Date().toISOString(),
             promptSet: omit(promptSet, ['versions']),
             title,
             username: currentUser.username,
@@ -844,11 +831,25 @@ export function PromptSetForm() {
     setModalOpen(false);
   };
 
-  const showVersionsModal = (key) => {
+  const handleVersionDelete = selectedVersion => {
+    const verIndex = promptSet.versions.findIndex(v => v.id === selectedVersion);
+    if (verIndex !== -1) {
+      const versions = [...promptSet.versions];
+      versions.splice(verIndex, 1);
+      const values = {
+        ...promptSet,
+        versions,
+      };
+      dispatch(updatePromptSetAsync({ id, values }));
+      updateExistingTags(values.tags || []);
+    }
+  };
+
+  const showVersionsModal = key => {
     setModalOpen(true);
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
@@ -861,9 +862,7 @@ export function PromptSetForm() {
   const hasSelected = selectedRowKeys.length > 0;
 
   if (!isNew && !loaded) {
-    return (
-      <div style={{ marginTop: 20 }}>Loading...</div>
-    );
+    return <div style={{ marginTop: 20 }}>Loading...</div>;
   }
   return (
     <>
@@ -877,11 +876,7 @@ export function PromptSetForm() {
         valueProp="id"
         titleProp="title"
       />
-      <TemplateModal
-        onCancel={handleTemplateModalCancel}
-        onSubmit={useTemplate}
-        open={isTemplateModalOpen}
-      />
+      <TemplateModal onCancel={handleTemplateModalCancel} onSubmit={useTemplate} open={isTemplateModalOpen} />
       <SnippetModal
         onCancel={handleSnippetModalCancel}
         onDelete={handleSnippetDelete}
@@ -892,24 +887,22 @@ export function PromptSetForm() {
       />
       <div id="promptset-form" style={{ marginTop: 20 }}>
         <Layout>
-          <Sider
-            style={{ height: 'fit-content', marginRight: 20 }}
-            width={250}
-            theme="light"
-          >
+          <Sider style={{ height: 'fit-content', marginRight: 20 }} width={250} theme="light">
             <div style={{ margin: '24px 8px 16px' }}>
               <Space>
-                <Button danger type="primary" size="small"
-                  disabled={!hasSelected}
-                  onClick={handleRollback}
-                >
+                <Button danger type="primary" size="small" disabled={!hasSelected} onClick={handleRollback}>
                   Rollback
                 </Button>
-                <Button type="primary" size="small"
+                <Button
+                  type="primary"
+                  size="small"
                   disabled={!selectedVersion && !hasSelected}
                   onClick={handleReset}
                 >
                   Reset
+                </Button>
+                <Button danger type="primary" size="small" disabled={!hasSelected} onClick={handleDelete}>
+                  Delete
                 </Button>
               </Space>
             </div>
@@ -923,7 +916,7 @@ export function PromptSetForm() {
             <List
               header={<div>Semantic Functions</div>}
               dataSource={functionsList}
-              renderItem={(item) => (
+              renderItem={item => (
                 <List.Item>
                   <Link to={`/functions/${item.id}/edit`}>{item.name}</Link>
                 </List.Item>
@@ -931,10 +924,7 @@ export function PromptSetForm() {
             />
             <div style={{ margin: '24px 8px 16px' }}>
               <Space>
-                <Button type="primary" size="small"
-                  icon={<PlusOutlined />}
-                  onClick={createSnippet}
-                >
+                <Button type="primary" size="small" icon={<PlusOutlined />} onClick={createSnippet}>
                   Snippet
                 </Button>
               </Space>
@@ -942,13 +932,9 @@ export function PromptSetForm() {
             <List
               header={<div>Snippets</div>}
               dataSource={snippetsList}
-              renderItem={(item) => (
+              renderItem={item => (
                 <List.Item>
-                  <Link
-                    onClick={() => handleSnippetEdit(item.id)}
-                  >
-                    {item.name}
-                  </Link>
+                  <Link onClick={() => handleSnippetEdit(item.id)}>{item.name}</Link>
                 </List.Item>
               )}
             />
@@ -964,9 +950,10 @@ export function PromptSetForm() {
             >
               <Form.Item wrapperCol={{ span: 20 }}>
                 <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16 }}>
-                  {!isNew ?
+                  {!isNew ? (
                     <>
-                      <Dropdown arrow
+                      <Dropdown
+                        arrow
                         className="action-link"
                         placement="bottom"
                         menu={{
@@ -974,9 +961,7 @@ export function PromptSetForm() {
                             {
                               key: 'duplicate',
                               icon: <BlockOutlined />,
-                              label: (
-                                <Link onClick={handleDuplicate}>Duplicate</Link>
-                              ),
+                              label: <Link onClick={handleDuplicate}>Duplicate</Link>,
                             },
                             {
                               key: 'download',
@@ -985,24 +970,21 @@ export function PromptSetForm() {
                                 <Download filename={snakeCase(promptSet?.name) + '.json'} payload={promptSet}>
                                   <Link>Export</Link>
                                 </Download>
-                              )
+                              ),
                             },
                             {
                               key: 'test',
                               icon: <CommentOutlined />,
-                              label: (
-                                <Link to={`/design/${id}`}>Test</Link>
-                              ),
+                              label: <Link to={`/design/${id}`}>Test</Link>,
                             },
-                          ]
+                          ],
                         }}
                       >
                         <MoreOutlined />
                       </Dropdown>
                       <Link to={`/prompt-sets/${id}`}>View</Link>
                     </>
-                    : null
-                  }
+                  ) : null}
                   <Link to={`/prompt-sets`}>List</Link>
                 </div>
               </Form.Item>
@@ -1019,10 +1001,7 @@ export function PromptSetForm() {
               >
                 <Input />
               </Form.Item>
-              <Form.Item
-                label="Skill"
-                required
-              >
+              <Form.Item label="Skill" required>
                 <Form.Item
                   name="skill"
                   rules={[
@@ -1033,10 +1012,11 @@ export function PromptSetForm() {
                   ]}
                   style={{ display: 'inline-block', margin: 0, width: 300 }}
                 >
-                  <Select allowClear
+                  <Select
+                    allowClear
                     options={skillOptions}
                     optionFilterProp="label"
-                    dropdownRender={(menu) => (
+                    dropdownRender={menu => (
                       <>
                         {menu}
                         <Divider style={{ margin: '8px 0' }} />
@@ -1063,7 +1043,7 @@ export function PromptSetForm() {
                 >
                   <Switch />
                 </Form.Item>
-                {currentUser?.roles?.includes('admin') ?
+                {currentUser?.roles?.includes('admin') ? (
                   <Form.Item
                     label="Public"
                     name="isPublic"
@@ -1072,41 +1052,20 @@ export function PromptSetForm() {
                   >
                     <Switch />
                   </Form.Item>
-                  : null
-                }
+                ) : null}
               </Form.Item>
-              <Form.Item
-                label="Description"
-                name="description"
-                wrapperCol={{ span: 16 }}
-              >
-                <TextArea
-                  autoSize={{ minRows: 1, maxRows: 14 }}
-                />
+              <Form.Item label="Description" name="description" wrapperCol={{ span: 16 }}>
+                <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
               </Form.Item>
-              <Form.Item
-                label="Environment"
-              >
-                <Form.Item
-                  name="environment"
-                  style={{ display: 'inline-block', margin: 0, width: 300 }}
-                >
-                  <Select allowClear
-                    optionFilterProp="label"
-                    options={environmentOptions}
-                  />
+              <Form.Item label="Environment">
+                <Form.Item name="environment" style={{ display: 'inline-block', margin: 0, width: 300 }}>
+                  <Select allowClear optionFilterProp="label" options={environmentOptions} />
                 </Form.Item>
-                <Form.Item
-                  label="Tags"
-                  name="tags"
-                  style={{ display: 'inline-block', margin: '0 0 0 16px' }}
-                >
+                <Form.Item label="Tags" name="tags" style={{ display: 'inline-block', margin: '0 0 0 16px' }}>
                   <TagsInput existingTags={existingTags} />
                 </Form.Item>
               </Form.Item>
-              <Form.Item
-                label="Schema"
-              >
+              <Form.Item label="Schema">
                 <Form.Item
                   name="isTypesDefined"
                   valuePropName="checked"
@@ -1114,7 +1073,7 @@ export function PromptSetForm() {
                 >
                   <Switch />
                 </Form.Item>
-                {typesDefinedValue ?
+                {typesDefinedValue ? (
                   <Form.Item
                     label="Variables"
                     name="arguments"
@@ -1122,42 +1081,35 @@ export function PromptSetForm() {
                   >
                     <SchemaModalInput />
                   </Form.Item>
-                  : null
-                }
+                ) : null}
               </Form.Item>
-              <Form.Item
-                label="Template Engine"
-                name="templateEngine"
-              >
-                <Radio.Group
-                  optionType="button"
-                  buttonStyle="solid"
-                  options={templateEngineOptions}
-                />
+              <Form.Item label="Template Engine" name="templateEngine">
+                <Radio.Group optionType="button" buttonStyle="solid" options={templateEngineOptions} />
               </Form.Item>
-              <Form.Item
-                label="Prompts"
-                wrapperCol={{ span: 16 }}
-              >
+              <Form.Item label="Prompts" wrapperCol={{ span: 16 }}>
                 <Form.List name="prompts">
                   {(fields, { add, move, remove }, { errors }) => (
-                    <PromptList
-                      fields={fields}
-                      add={add}
-                      move={move}
-                      remove={remove}
-                      errors={errors}
-                    />
+                    <PromptList fields={fields} add={add} move={move} remove={remove} errors={errors} />
                   )}
                 </Form.List>
               </Form.Item>
               <Form.Item wrapperCol={{ offset: 4 }}>
                 <Space>
-                  <Button type="default" onClick={onCancel}>Cancel</Button>
-                  <Button type="primary" htmlType="submit">Save</Button>
-                  <Button type="primary" onClick={saveAndCreateVersion} disabled={isNew}>Save &amp; Create Version</Button>
-                  <Button type="default" onClick={showVersionsModal} disabled={isNew}>Versions</Button>
-                  <Button type="default" onClick={() => setTemplateModalOpen(true)}>Use Template</Button>
+                  <Button type="default" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                  <Button type="primary" htmlType="submit">
+                    Save
+                  </Button>
+                  <Button type="primary" onClick={saveAndCreateVersion} disabled={isNew}>
+                    Save &amp; Create Version
+                  </Button>
+                  <Button type="default" onClick={showVersionsModal} disabled={isNew}>
+                    Versions
+                  </Button>
+                  <Button type="default" onClick={() => setTemplateModalOpen(true)}>
+                    Use Template
+                  </Button>
                 </Space>
               </Form.Item>
             </Form>
@@ -1166,10 +1118,9 @@ export function PromptSetForm() {
       </div>
     </>
   );
-
 }
 
-const beforeUpload = (file) => {
+const beforeUpload = file => {
   // console.log('file:', file);
 
   const isPng = file.type === 'image/png';

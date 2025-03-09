@@ -1,10 +1,5 @@
 import { lazy } from 'react';
-import {
-  Routes,
-  Route,
-  createBrowserRouter,
-  createRoutesFromElements,
-} from 'react-router-dom';
+import { Routes, Route, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
 import { Layout } from 'antd';
 
 import SideMenu from './components/SideMenu';
@@ -59,6 +54,8 @@ import { RuleForm } from './features/rules/RuleForm';
 import { Secrets } from './features/secrets/Secrets';
 import { SettingsList } from './features/settings/SettingsList';
 import { SettingsForm } from './features/settings/SettingsForm';
+import { TestScenarioEditor } from './features/testScenarios/TestScenarioEditor';
+import { TestScenarios } from './features/testScenarios/TestScenarios';
 import { TracesDashboard } from './features/traces/TracesDashboard';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
@@ -75,7 +72,8 @@ const { Header, Content, Footer } = Layout;
 
 function MyHeader({ isDarkMode }) {
   return (
-    <Header className="site-layout-background"
+    <Header
+      className="site-layout-background"
       style={{
         background: isDarkMode ? '#001529' : '#fff',
         padding: '0 16px',
@@ -93,84 +91,89 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
         <Route path="/callback" element={<OAuth2Popup />} />
         <Route exact path="/register" element={<Register />} />
         <Route exact path="/login" element={<Login />} />
-        <Route path="*" element={
-          <WithPrivateRoute>
-            <Layout style={{ minHeight: '100vh' }} className={isDarkMode ? 'dark' : 'light'}>
-              <SideMenu
-                isDarkMode={isDarkMode}
-                isWorkspaceSelected={!!selectedWorkspace}
-                currentUser={currentUser}
-              />
-              <Layout className="site-layout">
-                <MyHeader isDarkMode={isDarkMode} />
-                <Content style={{ margin: '0 16px' }}>
-                  <Routes>
-                    <Route exact path="/profile" element={<Profile />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/agent-networks/:id" element={<AgentNetwork />} />
-                    <Route path="/agent-networks" element={<AgentNetworksList />} />
-                    <Route path="/agents" element={<Agents />} />
-                    <Route path="/admin" element={<AdminFunctions />} />
-                    <Route path="/apps-edit/:id" element={<AppFormNew />} />
-                    <Route path="/apps/:id" element={<AppChat />} />
-                    {/* <Route path="/apps/:id" element={<AppView />} /> */}
-                    <Route path="/apps/:id/analyst" element={<Analyst />} />
-                    <Route path="/apps" element={<AppsList />} />
-                    <Route path="/compositions/:id" element={<Composer />} />
-                    <Route path="/compositions" element={<CompositionsList />} />
-                    <Route path="/data-sources/:id" element={<DataSourceForm />} />
-                    <Route path="/data-sources" element={<DataSourcesList />} />
-                    <Route path="/design/:id" element={<Designer />} />
-                    <Route path="/design" element={<Designer />} />
-                    <Route path="/destinations/:id" element={<DestinationForm />} />
-                    <Route path="/destinations" element={<DestinationsList />} />
-                    <Route path="/evaluations/:id" element={<EvaluationForm />} />
-                    <Route path="/evaluations" element={<EvaluationsList />} />
-                    <Route path="/evaluation-runs/:id" element={<EvaluationRuns />} />
-                    <Route path="/eval-runs" element={<EvalRuns />} />
-                    <Route path="/functions/:id/edit" element={<FunctionForm />} />
-                    <Route path="/functions/:id" element={<FunctionView />} />
-                    <Route path="/functions" element={<FunctionsList />} />
-                    <Route path="/graphs" element={<IndexesList />} />
-                    <Route path="/home" element={<Home />} />
-                    <Route path="/imagegen" element={<ImageGen />} />
-                    <Route path="/indexes/:id" element={<IndexForm />} />
-                    <Route path="/indexes" element={<IndexesList />} />
-                    <Route path="/mirrors/:id" element={<MirrorForm />} />
-                    <Route path="/mirrors" element={<MirrorsList />} />
-                    <Route path="/models/:id/edit" element={<ModelForm />} />
-                    <Route path="/models/:id" element={<ModelView />} />
-                    <Route path="/models" element={<ModelsList />} />
-                    {/* <Route path="/profile" element={<ProfileView />} /> */}
-                    <Route path="/prompt-sets/:id/edit" element={<PromptSetForm />} />
-                    <Route path="/prompt-sets/:id" element={<PromptSetView />} />
-                    <Route path="/prompt-sets" element={<PromptSetsList />} />
-                    <Route path="/rag" element={<RagTester />} />
-                    <Route path="/secrets" element={<Secrets />} />
-                    <Route path="/traces/:id" element={<TraceView />} />
-                    <Route path="/traces" element={<TracesList />} />
-                    <Route path="/traces-dash" element={<TracesDashboard />} />
-                    <Route path="/datasets" element={<TrainingList />} />
-                    <Route path="/rules/:id" element={<RuleForm />} />
-                    <Route path="/rules" element={<RulesList />} />
-                    <Route path="/settings/:id" element={<SettingsForm />} />
-                    <Route path="/settings" element={<SettingsList />} />
-                    <Route path="/transformations/:id" element={<TransformationForm />} />
-                    <Route path="/transformations" element={<TransformationsList />} />
-                    <Route path="/uploads" element={<FileUploader />} />
-                    <Route path="/users/:id/edit" element={<UserForm />} />
-                    <Route path="/users/:id" element={<ProfileView />} />
-                    <Route path="/users" element={<UsersList />} />
-                    <Route path="/workspaces/:id" element={<WorkspaceForm />} />
-                    <Route path="/workspaces" element={<WorkspacesList />} />
-                    <Route path="/" element={<Home />} />
-                  </Routes>
-                </Content>
-                <Footer style={{ textAlign: 'center' }}>Prompt Store ©2025</Footer>
+        <Route
+          path="*"
+          element={
+            <WithPrivateRoute>
+              <Layout style={{ minHeight: '100vh' }} className={isDarkMode ? 'dark' : 'light'}>
+                <SideMenu
+                  isDarkMode={isDarkMode}
+                  isWorkspaceSelected={!!selectedWorkspace}
+                  currentUser={currentUser}
+                />
+                <Layout className="site-layout">
+                  <MyHeader isDarkMode={isDarkMode} />
+                  <Content style={{ margin: '0 16px' }}>
+                    <Routes>
+                      <Route exact path="/profile" element={<Profile />} />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/agent-networks/:id" element={<AgentNetwork />} />
+                      <Route path="/agent-networks" element={<AgentNetworksList />} />
+                      <Route path="/agents" element={<Agents />} />
+                      <Route path="/admin" element={<AdminFunctions />} />
+                      <Route path="/apps-edit/:id" element={<AppFormNew />} />
+                      <Route path="/apps/:id" element={<AppChat />} />
+                      {/* <Route path="/apps/:id" element={<AppView />} /> */}
+                      <Route path="/apps/:id/analyst" element={<Analyst />} />
+                      <Route path="/apps" element={<AppsList />} />
+                      <Route path="/compositions/:id" element={<Composer />} />
+                      <Route path="/compositions" element={<CompositionsList />} />
+                      <Route path="/data-sources/:id" element={<DataSourceForm />} />
+                      <Route path="/data-sources" element={<DataSourcesList />} />
+                      <Route path="/design/:id" element={<Designer />} />
+                      <Route path="/design" element={<Designer />} />
+                      <Route path="/destinations/:id" element={<DestinationForm />} />
+                      <Route path="/destinations" element={<DestinationsList />} />
+                      <Route path="/evaluations/:id" element={<EvaluationForm />} />
+                      <Route path="/evaluations" element={<EvaluationsList />} />
+                      <Route path="/evaluation-runs/:id" element={<EvaluationRuns />} />
+                      <Route path="/eval-runs" element={<EvalRuns />} />
+                      <Route path="/functions/:id/edit" element={<FunctionForm />} />
+                      <Route path="/functions/:id" element={<FunctionView />} />
+                      <Route path="/functions" element={<FunctionsList />} />
+                      <Route path="/graphs" element={<IndexesList />} />
+                      <Route path="/home" element={<Home />} />
+                      <Route path="/imagegen" element={<ImageGen />} />
+                      <Route path="/indexes/:id" element={<IndexForm />} />
+                      <Route path="/indexes" element={<IndexesList />} />
+                      <Route path="/mirrors/:id" element={<MirrorForm />} />
+                      <Route path="/mirrors" element={<MirrorsList />} />
+                      <Route path="/models/:id/edit" element={<ModelForm />} />
+                      <Route path="/models/:id" element={<ModelView />} />
+                      <Route path="/models" element={<ModelsList />} />
+                      {/* <Route path="/profile" element={<ProfileView />} /> */}
+                      <Route path="/prompt-sets/:id/edit" element={<PromptSetForm />} />
+                      <Route path="/prompt-sets/:id" element={<PromptSetView />} />
+                      <Route path="/prompt-sets" element={<PromptSetsList />} />
+                      <Route path="/rag" element={<RagTester />} />
+                      <Route path="/secrets" element={<Secrets />} />
+                      <Route path="/test-scenarios/:id" element={<TestScenarioEditor />} />
+                      <Route path="/test-scenarios" element={<TestScenarios />} />
+                      <Route path="/traces/:id" element={<TraceView />} />
+                      <Route path="/traces" element={<TracesList />} />
+                      <Route path="/traces-dash" element={<TracesDashboard />} />
+                      <Route path="/datasets" element={<TrainingList />} />
+                      <Route path="/rules/:id" element={<RuleForm />} />
+                      <Route path="/rules" element={<RulesList />} />
+                      <Route path="/settings/:id" element={<SettingsForm />} />
+                      <Route path="/settings" element={<SettingsList />} />
+                      <Route path="/transformations/:id" element={<TransformationForm />} />
+                      <Route path="/transformations" element={<TransformationsList />} />
+                      <Route path="/uploads" element={<FileUploader />} />
+                      <Route path="/users/:id/edit" element={<UserForm />} />
+                      <Route path="/users/:id" element={<ProfileView />} />
+                      <Route path="/users" element={<UsersList />} />
+                      <Route path="/workspaces/:id" element={<WorkspaceForm />} />
+                      <Route path="/workspaces" element={<WorkspacesList />} />
+                      <Route path="/" element={<Home />} />
+                    </Routes>
+                  </Content>
+                  <Footer style={{ textAlign: 'center' }}>Prompt Store ©2025</Footer>
+                </Layout>
               </Layout>
-            </Layout>
-          </WithPrivateRoute>
-        } />
+            </WithPrivateRoute>
+          }
+        />
       </>
     )
   );

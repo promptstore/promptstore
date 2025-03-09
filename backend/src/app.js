@@ -55,6 +55,8 @@ import { RulesService } from './services/RulesService';
 import { SecretsService } from './services/SecretsService';
 import { SettingsService } from './services/SettingsService';
 import { SqlSourceService } from './services/SqlSourceService';
+import { TestCasesService } from './services/TestCasesService';
+import { TestScenariosService } from './services/TestScenariosService.js';
 import { ToolService } from './services/ToolService';
 import { TracesService } from './services/TracesService';
 import { TrainingService } from './services/TrainingService';
@@ -135,7 +137,7 @@ process.on('unhandledRejection', (reason, p) => {
   console.error('Unhandled rejection at:', p, 'reason:', reason);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   console.error('Caught exception:', error);
   console.error('Exception origin:', error.stack);
 });
@@ -147,8 +149,7 @@ const swaggerOptions = {
     info: {
       title: 'Prompt Store API',
       version: '0.5.7',
-      description:
-        'The Prompt Store manages prompts and semantic functions.',
+      description: 'The Prompt Store manages prompts and semantic functions.',
       license: {
         name: '',
       },
@@ -190,7 +191,9 @@ const rc = redis.createClient({
   password: process.env.REDIS_PASSWORD,
   legacyMode: true,
 });
-rc.connect().catch((err) => { logger.error(err, err.stack); });
+rc.connect().catch(err => {
+  logger.error(err, err.stack);
+});
 
 const agentNetworksService = AgentNetworksService({ pg, logger });
 
@@ -265,6 +268,10 @@ const settingsService = SettingsService({ pg, logger });
 
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
 
+const testCasesService = TestCasesService({ pg, logger });
+
+const testScenariosService = TestScenariosService({ pg, logger });
+
 const tracesService = TracesService({ pg, logger });
 
 const trainingService = TrainingService({ pg, logger });
@@ -306,17 +313,21 @@ app.use(session(sess));
 
 app.use(morgan('tiny'));
 
-app.use(bodyParser.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-app.use(bodyParser.urlencoded({
-  extended: true,
-  // verify: (req, res, buf) => {
-  //   req.rawBody = buf;
-  // }
-}));
+app.use(
+  bodyParser.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
+app.use(
+  bodyParser.urlencoded({
+    extended: true,
+    // verify: (req, res, buf) => {
+    //   req.rawBody = buf;
+    // }
+  })
+);
 
 app.use(express.static(path.join(basePath, FRONTEND_DIR, '/build/')));
 
@@ -391,7 +402,6 @@ const VerifyToken = async (req, res, next) => {
 
   // finally send 'Not authorized' if all validation approaches fail
   return res.status(401).json('Not authorized');
-
 };
 
 const auth = VerifyToken;
@@ -450,9 +460,11 @@ const pipelinesService = PipelinesService({
 });
 
 const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
-  app, auth, services: {
+  app,
+  auth,
+  services: {
     executionsService,
-  }
+  },
 });
 
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
@@ -460,7 +472,7 @@ const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins
 const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
   services: {
     executionsService,
-  }
+  },
 });
 
 const toolService = ToolService({ logger, registry: toolPlugins });
@@ -527,6 +539,8 @@ const options = {
     secretsService,
     settingsService,
     sqlSourceService,
+    testCasesService,
+    testScenariosService,
     toolService,
     tracesService,
     trainingService,
@@ -546,11 +560,7 @@ logger.debug('agents:', Object.keys(agents));
 executionsService.addAgents(agents);
 
 const specs = swaggerJsdoc(swaggerOptions);
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(specs)
-);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 logger.debug('Installing routes');
 await installModules('routes', { ...options, agents });
@@ -567,7 +577,7 @@ initSearchIndex({
   services: { indexesService, llmService, vectorStoreService },
 });
 
-const parseQueryString = (str) => {
+const parseQueryString = str => {
   const parts = str.split('?');
   if (parts.length > 1) {
     return parts[1];
@@ -628,20 +638,16 @@ app.get('/api/v1/*', async (req, res, next) => {
 // });
 
 const routePaths = app._router.stack
-  .map((r) => {
+  .map(r => {
     if (r.route) {
-      const methods =
-        Object.entries(r.route.methods)
-          .filter(([_, v]) => v)
-          .map(([k, _]) => k.toUpperCase())
-        ;
+      const methods = Object.entries(r.route.methods)
+        .filter(([_, v]) => v)
+        .map(([k, _]) => k.toUpperCase());
       return `${methods.join(',')} ${r.route.path}`;
     }
     return null;
   })
-  .filter((p) => p !== null)
-  ;
-
+  .filter(p => p !== null);
 logger.debug(routePaths);
 
 let clientProxy;
@@ -649,9 +655,9 @@ if (ENV === 'dev') {
   clientProxy = httpProxy.createProxyServer({
     target: process.env.CLIENT_DEV_URL,
     headers: {
-      'Last-Modified': (new Date()).toUTCString(),
+      'Last-Modified': new Date().toUTCString(),
     },
-  })
+  });
 }
 
 app.get('*', (req, res) => {
@@ -660,7 +666,7 @@ app.get('*', (req, res) => {
     logger.debug('Proxying request');
     clientProxy.web(req, res);
   } else {
-    res.setHeader('Last-Modified', (new Date()).toUTCString());
+    res.setHeader('Last-Modified', new Date().toUTCString());
     res.sendFile(path.join(basePath, FRONTEND_DIR, '/build/index.html'));
   }
 });

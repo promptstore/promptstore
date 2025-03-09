@@ -85,7 +85,7 @@ export function UsersService({ pg, logger }) {
       const { rows } = await pg.query(
         `UPDATE users ` +
         `SET val = $1 ` +
-        `WHERE username = $2` +
+        `WHERE username = $2 ` +
         `RETURNING *`,
         [val, user.username]
       );

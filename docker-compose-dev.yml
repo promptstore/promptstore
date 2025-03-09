@@ -43,68 +43,71 @@ services:
       timeout: 20s
       retries: 3
 
-  elasticsearch:
-    container_name: elasticsearch
-    environment:
-      - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=512mb
-      - cluster.routing.allocation.disk.watermark.high=256mb
-      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m
-      - xpack.security.enabled=false
-    image: elasticsearch:${ELASTICSEARCH_VERSION}
-    expose:
-      - 9200
-    ports:
-      - 9200:9200
-    volumes:
-      - /var/lib/elasticsearch/data
+  # elasticsearch:
+  #   container_name: elasticsearch
+  #   environment:
+  #     - cluster.name=docker-cluster
+  #     - cluster.routing.allocation.disk.threshold_enabled=true
+  #     - cluster.routing.allocation.disk.watermark.low=512mb
+  #     - cluster.routing.allocation.disk.watermark.high=256mb
+  #     - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+  #     - discovery.type=single-node
+  #     - bootstrap.memory_lock=true
+  #     - ES_JAVA_OPTS=-Xms256m -Xmx256m
+  #     - xpack.security.enabled=false
+  #   # image: elasticsearch:${ELASTICSEARCH_VERSION}
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+  #   expose:
+  #     - 9200
+  #   ports:
+  #     - 9200:9200
+  #   volumes:
+  #     - /var/lib/elasticsearch/data
 
-  temporal:
-    container_name: temporal
-    depends_on:
-      - postgresql
-      - elasticsearch
-    environment:
-      - DB=postgresql
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=changeme
-      - POSTGRES_SEEDS=postgresql
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
-      - ENABLE_ES=true
-      - ES_SEEDS=elasticsearch
-      - ES_VERSION=v7
-    image: temporalio/auto-setup:${TEMPORAL_VERSION}
-    ports:
-      - 7233:7233
-    labels:
-      kompose.volume.type: configMap
-    volumes:
-      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+  # temporal:
+  #   container_name: temporal
+  #   depends_on:
+  #     - postgresql
+  #     - elasticsearch
+  #   environment:
+  #     - DB=postgresql
+  #     - DB_PORT=5432
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PWD=changeme
+  #     - POSTGRES_SEEDS=postgresql
+  #     - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+  #     - ENABLE_ES=true
+  #     - ES_SEEDS=elasticsearch
+  #     - ES_VERSION=v7
+  #   image: temporalio/auto-setup:${TEMPORAL_VERSION}
+  #   ports:
+  #     - 7233:7233
+  #   labels:
+  #     kompose.volume.type: configMap
+  #   volumes:
+  #     - ./dynamicconfig:/etc/temporal/config/dynamicconfig
 
-  temporal-admin-tools:
-    container_name: temporal-admin-tools
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CLI_ADDRESS=temporal:7233
-    image: temporalio/admin-tools:${TEMPORAL_VERSION}
-    stdin_open: true
-    tty: true
+  # temporal-admin-tools:
+  #   container_name: temporal-admin-tools
+  #   depends_on:
+  #     - temporal
+  #   environment:
+  #     - TEMPORAL_ADDRESS=temporal:7233
+  #     - TEMPORAL_CLI_ADDRESS=temporal:7233
+  #   image: temporalio/admin-tools:${TEMPORAL_VERSION}
+  #   stdin_open: true
+  #   tty: true
 
-  temporal-ui:
-    container_name: temporal-ui
-    depends_on:
-      - temporal
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
-    image: temporalio/ui:${TEMPORAL_UI_VERSION}
-    ports:
-      - 8080:8080
+  # temporal-ui:
+  #   container_name: temporal-ui
+  #   depends_on:
+  #     - temporal
+  #   environment:
+  #     - TEMPORAL_ADDRESS=temporal:7233
+  #     - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+  #   image: temporalio/ui:${TEMPORAL_UI_VERSION}
+  #   ports:
+  #     - 8080:8080
 
   # vecsearch:
   #   container_name: vecsearch
@@ -117,11 +120,11 @@ services:
   #   ports:
   #     - 5002:5002
 
-  unstructured:
-    container_name: unstructured
-    image: quay.io/unstructured-io/unstructured-api:latest
-    ports:
-      - 8000:8000
+  # unstructured:
+  #   container_name: unstructured
+  #   image: quay.io/unstructured-io/unstructured-api:latest
+  #   ports:
+  #     - 8000:8000
 
   # neo4j:
   #   image: neo4j:5.15.0
@@ -151,12 +154,12 @@ services:
   #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/neo4j1/import:/import"
   #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/logs:/logs"
 
-  chromadb:
-    image: ghcr.io/chroma-core/chroma:0.5.4.dev9
-    volumes:
-      - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/chroma/chroma:/chroma/chroma/"
-    ports:
-      - 8001:8000
+  # chromadb:
+  #   image: ghcr.io/chroma-core/chroma:0.5.4.dev9
+  #   volumes:
+  #     - "${DOCKER_VOLUME_DIRECTORY:-.}/volumes/chroma/chroma:/chroma/chroma/"
+  #   ports:
+  #     - 8001:8000
 
   # rules_service:
   #   build:

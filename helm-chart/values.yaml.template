@@ -1,10 +1,16 @@
 appname: "promptstore"
 namespace: "promptstore"
 
-imagePullSecret: "gcr-secret"
-containerRegistry: "gcr.io/apt-phenomenon-243802"
+file_bucket: "test-openaiplatform"
+documents_prefix: "documents"
+images_prefix: "images"
+filestore_prefix: ""
 
-version: "0.7.02"
+imagePullSecret: ""
+containerRegistry: ""
+serviceAccountSecret: ""
+
+version: "0.7.09"
 
 port: "5000"
 

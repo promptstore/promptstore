@@ -3,6 +3,7 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs-extra';
 
 import logger from '../logger';
 import pg from '../db';
@@ -34,6 +35,8 @@ import { RulesService } from '../services/RulesService';
 import { SecretsService } from '../services/SecretsService';
 import { SettingsService } from '../services/SettingsService';
 import { SqlSourceService } from '../services/SqlSourceService';
+import { TestCasesService } from '../services/TestCasesService';
+import { TestScenariosService } from '../services/TestScenariosService';
 import { ToolService } from '../services/ToolService';
 import { TracesService } from '../services/TracesService';
 import { UploadsService } from '../services/UploadsService';
@@ -137,6 +140,8 @@ const rulesService = RulesService({ pg, logger });
 const secretsService = SecretsService({ pg, logger });
 const settingsService = SettingsService({ pg, logger });
 const sqlSourceService = SqlSourceService({ logger, registry: sqlSourcePlugins });
+const testCasesService = TestCasesService({ pg, logger });
+const testScenariosService = TestScenariosService({ pg, logger });
 const tracesService = TracesService({ pg, logger });
 const uploadsService = UploadsService({ pg, logger });
 const usersService = UsersService({ pg, logger });
@@ -199,7 +204,7 @@ const pipelinesService = PipelinesService({
 const guardrailPlugins = await getPlugins(basePath, GUARDRAIL_PLUGINS, logger, {
   services: {
     executionsService,
-  }
+  },
 });
 
 const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins });
@@ -207,7 +212,7 @@ const guardrailsService = GuardrailsService({ logger, registry: guardrailPlugins
 const toolPlugins = await getPlugins(basePath, TOOL_PLUGINS, logger, {
   services: {
     executionsService,
-  }
+  },
 });
 
 const toolService = ToolService({ logger, registry: toolPlugins });
@@ -233,6 +238,8 @@ const services = {
   rulesService,
   secretsService,
   sqlSourceService,
+  testCasesService,
+  testScenariosService,
   toolService,
   uploadsService,
   vectorStoreService,
@@ -255,10 +262,22 @@ logger.debug('agents:', Object.keys(agents));
 executionsService.addAgents(agents);
 
 async function runWorker() {
-  const connectionOptions = {
-    address: TEMPORAL_URL,
-  };
+  const cert = await fs.readFile(`${__dirname}/ca.pem`);
+  const key = await fs.readFile(`${__dirname}/ca.key`);
+  let connectionOptions;
+  if (ENV === 'dev' && false) {
+    connectionOptions = {
+      address: TEMPORAL_URL,
+    };
+  } else {
+    connectionOptions = {
+      // address: TEMPORAL_URL,
+      address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
+      tls: { clientCertPair: { crt: cert, key } },
+    };
+  }
   const connection = await NativeConnection.connect(connectionOptions);
+
   // Step 1: Register Workflows and Activities with the Worker and connect to
   // the Temporal server.
   const worker = await Worker.create({
@@ -278,7 +297,7 @@ async function runWorker() {
   await worker.run();
 }
 
-runWorker().catch((err) => {
+runWorker().catch(err => {
   let message;
   if (err instanceof Error) {
     message = err.message;

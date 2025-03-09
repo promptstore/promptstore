@@ -9,7 +9,6 @@ import { formatTextAsJson, getInput, hashStr } from '../utils.js';
 import CoreModelAdapter from './CoreModelAdapter.ts';
 
 export function ExecutionsService({ constants, logger, mc, rc, services }) {
-
   let _agents;
   let _services = services;
 
@@ -41,13 +40,13 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     vectorStoreService,
   } = services;
 
-  const addAgents = (agents) => {
+  const addAgents = agents => {
     _agents = agents;
-  }
+  };
 
-  const addServices = (services) => {
+  const addServices = services => {
     _services = { ..._services, ...services };
-  }
+  };
 
   let _adapter;
 
@@ -82,16 +81,13 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
           toolService,
           vectorStoreService,
           ..._services,
-        }
+        },
       });
     }
     return _adapter;
-  }
+  };
 
-  const executeAgentNetwork = async ({
-    agentNetworkId,
-    username,
-  }) => {
+  const executeAgentNetwork = async ({ agentNetworkId, username }) => {
     const agentNetwork = await agentNetworksService.getAgentNetwork(agentNetworkId);
     const { edges, nodes } = agentNetwork.network;
     const startNode = nodes.find(n => n.data.start);
@@ -140,7 +136,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     workspaceId,
   }) => {
     const { email, goal } = args;
-    const agentInfo = agent || await agentsService.getAgent(agentId);
+    const agentInfo = agent || (await agentsService.getAgent(agentId));
     const adapter = getAdapter();
     const myagent = await adapter.createAgent(agentInfo);
 
@@ -164,7 +160,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     });
     logger.debug('Agent response content:', content);
     return content;
-  }
+  };
 
   const executeComposition = async ({
     workspaceId,
@@ -178,7 +174,8 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     batch = false,
     debug = false,
   }) => {
-    const compositionInfo = composition || await compositionsService.getCompositionByName(workspaceId, compositionName);
+    const compositionInfo =
+      composition || (await compositionsService.getCompositionByName(workspaceId, compositionName));
     if (!compositionInfo) {
       const errors = [
         {
@@ -247,7 +244,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
       ];
       return { errors };
     }
-  }
+  };
 
   const executeFunction = async ({
     workspaceId,
@@ -278,7 +275,8 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
       return { errors };
     }
     let creditBalance = credits;
-    const semanticFunctionInfo = func || await functionsService.getFunctionByName(workspaceId, semanticFunctionName);
+    const semanticFunctionInfo =
+      func || (await functionsService.getFunctionByName(workspaceId, semanticFunctionName));
     logger.debug('semanticFunctionInfo:', semanticFunctionInfo);
     if (!semanticFunctionInfo) {
       const errors = [
@@ -357,10 +355,13 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
         });
         logger.debug('responseMetadata:', responseMetadata);
         const { images, promptTokens, completionTokens } = responseMetadata;
-        const { provider } = await modelsService.getModelByKey(workspaceId, response.model);
+        logger.debug('response.model:', response.model);
+        logger.debug('workspaceId:', workspaceId);
+        const m = await modelsService.getModelByKey(workspaceId, response.model);
+        logger.debug('model:', m);
         const costComponents = await creditCalculatorService.getCostComponents({
           name: semanticFunctionName,
-          provider,
+          provider: m.provider,
           model: response.model,
           batch,
           inputTokens: promptTokens,
@@ -472,7 +473,7 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
    *
    * The binpacking uses a naive greedy algorithm that maintains the order of the texts.
    *
-   * @param {Array<string>} texts List of texts to binpack. Empty texts are accepted, 
+   * @param {Array<string>} texts List of texts to binpack. Empty texts are accepted,
    *        counted as 0 tokens each and count against maxTextsPerBin.
    * @param {number} maxTokensPerBin The maximum number of tokens per bin of formatted texts.
    *        Leave some room for relative to the model's context size to account for the tokens in the

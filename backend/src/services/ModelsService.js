@@ -130,7 +130,9 @@ export function ModelsService({ pg, logger }) {
       SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
       FROM models
       WHERE (workspace_id = $1 OR (val->>'isPublic')::boolean = true)
-      AND val->>'key' = $2
+      AND $2 LIKE val->>'key' || '%'
+      ORDER BY LENGTH(val->>'key') DESC
+      LIMIT 1
       `;
     const { rows } = await pg.query(q, [workspaceId, key]);
     if (rows.length === 0) {

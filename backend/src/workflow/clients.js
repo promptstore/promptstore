@@ -1,9 +1,14 @@
 import { default as dayjs } from 'dayjs';
 import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
+import { fileURLToPath } from 'url';
+import fs from 'fs-extra';
+import path from 'path';
+
 import {
   evaluates,
   executeAgentNetworks,
   executeCompositions,
+  executeTestScenarios,
   indexs,
   logCalls,
   reloads,
@@ -13,9 +18,34 @@ import {
 
 import logger from '../logger';
 
-export async function evaluate(evaluation, workspaceId, username, connectionOptions) {
-  // Connect to the default Server location (localhost:7233)
+const ENV = process.env.ENV?.toLowerCase();
+const TEMPORAL_URL = process.env.TEMPORAL_URL;
+const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+async function getConnection() {
+  const crt = await fs.readFile(`${__dirname}/ca.pem`);
+  const key = await fs.readFile(`${__dirname}/ca.key`);
+  let connectionOptions;
+  if (ENV === 'dev' && false) {
+    connectionOptions = {
+      address: TEMPORAL_URL,
+    };
+  } else {
+    connectionOptions = {
+      // address: TEMPORAL_URL,
+      address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
+      tls: { clientCertPair: { crt, key } },
+    };
+  }
   const connection = await Connection.connect(connectionOptions);
+  return connection;
+}
+
+export async function evaluate(evaluation, workspaceId, username) {
+  // Connect to the default Server location (localhost:7233)
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -43,7 +73,7 @@ export async function evaluate(evaluation, workspaceId, username, connectionOpti
 
 export async function scheduleEvaluation(evaluation, workspaceId, username, connectionOptions) {
   logger.debug('schedule evaluation:', evaluation);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
@@ -70,7 +100,7 @@ export async function scheduleEvaluation(evaluation, workspaceId, username, conn
   if (evaluation.scheduleId) {
     logger.debug('updating schedule:', evaluation.scheduleId);
     scheduleHandle = client.schedule.getHandle(evaluation.scheduleId);
-    await scheduleHandle.update((schedule) => {
+    await scheduleHandle.update(schedule => {
       schedule.spec = spec;
       return schedule;
     });
@@ -85,7 +115,7 @@ export async function scheduleEvaluation(evaluation, workspaceId, username, conn
 
 export async function executeAgentNetwork(params, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -113,7 +143,7 @@ export async function executeAgentNetwork(params, connectionOptions) {
 
 export async function executeComposition(params, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -139,9 +169,37 @@ export async function executeComposition(params, connectionOptions) {
   return handle.result();
 }
 
+export async function executeTestScenario(testScenarioId, workspaceId, username, connectionOptions) {
+  // Connect to the default Server location (localhost:7233)
+  const connection = await getConnection();
+  // In production, pass options to configure TLS and other settings:
+  // {
+  //   address: 'foo.bar.tmprl.cloud',
+  //   tls: {}
+  // }
+
+  const client = new Client({
+    connection,
+    // namespace: 'foo.bar', // connects to 'default' namespace if not specified
+    namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
+  });
+
+  const handle = await client.workflow.start(executeTestScenarios, {
+    // type inference works! args: [name: string]
+    args: [testScenarioId, workspaceId, username],
+    taskQueue: 'worker',
+    workflowId: 'execute-test-scenario-workflow-' + Date.now(),
+  });
+  console.log('Started workflow', handle.workflowId);
+
+  // optional: wait for client result
+  // console.log(await handle.result());
+  return handle.result();
+}
+
 export async function scheduleComposition(values, params, connectionOptions) {
   logger.debug('schedule composition:', params);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
@@ -168,7 +226,7 @@ export async function scheduleComposition(values, params, connectionOptions) {
   if (scheduleId) {
     logger.debug('updating schedule:', scheduleId);
     scheduleHandle = client.schedule.getHandle(scheduleId);
-    await scheduleHandle.update((schedule) => {
+    await scheduleHandle.update(schedule => {
       schedule.spec = spec;
       return schedule;
     });
@@ -183,7 +241,7 @@ export async function scheduleComposition(values, params, connectionOptions) {
 
 export async function index(params, loaderProvider, extractorProviders, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -211,7 +269,7 @@ export async function index(params, loaderProvider, extractorProviders, connecti
 
 export async function logCall(params, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -237,19 +295,11 @@ export async function logCall(params, connectionOptions) {
   return handle.result();
 }
 
-const DAYS_OF_WEEK = [
-  'SUNDAY',
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-];
+const DAYS_OF_WEEK = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
 export async function transform(transformation, workspaceId, username, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -278,7 +328,7 @@ export async function transform(transformation, workspaceId, username, connectio
 
 export async function scheduleTransformation(transformation, workspaceId, username, connectionOptions) {
   logger.debug('schedule transformation:', transformation);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
@@ -305,7 +355,7 @@ export async function scheduleTransformation(transformation, workspaceId, userna
   if (transformation.scheduleId) {
     logger.debug('updating schedule:', transformation.scheduleId);
     scheduleHandle = client.schedule.getHandle(transformation.scheduleId);
-    await scheduleHandle.update((schedule) => {
+    await scheduleHandle.update(schedule => {
       schedule.spec = spec;
       return schedule;
     });
@@ -320,7 +370,7 @@ export async function scheduleTransformation(transformation, workspaceId, userna
 
 export async function upload(file, workspaceId, appId, username, constants, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -351,7 +401,7 @@ export async function upload(file, workspaceId, appId, username, constants, conn
 
 export async function reload(file, workspaceId, username, uploadId, connectionOptions) {
   // Connect to the default Server location (localhost:7233)
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   // In production, pass options to configure TLS and other settings:
   // {
   //   address: 'foo.bar.tmprl.cloud',
@@ -384,7 +434,7 @@ function getSpec(schedule) {
     spec.intervals = [
       {
         every: (schedule.frequencyLength || '1') + schedule.frequency + 's',
-      }
+      },
     ];
     if (schedule.endDate) {
       const endDate = dayjs(schedule.endDate);
@@ -404,12 +454,17 @@ function getSpec(schedule) {
             dayOfWeek: DAYS_OF_WEEK[schedule.frequencyDayOfWeek || 0],
             hour,
             minute,
-          }
+          },
         ];
       }
       const startDate = dayjs(schedule.startDate);
       spec.startAt = startDate.toDate();
-      if (schedule.ends === 'after' && schedule.afterLength && schedule.frequency && schedule.frequency !== 'norepeat') {
+      if (
+        schedule.ends === 'after' &&
+        schedule.afterLength &&
+        schedule.frequency &&
+        schedule.frequency !== 'norepeat'
+      ) {
         const endDate = startDate.add(+schedule.afterLength, schedule.frequency);
         spec.endAt = endDate.toDate();
       }
@@ -420,7 +475,7 @@ function getSpec(schedule) {
 
 export async function pauseSchedule(scheduleId, connectionOptions) {
   logger.debug('pausing schedule:', scheduleId);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
@@ -431,7 +486,7 @@ export async function pauseSchedule(scheduleId, connectionOptions) {
 
 export async function unpauseSchedule(scheduleId, connectionOptions) {
   logger.debug('pausing schedule:', scheduleId);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',
@@ -442,7 +497,7 @@ export async function unpauseSchedule(scheduleId, connectionOptions) {
 
 export async function deleteSchedule(scheduleId, connectionOptions) {
   logger.debug('pausing schedule:', scheduleId);
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await getConnection();
   const client = new Client({
     connection,
     namespace: process.env.TEMPORAL_NAMESPACE || 'promptstore',

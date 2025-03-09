@@ -7,6 +7,8 @@ spec:
   selector:
     matchLabels:
       app: api
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -16,6 +18,58 @@ spec:
       imagePullSecrets:
         - name: "{{ .Values.imagePullSecret }}"
       {{ end }}
+      tolerations:
+        - key: "cloud.google.com/gke-quick-remove"
+          operator: "Exists"
+          effect: "NoSchedule"
+      initContainers:
+        - name: cloud-sql-proxy
+          restartPolicy: Always
+          # It is recommended to use the latest version of the Cloud SQL Auth Proxy
+          # Make sure to update on a regular schedule!
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            # If connecting from a VPC-native GKE cluster, you can use the
+            # following flag to have the proxy connect over private IP
+            # - "--private-ip"
+
+            # If you are not connecting with Automatic IAM, you can delete
+            # the following flag.
+            - "--auto-iam-authn"
+
+            # Enable structured logging with LogEntry format:
+            - "--structured-logs"
+
+            # Replace DB_PORT with the port the proxy should listen on
+            - "--port=5432"
+            - "{{ .Values.cloudSqlProxyAddress }}"
+
+            # This flag specifies where the service account key can be found
+            - "--credentials-file=/secrets/service_account.json"
+
+          securityContext:
+            # The default Cloud SQL Auth Proxy image runs as the
+            # "nonroot" user and group (uid: 65532) by default.
+            runAsNonRoot: true
+          volumeMounts:
+            - name: service-account
+              mountPath: /secrets
+              readOnly: true
+          # You should use resource requests/limits as a best practice to prevent
+          # pods from consuming too many resources and affecting the execution of
+          # other pods. You should adjust the following values based on what your
+          # application needs. For details, see
+          # https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+          resources:
+            requests:
+              # The proxy's memory use scales linearly with the number of active
+              # connections. Fewer open connections will use less memory. Adjust
+              # this value based on your application's requirements.
+              memory: "1Gi"
+              # The proxy's CPU use scales linearly with the amount of IO between
+              # the database and the application. Adjust this value based on your
+              # application's requirements.
+              cpu: "0.5"
       containers:
         - name: api
           image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
@@ -89,6 +143,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: TEMPORAL_NAMESPACE
+                  name: "{{ .Values.appname }}"
+            - name: TEMPORAL_TLS
+              valueFrom:
+                configMapKeyRef:
+                  key: TEMPORAL_TLS
                   name: "{{ .Values.appname }}"
             - name: LOKI_API_URL
               valueFrom:
@@ -670,6 +729,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: CLICKHOUSE_PASSWORD
+                  name: "{{ .Values.appname }}"
+            - name: TEMPORAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: TEMPORAL_API_KEY
                   name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data
@@ -752,6 +816,11 @@ spec:
                 configMapKeyRef:
                   key: TEMPORAL_NAMESPACE
                   name: "{{ .Values.appname }}"
+            - name: TEMPORAL_TLS
+              valueFrom:
+                configMapKeyRef:
+                  key: TEMPORAL_TLS
+                  name: "{{ .Values.appname }}"
             - name: LOKI_API_URL
               valueFrom:
                 configMapKeyRef:
@@ -1333,6 +1402,11 @@ spec:
                 secretKeyRef:
                   key: CLICKHOUSE_PASSWORD
                   name: "{{ .Values.appname }}"
+            - name: TEMPORAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: TEMPORAL_API_KEY
+                  name: "{{ .Values.appname }}"
           volumeMounts:
             - mountPath: /var/data
               name: file-storage
@@ -1340,3 +1414,6 @@ spec:
         - name: file-storage
           persistentVolumeClaim:
             claimName: file-storage-pvc
+        - name: service-account
+          secret:
+            secretName: "{{ .Values.serviceAccountSecret }}"

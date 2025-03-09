@@ -1,10 +1,10 @@
 apiVersion: v1
 data:
   ENV: "prod"
-  FILE_BUCKET: "{{ .Values.appname }}"
-  DOCUMENTS_PREFIX: "documents"
-  FILESTORE_PREFIX: ""
-  IMAGES_PREFIX: "images"
+  FILE_BUCKET: "{{ .Values.bucket }}"
+  DOCUMENTS_PREFIX: "{{ .Values.documents_prefix }}"
+  FILESTORE_PREFIX: "{{ .Values.filestore_prefix }}"
+  IMAGES_PREFIX: "{{ .Values.images_prefix }}"
   PORT: "{{ .Values.port }}"
   PROJECT_NAME: "{{ .Values.appname }}"
   DISABLE_TERMINAL: "1"
@@ -25,6 +25,7 @@ data:
   # Background job processing
   TEMPORAL_URL: "{{ .Values.temporal.api_url }}"
   TEMPORAL_NAMESPACE: "{{ .Values.temporal.namespace }}"
+  TEMPORAL_TLS: "{{ .Values.temporal.tls }}"
 
   # Log aggregator
   LOKI_API_URL: "{{ .Values.loki.api_url }}"
@@ -34,46 +35,46 @@ data:
   ## PLUGINS ########
 
   # Embedding plugins
-  EMBEDDING_PLUGINS: ""
+  EMBEDDING_PLUGINS: "{{ .Values.plugins.embedding }}"
 
   # Extractor plugins
-  EXTRACTOR_PLUGINS: "onesource|Onesource|./plugins/extractors/onesource,unstructured|Unstructured|./plugins/extractors/unstructured,csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,neo4j|Neo4j|./plugins/extractors/neo4j,text|Text Parser|./plugins/extractors/text,crawler|Web Page Extractor|./plugins/extractors/crawler"
+  EXTRACTOR_PLUGINS: "{{ .Values.plugins.extractor }}"
 
   # Feature store plugins
-  FEATURE_STORE_PLUGINS: "feast|Feast|./plugins/featurestores/feast,anaml|Anaml|./plugins/featurestores/anaml"
+  FEATURE_STORE_PLUGINS: "{{ .Values.plugins.featurestore }}"
 
   # Graph store plugins
-  GRAPH_STORE_PLUGINS: "neo4j|Neo4j Graph Store|./plugins/graphstores/neo4j"
+  GRAPH_STORE_PLUGINS: "{{ .Values.plugins.graphstore }}"
 
   # Guardrail plugins
-  GUARDRAIL_PLUGINS: "pii|PII Detection|./plugins/guardrails/pii|type=input,emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
+  GUARDRAIL_PLUGINS: "{{ .Values.plugins.guardrail }}"
 
   # LLM plugins
-  LLM_PLUGINS: "openai|OpenAI|./plugins/llms/openai,vertexai|VertexAI|./plugins/llms/vertexai,gpt4all|GPT4all (Private instance)|./plugins/llms/gpt4all,localai|LocalAI (Private instance)|./plugins/llms/localai,llama2|Llama 2 (Private instance)|./plugins/llms/llama2,llamaapi|Llama API|./plugins/llms/llamaapi,bedrock|AWS Bedrock|./plugins/llms/bedrock,sentenceencoder|Google Universal Sentence Encoder|./plugins/llms/sentenceencoder,mistral|Mistral AI|./plugins/llms/mistral,gemini|Google Gemini|./plugins/llms/gemini,cohere|Cohere|./plugins/llms/cohere,anthropic|Anthropic|./plugins/llms/anthropic,stabilityai|Stability AI|./plugins/llms/stabilityai"
+  LLM_PLUGINS: "{{ .Values.plugins.llm }}"
 
   # Loader plugins
-  LOADER_PLUGINS: "api|API Loader|./plugins/loaders/api,minio|MinIO Document Loader|./plugins/loaders/minio,wikipedia|Wikipedia Loader|./plugins/loaders/wikipedia,crawler|Web Crawler|./plugins/loaders/crawler,gcs|GCS Document Loader|./plugins/loaders/gcs,s3|S3 Document Loader|./plugins/loaders/s3,googledrive|Google Drive Loader|./plugins/loaders/googledrive,gmail|Gmail Loader|./plugins/loaders/gmail,confluence|Confluence Loader|./plugins/loaders/confluence,notion|Notion Loader|./plugins/loaders/notion,googlesearch|Google Search Loader|./plugins/loaders/googlesearch"
+  LOADER_PLUGINS: "{{ .Values.plugins.loader }}"
 
   # Metric store plugins
-  METRIC_STORE_PLUGINS: "metricflow|MetricFlow|./plugins/metricstores/metricflow"
+  METRIC_STORE_PLUGINS: "{{ .Values.plugins.metricstore }}"
 
   # Model Provider plugins
-  MODEL_PROVIDER_PLUGINS: "huggingface|Hugging Face|./plugins/modelproviders/huggingface"
+  MODEL_PROVIDER_PLUGINS: "{{ .Values.plugins.modelprovider }}"
 
   # Output Parser plugins
-  OUTPUT_PARSER_PLUGINS: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime,action|Action|./plugins/outputparsers/action"
+  OUTPUT_PARSER_PLUGINS: "{{ .Values.plugins.outputparser }}"
 
   # Passport auth plugins
-  PASSPORT_PLUGINS: "localapikey|Local API Key|./plugins/passport/localapikey,keycloakbearer|Keycloak Bearer|./plugins/passport/keycloak"
+  PASSPORT_PLUGINS: "{{ .Values.plugins.passport }}"
 
   # SQL source plugins
-  SQL_SOURCE_PLUGINS: "postgresql|PostgreSQL|./plugins/sqlsources/postgresql,clickhouse|ClickHouse|./plugins/sqlsources/clickhouse,bigquery|BigQuery|./plugins/sqlsources/bigquery"
+  SQL_SOURCE_PLUGINS: "{{ .Values.plugins.sqlsource }}"
 
   # Tool plugins
-  TOOL_PLUGINS: "serpapi|SerpAPI|./plugins/tools/serpapi,calculator|Calculator|./plugins/tools/calculator,weather|Weather|./plugins/tools/openweather,email|Email|./plugins/tools/email,cypher|Cypher|./plugins/tools/cypher,bigquery|BigQuery|./plugins/tools/bigquery,playwright_screenshot|Playwright Screenshot|./plugins/tools/playwright_screenshot,jira|Create Jira Task|./plugins/tools/jira,metricflow|MetricFlow Query|./plugins/tools/metricflow,clickhouse|ClickHouse|./plugins/tools/clickhouse,clickhouse_resolver|ClickHouse Entity Resolver|./plugins/tools/clickhouse_resolver,metrics|Metrics|./plugins/tools/metrics"
+  TOOL_PLUGINS: "{{ .Values.plugins.tool }}"
 
   # Vector store plugins
-  VECTOR_STORE_PLUGINS: "redis|Redis Vector Store|./plugins/vectorstores/redis,neo4j|Neo4j Vector Store|./plugins/vectorstores/neo4j,chroma|Chroma Vector Store|./plugins/vectorstores/chroma,elasticsearch|Elasticsearch|./plugins/vectorstores/elasticsearch"
+  VECTOR_STORE_PLUGINS: "{{ .Values.plugins.vectorstore }}"
 
   ########
 

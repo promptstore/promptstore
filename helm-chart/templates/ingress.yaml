@@ -1,0 +1,11 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{{ .Values.appname }}-ingress"
+  namespace: "{{ .Values.namespace }}"
+spec:
+  defaultBackend:
+    service:
+      name: "{{ .Values.appname }}"
+      port:
+        number: 5000

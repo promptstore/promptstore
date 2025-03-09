@@ -1306,3 +1306,7 @@ article.collapsible .panel.closed {
   width: 100%;
   height: unset;
 }
+
+#test-scenario-editor .ant-table-cell {
+  vertical-align: top;
+}

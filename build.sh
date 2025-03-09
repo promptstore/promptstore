@@ -6,5 +6,5 @@ app=$APP_IMAGE_NAME
 ver=$(cat ./VERSION)
 cr=$CONTAINER_REGISTRY
 
-docker build . -t "${cr}/${app}:${ver}"
+docker buildx build --platform linux/amd64 . -t "${cr}/${app}:${ver}"
 docker push "${cr}/${app}:${ver}"

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import merge from 'deepmerge';
 import omit from 'lodash.omit';
 import path from 'path';
 import sizeOf from 'image-size';
@@ -35,10 +36,7 @@ const supportedMimetypes = [
   'text/xml',
 ];
 
-const imageMimetypes = [
-  'image/png',
-  'image/jpeg',
-];
+const imageMimetypes = ['image/png', 'image/jpeg'];
 
 export const createActivities = ({
   mc,
@@ -58,10 +56,11 @@ export const createActivities = ({
   modelsService,
   secretsService,
   sqlSourceService,
+  testCasesService,
+  testScenariosService,
   uploadsService,
   vectorStoreService,
 }) => ({
-
   async evaluate(evaluation, workspaceId, username) {
     const filter = {};
     const { id, model, completionFunction, dateRange, criteria } = evaluation;
@@ -118,9 +117,9 @@ export const createActivities = ({
                   description: 'evaluation result',
                   type: 'string',
                 },
-              }
-            }
-          }
+              },
+            },
+          },
         },
         required: ['results'],
       },
@@ -179,10 +178,13 @@ export const createActivities = ({
       percentPassed: (logs.length - failed.length) / logs.length,
       embedding,
     };
-    const updatedEvaluation = await evaluationsService.upsertEvaluation({
-      ...evaluation,
-      runs: [...(evaluation.runs || []), run],
-    }, username);
+    const updatedEvaluation = await evaluationsService.upsertEvaluation(
+      {
+        ...evaluation,
+        runs: [...(evaluation.runs || []), run],
+      },
+      username
+    );
     logger.debug('updated evaluation:', updatedEvaluation);
 
     return updatedEvaluation;
@@ -196,21 +198,55 @@ export const createActivities = ({
     return executionsService.executeComposition(params);
   },
 
+  async executeTestScenario(params) {
+    const { testScenarioId, workspaceId, username } = params;
+    const testScenario = await testScenariosService.getTestScenario(testScenarioId);
+    const testCases = await testCasesService.getTestCasesByScenarioId(testScenarioId);
+    const func = await functionsService.getFunction(testScenario.functionId);
+    const tcs = [];
+    for (const testCase of testCases) {
+      const functionResponse = await executionsService.executeFunction({
+        func,
+        args: testCase.input,
+        workspaceId,
+        username,
+      });
+      const results = [];
+      for (const choice of functionResponse.response.choices) {
+        const message = choice.message;
+        if (message.tool_calls) {
+          for (const call of message.tool_calls) {
+            results.push(JSON.parse(call.function.arguments));
+          }
+        }
+      }
+      const tc = await testCasesService.upsertTestCase({
+        ...testCase,
+        output: merge.all(results),
+      });
+      tcs.push(tc);
+    }
+    return { ...testScenario, testCases: tcs };
+  },
+
   async index(params, loaderProvider, extractorProviders) {
     try {
-      const pipeline = new Pipeline({
-        executionsService,
-        extractorService,
-        functionsService,
-        graphStoreService,
-        indexesService,
-        llmService,
-        loaderService,
-        vectorStoreService,
-      }, {
-        loaderProvider,
-        extractorProviders,
-      });
+      const pipeline = new Pipeline(
+        {
+          executionsService,
+          extractorService,
+          functionsService,
+          graphStoreService,
+          indexesService,
+          llmService,
+          loaderService,
+          vectorStoreService,
+        },
+        {
+          loaderProvider,
+          extractorProviders,
+        }
+      );
       const index = await pipeline.run(params);
       return index;
     } catch (err) {
@@ -241,9 +277,10 @@ export const createActivities = ({
     // logger.info('workspaceId:', workspaceId);
     // logger.info('username:', username);
     const dataSource = await dataSourcesService.getDataSource(transformation.dataSourceId);
-    const source = await secretsService.interpolateSecretsInObject(workspaceId, dataSource, ['connectionString']);
+    const source = await secretsService.interpolateSecretsInObject(workspaceId, dataSource, [
+      'connectionString',
+    ]);
     if (source.type === 'document') {
-
       // load
       const loaderProvider = 'minio';
       const uploads = [];
@@ -252,11 +289,7 @@ export const createActivities = ({
         uploads.push(upload);
       }
       const objectNames = uploads.map(u => {
-        const objectName = path.join(
-          String(source.workspaceId),
-          constants.DOCUMENTS_PREFIX,
-          u.filename
-        );
+        const objectName = path.join(String(source.workspaceId), constants.DOCUMENTS_PREFIX, u.filename);
         return { objectName, uploadId: u.id };
       });
       logger.debug('objectNames:', objectNames);
@@ -326,7 +359,6 @@ export const createActivities = ({
       const graphStoreProvider = 'neo4j';
       const indexName = snakeCase(transformation.name);
       await graphStoreService.addGraph(graphStoreProvider, indexName, graph);
-
     } else if (source.type === 'sql') {
       const all = transformation.features.some(f => f.column === '__all');
       let cols;
@@ -415,9 +447,9 @@ export const createActivities = ({
                           description: feature.description,
                           type: getDestinationType(feature.dataType),
                         },
-                      }
-                    }
-                  }
+                      },
+                    },
+                  },
                 },
                 required: ['results'],
               },
@@ -519,18 +551,14 @@ export const createActivities = ({
         file.originalname
       );
     } else {
-      objectName = path.join(
-        String(workspaceId),
-        constants.DOCUMENTS_PREFIX,
-        file.originalname
-      );
+      objectName = path.join(String(workspaceId), constants.DOCUMENTS_PREFIX, file.originalname);
     }
     logger.debug('objectName:', objectName);
     if (!fs.existsSync(file.path)) {
       return Promise.reject(new Error('File no longer on path: ' + file.path));
     }
     return new Promise((resolve, reject) => {
-      mc.fPutObject(constants.FILE_BUCKET, objectName, file.path, metadata, async (err) => {
+      mc.fPutObject(constants.FILE_BUCKET, objectName, file.path, metadata, async err => {
         if (err) {
           logger.error(err, err.stack);
           return reject(err);
@@ -545,7 +573,12 @@ export const createActivities = ({
             data = await extractorService.extract('onesource', file.path, file.originalname, file.mimetype);
           } else {
             logger.debug('using unstructured');
-            data = await extractorService.extract('unstructured', file.path, file.originalname, file.mimetype);
+            data = await extractorService.extract(
+              'unstructured',
+              file.path,
+              file.originalname,
+              file.mimetype
+            );
           }
         }
         let width, height;
@@ -584,7 +617,6 @@ export const createActivities = ({
               name: objectName,
             });
           });
-
         } catch (err) {
           logger.error(err, err.stack);
           reject(err);
@@ -614,7 +646,6 @@ export const createActivities = ({
         const res = await uploadsService.upsertUpload(uploadRecord, username);
         logger.info('Updated', res);
         return 'OK';
-
       } catch (err) {
         logger.error(String(err));
         throw err;
@@ -623,7 +654,6 @@ export const createActivities = ({
       logger.info('No data');
     }
   },
-
 });
 
 function convertColumnsToRows(features, result) {
@@ -647,8 +677,7 @@ function createChunk(data, i, props, nodeLabel, textNodeProperties) {
     text = Object.entries(data)
       .filter(([k, v]) => textNodeProperties.includes(k) && v)
       .map(([k, v]) => v)
-      .join('\n')
-      ;
+      .join('\n');
   } else {
     text = Object.entries(data)
       .map(([k, v]) => {
@@ -658,8 +687,7 @@ function createChunk(data, i, props, nodeLabel, textNodeProperties) {
         return '';
       })
       .filter(([k, v]) => v)
-      .join('\n')
-      ;
+      .join('\n');
   }
   const { wordCount, length, size } = getTextStats(text);
   const createdDateTime = new Date().toISOString();
@@ -713,11 +741,7 @@ function getDestinationType(dataType) {
 
 function getSchema({ jsonSchema, textNodeProperties }) {
   const props = Object.entries(jsonSchema.properties).reduce((a, [k, v]) => {
-    const isTag = (
-      v.type === 'string' &&
-      textNodeProperties &&
-      !textNodeProperties.includes(k)
-    );
+    const isTag = v.type === 'string' && textNodeProperties && !textNodeProperties.includes(k);
     if (allowedTypes.includes(v.type)) {
       a[k] = {
         type: v.type,
@@ -729,145 +753,147 @@ function getSchema({ jsonSchema, textNodeProperties }) {
   }, {});
 
   return {
-    "$id": "https://promptstore.dev/chunk.schema.json",
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "Chunk",
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "description": "A unique identifier"
+    $id: 'https://promptstore.dev/chunk.schema.json',
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: 'Chunk',
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+        description: 'A unique identifier',
       },
-      "nodeLabel": {
-        "type": "string",
-        "description": "The node type that will be used in a graph representation, e.g., \"Chunk\". Also equates to an \"Entity\" in a Feature Store."
+      nodeLabel: {
+        type: 'string',
+        description:
+          'The node type that will be used in a graph representation, e.g., "Chunk". Also equates to an "Entity" in a Feature Store.',
       },
-      "documentId": {
-        "type": "string",
-        "description": "The id of the source document"
+      documentId: {
+        type: 'string',
+        description: 'The id of the source document',
       },
-      "type": {
-        "type": "string",
-        "description": "The type of chunk if defined, e.g., \"Title\", \"NarrativeText\", \"Image\""
+      type: {
+        type: 'string',
+        description: 'The type of chunk if defined, e.g., "Title", "NarrativeText", "Image"',
       },
-      "text": {
-        "type": "string",
-        "description": "The chunk text"
+      text: {
+        type: 'string',
+        description: 'The chunk text',
       },
-      "data": {
-        "type": {},
-        "description": "Additional data fields that are indexed to support hybrid or faceted search",
-        "properties": props
+      data: {
+        type: {},
+        description: 'Additional data fields that are indexed to support hybrid or faceted search',
+        properties: props,
       },
-      "metadata": {
-        "type": "object",
-        "properties": {
-          "author": {
-            "type": "string",
-            "description": "The document author"
+      metadata: {
+        type: 'object',
+        properties: {
+          author: {
+            type: 'string',
+            description: 'The document author',
           },
-          "mimetype": {
-            "type": "string",
-            "description": "The document MIME (Multipurpose Internet Mail Extension) type"
+          mimetype: {
+            type: 'string',
+            description: 'The document MIME (Multipurpose Internet Mail Extension) type',
           },
-          "dataSourceId": {
-            "type": "string",
-            "description": "The data source id"
+          dataSourceId: {
+            type: 'string',
+            description: 'The data source id',
           },
-          "dataSourceName": {
-            "type": "string",
-            "description": "The data source name"
+          dataSourceName: {
+            type: 'string',
+            description: 'The data source name',
           },
-          "uploadId": {
-            "type": "string",
-            "description": "The upload id"
+          uploadId: {
+            type: 'string',
+            description: 'The upload id',
           },
-          "filename": {
-            "type": "string",
-            "description": "The file name"
+          filename: {
+            type: 'string',
+            description: 'The file name',
           },
-          "objectName": {
-            "type": "string",
-            "description": "The document object name"
+          objectName: {
+            type: 'string',
+            description: 'The document object name',
           },
-          "endpoint": {
-            "type": "string",
-            "description": "The API endpoint"
+          endpoint: {
+            type: 'string',
+            description: 'The API endpoint',
           },
-          "database": {
-            "type": "string",
-            "description": "The database name"
+          database: {
+            type: 'string',
+            description: 'The database name',
           },
-          "subtype": {
-            "type": "string",
-            "description": "The chunk subtype if defined"
+          subtype: {
+            type: 'string',
+            description: 'The chunk subtype if defined',
           },
-          "parentIds": {
-            "type": "array",
-            "description": "A list of parent chunks that this chunk belongs to. (There may be multiple to link to all parent chunks in the hierarchy as a convenience.)",
-            "items": {
-              "type": "string"
-            }
+          parentIds: {
+            type: 'array',
+            description:
+              'A list of parent chunks that this chunk belongs to. (There may be multiple to link to all parent chunks in the hierarchy as a convenience.)',
+            items: {
+              type: 'string',
+            },
           },
-          "page": {
-            "type": "number",
-            "description": "The page number in the source document where this chunk is found"
+          page: {
+            type: 'number',
+            description: 'The page number in the source document where this chunk is found',
           },
-          "row": {
-            "type": "number",
-            "description": "The row number in the source document where this chunk is found"
+          row: {
+            type: 'number',
+            description: 'The row number in the source document where this chunk is found',
           },
-          "wordCount": {
-            "type": "number",
-            "description": "The word count of text in this chunk"
+          wordCount: {
+            type: 'number',
+            description: 'The word count of text in this chunk',
           },
-          "length": {
-            "type": "number",
-            "description": "The character length of the trimmed text in this chunk"
+          length: {
+            type: 'number',
+            description: 'The character length of the trimmed text in this chunk',
           },
-          "size": {
-            "type": "number",
-            "description": "The size in bytes of the trimmed text in this chunk"
-          }
-        }
+          size: {
+            type: 'number',
+            description: 'The size in bytes of the trimmed text in this chunk',
+          },
+        },
       },
-      "createdDatetime": {
-        "type": "string",
-        "description": "The timestamp in ISO format when this chunk was created"
+      createdDatetime: {
+        type: 'string',
+        description: 'The timestamp in ISO format when this chunk was created',
       },
-      "createdBy": {
-        "type": "string",
-        "description": "The process or system that created this chunk"
+      createdBy: {
+        type: 'string',
+        description: 'The process or system that created this chunk',
       },
-      "startDatetime": {
-        "type": "string",
-        "description": "The timestamp in ISO format when this chunk became valid (SCD Type 2)"
+      startDatetime: {
+        type: 'string',
+        description: 'The timestamp in ISO format when this chunk became valid (SCD Type 2)',
       },
-      "endDatetime": {
-        "type": "string",
-        "description": "The timestamp in ISO format when this chunk became invalid (SCD Type 2)"
+      endDatetime: {
+        type: 'string',
+        description: 'The timestamp in ISO format when this chunk became invalid (SCD Type 2)',
       },
-      "version": {
-        "type": "number",
-        "description": "The version number"
-      }
+      version: {
+        type: 'number',
+        description: 'The version number',
+      },
     },
-    "required": [
-      "id",
-      "nodeLabel",
-      "documentId",
-      "text",
-      "metadata",
-      "createdDateTime",
-      "createdBy",
-      "startDateTime",
-      "endDateTime",
-      "version"
-    ]
+    required: [
+      'id',
+      'nodeLabel',
+      'documentId',
+      'text',
+      'metadata',
+      'createdDateTime',
+      'createdBy',
+      'startDateTime',
+      'endDateTime',
+      'version',
+    ],
   };
 }
 
-const stringify = (val) => {
+const stringify = val => {
   if (val === null || typeof val === 'undefined') {
     return '';
   }
