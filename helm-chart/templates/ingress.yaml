@@ -3,6 +3,9 @@ kind: Ingress
 metadata:
   name: "{{ .Values.appname }}-ingress"
   namespace: "{{ .Values.namespace }}"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+
 spec:
   defaultBackend:
     service:

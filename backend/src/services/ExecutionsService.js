@@ -265,12 +265,12 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     debug = false,
   }) => {
     // logger.debug('env:', env);
-    // logger.debug('workspaceId:', workspaceId);
-    // logger.debug('semanticFunctionName:', semanticFunctionName);
+    logger.debug('workspaceId:', workspaceId);
+    logger.debug('semanticFunctionName:', semanticFunctionName);
     if (!params) params = {};
-    // logger.debug('params:', params);
+    logger.debug('params:', params);
     const { credits, errors } = await usersService.checkCredits(username);
-    // logger.debug('credits:', credits);
+    logger.debug('credits:', credits);
     if (errors) {
       return { errors };
     }

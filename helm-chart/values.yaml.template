@@ -10,7 +10,7 @@ imagePullSecret: ""
 containerRegistry: ""
 serviceAccountSecret: ""
 
-version: "0.7.09"
+version: "0.7.20"
 
 port: "5000"
 

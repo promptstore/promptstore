@@ -84,12 +84,12 @@ export const deleteScenariosAsync =
   };
 
 export const generateOutputsAsync =
-  ({ id, workspaceId }) =>
+  ({ id, workspaceId, values, selectedRowKeys }) =>
   async dispatch => {
     const correlationId = uuidv4();
     dispatch(startRun({ scenarioId: id }));
     const url = '/api/test-scenario-runs';
-    await http.post(url, { correlationId, testScenarioId: id, workspaceId });
+    await http.post(url, { correlationId, testScenarioId: id, workspaceId, values, selectedRowKeys });
     const timeout = 120000;
     const start = new Date();
     const intervalId = setInterval(async () => {

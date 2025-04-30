@@ -41,20 +41,22 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     delete scenario.testCases;
     let testScenario = await testScenariosService.upsertTestScenario(scenario, username);
     const testCases = [];
-    let index = 0;
-    for (const testCase of values.testCases) {
-      const tc = await testCasesService.upsertTestCase(
-        {
-          ...testCase,
-          index,
-          testScenarioId: testScenario.id,
-          workspaceId: testScenario.workspaceId,
-          functionId: testScenario.functionId,
-        },
-        username
-      );
-      testCases.push(tc);
-      index++;
+    if (values.testCases) {
+      let index = 0;
+      for (const testCase of values.testCases) {
+        const tc = await testCasesService.upsertTestCase(
+          {
+            ...testCase,
+            index,
+            testScenarioId: testScenario.id,
+            workspaceId: testScenario.workspaceId,
+            functionId: testScenario.functionId,
+          },
+          username
+        );
+        testCases.push(tc);
+        index++;
+      }
     }
     const obj = createSearchableObject(testScenario);
     const chunkId = await indexObject(obj, testScenario.chunkId);
@@ -64,16 +66,19 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     res.json({ ...testScenario, testCases });
   });
 
-  app.put('/api/test-scenarios/:id', auth, async (req, res, next) => {
-    const { id } = req.params;
-    const { username } = req.user;
-    const values = req.body;
+  const updateTestScenario = async (id, values, username) => {
     const scenario = { ...values, testCasesCount: values.testCases?.length || 0 };
     delete scenario.testCases;
     let testScenario = await testScenariosService.upsertTestScenario({ id, ...scenario }, username);
+    const existingTestCases = await testCasesService.getTestCasesByScenarioId(id);
+    const existingIds = existingTestCases.reduce((a, tc) => {
+      a[tc.id] = true;
+      return a;
+    }, {});
     const testCases = [];
     let index = 0;
     for (const testCase of values.testCases) {
+      existingIds[testCase.id] = false;
       const tc = await testCasesService.upsertTestCase(
         {
           ...testCase,
@@ -87,12 +92,22 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       testCases.push(tc);
       index++;
     }
+    const removedIds = Object.keys(existingIds).filter(id => existingIds[id]);
+    await testCasesService.deleteTestCases(removedIds);
     const obj = createSearchableObject(testScenario);
     const chunkId = await indexObject(obj, testScenario.chunkId);
     if (!testScenario.chunkId) {
       testScenario = await testScenariosService.upsertTestScenario({ ...testScenario, chunkId }, username);
     }
-    res.json({ ...testScenario, testCases });
+    return { ...testScenario, testCases };
+  };
+
+  app.put('/api/test-scenarios/:id', auth, async (req, res, next) => {
+    const { id } = req.params;
+    const { username } = req.user;
+    const values = req.body;
+    const scenario = await updateTestScenario(id, values, username);
+    res.json(scenario);
   });
 
   app.delete('/api/test-scenarios/:id', auth, async (req, res, next) => {
@@ -112,10 +127,11 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
   app.post('/api/test-scenario-runs', auth, async (req, res, next) => {
     const { username } = req.user;
-    const { correlationId, testScenarioId, workspaceId } = req.body;
+    const { correlationId, testScenarioId, workspaceId, values, selectedRowKeys } = req.body;
+    await updateTestScenario(testScenarioId, values, username);
     workflowClient
       .executeTestScenario(
-        { testScenarioId, username, workspaceId },
+        { testScenarioId, username, workspaceId, selectedRowKeys },
         {
           address: constants.TEMPORAL_URL,
         }

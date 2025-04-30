@@ -58,6 +58,7 @@ export function TestCasesService({ pg, logger }) {
       SELECT id, workspace_id, test_scenario_id, function_id, input, output, rating, created, created_by, modified, modified_by, val
       FROM test_cases
       WHERE test_scenario_id = $1
+      ORDER BY val->>'index'
       `;
     const { rows } = await pg.query(q, [scenarioId]);
     if (rows.length === 0) {

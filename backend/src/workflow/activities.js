@@ -199,32 +199,37 @@ export const createActivities = ({
   },
 
   async executeTestScenario(params) {
-    const { testScenarioId, workspaceId, username } = params;
+    logger.debug('executeTestScenario:', params);
+    const { testScenarioId, workspaceId, username, selectedRowKeys } = params;
     const testScenario = await testScenariosService.getTestScenario(testScenarioId);
     const testCases = await testCasesService.getTestCasesByScenarioId(testScenarioId);
     const func = await functionsService.getFunction(testScenario.functionId);
     const tcs = [];
     for (const testCase of testCases) {
-      const functionResponse = await executionsService.executeFunction({
-        func,
-        args: testCase.input,
-        workspaceId,
-        username,
-      });
-      const results = [];
-      for (const choice of functionResponse.response.choices) {
-        const message = choice.message;
-        if (message.tool_calls) {
-          for (const call of message.tool_calls) {
-            results.push(JSON.parse(call.function.arguments));
+      if (selectedRowKeys.length === 0 || selectedRowKeys.includes(testCase.key)) {
+        const functionResponse = await executionsService.executeFunction({
+          func,
+          args: testCase.input,
+          workspaceId,
+          username,
+        });
+        const results = [];
+        for (const choice of functionResponse.response.choices) {
+          const message = choice.message;
+          if (message.tool_calls) {
+            for (const call of message.tool_calls) {
+              results.push(JSON.parse(call.function.arguments));
+            }
           }
         }
+        const tc = await testCasesService.upsertTestCase({
+          ...testCase,
+          output: merge.all(results),
+        });
+        tcs.push(tc);
+      } else {
+        tcs.push(testCase);
       }
-      const tc = await testCasesService.upsertTestCase({
-        ...testCase,
-        output: merge.all(results),
-      });
-      tcs.push(tc);
     }
     return { ...testScenario, testCases: tcs };
   },

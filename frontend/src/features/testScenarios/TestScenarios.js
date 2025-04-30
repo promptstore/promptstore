@@ -7,6 +7,7 @@ import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
 import { getFunctionsAsync, selectFunctions } from '../functions/functionsSlice';
+import { getPromptSetsAsync, selectPromptSets } from '../promptSets/promptSetsSlice';
 import {
   deleteScenariosAsync,
   generateOutputsAsync,
@@ -20,6 +21,7 @@ export function TestScenarios() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
   const functions = useSelector(selectFunctions);
+  const promptSets = useSelector(selectPromptSets);
   const loading = useSelector(selectLoading);
   const running = useSelector(selectRunning);
   const scenarios = useSelector(selectScenarios);
@@ -37,6 +39,7 @@ export function TestScenarios() {
       functionId: r.functionId,
       testCasesCount: r.testCasesCount,
       modified: r.modified,
+      status: r.status,
     }));
     list.sort((a, b) => (a.name > b.name ? 1 : -1));
     return list;
@@ -54,6 +57,7 @@ export function TestScenarios() {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
       dispatch(getFunctionsAsync({ workspaceId }));
+      dispatch(getPromptSetsAsync({ workspaceId }));
       dispatch(getScenariosAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
@@ -66,16 +70,34 @@ export function TestScenarios() {
       render: (text, record) => <Link to={`/test-scenarios/${record.key}`}>{text}</Link>,
     },
     {
+      title: 'Prompt',
+      dataIndex: 'promptSet',
+      key: 'promptSet',
+      width: 250,
+      render: (_, { functionId }) => {
+        const promptSetId = functions[functionId]?.implementations[0]?.promptSetId;
+        return <Link to={`/prompt-sets/${promptSetId}`}>{promptSets[promptSetId]?.name}</Link>;
+      },
+    },
+    {
       title: 'Semantic Function',
       dataIndex: 'semanticFunction',
       key: 'semanticFunction',
       width: 250,
-      render: (_, { functionId }) => functions[functionId]?.name,
+      render: (_, { functionId }) => (
+        <Link to={`/functions/${functionId}`}>{functions[functionId]?.name}</Link>
+      ),
     },
     {
       title: 'Test Cases',
       dataIndex: 'testCasesCount',
       key: 'testCasesCount',
+      width: 110,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
       width: 110,
     },
     {
@@ -99,14 +121,14 @@ export function TestScenarios() {
           >
             Edit
           </Button>
-          <Button
+          {/* <Button
             type="link"
             loading={running[record.key]}
             onClick={() => generateTestCases(record.key)}
             style={{ paddingLeft: 0 }}
           >
             Run
-          </Button>
+          </Button> */}
         </Space>
       ),
     },

@@ -318,6 +318,7 @@ app.use(
     verify: (req, res, buf) => {
       req.rawBody = buf;
     },
+    limit: '256mb',
   })
 );
 app.use(
@@ -326,6 +327,7 @@ app.use(
     // verify: (req, res, buf) => {
     //   req.rawBody = buf;
     // }
+    limit: '256mb',
   })
 );
 

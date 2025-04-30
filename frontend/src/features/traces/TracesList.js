@@ -40,7 +40,6 @@ const { RangePicker } = DatePicker;
 const TIME_FORMAT = 'YYYY-MM-DDTHH-mm-ss';
 
 export function TracesList() {
-
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [tableParams, setTableParams] = useLocalStorageState('traces-list-table-params', {
     defaultValue: {
@@ -49,7 +48,7 @@ export function TracesList() {
         pageSize: 10,
       },
       filters: {},
-    }
+    },
   });
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
@@ -62,7 +61,7 @@ export function TracesList() {
   // console.log('searchText:', searchText);
 
   const data = useMemo(() => {
-    const list = Object.values(traces).map((trace) => ({
+    const list = Object.values(traces).map(trace => ({
       key: trace.id,
       name: trace.name,
       traceType: trace.traceType,
@@ -72,7 +71,7 @@ export function TracesList() {
       tokens: trace.trace[0].response?.usage?.total_tokens,
       username: trace.createdBy,
     }));
-    list.sort((a, b) => a.created > b.created ? -1 : 1);
+    list.sort((a, b) => (a.created > b.created ? -1 : 1));
     return list;
   }, [traces]);
 
@@ -88,7 +87,7 @@ export function TracesList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'Traces',
@@ -120,19 +119,21 @@ export function TracesList() {
   const fetchData = () => {
     const workspaceId = selectedWorkspace.id;
     const { current, pageSize } = tableParams?.pagination || {};
-    dispatch(getTracesAsync({
-      workspaceId,
-      limit: pageSize,
-      start: (current - 1) * pageSize,
-      filters: tableParams?.filters || {},
-    }));
+    dispatch(
+      getTracesAsync({
+        workspaceId,
+        limit: pageSize,
+        start: (current - 1) * pageSize,
+        filters: tableParams?.filters || {},
+      })
+    );
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  const handleReset = (clearFilters) => {
+  const handleReset = clearFilters => {
     clearFilters();
     setSearchText('');
     setSearchedColumn('');
@@ -146,7 +147,7 @@ export function TracesList() {
     setSearchedColumn(dataIndex);
   };
 
-  const getColumnSearchProps = (dataIndex) => ({
+  const getColumnSearchProps = dataIndex => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
       <div style={{ padding: 8 }} onKeyDown={ev => ev.stopPropagation()}>
         <Input
@@ -169,10 +170,7 @@ export function TracesList() {
           style={{ marginBottom: 8 }}
         />
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button type="primary"
-            onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
-            size="small"
-          >
+          <Button type="primary" onClick={() => handleSearch(selectedKeys, confirm, dataIndex)} size="small">
             Search
           </Button>
           {/* <Button
@@ -182,45 +180,43 @@ export function TracesList() {
             Reset
           </Button> */}
           <div style={{ flex: 1 }} />
-          <Button type="link"
-            size="small"
-            onClick={() => close()}
-          >
+          <Button type="link" size="small" onClick={() => close()}>
             close
           </Button>
         </div>
       </div>
     ),
-    filterIcon: (filtered) => (
-      <SearchOutlined style={{ color: filtered ? '1677ff' : undefined }} />
-    ),
+    filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '1677ff' : undefined }} />,
     onFilter: (value, record) => {
       // console.log('onFilter -', dataIndex, ':', value);
       return record[dataIndex].toString().toLowerCase().includes(value.toLowerCase());
     },
-    onFilterDropdownOpenChange: (visible) => {
+    onFilterDropdownOpenChange: visible => {
       if (visible) {
         setTimeout(() => searchInput.current?.select(), 100);
       }
     },
     filteredValue: tableParams?.filters?.name,
-    render: (text) => searchedColumn === dataIndex ? (
-      <Highlighter
-        highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
-        searchWords={[searchText]}
-        autoEscape
-        textToHighlight={text ? text.toString() : ''}
-      />
-    ) : text,
+    render: text =>
+      searchedColumn === dataIndex ? (
+        <Highlighter
+          highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+          searchWords={[searchText]}
+          autoEscape
+          textToHighlight={text ? text.toString() : ''}
+        />
+      ) : (
+        text
+      ),
   });
 
-  const getDates = (dates) => {
+  const getDates = dates => {
     if (!dates) return dates;
     const [startDate, endDate] = dates;
     return [dayjs(startDate), dayjs(endDate)];
-  }
+  };
 
-  const getDateRangeProps = (dataIndex) => ({
+  const getDateRangeProps = dataIndex => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
       <div style={{ padding: 8 }}>
         <RangePicker
@@ -237,18 +233,13 @@ export function TracesList() {
           defaultValue={getDates(tableParams?.filters?.[dataIndex]?.[0])}
         />
         <div>
-          <Button type="primary"
-            onClick={() => confirm()}
-            size="small"
-          >
+          <Button type="primary" onClick={() => confirm()} size="small">
             Filter
           </Button>
         </div>
       </div>
     ),
-    filterIcon: (filtered) => (
-      <CalendarOutlined style={{ color: filtered ? '1677ff' : undefined }} />
-    ),
+    filterIcon: filtered => <CalendarOutlined style={{ color: filtered ? '1677ff' : undefined }} />,
     onFilter: (value, record) => {
       // console.log('onFilter -', dataIndex, ':', value);
       // console.log('onFilter -', dataIndex, ':', value[0].format('YYYY-MM-DD'), '-', value[1].format('YYYY-MM-DD'));
@@ -263,10 +254,11 @@ export function TracesList() {
     filteredValue: tableParams?.filters?.[dataIndex],
   });
 
-  const getNumberRangeProps = (dataIndex) => ({
+  const getNumberRangeProps = dataIndex => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
       <div style={{ padding: 8 }}>
-        <Slider range
+        <Slider
+          range
           min={0}
           max={30000}
           onChange={values => {
@@ -282,13 +274,11 @@ export function TracesList() {
           defaultValue={tableParams?.filters?.[dataIndex]?.[0]}
         />
         <Space>
-          <Button type="primary"
-            onClick={() => confirm()}
-            size="small"
-          >
+          <Button type="primary" onClick={() => confirm()} size="small">
             Filter
           </Button>
-          <Button type="primary"
+          <Button
+            type="primary"
             onClick={() => {
               clearFilters();
               setSelectedKeys([]);
@@ -301,16 +291,14 @@ export function TracesList() {
         </Space>
       </div>
     ),
-    filterIcon: (filtered) => (
-      <FieldNumberOutlined style={{ color: filtered ? '1677ff' : undefined }} />
-    ),
+    filterIcon: filtered => <FieldNumberOutlined style={{ color: filtered ? '1677ff' : undefined }} />,
     onFilter: (value, record) => {
-      console.log('onFilter -', dataIndex, ':', value);
-      console.log('record:', record);
-      console.log('value:', record[dataIndex]);
+      // console.log('onFilter -', dataIndex, ':', value);
+      // console.log('record:', record);
+      // console.log('value:', record[dataIndex]);
       const num = record[dataIndex];
       const filter = num >= value[0] && num <= value[1];
-      console.log('filter:', filter);
+      // console.log('filter:', filter);
       return filter;
     },
     filteredValue: tableParams?.filters?.[dataIndex],
@@ -321,31 +309,28 @@ export function TracesList() {
       title: 'Name',
       dataIndex: 'name',
       ...getColumnSearchProps('name'),
-      render: (_, { key, name }) => searchedColumn === 'name' ? (
-        <div style={{ minWidth: 250 }}>
-          <Link to={`/traces/${key}`}>
-            <Highlighter
-              autoEscape
-              highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
-              searchWords={[searchText]}
-              textToHighlight={name}
-            />
-          </Link>
-        </div>
-      ) : (
-        <div style={{ minWidth: 250 }}>
-          <Link to={`/traces/${key}`}>
-            {name}
-          </Link>
-        </div>
-      ),
+      render: (_, { key, name }) =>
+        searchedColumn === 'name' ? (
+          <div style={{ minWidth: 250 }}>
+            <Link to={`/traces/${key}`}>
+              <Highlighter
+                autoEscape
+                highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+                searchWords={[searchText]}
+                textToHighlight={name}
+              />
+            </Link>
+          </div>
+        ) : (
+          <div style={{ minWidth: 250 }}>
+            <Link to={`/traces/${key}`}>{name}</Link>
+          </div>
+        ),
     },
     {
       title: 'Type',
       dataIndex: 'traceType',
-      render: (_, { traceType }) => (
-        <Tag>{traceType}</Tag>
-      ),
+      render: (_, { traceType }) => <Tag>{traceType}</Tag>,
       filters: [
         {
           text: 'chat',
@@ -368,9 +353,7 @@ export function TracesList() {
     {
       title: 'Run',
       dataIndex: 'created',
-      render: (_, { created }) => (
-        <span>{dayjs(created).format(TIME_FORMAT)}</span>
-      ),
+      render: (_, { created }) => <span>{dayjs(created).format(TIME_FORMAT)}</span>,
       ...getDateRangeProps('created'),
     },
     {
@@ -425,16 +408,12 @@ export function TracesList() {
       title: 'Tokens',
       dataIndex: 'tokens',
       align: 'right',
-      render: (_, { tokens }) => (
-        <span>{tokens?.toLocaleString('en-US')}</span>
-      )
+      render: (_, { tokens }) => <span>{tokens?.toLocaleString('en-US')}</span>,
     },
     {
       title: 'Username',
       dataIndex: 'username',
-      render: (_, { username }) => (
-        <span>{username}</span>
-      )
+      render: (_, { username }) => <span>{username}</span>,
     },
     {
       title: 'Action',
@@ -443,10 +422,7 @@ export function TracesList() {
       width: 100,
       render: (_, record) => (
         <Space size="middle">
-          <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={() => navigate(`/traces/${record.key}`)}
-          >
+          <Button type="link" style={{ paddingLeft: 0 }} onClick={() => navigate(`/traces/${record.key}`)}>
             View
           </Button>
         </Space>
@@ -490,9 +466,7 @@ export function TracesList() {
             <Button danger type="primary" onClick={onDelete} disabled={!hasSelected}>
               Delete
             </Button>
-            <span>
-              {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
-            </span>
+            <span>{hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}</span>
           </div>
           <Button type="text" onClick={fetchData} icon={<RedoOutlined />}>
             Refresh
@@ -503,10 +477,7 @@ export function TracesList() {
             </Button>
           </Download>
           <div style={{ flex: 1 }}></div>
-          <Button type="text"
-            icon={<BarChartOutlined />}
-            onClick={() => navigate('/traces-dash')}
-          >
+          <Button type="text" icon={<BarChartOutlined />} onClick={() => navigate('/traces-dash')}>
             Dashboard
           </Button>
         </div>
@@ -524,4 +495,4 @@ export function TracesList() {
       </div>
     </>
   );
-};
+}
