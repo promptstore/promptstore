@@ -93,9 +93,9 @@ export const getFunctionsByTagAsync = ({ tag, workspaceId, minDelay }) => async 
   });
 };
 
-export const getFunctionAsync = (id) => async (dispatch) => {
+export const getFunctionAsync = ({ id, workspaceId }) => async (dispatch) => {
   dispatch(startLoad());
-  const url = `/api/functions/${id}`;
+  const url = `/api/workspaces/${workspaceId}/functions/${id}`;
   const res = await http.get(url);
   dispatch(setFunctions({ functions: [res.data] }));
 };

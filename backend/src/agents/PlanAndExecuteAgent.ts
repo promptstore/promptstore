@@ -99,6 +99,9 @@ export default ({ logger, services }) => {
 
     async run({ args, allowedTools, extraFunctionCallParams, selfEvaluate, callbacks = [] }: AgentRunParams) {
       this.currentCallbacks = [...this.callbacks, ...callbacks];
+      if (!allowedTools) {
+        allowedTools = [];
+      }
       for (let callback of this.currentCallbacks) {
         callback.onAgentStart({
           name: this.name,

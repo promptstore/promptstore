@@ -24,6 +24,7 @@ import {
   sourceNode,
   toolNode,
   transformerNode,
+  forkNode,
   vectorStoreNode,
 } from '../core/compositions/Composition';
 import { ContentType } from '../core/conversions/RosettaStone';
@@ -646,6 +647,10 @@ export default ({ agents, constants, logger, mc, rc, services }) => {
 
         case 'transformerNode':
           nodes.push(transformerNode(nodeInfo.id, nodeInfo.data.functionId));
+          break;
+
+        case 'forkNode':
+          nodes.push(forkNode(nodeInfo.id, nodeInfo.data.forkCode));
           break;
 
         default:

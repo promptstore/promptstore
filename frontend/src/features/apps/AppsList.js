@@ -6,17 +6,11 @@ import useLocalStorageState from 'use-local-storage-state';
 
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import {
-  deleteAppsAsync,
-  getAppsAsync,
-  selectLoading,
-  selectApps,
-} from './appsSlice';
+import { deleteAppsAsync, getAppsAsync, selectLoading, selectApps } from './appsSlice';
 
 import './AppsList.css';
 
 export function AppsList() {
-
   const [page, setPage] = useLocalStorageState('apps-list-page', { defaultValue: 1 });
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
 
@@ -24,11 +18,13 @@ export function AppsList() {
   const apps = useSelector(selectApps);
 
   const data = useMemo(() => {
-    const list = Object.values(apps).map((app) => ({
+    const list = Object.values(apps).map(app => ({
       key: app.id,
       name: app.name || 'undefined',
+      appType: app.appType,
+      composition: app.composition,
     }));
-    list.sort((a, b) => a.name > b.name ? 1 : -1);
+    list.sort((a, b) => (a.name > b.name ? 1 : -1));
     return list;
   }, [apps]);
 
@@ -42,7 +38,7 @@ export function AppsList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: '/apps-edit/new',
       title: 'Apps',
@@ -69,7 +65,7 @@ export function AppsList() {
     setSelectedRowKeys([]);
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
@@ -77,7 +73,12 @@ export function AppsList() {
     {
       title: 'Name',
       dataIndex: 'name',
-      render: (_, { key, name }) => <Link to={`/apps/${key}`}>{name}</Link>
+      render: (_, { appType, composition, key, name }) => {
+        if (appType === 'app' && composition) {
+          return <Link to={`/apps/${key}/form`}>{name}</Link>;
+        }
+        return <Link to={`/apps/${key}`}>{name}</Link>;
+      },
     },
     {
       title: 'Action',
@@ -87,13 +88,21 @@ export function AppsList() {
       render: (_, record) => (
         <div className="row-actions">
           <Space>
-            <Button type="link"
+            <Button
+              type="link"
               style={{ paddingLeft: 0 }}
-              onClick={() => navigate(`/apps/${record.key}`)}
+              onClick={() => {
+                if (record.appType === 'app' && record.composition) {
+                  navigate(`/apps/${record.key}/form`);
+                } else {
+                  navigate(`/apps/${record.key}`);
+                }
+              }}
             >
               View
             </Button>
-            <Button type="link"
+            <Button
+              type="link"
               style={{ paddingLeft: 0 }}
               onClick={() => navigate(`/apps-edit/${record.key}`)}
             >
@@ -108,9 +117,7 @@ export function AppsList() {
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
-    selections: [
-      Table.SELECTION_ALL,
-    ],
+    selections: [Table.SELECTION_ALL],
   };
 
   const hasSelected = selectedRowKeys.length > 0;
@@ -140,4 +147,4 @@ export function AppsList() {
       </div>
     </>
   );
-};
+}

@@ -255,6 +255,7 @@ export class SemanticFunctionImplementation {
             //   continue;
             // }
             try {
+              console.log('response:', response);
               const serializedJson = response.choices[0].message.function_call.arguments;
               const json = JSON.parse(serializedJson);
               // const values = json.results.map((el: any) => el[args.featureName]);

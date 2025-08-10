@@ -67,9 +67,7 @@ function BigQuerySource({ __name, constants, logger }) {
     }
     const client = await getConnection();
     const { dataset, tableName } = destination;
-    logger.debug('data:', data);
     const { inferredSchema } = inferSchema(data[0]);
-    logger.debug('inferredSchema:', inferredSchema);
     const schema = Object.entries(inferredSchema.properties.required).map(([k, v]) => {
       const opts = getDDLOpts(v);
       return {

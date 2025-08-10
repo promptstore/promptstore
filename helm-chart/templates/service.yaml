@@ -4,7 +4,7 @@ metadata:
   name: "{{ .Values.appname }}"
   namespace: "{{ .Values.namespace }}"
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: api
   ports:

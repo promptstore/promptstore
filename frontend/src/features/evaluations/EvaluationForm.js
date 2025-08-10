@@ -13,11 +13,7 @@ import {
   selectFunctions,
   selectLoading as selectFunctionsLoading,
 } from '../functions/functionsSlice';
-import {
-  getModelsAsync,
-  selectModels,
-  selectLoading as selectModelsLoading,
-} from '../models/modelsSlice';
+import { getModelsAsync, selectModels, selectLoading as selectModelsLoading } from '../models/modelsSlice';
 import {
   pauseScheduleAsync,
   unpauseScheduleAsync,
@@ -86,7 +82,6 @@ const criteriaOptions = [
 ];
 
 export function EvaluationForm() {
-
   const [backOnSave, setBackOnSave] = useState(false);
 
   const loaded = useSelector(selectLoaded);
@@ -115,10 +110,7 @@ export function EvaluationForm() {
     if (eval_) {
       const schedule = eval_.schedule || {};
       const [startDate, endDate] = eval_.dateRange || [null, null];
-      const dateRange = [
-        startDate ? dayjs(startDate) : null,
-        endDate ? dayjs(endDate) : null
-      ];
+      const dateRange = [startDate ? dayjs(startDate) : null, endDate ? dayjs(endDate) : null];
       return {
         ...eval_,
         dateRange,
@@ -132,27 +124,27 @@ export function EvaluationForm() {
       };
     }
     return null;
-  }, [evaluations])
+  }, [evaluations]);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions)
-      .filter((func) => !func.tags?.includes('eval'))
-      .map((func) => ({
+      .filter(func => !func.tags?.includes('eval'))
+      .map(func => ({
         label: func.name,
         value: func.id,
       }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [functions]);
 
   const evalFunctionOptions = useMemo(() => {
     const list = Object.values(functions)
-      .filter((func) => func.tags?.includes('eval'))
-      .map((func) => ({
+      .filter(func => func.tags?.includes('eval'))
+      .map(func => ({
         label: func.name,
         value: func.id,
       }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [functions]);
 
@@ -161,12 +153,12 @@ export function EvaluationForm() {
       label: m.name,
       value: m.key,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [models]);
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'Evaluation',
@@ -195,7 +187,7 @@ export function EvaluationForm() {
     navigate('/evaluations');
   };
 
-  const onFinish = (values) => {
+  const onFinish = values => {
     let schedule;
     if (values.schedule) {
       schedule = {
@@ -211,24 +203,28 @@ export function EvaluationForm() {
       dateRange = [values.dateRange[0].format('YYYY-MM-DD'), values.dateRange[1].format('YYYY-MM-DD')];
     }
     if (isNew) {
-      dispatch(createEvaluationAsync({
-        values: {
-          ...values,
-          dateRange,
-          schedule,
-          workspaceId: selectedWorkspace.id,
-        },
-      }));
+      dispatch(
+        createEvaluationAsync({
+          values: {
+            ...values,
+            dateRange,
+            schedule,
+            workspaceId: selectedWorkspace.id,
+          },
+        })
+      );
     } else {
-      dispatch(updateEvaluationAsync({
-        id,
-        values: {
-          ...evaluation,
-          ...values,
-          dateRange,
-          schedule,
-        },
-      }));
+      dispatch(
+        updateEvaluationAsync({
+          id,
+          values: {
+            ...evaluation,
+            ...values,
+            dateRange,
+            schedule,
+          },
+        })
+      );
     }
     setBackOnSave(true);
   };
@@ -237,13 +233,15 @@ export function EvaluationForm() {
     console.log('pausing schedule:', evaluation.scheduleId);
     if (evaluation.scheduleId) {
       dispatch(pauseScheduleAsync({ scheduleId: evaluation.scheduleId }));
-      dispatch(updateEvaluationAsync({
-        id,
-        values: {
-          ...evaluation,
-          scheduleStatus: 'paused',
-        },
-      }));
+      dispatch(
+        updateEvaluationAsync({
+          id,
+          values: {
+            ...evaluation,
+            scheduleStatus: 'paused',
+          },
+        })
+      );
     }
   };
 
@@ -251,13 +249,15 @@ export function EvaluationForm() {
     console.log('unpausing schedule:', evaluation.scheduleId);
     if (evaluation.scheduleId) {
       dispatch(unpauseScheduleAsync({ scheduleId: evaluation.scheduleId }));
-      dispatch(updateEvaluationAsync({
-        id,
-        values: {
-          ...evaluation,
-          scheduleStatus: 'running',
-        },
-      }));
+      dispatch(
+        updateEvaluationAsync({
+          id,
+          values: {
+            ...evaluation,
+            scheduleStatus: 'running',
+          },
+        })
+      );
     }
   };
 
@@ -265,22 +265,22 @@ export function EvaluationForm() {
     console.log('deleting schedule:', evaluation.scheduleId);
     if (evaluation.scheduleId) {
       dispatch(deleteScheduleAsync({ scheduleId: evaluation.scheduleId }));
-      dispatch(updateEvaluationAsync({
-        id,
-        values: {
-          ...evaluation,
-          schedule: null,
-          scheduleId: null,
-          scheduleStatus: null,
-        },
-      }));
+      dispatch(
+        updateEvaluationAsync({
+          id,
+          values: {
+            ...evaluation,
+            schedule: null,
+            scheduleId: null,
+            scheduleStatus: null,
+          },
+        })
+      );
     }
   };
 
   if (!isNew && !loaded) {
-    return (
-      <div style={{ marginTop: 20 }}>Loading...</div>
-    );
+    return <div style={{ marginTop: 20 }}>Loading...</div>;
   }
   return (
     <div style={{ marginTop: 20 }}>
@@ -305,43 +305,26 @@ export function EvaluationForm() {
         >
           <Input />
         </Form.Item>
-        <Form.Item
-          label="Description"
-          name="description"
-          wrapperCol={{ span: 14 }}
-        >
+        <Form.Item label="Description" name="description" wrapperCol={{ span: 14 }}>
           <TextArea autoSize={{ minRows: 3, maxRows: 14 }} />
         </Form.Item>
-        <Form.Item
-          label="Needs label"
-          name="labelled"
-          valuePropName="checked"
-        >
+        <Form.Item label="Needs label" name="labelled" valuePropName="checked">
           <Switch />
         </Form.Item>
-        <Form.Item
-          label="Filter"
-          style={{ marginBottom: 0 }}
-        >
+        <Form.Item label="Filter" style={{ marginBottom: 0 }}>
           <Form.Item
             name="model"
             extra="Model"
             style={{ display: 'inline-block', marginRight: 16, width: 250 }}
           >
-            <Select allowClear
-              loading={modelsLoading}
-              options={modelOptions}
-            />
+            <Select allowClear loading={modelsLoading} options={modelOptions} />
           </Form.Item>
           <Form.Item
             name="completionFunction"
             extra="Completion function"
             style={{ display: 'inline-block', marginRight: 16, width: 250 }}
           >
-            <Select allowClear
-              loading={functionsLoading}
-              options={functionOptions}
-            />
+            <Select allowClear loading={functionsLoading} options={functionOptions} />
           </Form.Item>
           <Form.Item
             name="dateRange"
@@ -351,28 +334,20 @@ export function EvaluationForm() {
             <RangePicker />
           </Form.Item>
         </Form.Item>
-        <Form.Item
-          label="Evaluation"
-          style={{ marginBottom: 0 }}
-        >
+        <Form.Item label="Evaluation" style={{ marginBottom: 0 }}>
           <Form.Item
             extra="Eval function"
             name="evalFunction"
             style={{ display: 'inline-block', marginRight: 16, width: 250 }}
           >
-            <Select allowClear
-              loading={functionsLoading}
-              options={evalFunctionOptions}
-            />
+            <Select allowClear loading={functionsLoading} options={evalFunctionOptions} />
           </Form.Item>
           <Form.Item
             extra="Criterion"
-            name="criteria"
+            name="criterion"
             style={{ display: 'inline-block', marginRight: 16, width: 250 }}
           >
-            <Select allowClear
-              options={criteriaOptions}
-            />
+            <Select allowClear options={criteriaOptions} />
           </Form.Item>
           <Form.Item
             name="sampleSize"
@@ -382,10 +357,34 @@ export function EvaluationForm() {
             <InputNumber />
           </Form.Item>
         </Form.Item>
-        <Form.Item
-          label="Schedule"
-          name="schedule"
-        >
+        <Form.Item label="Parameters" style={{ marginBottom: 0 }}>
+          <Form.Item
+            extra="Include input?"
+            name="includeInput"
+            valuePropName="checked"
+            style={{ display: 'inline-block', marginRight: 16, width: 250 }}
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            extra="Input path or blank for all"
+            name="inputPath"
+            style={{ display: 'inline-block', marginRight: 16, width: 250 }}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            extra="Output path or blank for all"
+            name="outputPath"
+            style={{ display: 'inline-block', marginRight: 16, width: 250 }}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item extra="Max tokens" name="maxTokens">
+            <InputNumber />
+          </Form.Item>
+        </Form.Item>
+        <Form.Item label="Schedule" name="schedule">
           <ScheduleModalInput
             onPause={pauseSchedule}
             onUnpause={unpauseSchedule}
@@ -396,8 +395,12 @@ export function EvaluationForm() {
         </Form.Item>
         <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
           <Space>
-            <Button type="default" onClick={onCancel}>Cancel</Button>
-            <Button type="primary" htmlType="submit">Save</Button>
+            <Button type="default" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit">
+              Save
+            </Button>
           </Space>
         </Form.Item>
       </Form>

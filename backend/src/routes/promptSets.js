@@ -3,14 +3,13 @@ import isEmpty from 'lodash.isempty';
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, mc, services }) => {
-
   const OBJECT_TYPE = 'prompt-sets';
 
-  const { executionsService, promptSetsService } = services;
+  const { executionsService, promptSetsService, workspacesService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
-  const getPresignedUrl = (objectName) => {
+  const getPresignedUrl = objectName => {
     return new Promise((resolve, reject) => {
       mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
         if (err) {
@@ -32,9 +31,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.get('/api/workspaces/:workspaceId/prompt-sets', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const { skill } = req.query;
-
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     let promptSets;
     if (skill) {
       const pss = await promptSetsService.getPromptSetsBySkill(workspaceId, skill);
@@ -58,12 +62,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           } else {
             content = p.prompt;
           }
-          prompts.push({ ...p, prompt: content })
+          prompts.push({ ...p, prompt: content });
         }
         const promptSet = await promptSetsService.upsertPromptSet({ ...ps, prompts }, username);
         promptSets.push(promptSet);
       }
-
     } else {
       promptSets = await promptSetsService.getPromptSets(workspaceId);
     }
@@ -74,14 +77,27 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.get('/api/workspaces/:workspaceId/prompt-set-templates', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const sets = await promptSetsService.getPromptSetTemplates(workspaceId);
     res.json(sets);
   });
 
   app.get('/api/prompt-sets/:id', auth, async (req, res, next) => {
     const id = req.params.id;
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const ps = await promptSetsService.getPromptSet(id);
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(ps.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const prompts = [];
     for (const p of ps.prompts) {
       let content;
@@ -105,8 +121,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   });
 
   app.post('/api/prompt-sets', auth, async (req, res, next) => {
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const values = req.body;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(values.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     // try {
     //   values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
     // } catch (err) {
@@ -124,8 +146,15 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.put('/api/prompt-sets/:id', auth, async (req, res, next) => {
     const { id } = req.params;
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const values = req.body;
+    if (!roles.includes('admin')) {
+      const ps = await promptSetsService.getPromptSet(id);
+      const workspace = await workspacesService.getWorkspace(ps.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     // try {
     //   values.summary = await getSummaryLabel(values.workspaceId, username, values.prompts);
     // } catch (err) {
@@ -143,6 +172,14 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.delete('/api/prompt-sets/:id', auth, async (req, res, next) => {
     const id = req.params.id;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const ps = await promptSetsService.getPromptSet(id);
+      const workspace = await workspacesService.getWorkspace(ps.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     await promptSetsService.deletePromptSets([id]);
     await deleteObject(objectId(id));
     res.json(id);
@@ -150,6 +187,16 @@ export default ({ app, auth, constants, logger, mc, services }) => {
 
   app.delete('/api/prompt-sets', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      for (const id of ids) {
+        const ps = await promptSetsService.getPromptSet(id);
+        const workspace = await workspacesService.getWorkspace(ps.workspaceId);
+        if (!workspace.members?.find(m => m.username === username)) {
+          return res.status(403).json({ error: 'You are not a member of this workspace' });
+        }
+      }
+    }
     await promptSetsService.deletePromptSets(ids);
     await deleteObjects(ids.map(objectId));
     res.json(ids);
@@ -158,10 +205,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   const getSummaryLabel = async (workspaceId, username, prompts) => {
     logger.debug('get summary label');
     if (isEmpty(prompts)) return prompts;
-    const content = prompts
-      .map((m) => m.prompt)
-      .join('\n\n')
-      ;
+    const content = prompts.map(m => m.prompt).join('\n\n');
     const args = { content };
     const { response, errors } = await executionsService.executeFunction({
       workspaceId,
@@ -176,15 +220,10 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     return response.choices[0].message.content;
   };
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.tags?.join(' '),
-      rec.description,
-      rec.prompts?.map(p => p.prompt),
-    ];
+    const texts = [rec.name, rec.tags?.join(' '), rec.description, rec.prompts?.map(p => p.prompt)];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -204,5 +243,4 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       },
     };
   }
-
 };

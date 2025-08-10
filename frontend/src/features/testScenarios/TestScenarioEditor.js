@@ -28,6 +28,7 @@ import {
   DislikeFilled,
   PlusOutlined,
   SearchOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import Editor from '@monaco-editor/react';
@@ -46,6 +47,7 @@ import { getFunctionsAsync, selectFunctions } from '../functions/functionsSlice'
 import {
   createScenarioAsync,
   generateOutputsAsync,
+  generateTestCaseAsync,
   getScenarioAsync,
   updateScenarioAsync,
   selectLoaded,
@@ -500,10 +502,43 @@ export function TestScenarioEditor() {
     form.setFieldValue('testCases', [...(form.getFieldValue('testCases') || []), newTestCase]);
   };
 
+  const handleGenerateTestCase = async () => {
+    const testCases = form.getFieldValue('testCases') || [];
+    const selectedTestCase = testCases.find(tc => selectedRowKeys.includes(tc.key));
+    if (!selectedTestCase) {
+      message.error('No test case selected');
+      return;
+    }
+    const result = await dispatch(
+      generateTestCaseAsync({
+        exampleInput: selectedTestCase.input,
+        functionId: selectedTestCase.functionId,
+        workspaceId: selectedWorkspace.id,
+      })
+    );
+    const newTestCase = {
+      key: uuidv4(),
+      description: result.testCaseName,
+      input: result.input,
+      output: null,
+      rating: null,
+    };
+    console.log('newTestCase:', newTestCase);
+    form.setFieldValue('testCases', [...(form.getFieldValue('testCases') || []), newTestCase]);
+  };
+
   const handleRemoveTestCase = index => {
     const newTestCases = [...(form.getFieldValue('testCases') || [])];
     newTestCases.splice(index, 1);
     form.setFieldValue('testCases', newTestCases);
+  };
+
+  const handleDeleteSelected = () => {
+    const testCases = form.getFieldValue('testCases') || [];
+    const newTestCases = testCases.filter(tc => !selectedRowKeys.includes(tc.key));
+    form.setFieldValue('testCases', newTestCases);
+    setSelectedRowKeys([]);
+    message.success(`${selectedRowKeys.length} test case(s) deleted successfully`);
   };
 
   const handleGenerate = async () => {
@@ -725,7 +760,10 @@ export function TestScenarioEditor() {
   const hasSelected = selectedRowKeys.length > 0;
 
   const TableInput = ({ value }) => {
-    const defaultSorted = [...value].map(row => ({ ...row, description: row.description || '' }));
+    const defaultSorted = [...(value || [])]
+      .filter(row => row)
+      .map(row => ({ ...row, description: row.description || '' }));
+
     defaultSorted.sort((a, b) => (a.created < b.created ? -1 : 1));
     return (
       <Table
@@ -843,6 +881,23 @@ export function TestScenarioEditor() {
                     >
                       Copy Selected
                     </Button>
+                    <Button
+                      disabled={selectedRowKeys.length !== 1}
+                      type="default"
+                      icon={<ThunderboltOutlined />}
+                      onClick={handleGenerateTestCase}
+                    >
+                      Generate Test Case
+                    </Button>
+                    <Button
+                      disabled={!hasSelected}
+                      type="default"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={handleDeleteSelected}
+                    >
+                      Delete Selected
+                    </Button>
                   </Flex>
                   <Flex gap={8}>
                     <ExcelExport
@@ -852,7 +907,7 @@ export function TestScenarioEditor() {
                       disabled={!hasSelected}
                     />
                     <Button type="primary" onClick={handleGenerate}>
-                      {hasSelected ? 'Generate Selected' : 'Generate All'}
+                      {hasSelected ? 'Run Selected' : 'Run All'}
                     </Button>
                   </Flex>
                 </Flex>

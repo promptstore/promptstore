@@ -83,6 +83,14 @@ export const deleteScenariosAsync =
     dispatch(removeScenarios({ ids }));
   };
 
+export const generateTestCaseAsync =
+  ({ exampleInput, functionId, workspaceId }) =>
+  async dispatch => {
+    const url = '/api/test-scenarios/generate-test-case';
+    const res = await http.post(url, { exampleInput, functionId, workspaceId });
+    return res.data;
+  };
+
 export const generateOutputsAsync =
   ({ id, workspaceId, values, selectedRowKeys }) =>
   async dispatch => {

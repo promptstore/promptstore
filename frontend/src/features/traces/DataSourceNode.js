@@ -12,8 +12,6 @@ import {
 
 export default memo(({ id, data, isConnectable }) => {
 
-  console.log('data:', data);
-
   const [isModalOpen, setModalOpen] = useState(false);
 
   const chunks = useSelector(selectChunks);

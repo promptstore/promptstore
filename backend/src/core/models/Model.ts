@@ -147,6 +147,8 @@ export class LLMChatModel implements LLMModel {
       let modelOutputText: string;
       if (message.function_call) {
         outputType = 'function_call';
+      } else if (message.tool_calls) {
+        outputType = 'tool_calls';
       } else {
         outputType = 'content';
         modelOutputText = convertContentTypeToString(message.content);

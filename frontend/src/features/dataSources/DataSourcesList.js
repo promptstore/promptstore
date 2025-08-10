@@ -66,8 +66,6 @@ export function DataSourcesList() {
     return list;
   }, [dataSources]);
 
-  // console.log('data:', data);
-
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
 

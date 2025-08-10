@@ -3,9 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RouterProvider } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
-import useLocalStorageState from 'use-local-storage-state';
 import { ReactFlowProvider } from 'reactflow';
 import isEmpty from 'lodash.isempty';
+import useLocalStorageState from 'use-local-storage-state';
+import useSessionStorageState from 'use-session-storage-state';
 
 import CookieManager from './CookieManager';
 import ErrorMessage from './components/ErrorMessage';
@@ -31,7 +32,9 @@ function App() {
   const [navbarState, setNavbarState] = useState({});
   const [ready, setReady] = useState(0);
 
-  const [selectedWorkspace, setSelectedWorkspace] = useLocalStorageState('workspace', { defaultValue: null });
+  const [selectedWorkspace, setSelectedWorkspace] = useSessionStorageState('workspace', {
+    defaultValue: null,
+  });
 
   const navbarContextValue = { isDarkMode, navbarState, setNavbarState, setIsDarkMode };
   const userContextValue = { currentUser, setCurrentUser };

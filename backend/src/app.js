@@ -17,6 +17,7 @@ import axios from 'axios';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
+import 'web-streams-polyfill/polyfill';
 
 import pg from './db';
 import initSearchIndex from './initSearchIndex';
@@ -358,7 +359,13 @@ const VerifyToken = async (req, res, next) => {
         try {
           const decodeValue = await auth.verifyIdToken(token);
           if (decodeValue) {
-            req.user = { ...decodeValue, username: decodeValue.email };
+            const user = await usersService.getUser(decodeValue.email);
+            req.user = {
+              ...decodeValue,
+              ...(user || {}),
+              roles: user?.roles || [],
+              username: decodeValue.email,
+            };
             return next();
           }
         } catch (err) {

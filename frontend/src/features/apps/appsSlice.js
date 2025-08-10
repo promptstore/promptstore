@@ -72,6 +72,12 @@ export const updateAppAsync = ({ id, values }) => async (dispatch) => {
   dispatch(setApps({ apps: [res.data] }));
 };
 
+export const saveAppJsxAsync = ({ id, jsxCode, resultHash }) => async (dispatch) => {
+  const url = `/api/apps/${id}/jsx`;
+  const res = await http.put(url, { jsxCode, resultHash });
+  dispatch(setApps({ apps: [res.data] }));
+};
+
 export const deleteAppsAsync = ({ ids }) => async (dispatch) => {
   const url = `/api/apps?ids=${ids.join(',')}`;
   await http.delete(url);

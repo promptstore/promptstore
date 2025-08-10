@@ -10,8 +10,6 @@ import {
 
 export default memo(({ id, data, isConnectable }) => {
 
-  console.log('data:', data);
-
   const stores = useSelector(selectGraphStores);
   const storesLoaded = useSelector(selectGraphStoresLoaded);
 

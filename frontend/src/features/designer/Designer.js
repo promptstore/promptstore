@@ -18,20 +18,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { Chat } from '../../components/Chat';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
-import {
-  getFunctionAsync,
-  selectFunctions,
-} from '../functions/functionsSlice';
+import { getFunctionAsync, selectFunctions } from '../functions/functionsSlice';
 import {
   createPromptSetAsync,
   getPromptSetsAsync,
   selectLoading as selectPromptSetsLoading,
   selectPromptSets,
 } from '../promptSets/promptSetsSlice';
-import {
-  fileUploadAsync,
-  selectUploading,
-} from '../uploader/fileUploaderSlice';
+import { fileUploadAsync, selectUploading } from '../uploader/fileUploaderSlice';
 
 import { ModelParamsForm, initialValues as initialModelParamsValue } from './ModelParamsForm';
 import { CreatePromptSetModalForm } from './CreatePromptSetModalForm';
@@ -61,7 +55,7 @@ const { TextArea } = Input;
 const uiSchema = {
   'ui:title': 'Additional expected inputs',
   'ui:submitButtonOptions': {
-    'norender': true,
+    norender: true,
   },
 };
 
@@ -109,7 +103,6 @@ const criteriaOptions = [
 ];
 
 export function Designer() {
-
   const [createdUuid, setCreatedUuid] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(null);
@@ -119,8 +112,12 @@ export function Designer() {
   const [modelParams, setModelParams] = useState({});
   // const [initialModelParams, setInitialModelParams] = useState({});
   const [argsFormData, setArgsFormData] = useState(null);
-  const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('design-sessions-collapsed', { defaultValue: true });
-  const [promptsCollapsed, setPromptsCollapsed] = useLocalStorageState('design-prompts-collapsed', { defaultValue: true });
+  const [sessionsCollapsed, setSessionsCollapsed] = useLocalStorageState('design-sessions-collapsed', {
+    defaultValue: true,
+  });
+  const [promptsCollapsed, setPromptsCollapsed] = useLocalStorageState('design-prompts-collapsed', {
+    defaultValue: true,
+  });
   const [request, setRequest] = useState(null);
 
   const chatLoading = useSelector(selectChatLoading);
@@ -188,7 +185,7 @@ export function Designer() {
   }, [critiquePromptSetValue]);
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       title: 'Prompt Testing',
     }));
@@ -259,12 +256,12 @@ export function Designer() {
 
   const promptSetOptions = useMemo(() => {
     if (promptSets) {
-      const list = Object.values(promptSets).map((s) => ({
+      const list = Object.values(promptSets).map(s => ({
         key: s.id,
         label: s.name,
         value: s.id,
       }));
-      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      list.sort((a, b) => (a.label < b.label ? -1 : 1));
       return list;
     }
     return [];
@@ -274,12 +271,12 @@ export function Designer() {
     if (promptSets) {
       const list = Object.values(promptSets)
         .filter(s => s.tags?.includes('eval'))
-        .map((s) => ({
+        .map(s => ({
           key: s.id,
           label: s.name,
           value: s.id,
         }));
-      list.sort((a, b) => a.label < b.label ? -1 : 1);
+      list.sort((a, b) => (a.label < b.label ? -1 : 1));
       return list;
     }
     return [];
@@ -291,24 +288,27 @@ export function Designer() {
       dataIndex: 'name',
       width: '100%',
       render: (_, { key, name }) => (
-        <Link onClick={() => openSession(key)}
+        <Link
+          onClick={() => openSession(key)}
           style={{ color: selectedSession?.id === key ? '#177ddc' : 'inherit' }}
-        >{name}</Link>
-      )
+        >
+          {name}
+        </Link>
+      ),
     },
   ];
 
   const data = useMemo(() => {
-    const list = Object.values(chatSessions).map((sess) => ({
+    const list = Object.values(chatSessions).map(sess => ({
       key: sess.id,
       name: sess.name || sess.id,
       modified: sess.modified,
     }));
-    list.sort((a, b) => a.modified > b.modified ? -1 : 1);
+    list.sort((a, b) => (a.modified > b.modified ? -1 : 1));
     return list;
   }, [chatSessions]);
 
-  const openSession = (id) => {
+  const openSession = id => {
     const session = chatSessions[id];
     dispatch(setMessages({ messages: session.messages.map(formatMessage) }));
     setSelectedSession(session);
@@ -328,7 +328,7 @@ export function Designer() {
     setArgsFormData(session.argsFormData);
   };
 
-  const getInputStr = (messages) => {
+  const getInputStr = messages => {
     const message = messages[messages.length - 1];
     if (Array.isArray(message.content)) {
       const textContent = message.content.findLast(c => c.type === 'text');
@@ -340,7 +340,7 @@ export function Designer() {
   };
 
   // ensure assistant messages have content arrays
-  const cleanHistory = (history) => {
+  const cleanHistory = history => {
     const messages = [];
     for (const m of history) {
       if (m.role === 'assistant' && typeof m.content === 'string') {
@@ -352,7 +352,7 @@ export function Designer() {
     return messages;
   };
 
-  const handleChatSubmit = async (values) => {
+  const handleChatSubmit = async values => {
     if (!modelParams.models?.length) {
       messageApi.warning({
         content: 'You must select a valid model',
@@ -381,19 +381,14 @@ export function Designer() {
           workspaceId: selectedWorkspace.id,
         };
         setRequest(payload);
-        dispatch(getFunctionAsync(functionId));
+        dispatch(getFunctionAsync({ id: functionId, workspaceId: selectedWorkspace.id }));
       }
     } else {
       let sp;
       let args;
       let engine;
-      const {
-        promptSet,
-        systemPrompt,
-        critiquePromptSet,
-        critiquePrompt,
-        criterion,
-      } = await promptForm.validateFields();
+      const { promptSet, systemPrompt, critiquePromptSet, critiquePrompt, criterion } =
+        await promptForm.validateFields();
       if (promptSet) {
         const ps = promptSets[promptSet];
         if (ps && ps.prompts) {
@@ -410,25 +405,18 @@ export function Designer() {
           if (contentVar || varsSchema) {
             const nonSystemMessages = ps.prompts
               .filter(p => p.role !== 'system')
-              .map(p => ({ role: p.role, content: p.prompt }))
-              ;
+              .map(p => ({ role: p.role, content: p.prompt }));
             if (contentVar) {
               const content = getInputStr(messages);
               args = { [contentVar]: content };
               const idx = nonSystemMessages.findLastIndex(m => m.role !== 'user') + 1;
               if (nonSystemMessages.length > 1) {
-                history = [
-                  ...nonSystemMessages.slice(0, idx),
-                  ...history,
-                ];
+                history = [...nonSystemMessages.slice(0, idx), ...history];
               }
               messages = nonSystemMessages.slice(idx);
             } else {
               if (nonSystemMessages.length > 0) {
-                history = [
-                  ...nonSystemMessages,
-                  ...history,
-                ];
+                history = [...nonSystemMessages, ...history];
               }
             }
             if (varsSchema) {
@@ -450,7 +438,7 @@ export function Designer() {
           {
             role: 'system',
             content: systemPrompt,
-          }
+          },
         ];
       }
       if (messages.length > 1) {
@@ -469,7 +457,7 @@ export function Designer() {
           {
             role: 'user',
             content,
-          }
+          },
         ];
       }
       const payload = {
@@ -497,7 +485,8 @@ export function Designer() {
     let newMessages;
     let engine;
     let args;
-    const { promptSet, systemPrompt, critiquePromptSet, critiquePrompt, criterion } = await promptForm.validateFields();
+    const { promptSet, systemPrompt, critiquePromptSet, critiquePrompt, criterion } =
+      await promptForm.validateFields();
     if (critiquePromptSet) {
       const ps = promptSets[critiquePromptSet];
       if (ps && ps.prompts) {
@@ -505,19 +494,14 @@ export function Designer() {
         sp = ps.prompts
           .filter(p => p.role === 'system')
           .map(p => p.prompt)
-          .join('\n\n')
-          ;
+          .join('\n\n');
         if (critiqueContentVar || completionVar || criterionVar || critiqueVarsSchema) {
           const nonSystemMessages = ps.prompts
             .filter(p => p.role !== 'system')
-            .map(p => ({ role: p.role, content: p.prompt }))
-            ;
+            .map(p => ({ role: p.role, content: p.prompt }));
           if (critiqueContentVar) {
             if (nonSystemMessages.length > 1) {
-              history = [
-                ...history,
-                ...nonSystemMessages.slice(0, -1),
-              ];
+              history = [...history, ...nonSystemMessages.slice(0, -1)];
             }
             newMessages = nonSystemMessages.slice(-1);
             args = { [critiqueContentVar]: input };
@@ -532,10 +516,7 @@ export function Designer() {
             // }
             // newMessages = messages.slice(-1);
             if (nonSystemMessages.length > 1) {
-              history = [
-                ...messages,
-                ...nonSystemMessages.slice(0, -1),
-              ];
+              history = [...messages, ...nonSystemMessages.slice(0, -1)];
             }
             newMessages = nonSystemMessages.slice(-1);
           }
@@ -583,29 +564,31 @@ export function Designer() {
         args = { ...args, ...argsFormData };
       }
     }
-    dispatch(getChatResponseAsync({
-      isCritic: true,
-      systemPrompt: sp,
-      promptSetId: promptSet,
-      systemPromptInput: systemPrompt,
-      critiquePromptSetId: critiquePromptSet,
-      critiquePromptInput: critiquePrompt,
-      criterion: criterion,
-      history,
-      messages: newMessages,
-      originalMessages: messages,
-      args,
-      engine,
-      modelParams,
-      workspaceId: selectedWorkspace.id,
-    }))
+    dispatch(
+      getChatResponseAsync({
+        isCritic: true,
+        systemPrompt: sp,
+        promptSetId: promptSet,
+        systemPromptInput: systemPrompt,
+        critiquePromptSetId: critiquePromptSet,
+        critiquePromptInput: critiquePrompt,
+        criterion: criterion,
+        history,
+        messages: newMessages,
+        originalMessages: messages,
+        args,
+        engine,
+        modelParams,
+        workspaceId: selectedWorkspace.id,
+      })
+    );
   };
 
   const handleCreateCancel = () => {
     setIsCreateModalOpen(false);
   };
 
-  const onUseSelected = (msgs) => {
+  const onUseSelected = msgs => {
     setUsedMessages(msgs);
     setIsCreateModalOpen(true);
   };
@@ -629,45 +612,44 @@ export function Designer() {
   };
 
   const onSave = async () => {
-    const {
-      promptSet,
-      systemPrompt,
-      critiquePromptSet,
-      critiquePrompt,
-      criterion,
-    } = await promptForm.validateFields();
+    const { promptSet, systemPrompt, critiquePromptSet, critiquePrompt, criterion } =
+      await promptForm.validateFields();
     if (selectedSession && !(selectedSession.name === 'last session')) {
-      dispatch(updateChatSessionAsync({
-        id: selectedSession.id,
-        values: {
-          argsFormData,
-          messages,
-          modelParams,
-          promptSetId: promptSet,
-          systemPromptInput: systemPrompt,
-          critiquePromptSetId: critiquePromptSet,
-          critiquePromptInput: critiquePrompt,
-          criterion,
-          workspaceId: selectedWorkspace.id,
-        },
-      }));
+      dispatch(
+        updateChatSessionAsync({
+          id: selectedSession.id,
+          values: {
+            argsFormData,
+            messages,
+            modelParams,
+            promptSetId: promptSet,
+            systemPromptInput: systemPrompt,
+            critiquePromptSetId: critiquePromptSet,
+            critiquePromptInput: critiquePrompt,
+            criterion,
+            workspaceId: selectedWorkspace.id,
+          },
+        })
+      );
     } else {
       const uuid = uuidv4();
-      dispatch(createChatSessionAsync({
-        uuid,
-        values: {
-          argsFormData,
-          messages,
-          modelParams,
-          promptSetId: promptSet,
-          systemPromptInput: systemPrompt,
-          critiquePromptSetId: critiquePromptSet,
-          critiquePromptInput: critiquePrompt,
-          criterion,
-          type: 'design',
-          workspaceId: selectedWorkspace.id,
-        },
-      }));
+      dispatch(
+        createChatSessionAsync({
+          uuid,
+          values: {
+            argsFormData,
+            messages,
+            modelParams,
+            promptSetId: promptSet,
+            systemPromptInput: systemPrompt,
+            critiquePromptSetId: critiquePromptSet,
+            critiquePromptInput: critiquePrompt,
+            criterion,
+            type: 'design',
+            workspaceId: selectedWorkspace.id,
+          },
+        })
+      );
       setCreatedUuid(uuid);
     }
   };
@@ -700,10 +682,9 @@ export function Designer() {
   //   });
   // };
 
-  const handleCreate = (values) => {
+  const handleCreate = values => {
     // console.log('values:', values);
     if (selectedWorkspace) {
-
       // `selectedMessages` (keys) is unordered
       // const msgs = messages.filter((m) => selectedMessages.indexOf(m.key) !== -1);
       // const msgs = createMessages(selectedMessages);
@@ -712,7 +693,7 @@ export function Designer() {
       //   role: m.role,
       // }));
 
-      const prompts = usedMessages.map((m) => ({
+      const prompts = usedMessages.map(m => ({
         prompt: m.content,
         role: m.role,
       }));
@@ -737,11 +718,11 @@ export function Designer() {
     setSelectedRowKeys([]);
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
-  const handleChange = (info) => {
+  const handleChange = info => {
     if (info.file.status === 'uploading') {
       return;
     }
@@ -753,18 +734,14 @@ export function Designer() {
   const uploadButton = (
     <div>
       {uploading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }}>
-        {uploading ? 'Uploading...' : 'Upload Image'}
-      </div>
+      <div style={{ marginTop: 8 }}>{uploading ? 'Uploading...' : 'Upload Image'}</div>
     </div>
   );
 
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
-    selections: [
-      Table.SELECTION_ALL,
-    ],
+    selections: [Table.SELECTION_ALL],
   };
 
   const hasSelected = selectedRowKeys.length > 0;
@@ -779,11 +756,7 @@ export function Designer() {
 
   return (
     <>
-      <CreatePromptSetModalForm
-        open={isCreateModalOpen}
-        onCancel={handleCreateCancel}
-        onOk={handleCreate}
-      />
+      <CreatePromptSetModalForm open={isCreateModalOpen} onCancel={handleCreateCancel} onOk={handleCreate} />
       {contextHolder}
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
@@ -809,12 +782,7 @@ export function Designer() {
                 {hasSelected ? `Selected ${selectedRowKeys.length} items` : ''}
               </span>
             </div>
-            <Table
-              rowSelection={rowSelection}
-              columns={columns}
-              dataSource={data}
-              loading={loading}
-            />
+            <Table rowSelection={rowSelection} columns={columns} dataSource={data} loading={loading} />
           </Sider>
           <Sider
             collapsible
@@ -844,34 +812,27 @@ export function Designer() {
                   name="promptSet"
                   style={{ marginBottom: 16, width: promptSetValue ? 202 : 234 }}
                 >
-                  <Select allowClear
+                  <Select
+                    allowClear
                     loading={promptSetsLoading}
                     options={promptSetOptions}
                     optionFilterProp="label"
                   />
                 </Form.Item>
-                {promptSetValue ?
+                {promptSetValue ? (
                   <Button
                     type="link"
                     icon={<LinkOutlined />}
                     onClick={() => navigate(`/prompt-sets/${promptSetValue}`)}
                     style={{ marginTop: 32, width: 32 }}
                   />
-                  : null
-                }
+                ) : null}
               </div>
               <div style={{ color: '#1677ff', marginBottom: 24 }}>
                 <Link to="/prompt-sets">Browse templates...</Link>
               </div>
-              <Form.Item
-                label="System prompt"
-                name="systemPrompt"
-                extra="Instead of template"
-              >
-                <TextArea
-                  autoSize={{ minRows: 4, maxRows: 14 }}
-                  disabled={!!promptSetValue}
-                />
+              <Form.Item label="System prompt" name="systemPrompt" extra="Instead of template">
+                <TextArea autoSize={{ minRows: 4, maxRows: 14 }} disabled={!!promptSetValue} />
               </Form.Item>
               <Divider />
               <div style={{ display: 'flex' }}>
@@ -880,39 +841,27 @@ export function Designer() {
                   name="critiquePromptSet"
                   style={{ marginBottom: 16, width: critiquePromptSetValue ? 202 : 234 }}
                 >
-                  <Select allowClear
+                  <Select
+                    allowClear
                     loading={promptSetsLoading}
                     options={evalPromptSetOptions}
                     optionFilterProp="label"
                   />
                 </Form.Item>
-                {critiquePromptSetValue ?
+                {critiquePromptSetValue ? (
                   <Button
                     type="link"
                     icon={<LinkOutlined />}
                     onClick={() => navigate(`/prompt-sets/${critiquePromptSetValue}`)}
                     style={{ marginTop: 32, width: 32 }}
                   />
-                  : null
-                }
+                ) : null}
               </div>
-              <Form.Item
-                label="Eval prompt"
-                name="critiquePrompt"
-                extra="Instead of template"
-              >
-                <TextArea
-                  autoSize={{ minRows: 4, maxRows: 14 }}
-                  disabled={!!critiquePromptSetValue}
-                />
+              <Form.Item label="Eval prompt" name="critiquePrompt" extra="Instead of template">
+                <TextArea autoSize={{ minRows: 4, maxRows: 14 }} disabled={!!critiquePromptSetValue} />
               </Form.Item>
-              <Form.Item
-                label="Criteria"
-                name="criterion"
-              >
-                <Select allowClear
-                  options={criteriaOptions}
-                />
+              <Form.Item label="Criteria" name="criterion">
+                <Select allowClear options={criteriaOptions} />
               </Form.Item>
               <Button onClick={clearPromptFields} type="default" size="small">
                 Reset
@@ -975,12 +924,16 @@ export function Designer() {
                 {uploadButton}
               </Upload>
             </div>
-            {varsSchema ?
+            {varsSchema ? (
               <div style={{ marginTop: 24, width: 868 }}>
                 <div style={{ float: 'right' }}>
-                  <Button type="default" size="small"
+                  <Button
+                    type="default"
+                    size="small"
                     disabled={isEmpty(argsFormData)}
-                    onClick={() => { setArgsFormData(null); }}
+                    onClick={() => {
+                      setArgsFormData(null);
+                    }}
                   >
                     Reset vars
                   </Button>
@@ -991,7 +944,7 @@ export function Designer() {
                     uiSchema={uiSchema}
                     validator={validator}
                     formData={argsFormData}
-                    onChange={(e) => setArgsFormData(e.formData)}
+                    onChange={e => setArgsFormData(e.formData)}
                     submitter={false}
                   />
                 </div>
@@ -999,13 +952,9 @@ export function Designer() {
                   The message will be assigned to the `{contentVar}` variable if using a Prompt Template.
                 </div>
               </div>
-              : null
-            }
+            ) : null}
           </Content>
-          <Sider
-            style={{ backgroundColor: 'inherit', marginLeft: 20 }}
-            width={250}
-          >
+          <Sider style={{ backgroundColor: 'inherit', marginLeft: 20 }} width={250}>
             <ModelParamsForm
               hasImage={hasImage}
               includes={{
@@ -1024,11 +973,11 @@ export function Designer() {
               onChange={setModelParams}
               // value={initialModelParams}
               value={modelParams}
-            // value={{
-            //   ...modelParams,
-            //   models: modelParams.models?.map(m => m.id),
-            //   criticModels: modelParams.criticModels?.map(m => m.id),
-            // }}
+              // value={{
+              //   ...modelParams,
+              //   models: modelParams.models?.map(m => m.id),
+              //   criticModels: modelParams.criticModels?.map(m => m.id),
+              // }}
             />
           </Sider>
         </Layout>
@@ -1037,7 +986,7 @@ export function Designer() {
   );
 }
 
-const formatMessage = (m) => {
+const formatMessage = m => {
   if (m.role === 'assistant') {
     if (Array.isArray(m.content)) {
       return {
@@ -1048,13 +997,13 @@ const formatMessage = (m) => {
             return {
               key: uuidv4(),
               content: msg,
-            }
+            };
           } else {
             return {
               key: uuidv4(),
               content: msg.content,
               model: msg.model,
-            }
+            };
           }
         }),
       };
@@ -1069,19 +1018,19 @@ const formatMessage = (m) => {
 
 const inputTerms = ['input', 'text', 'content', 'query', 'question'];
 
-const getInputProp = (props) => {
+const getInputProp = props => {
   return inputTerms.find(t => t in props);
 };
 
 const completionTerms = ['completion', 'response', 'result', 'answer'];
 
-const getCompletionProp = (props) => {
+const getCompletionProp = props => {
   return completionTerms.find(t => t in props);
 };
 
 const criterionTerms = ['criterion', 'criteria'];
 
-const getCritterionProp = (props) => {
+const getCritterionProp = props => {
   return criterionTerms.find(t => t in props);
 };
 
@@ -1112,7 +1061,7 @@ const excludeProps = (props, schema) => {
   return null;
 };
 
-const beforeUpload = (file) => {
+const beforeUpload = file => {
   // console.log('file:', file);
 
   const isPng = file.type === 'image/png';

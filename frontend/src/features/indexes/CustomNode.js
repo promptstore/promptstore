@@ -4,8 +4,6 @@ const connectionNodeIdSelector = (state) => state.connectionNodeId;
 
 export default function CustomNode({ id, data }) {
 
-  // console.log('data:', data);
-
   const connectionNodeId = useStore(connectionNodeIdSelector);
 
   const isConnecting = !!connectionNodeId;

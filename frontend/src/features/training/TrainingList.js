@@ -9,6 +9,7 @@ import {
   Rate,
   Segmented,
   Space,
+  Switch,
   Table,
   Typography,
   message,
@@ -94,7 +95,6 @@ const criteriaOptions = [
 const EditableContext = React.createContext(null);
 
 const EditableRow = ({ index, ...props }) => {
-
   const [form] = Form.useForm();
 
   return (
@@ -106,16 +106,7 @@ const EditableRow = ({ index, ...props }) => {
   );
 };
 
-const EditableCell = ({
-  title,
-  editable,
-  children,
-  dataIndex,
-  record,
-  handleSave,
-  ...restProps
-}) => {
-
+const EditableCell = ({ title, editable, children, dataIndex, record, handleSave, ...restProps }) => {
   const form = useContext(EditableContext);
 
   const save = async () => {
@@ -133,59 +124,44 @@ const EditableCell = ({
   return (
     <td {...restProps}>
       <Form.Item>
-        <Space direction="vertical">
-
-        </Space>
+        <Space direction="vertical"></Space>
       </Form.Item>
     </td>
-  )
+  );
 };
 
 function EvalForm({ initialValues, onSave }) {
-
   const [form] = Form.useForm();
 
-  const handleSave = (values) => {
+  const handleSave = values => {
     // console.log('values:', values);
     onSave(values);
   };
 
   const onCancel = () => {
     form.resetFields();
-  }
+  };
 
   return (
     <div style={{ marginTop: 10 }}>
-      <Form
-        className="eval-form"
-        initialValues={initialValues}
-        form={form}
-        onFinish={handleSave}
-      >
-        <Form.Item
-          name="evals"
-        >
-          <Checkbox.Group
-            className="eval-options"
-            options={criteriaOptions}
-          />
+      <Form className="eval-form" initialValues={initialValues} form={form} onFinish={handleSave}>
+        <Form.Item name="evals">
+          <Checkbox.Group className="eval-options" options={criteriaOptions} />
         </Form.Item>
-        <Form.Item
-          name="feedback"
-          extra="Feedback"
-        >
+        <Form.Item name="feedback" extra="Feedback">
           <TextArea autoSize={{ minRows: 1, maxRows: 5 }} />
         </Form.Item>
-        <Form.Item
-          name="rating"
-          extra="Overall Rating"
-        >
+        <Form.Item name="rating" extra="Overall Rating">
           <Rate />
         </Form.Item>
         <Form.Item>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'end' }}>
-            <Button type="text" size="small" onClick={onCancel}>Cancel</Button>
-            <Button type="primary" size="small" htmlType="submit">Save</Button>
+            <Button type="text" size="small" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="primary" size="small" htmlType="submit">
+              Save
+            </Button>
           </div>
         </Form.Item>
       </Form>
@@ -197,40 +173,47 @@ function MachineEval({ evaluations }) {
   if (!evaluations) {
     return <div></div>;
   }
-  const criteria = evaluations.map(e => e.criteria);
+  console.log('evaluations:', evaluations);
+  const criteria = evaluations.map(e => e.criterion);
+  console.log('criteria:', criteria);
   const options = criteriaOptions.filter(o => criteria.includes(o.value));
-  const value = evaluations.filter(e => e.result === 'Y').map(e => e.criteria);
+  const value = evaluations.filter(e => e.result === 'Y').map(e => e.criterion);
   return (
     <div style={{ marginTop: 10 }}>
-      <Checkbox.Group
-        className="eval-options"
-        options={options}
-        value={value}
-      />
+      <Checkbox.Group className="eval-options" options={options} value={value} />
     </div>
   );
 }
 
 export function TrainingList() {
-
   const [evalType, setEvalType] = useState({});
   const [page, setPage] = useLocalStorageState('training-list-page', { defaultValue: 1 });
   const [searchText, setSearchText] = useState('');
   const [searchedColumn, setSearchedColumn] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [showEvaluated, setShowEvaluated] = useLocalStorageState('training-list-show-evaluated', {
+    defaultValue: false,
+  });
 
   const loading = useSelector(selectLoading);
   const trainingData = useSelector(selectTrainingData);
 
   const data = useMemo(() => {
-    const list = Object.values(trainingData).map((row) => {
+    const list = Object.values(trainingData).map(row => {
       let outputType = row.outputType;
       let response;
-      if (outputType === 'function_call') {
+      // TODO: handle calls logged before tool_calls was added
+      if (outputType === 'function_call' || row.modelOutput?.function_call) {
+        outputType = 'function_call';
         response = row.modelOutput.function_call;
+      } else if (outputType === 'tool_calls' || row.modelOutput?.tool_calls) {
+        outputType = 'tool_calls';
+        response = row.modelOutput.tool_calls;
       } else {
-        response = row.modelOutputText;
+        outputType = 'content';
+        response = row.modelOutputText || '';
       }
+      // TODO: maybe remove this
       if (!response) {
         outputType = 'function_call';
         response = row.systemOutputText || row.systemOutput?.function_call;
@@ -238,24 +221,32 @@ export function TrainingList() {
       const emap = {};
       if (row.evaluations) {
         for (const e of row.evaluations) {
-          const criteria = criteriaValues[e.criteria];
-          if (!emap[criteria]) {
-            emap[criteria] = { ...e, criteria };
+          const criterion = criteriaValues[e.criterion];
+          if (!emap[criterion]) {
+            emap[criterion] = { ...e, criterion };
             continue;
           }
-          if (emap[criteria].modified < e.modified) {
-            emap[criteria] = { ...e, criteria };
+          if (emap[criterion].modified < e.modified) {
+            emap[criterion] = { ...e, criterion };
           }
         }
       }
       let evaluations;
+      let hasEvaluation = false;
       if (Object.keys(emap).length) {
         evaluations = Object.values(emap);
         evaluations.sort((a, b) => {
-          const i = criteriaOptions.findIndex(o => o.value === a.criteria);
-          const j = criteriaOptions.findIndex(o => o.value === b.criteria);
+          const i = criteriaOptions.findIndex(o => o.value === a.criterion);
+          const j = criteriaOptions.findIndex(o => o.value === b.criterion);
           return i - j;
         });
+        hasEvaluation = true;
+      }
+      if (
+        row.humanEvaluation &&
+        (row.humanEvaluation.evals || row.humanEvaluation.feedback || row.humanEvaluation.rating)
+      ) {
+        hasEvaluation = true;
       }
       return {
         key: row.id,
@@ -266,13 +257,15 @@ export function TrainingList() {
         functionName: row.functionName,
         humanEvaluation: row.humanEvaluation,
         evaluations,
+        startDate: row.startDate,
+        hasEvaluation,
       };
     });
-    list.sort((a, b) => a.key > b.key ? 1 : -1);
-    return list;
-  }, [trainingData]);
 
-  // console.log('data:', data);
+    const filteredList = list.filter(item => (showEvaluated ? item.hasEvaluation : !item.hasEvaluation));
+    filteredList.sort((a, b) => (a.startDate > b.startDate ? -1 : 1));
+    return filteredList;
+  }, [trainingData, showEvaluated]);
 
   const { setNavbarState } = useContext(NavbarContext);
   const { selectedWorkspace } = useContext(WorkspaceContext);
@@ -286,7 +279,7 @@ export function TrainingList() {
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'Human Review',
@@ -295,9 +288,16 @@ export function TrainingList() {
 
   useEffect(() => {
     if (selectedWorkspace) {
-      dispatch(getTrainingDataAsync({ workspaceId: selectedWorkspace.id }));
+      const limit = showEvaluated ? 500 : 50;
+      const params = { workspaceId: selectedWorkspace.id, limit };
+      if (showEvaluated) {
+        params.filter = { humanEvaluation: '_exists_' };
+      } else {
+        params.filter = { humanEvaluation: '_isnull_' };
+      }
+      dispatch(getTrainingDataAsync(params));
     }
-  }, [selectedWorkspace]);
+  }, [selectedWorkspace, showEvaluated]);
 
   useEffect(() => {
     if (location.state && location.state.message) {
@@ -318,7 +318,7 @@ export function TrainingList() {
     setSelectedRowKeys([]);
   };
 
-  const onSelectChange = (newSelectedRowKeys) => {
+  const onSelectChange = newSelectedRowKeys => {
     setSelectedRowKeys(newSelectedRowKeys);
   };
 
@@ -330,12 +330,12 @@ export function TrainingList() {
     setSearchedColumn(dataIndex);
   };
 
-  const handleReset = (clearFilters) => {
+  const handleReset = clearFilters => {
     clearFilters();
     setSearchText('');
   };
 
-  const getColumnSearchProps = (dataIndex) => ({
+  const getColumnSearchProps = dataIndex => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
       <div style={{ padding: 8 }} onKeyDown={ev => ev.stopPropagation()}>
         <Input
@@ -356,25 +356,17 @@ export function TrainingList() {
           style={{ marginBottom: 8 }}
         />
         <div style={{ display: 'flex' }}>
-          <Button type="primary"
-            onClick={() => handleSearch(selectedKeys, confirm, dataIndex)}
-            size="small"
-          >
+          <Button type="primary" onClick={() => handleSearch(selectedKeys, confirm, dataIndex)} size="small">
             Search
           </Button>
           <div style={{ flex: 1 }} />
-          <Button type="link"
-            size="small"
-            onClick={() => close()}
-          >
+          <Button type="link" size="small" onClick={() => close()}>
             close
           </Button>
         </div>
       </div>
     ),
-    filterIcon: (filtered) => (
-      <SearchOutlined style={{ color: filtered ? '1677ff' : undefined }} />
-    ),
+    filterIcon: filtered => <SearchOutlined style={{ color: filtered ? '1677ff' : undefined }} />,
     onFilter: (value, record) => {
       // console.log('onFilter -', dataIndex, ':', value);
       const data = record[dataIndex];
@@ -384,12 +376,12 @@ export function TrainingList() {
       }
       return data.toString().toLowerCase().includes(value.toLowerCase());
     },
-    onFilterDropdownOpenChange: (visible) => {
+    onFilterDropdownOpenChange: visible => {
       if (visible) {
         setTimeout(() => searchInput.current?.select(), 100);
       }
     },
-    render: (value) => {
+    render: value => {
       let text = '';
       if (value) {
         text = value.toString();
@@ -419,20 +411,12 @@ export function TrainingList() {
     {
       title: 'Model',
       dataIndex: 'model',
-      render: (_, { model }) => (
-        <div style={{ whiteSpace: 'nowrap' }}>
-          {model}
-        </div>
-      ),
+      render: (_, { model }) => <div style={{ whiteSpace: 'nowrap' }}>{model}</div>,
     },
     {
       title: 'Function',
       dataIndex: 'functionName',
-      render: (_, { functionName }) => (
-        <div style={{ whiteSpace: 'nowrap' }}>
-          {functionName}
-        </div>
-      ),
+      render: (_, { functionName }) => <div style={{ whiteSpace: 'nowrap' }}>{functionName}</div>,
     },
     {
       title: 'Prompt',
@@ -445,7 +429,7 @@ export function TrainingList() {
           return (
             <Typography.Paragraph
               ellipsis={{
-                expandable: true,
+                expandable: 'collapsible',
                 rows: 2,
               }}
               style={{ whiteSpace: 'pre-wrap' }}
@@ -454,9 +438,7 @@ export function TrainingList() {
             </Typography.Paragraph>
           );
         } else {
-          return (
-            <JsonView collapsed src={prompt} />
-          );
+          return <JsonView collapsed src={prompt} />;
         }
       },
     },
@@ -467,10 +449,24 @@ export function TrainingList() {
       className: 'top',
       width: '50%',
       render: (_, { outputType, response }) => {
+        if (!response) {
+          return <div>No response</div>;
+        }
         if (outputType === 'function_call') {
-          return (
-            <JsonView collapsed src={response} />
-          );
+          response = {
+            ...response,
+            arguments: JSON.parse(response.arguments || '{}'),
+          };
+          return <JsonView collapsed src={response} />;
+        } else if (outputType === 'tool_calls') {
+          response = response.map(r => ({
+            ...r,
+            function: {
+              ...(r.function || {}),
+              arguments: JSON.parse(r.function?.arguments || '{}'),
+            },
+          }));
+          return <JsonView collapsed src={response} />;
         } else {
           return (
             <Typography.Paragraph
@@ -507,27 +503,20 @@ export function TrainingList() {
               },
             ]}
           />
-          {evalType[key] === 'machine' ?
-            <MachineEval
-              evaluations={evaluations}
-            />
-            :
-            <EvalForm
-              initialValues={humanEvaluation}
-              onSave={(values) => handleSave(key, values)}
-            />
-          }
+          {evalType[key] === 'machine' ? (
+            <MachineEval evaluations={evaluations} />
+          ) : (
+            <EvalForm initialValues={humanEvaluation} onSave={values => handleSave(key, values)} />
+          )}
         </>
-      )
+      ),
     },
   ];
 
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectChange,
-    selections: [
-      Table.SELECTION_ALL,
-    ],
+    selections: [Table.SELECTION_ALL],
   };
 
   const getFilename = () => {
@@ -535,17 +524,21 @@ export function TrainingList() {
     return `training-data-${dt}.csv`;
   };
 
-  const cleanData = (data) => {
-    return data.map((d) => Object.entries(d).reduce((a, [k, v]) => {
-      let val;
-      if (typeof v === 'string') {
-        val = v.replace(/"/g, '""');
-      } else {
-        val = v;
-      }
-      a[k] = val;
-      return a;
-    }, {}));
+  const cleanData = data => {
+    return data.map(d =>
+      Object.entries(d).reduce((a, [k, v]) => {
+        let val;
+        if (typeof v === 'string') {
+          val = v.replace(/"/g, '""');
+        } else if (typeof v === 'object' && v !== null) {
+          val = JSON.stringify(v);
+        } else {
+          val = v;
+        }
+        a[k] = val;
+        return a;
+      }, {})
+    );
   };
 
   const hasSelected = selectedRowKeys.length > 0;
@@ -564,12 +557,15 @@ export function TrainingList() {
             </span>
           </div>
           <div style={{ flex: 1 }}></div>
-          <CSVLink
-            data={cleanData(data)}
-            filename={getFilename()}
-          >
-            Export
-          </CSVLink>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Show Evaluated:</span>
+              <Switch checked={showEvaluated} onChange={setShowEvaluated} size="small" />
+            </div>
+            <CSVLink data={cleanData(data)} filename={getFilename()}>
+              Export
+            </CSVLink>
+          </div>
         </div>
         <Table
           rowSelection={rowSelection}
@@ -584,4 +580,4 @@ export function TrainingList() {
       </div>
     </>
   );
-};
+}

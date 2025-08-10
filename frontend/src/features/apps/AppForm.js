@@ -6,13 +6,12 @@ import { Button, Form, Input, Select, Space } from 'antd';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
+import { createAppAsync, getAppAsync, selectApps, selectLoaded, updateAppAsync } from './appsSlice';
 import {
-  createAppAsync,
-  getAppAsync,
-  selectApps,
-  selectLoaded,
-  updateAppAsync,
-} from './appsSlice';
+  getCompositionsAsync,
+  selectLoading as selectCompositionsLoading,
+  selectCompositions,
+} from '../composer/compositionsSlice';
 import {
   getDataSourcesAsync,
   selectLoading as selectDataSourcesLoading,
@@ -42,53 +41,63 @@ const layout = {
 };
 
 export function AppForm() {
-
   const [form] = Form.useForm();
 
   const apps = useSelector(selectApps);
   const loaded = useSelector(selectLoaded);
-  const dataSources = useSelector(selectDataSources);
+  const compositionsLoading = useSelector(selectCompositionsLoading);
+  const compositions = useSelector(selectCompositions);
   const dataSourcesLoading = useSelector(selectDataSourcesLoading);
-  const functions = useSelector(selectFunctions);
+  const dataSources = useSelector(selectDataSources);
   const functionsLoading = useSelector(selectFunctionsLoading);
-  const indexes = useSelector(selectIndexes);
+  const functions = useSelector(selectFunctions);
   const indexesLoading = useSelector(selectIndexesLoading);
-  const promptSets = useSelector(selectPromptSets);
+  const indexes = useSelector(selectIndexes);
   const promptSetsLoading = useSelector(selectPromptSetsLoading);
+  const promptSets = useSelector(selectPromptSets);
+
+  const compositionOptions = useMemo(() => {
+    const list = Object.values(compositions).map(c => ({
+      value: c.id,
+      label: c.name,
+    }));
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
+    return list;
+  }, [compositions]);
 
   const dataSourceOptions = useMemo(() => {
-    const list = Object.values(dataSources).map((f) => ({
+    const list = Object.values(dataSources).map(f => ({
       value: f.id,
       label: f.name,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [dataSources]);
 
   const functionOptions = useMemo(() => {
-    const list = Object.values(functions).map((f) => ({
+    const list = Object.values(functions).map(f => ({
       value: f.id,
       label: f.name,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [functions]);
 
   const indexOptions = useMemo(() => {
-    const list = Object.values(indexes).map((f) => ({
+    const list = Object.values(indexes).map(f => ({
       value: f.id,
       label: f.name,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [indexes]);
 
   const promptSetOptions = useMemo(() => {
-    const list = Object.values(promptSets).map((f) => ({
+    const list = Object.values(promptSets).map(f => ({
       value: f.id,
       label: f.name,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [promptSets]);
 
@@ -104,7 +113,7 @@ export function AppForm() {
   const app = apps[id];
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'App',
@@ -119,6 +128,7 @@ export function AppForm() {
       const workspaceId = selectedWorkspace.id;
       dispatch(getIndexesAsync({ workspaceId }));
       dispatch(getDataSourcesAsync({ workspaceId }));
+      dispatch(getCompositionsAsync({ workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
       dispatch(getPromptSetsAsync({ workspaceId }));
     }
@@ -128,46 +138,40 @@ export function AppForm() {
     navigate('/apps');
   };
 
-  const onFinish = (values) => {
+  const onFinish = values => {
     if (isNew) {
-      dispatch(createAppAsync({
-        values: {
-          ...values,
-          workspaceId: selectedWorkspace.id,
-        }
-      }));
+      dispatch(
+        createAppAsync({
+          values: {
+            ...values,
+            workspaceId: selectedWorkspace.id,
+          },
+        })
+      );
     } else {
-      dispatch(updateAppAsync({
-        id,
-        values,
-      }));
+      dispatch(
+        updateAppAsync({
+          id,
+          values,
+        })
+      );
     }
     navigate('/apps');
   };
 
   if (!isNew && !loaded) {
-    return (
-      <div style={{ marginTop: 20 }}>Loading...</div>
-    );
+    return <div style={{ marginTop: 20 }}>Loading...</div>;
   }
   return (
     <>
       <div style={{ marginTop: 20 }}>
         <div style={{ display: 'flex' }}>
           <div style={{ marginLeft: 'auto' }}>
-            <Space>
-            </Space>
+            <Space></Space>
           </div>
         </div>
         <div style={{ marginTop: 20 }}>
-          <Form
-            form={form}
-            {...layout}
-            name="app"
-            autoComplete="off"
-            onFinish={onFinish}
-            initialValues={app}
-          >
+          <Form form={form} {...layout} name="app" autoComplete="off" onFinish={onFinish} initialValues={app}>
             <Form.Item
               label="Name"
               name="name"
@@ -180,18 +184,10 @@ export function AppForm() {
             >
               <Input />
             </Form.Item>
-            <Form.Item
-              label="Description"
-              name="description"
-            >
-              <TextArea
-                autoSize={{ minRows: 2, maxRows: 14 }}
-              />
+            <Form.Item label="Description" name="description">
+              <TextArea autoSize={{ minRows: 2, maxRows: 14 }} />
             </Form.Item>
-            <Form.Item
-              label="Prompt Templates"
-              name="promptSets"
-            >
+            <Form.Item label="Prompt Templates" name="promptSets">
               <Select
                 allowClear
                 options={promptSetOptions}
@@ -200,10 +196,7 @@ export function AppForm() {
                 mode="multiple"
               />
             </Form.Item>
-            <Form.Item
-              label="Semantic Functions"
-              name="functions"
-            >
+            <Form.Item label="Semantic Functions" name="functions">
               <Select
                 allowClear
                 options={functionOptions}
@@ -212,10 +205,15 @@ export function AppForm() {
                 mode="multiple"
               />
             </Form.Item>
-            <Form.Item
-              label="Data Sources"
-              name="dataSources"
-            >
+            <Form.Item label="Workflow" name="composition">
+              <Select
+                allowClear
+                options={compositionOptions}
+                optionFilterProp="label"
+                loading={compositionsLoading}
+              />
+            </Form.Item>
+            <Form.Item label="Data Sources" name="dataSources">
               <Select
                 allowClear
                 options={dataSourceOptions}
@@ -224,10 +222,7 @@ export function AppForm() {
                 mode="multiple"
               />
             </Form.Item>
-            <Form.Item
-              label="Semantic Indexes"
-              name="indexes"
-            >
+            <Form.Item label="Semantic Indexes" name="indexes">
               <Select
                 allowClear
                 options={indexOptions}
@@ -238,8 +233,12 @@ export function AppForm() {
             </Form.Item>
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>
-                <Button type="default" onClick={onCancel}>Cancel</Button>
-                <Button type="primary" htmlType="submit">Submit</Button>
+                <Button type="default" onClick={onCancel}>
+                  Cancel
+                </Button>
+                <Button type="primary" htmlType="submit">
+                  Submit
+                </Button>
               </Space>
             </Form.Item>
           </Form>
@@ -247,4 +246,4 @@ export function AppForm() {
       </div>
     </>
   );
-};
+}

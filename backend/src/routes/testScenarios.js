@@ -3,7 +3,8 @@ import searchFunctions from '../searchFunctions';
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
   const OBJECT_TYPE = 'test-scenarios';
 
-  const { testCasesService, testScenariosService } = services;
+  const { executionsService, functionsService, promptSetsService, testCasesService, testScenariosService } =
+    services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -123,6 +124,80 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     await testCasesService.deleteTestCasesForScenarios(ids);
     await deleteObjects(ids.map(objectId));
     res.json(ids);
+  });
+
+  const getOutput = message => {
+    if (message.tool_calls) {
+      for (const call of message.tool_calls) {
+        let args = JSON.parse(call.function.arguments);
+        if ('input' in args) {
+          return args.input;
+        } else {
+          return args;
+        }
+      }
+    } else if (message.function_call) {
+      let args = JSON.parse(message.function_call.arguments);
+      if ('input' in args) {
+        return args.input;
+      } else {
+        return args;
+      }
+    } else {
+      return message.content;
+    }
+  };
+
+  app.post('/api/test-scenarios/generate-test-case', auth, async (req, res, next) => {
+    const { username } = req.user;
+    const { exampleInput, functionId, workspaceId } = req.body;
+    const func = await functionsService.getFunction(functionId);
+    const promptSet = await promptSetsService.getPromptSet(func.implementations[0].promptSetId);
+    logger.debug('promptSet:', promptSet);
+    const promptTemplate = (promptSet.prompts || []).map(p => p.prompt).join('\n\n');
+    let r;
+    r = await executionsService.executeFunction({
+      workspaceId,
+      username,
+      semanticFunctionName: 'summarize_prompt_template',
+      args: { promptTemplate },
+      params: { maxTokens: 1024, temperature: 0.2 },
+    });
+    const output = getOutput(r.response.choices[0].message);
+    logger.debug('output:', output);
+    const templateSummary = output.summary;
+    let parameters = {
+      ...func.arguments,
+      properties: {
+        input: {
+          type: 'object',
+          description: 'The input to the new test case',
+          properties: func.arguments.properties,
+          required: func.arguments.required,
+        },
+        testCaseName: {
+          type: 'string',
+          description: 'An appropriate name for the test case',
+        },
+      },
+      required: ['input', 'testCaseName'],
+    };
+    r = await executionsService.executeFunction({
+      workspaceId,
+      username,
+      semanticFunctionName: 'generate_test_case',
+      args: { templateSummary, exampleInput },
+      functions: [
+        {
+          name: 'output_new_input',
+          description: 'Output a new input',
+          parameters,
+        },
+      ],
+      params: { maxTokens: 2048, temperature: 0.7 },
+    });
+    const testInput = getOutput(r.response.choices[0].message);
+    res.json(testInput);
   });
 
   app.post('/api/test-scenario-runs', auth, async (req, res, next) => {

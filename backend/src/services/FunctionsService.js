@@ -12,6 +12,7 @@ export function FunctionsService({ pg, logger }) {
       createdBy: row.created_by,
       modified: row.modified,
       modifiedBy: row.modified_by,
+      isSystem: row.is_system,
     };
   }
 
@@ -37,7 +38,7 @@ export function FunctionsService({ pg, logger }) {
       return [];
     }
     let q = `
-      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val
+      SELECT id, workspace_id, name, created, created_by, modified, modified_by, val, CASE WHEN workspace_id = 1 THEN TRUE ELSE FALSE END AS is_system
       FROM functions
       WHERE workspace_id = $1 OR workspace_id = 1
       OR (val->>'isPublic')::boolean = true

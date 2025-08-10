@@ -122,7 +122,11 @@ export interface IVectorStoreNode extends INode {
   newIndexName: string;
 }
 
-export type Node = IRequestNode | IFunctionNode | IMapperNode | IJoinerNode | IOutputNode | IDataSourceNode | IIndexNode | IScheduleNode | ILoaderNode | IExtractorNode | IVectorStoreNode | IEmbeddingNode | IGraphStoreNode;
+export interface IForkNode extends INode {
+  forkCode: string;
+}
+
+export type Node = IRequestNode | IFunctionNode | IMapperNode | IJoinerNode | IOutputNode | IDataSourceNode | IIndexNode | IScheduleNode | ILoaderNode | IExtractorNode | IVectorStoreNode | IEmbeddingNode | IGraphStoreNode | IForkNode;
 
 export interface IEdge {
   id: string;

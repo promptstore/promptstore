@@ -134,3 +134,6 @@ values in `values.yaml`:
     chroma:
         host: "http://chroma-chromadb.chroma.svc.cluster.local:8000"
         token: "<from above>"
+
+
+k exec -it temporal-frontend-554d8d99c4-r478j -- tctl --namespace promptstore namespace register

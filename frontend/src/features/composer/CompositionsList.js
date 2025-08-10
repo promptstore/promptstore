@@ -53,7 +53,7 @@ export function CompositionsList() {
     setNavbarState((state) => ({
       ...state,
       createLink: '/compositions/new',
-      title: 'Compositions',
+      title: 'Workflows',
     }));
   }, []);
 

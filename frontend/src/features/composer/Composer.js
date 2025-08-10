@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Layout, Menu, Modal, Segmented, Select, Space } from 'antd';
+import { Button, Flex, Form, Input, Layout, Menu, Modal, Segmented, Select, Space, Switch } from 'antd';
 import {
   ApartmentOutlined,
   ApiOutlined,
@@ -22,6 +22,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   NodeExpandOutlined,
+  PartitionOutlined,
   RedoOutlined,
   RobotOutlined,
   SearchOutlined,
@@ -56,11 +57,7 @@ import { GoogleDriveLogo } from '../../logos/GoogleDriveLogo';
 import { MinIOLogo } from '../../logos/MinIOLogo';
 import { NotionLogo } from '../../logos/NotionLogo';
 import { S3Logo } from '../../logos/S3Logo';
-import {
-  getToolsAsync,
-  selectLoading as selectToolsLoading,
-  selectTools,
-} from '../agents/toolsSlice';
+import { getToolsAsync, selectLoading as selectToolsLoading, selectTools } from '../agents/toolsSlice';
 import {
   getFunctionsAsync,
   selectLoading as selectFunctionsLoading,
@@ -98,6 +95,7 @@ import ScheduleNode from './ScheduleNode';
 import ToolNode from './ToolNode';
 import TransformerNode from './TransformerNode';
 import VectorStoreNode from './VectorStoreNode';
+import ForkNode from './ForkNode';
 
 import 'reactflow/dist/style.css';
 
@@ -139,35 +137,102 @@ const nodeTypes = {
   toolNode: ToolNode,
   transformerNode: TransformerNode,
   vectorStoreNode: VectorStoreNode,
+  forkNode: ForkNode,
 };
 
 const proOptions = { hideAttribution: true };
 
 const validConnections = {
-  agentNode: ['agentNode', 'compositionNode', 'functionNode', 'functionRouterNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  compositionNode: ['agentNode', 'compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  functionNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
+  agentNode: [
+    'agentNode',
+    'compositionNode',
+    'functionNode',
+    'functionRouterNode',
+    'joinerNode',
+    'loopNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
+  compositionNode: [
+    'agentNode',
+    'compositionNode',
+    'functionNode',
+    'joinerNode',
+    'loopNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
+  functionNode: [
+    'compositionNode',
+    'functionNode',
+    'joinerNode',
+    'forkNode',
+    'loopNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
   functionRouterNode: ['agentNode', 'functionNode'],
   indexNode: ['extractorNode', 'sourceNode', 'transformerNode'],
-  joinerNode: ['agentNode', 'compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
+  joinerNode: [
+    'agentNode',
+    'compositionNode',
+    'functionNode',
+    'joinerNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
   loopNode: ['compositionNode', 'functionNode', 'joinerNode', 'mapperNode', 'requestNode', 'toolNode'],
-  mapperNode: ['compositionNode', 'functionNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
-  outputNode: ['agentNode', 'compositionNode', 'functionNode', 'functionRouterNode', 'indexNode', 'joinerNode', 'mapperNode', 'toolNode', 'vectorStoreNode', 'graphStoreNode'],
+  mapperNode: [
+    'compositionNode',
+    'functionNode',
+    'joinerNode',
+    'loopNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
+  outputNode: [
+    'agentNode',
+    'compositionNode',
+    'functionNode',
+    'functionRouterNode',
+    'indexNode',
+    'joinerNode',
+    'mapperNode',
+    'toolNode',
+    'vectorStoreNode',
+    'graphStoreNode',
+  ],
   requestNode: [],
   scheduleNode: [],
   sourceNode: ['scheduleNode'],
-  toolNode: ['compositionNode', 'functionNode', 'functionRouterNode', 'joinerNode', 'loopNode', 'mapperNode', 'requestNode', 'toolNode'],
+  toolNode: [
+    'compositionNode',
+    'functionNode',
+    'functionRouterNode',
+    'joinerNode',
+    'loopNode',
+    'mapperNode',
+    'requestNode',
+    'toolNode',
+  ],
   loaderNode: ['scheduleNode', 'requestNode'],
   extractorNode: ['loaderNode', 'scheduleNode', 'requestNode'],
   transformerNode: ['extractorNode', 'loaderNode'],
   embeddingNode: ['extractorNode'],
   vectorStoreNode: ['embeddingNode', 'extractorNode', 'transformerNode'],
   graphStoreNode: ['extractorNode', 'transformerNode'],
+  forkNode: ['agentNode', 'compositionNode', 'functionNode', 'joinerNode'],
 };
 
 export function Composer() {
-
   const [collapsed, setCollapsed] = useState(false);
+  const [filterPublic, setFilterPublic] = useState(false);
+  const [filterSystem, setFilterSystem] = useState(false);
   const [formData, setFormData] = useState(null);
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
@@ -205,14 +270,14 @@ export function Composer() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [rfInstance, setRfInstance] = useState(null);
 
-  const onInit = (reactFlowInstance) => {
+  const onInit = reactFlowInstance => {
     // console.log('flow loaded:', reactFlowInstance);
     setRfInstance(reactFlowInstance);
   };
 
-  const onConnect = useCallback((params) => {
+  const onConnect = useCallback(params => {
     // console.log('params:', params);
-    return setEdges((eds) => addEdge(params, eds));
+    return setEdges(eds => addEdge(params, eds));
   }, []);
 
   const { project, setViewport } = useReactFlow();
@@ -221,28 +286,28 @@ export function Composer() {
   const connectingNodeId = useRef(null);
 
   const functionOptions = useMemo(() => {
-    const list = Object.values(functions).map((f) => ({
+    const list = Object.values(functions).map(f => ({
       label: f.name,
       value: f.id,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [functions]);
 
   const toolOptions = useMemo(() => {
-    const list = tools.map((t) => ({
+    const list = tools.map(t => ({
       label: t.name,
       value: t.key,
     }));
-    list.sort((a, b) => a.label < b.label ? -1 : 1);
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
     return list;
   }, [tools]);
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
-      title: 'Composition',
+      title: 'Workflow',
     }));
     dispatch(getToolsAsync());
     if (!isNew) {
@@ -273,50 +338,64 @@ export function Composer() {
             compositionId: composition.id,
             scheduleId: composition.scheduleId,
             scheduleStatus: composition.scheduleStatus,
+            filterSystem,
+            filterPublic,
           },
         };
-        nodes = [
-          ...nodes.filter(nd => nd.type !== 'scheduleNode'),
-          newScheduleNode
-        ];
+        nodes = [...nodes.filter(nd => nd.type !== 'scheduleNode'), newScheduleNode];
       }
       setNodes(nodes);
       setEdges(flow.edges || []);
+      setFilterSystem(flow.filterSystem);
+      setFilterPublic(flow.filterPublic);
       setTimeout(() => {
         setViewport({ x, y, zoom });
       }, 400);
     }
   }, [composition]);
 
+  // TODO: only applies to function nodes
+  useEffect(() => {
+    setNodes(nodes => nodes.map(node => ({ ...node, data: { ...node.data, filterSystem, filterPublic } })));
+  }, [filterSystem, filterPublic]);
+
   const onCancel = () => {
     navigate('/compositions');
   };
 
-  const onFinish = (values) => {
+  const onFinish = values => {
     // console.log('values:', values, rfInstance.toObject());
     let flow;
     if (typeValue === 'flow') {
       flow = rfInstance.toObject();
     }
     if (isNew) {
-      dispatch(createCompositionAsync({
-        values: {
-          ...values,
-          flow,
-          returnType: 'application/json',
-          workspaceId: selectedWorkspace.id,
-        },
-      }));
+      dispatch(
+        createCompositionAsync({
+          values: {
+            ...values,
+            filterSystem,
+            filterPublic,
+            flow,
+            returnType: 'application/json',
+            workspaceId: selectedWorkspace.id,
+          },
+        })
+      );
     } else {
-      dispatch(updateCompositionAsync({
-        id,
-        values: {
-          ...composition,
-          ...values,
-          flow,
-          returnType: 'application/json',
-        },
-      }));
+      dispatch(
+        updateCompositionAsync({
+          id,
+          values: {
+            ...composition,
+            ...values,
+            filterSystem,
+            filterPublic,
+            flow,
+            returnType: 'application/json',
+          },
+        })
+      );
     }
     navigate('/compositions');
   };
@@ -370,7 +449,7 @@ export function Composer() {
     };
     overlapOffsetRef.current += OVERLAP_OFFSET;
     return position;
-  }
+  };
 
   const addAgentNode = () => {
     const id = getId();
@@ -381,7 +460,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addCompositionNode = () => {
@@ -395,7 +474,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addDataSourceNode = () => {
@@ -407,10 +486,10 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const addEmbeddingNode = (embeddingProvider) => {
+  const addEmbeddingNode = embeddingProvider => {
     const id = getId();
     const newNode = {
       id,
@@ -421,10 +500,10 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const addExtractorNode = (extractor) => {
+  const addExtractorNode = extractor => {
     const id = getId();
     const newNode = {
       id,
@@ -435,7 +514,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addFunctionNode = () => {
@@ -447,7 +526,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addFunctionRouterNode = () => {
@@ -459,10 +538,10 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const addGraphStoreNode = (graphStoreProvider) => {
+  const addGraphStoreNode = graphStoreProvider => {
     const id = getId();
     const newNode = {
       id,
@@ -473,7 +552,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addIndexNode = () => {
@@ -485,7 +564,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addJoinerNode = () => {
@@ -497,10 +576,10 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const addLoaderNode = (loader) => {
+  const addLoaderNode = loader => {
     const id = getId();
     const newNode = {
       id,
@@ -511,7 +590,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addLoopNode = () => {
@@ -523,7 +602,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addMapperNode = () => {
@@ -535,7 +614,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addOutputNode = () => {
@@ -547,7 +626,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addRequestNode = () => {
@@ -560,7 +639,7 @@ export function Composer() {
       },
       position: getNewPosition(),
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addScheduleNode = () => {
@@ -572,7 +651,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addToolNode = () => {
@@ -584,7 +663,7 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
   const addTransformerNode = () => {
@@ -596,10 +675,10 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const addVectorStoreNode = (vectorStoreProvider) => {
+  const addVectorStoreNode = vectorStoreProvider => {
     const id = getId();
     const newNode = {
       id,
@@ -610,10 +689,22 @@ export function Composer() {
       position: getNewPosition(),
       zIndex: 1001,
     };
-    setNodes((nds) => nds.concat(newNode));
+    setNodes(nds => nds.concat(newNode));
   };
 
-  const getClosestEdge = useCallback((node) => {
+  const addForkNode = () => {
+    const id = getId();
+    const newNode = {
+      id,
+      type: 'forkNode',
+      data: {},
+      position: getNewPosition(),
+      zIndex: 1001,
+    };
+    setNodes(nds => nds.concat(newNode));
+  };
+
+  const getClosestEdge = useCallback(node => {
     const { nodeInternals } = store.getState();
     const storeNodes = Array.from(nodeInternals.values());
 
@@ -656,12 +747,12 @@ export function Composer() {
     (_, node) => {
       const closeEdge = getClosestEdge(node);
 
-      setEdges((es) => {
-        const nextEdges = es.filter((e) => e.className !== 'temp');
+      setEdges(es => {
+        const nextEdges = es.filter(e => e.className !== 'temp');
 
         if (
           closeEdge &&
-          !nextEdges.find((ne) => ne.source === closeEdge.source && ne.target === closeEdge.target)
+          !nextEdges.find(ne => ne.source === closeEdge.source && ne.target === closeEdge.target)
         ) {
           closeEdge.className = 'temp';
           nextEdges.push(closeEdge);
@@ -677,8 +768,8 @@ export function Composer() {
     (_, node) => {
       const closeEdge = getClosestEdge(node);
 
-      setEdges((es) => {
-        const nextEdges = es.filter((e) => e.className !== 'temp');
+      setEdges(es => {
+        const nextEdges = es.filter(e => e.className !== 'temp');
 
         if (closeEdge) {
           nextEdges.push(closeEdge);
@@ -691,11 +782,13 @@ export function Composer() {
   );
 
   const runTest = async ({ formData }) => {
-    dispatch(runTestAsync({
-      args: formData,
-      name: composition.name,
-      workspaceId: selectedWorkspace.id,
-    }));
+    dispatch(
+      runTestAsync({
+        args: formData,
+        name: composition.name,
+        workspaceId: selectedWorkspace.id,
+      })
+    );
   };
 
   const handleClose = () => {
@@ -707,12 +800,12 @@ export function Composer() {
   };
 
   const uiSchema = {
-    "ui:submitButtonOptions": {
-      "props": {
-        "loading": testResultLoading,
-        "type": "primary",
+    'ui:submitButtonOptions': {
+      props: {
+        loading: testResultLoading,
+        type: 'primary',
       },
-      "submitText": "Run",
+      submitText: 'Run',
     },
   };
 
@@ -724,19 +817,17 @@ export function Composer() {
     setCollapsed(!collapsed);
   };
 
-  const args = composition?.flow?.nodes.find((n) => n.type === 'requestNode')?.data?.arguments;
+  const args = composition?.flow?.nodes.find(n => n.type === 'requestNode')?.data?.arguments;
   const hasDataSource = nodes.find(nd => nd.type === 'sourceNode');
 
   // console.log('composition:', composition);
 
   if (!(isNew || loaded)) {
-    return (
-      <div style={{ marginTop: 20 }}>Loading...</div>
-    );
+    return <div style={{ marginTop: 20 }}>Loading...</div>;
   }
   return (
     <>
-      {true || !isNew && (!isEmpty(args) || hasDataSource) ?
+      {true || (!isNew && (!isEmpty(args) || hasDataSource)) ? (
         <Modal
           onCancel={handleClose}
           onOk={handleClose}
@@ -752,12 +843,15 @@ export function Composer() {
           }}
           okButtonProps={{ style: { display: 'none' } }}
         >
-          {!isEmpty(args) ?
+          {!isEmpty(args) ? (
             <div>
               <div style={{ display: 'flex', flexDirection: 'row-reverse' }}>
-                <Button type="default"
+                <Button
+                  type="default"
                   disabled={isEmpty(formData)}
-                  onClick={() => { setFormData(null); }}
+                  onClick={() => {
+                    setFormData(null);
+                  }}
                 >
                   Clear Inputs
                 </Button>
@@ -767,50 +861,49 @@ export function Composer() {
                 uiSchema={uiSchema}
                 validator={validator}
                 formData={formData}
-                onChange={(ev) => setFormData(ev.formData)}
+                onChange={ev => setFormData(ev.formData)}
                 onSubmit={runTest}
               />
             </div>
-            :
-            <Button type="primary"
+          ) : (
+            <Button
+              type="primary"
               loading={testResultLoading}
               onClick={() => runTest({ formData: {} })}
               style={{ marginTop: 24 }}
             >
               Run
             </Button>
-          }
-          {!isEmpty(testResult) && testResultLoaded ?
+          )}
+          {!isEmpty(testResult) && testResultLoaded ? (
             <div style={{ marginBottom: 20, marginTop: 16, width: 720 }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Result:</div>
-              {composition.returnType === 'application/json' ?
+              {composition.returnType === 'application/json' ? (
                 <JsonView src={testResult} />
-                :
+              ) : (
                 <div>{String(testResult.content)}</div>
-              }
+              )}
             </div>
-            : null
-          }
+          ) : null}
         </Modal>
-        : null
-      }
+      ) : null}
       <Layout style={{ height: '100%' }}>
         <Sider
           style={{ background: 'transparent', height: '100%', marginRight: 20 }}
           width={collapsed || typeValue === 'codegen' ? 53 : 250}
           theme="light"
         >
-          {typeValue === 'flow' ?
-            <div id="composition-menu"
+          {typeValue === 'flow' ? (
+            <div
+              id="composition-menu"
               className={collapsed ? 'collapsed' : ''}
               style={{ height: 'calc(100vh - 320px)', marginTop: 132 }}
             >
-              <Button type="primary"
-                onClick={toggleCollapsed}
-                style={{ marginBottom: 24 }}
-              >
-                {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              </Button>
+              <Flex align="center" gap={16} style={{ marginBottom: 24 }}>
+                <Button type="primary" onClick={toggleCollapsed}>
+                  {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                </Button>
+              </Flex>
               <Menu
                 disabledOverflow={true}
                 mode="vertical"
@@ -842,10 +935,10 @@ export function Composer() {
                       },
                       {
                         key: 'composition',
-                        label: 'Sub-composition',
+                        label: 'Subworkflow',
                         icon: <ApartmentOutlined />,
                         onClick: addCompositionNode,
-                        title: 'Add Sub-composition Node',
+                        title: 'Add Subworkflow Node',
                       },
                       {
                         key: 'agent',
@@ -881,6 +974,13 @@ export function Composer() {
                         icon: <SwapOutlined />,
                         onClick: addMapperNode,
                         title: 'Add Mapper Node',
+                      },
+                      {
+                        key: 'fork',
+                        label: 'Fork',
+                        icon: <PartitionOutlined />,
+                        onClick: addForkNode,
+                        title: 'Add Fork Node',
                       },
                       {
                         key: 'join',
@@ -984,7 +1084,8 @@ export function Composer() {
                             key: 'gcs',
                             label: 'Google Cloud Storage',
                             icon: (
-                              <span className="anticon ant-menu-item-icon"
+                              <span
+                                className="anticon ant-menu-item-icon"
                                 style={{ marginLeft: -2, marginRight: -2, verticalAlign: 'sub' }}
                               >
                                 <GCSLogo grayscale width="18px" height="18px" />
@@ -997,7 +1098,8 @@ export function Composer() {
                             key: 's3',
                             label: 'AWS S3',
                             icon: (
-                              <span className="anticon ant-menu-item-icon"
+                              <span
+                                className="anticon ant-menu-item-icon"
                                 style={{ marginLeft: -2, marginRight: -2, verticalAlign: 'sub' }}
                               >
                                 <S3Logo grayscale width="18px" height="18px" />
@@ -1010,7 +1112,8 @@ export function Composer() {
                             key: 'minio',
                             label: 'MinIO Object Store',
                             icon: (
-                              <span className="anticon ant-menu-item-icon"
+                              <span
+                                className="anticon ant-menu-item-icon"
                                 style={{ marginLeft: -2, marginRight: -2, verticalAlign: 'sub' }}
                               >
                                 <MinIOLogo grayscale width="18px" height="18px" />
@@ -1047,7 +1150,7 @@ export function Composer() {
                             onClick: () => addLoaderNode('wikipedia'),
                             title: 'Add Wikipedia Loader Node',
                           },
-                        ]
+                        ],
                       },
                       {
                         key: 'extractor',
@@ -1089,7 +1192,7 @@ export function Composer() {
                             onClick: () => addExtractorNode('unstructured'),
                             title: 'Add Unstructured Loader Node',
                           },
-                        ]
+                        ],
                       },
                       {
                         key: 'transformer',
@@ -1131,7 +1234,7 @@ export function Composer() {
                             onClick: () => addVectorStoreNode('redis'),
                             title: 'Add Redis Vector Store Node',
                           },
-                        ]
+                        ],
                       },
                       {
                         key: 'search-index',
@@ -1145,7 +1248,7 @@ export function Composer() {
                             onClick: () => addVectorStoreNode('elasticsearch'),
                             title: 'Add Elasticsearch Search Index Node',
                           },
-                        ]
+                        ],
                       },
                       {
                         key: 'graph-store',
@@ -1159,7 +1262,7 @@ export function Composer() {
                             onClick: () => addGraphStoreNode('neo4j'),
                             title: 'Add Neo4j Graph Store Node',
                           },
-                        ]
+                        ],
                       },
                     ],
                   },
@@ -1183,8 +1286,19 @@ export function Composer() {
                 ]}
               />
             </div>
-            : null
-          }
+          ) : null}
+          <Flex align="center" gap={8} style={{ marginTop: 64 }}>
+            <Switch checked={filterSystem} onChange={setFilterSystem} size="small" />
+            <div className="text-secondary" style={{ whiteSpace: 'nowrap' }}>
+              {collapsed ? 'Sys' : 'Include System Functions'}
+            </div>
+          </Flex>
+          <Flex align="center" gap={8} style={{ marginTop: 8 }}>
+            <Switch checked={filterPublic} onChange={setFilterPublic} size="small" />
+            <div className="text-secondary" style={{ whiteSpace: 'nowrap' }}>
+              {collapsed ? 'Pub' : 'Include Public Functions'}
+            </div>
+          </Flex>
         </Sider>
         <Content>
           <div style={{ marginTop: 20 }}>
@@ -1208,16 +1322,10 @@ export function Composer() {
               >
                 <Input />
               </Form.Item>
-              <Form.Item
-                label="Description"
-                name="description"
-              >
+              <Form.Item label="Description" name="description">
                 <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
               </Form.Item>
-              <Form.Item
-                label="Type"
-                name="type"
-              >
+              <Form.Item label="Type" name="type">
                 <Segmented
                   options={[
                     {
@@ -1231,24 +1339,15 @@ export function Composer() {
                   ]}
                 />
               </Form.Item>
-              {typeValue === 'codegen' ?
+              {typeValue === 'codegen' ? (
                 <>
-                  <Form.Item
-                    label="Request"
-                    name="requestSchema"
-                  >
+                  <Form.Item label="Request" name="requestSchema">
                     <SchemaModalInput />
                   </Form.Item>
-                  <Form.Item
-                    label="Returns"
-                    name="returnSchema"
-                  >
+                  <Form.Item label="Returns" name="returnSchema">
                     <SchemaModalInput />
                   </Form.Item>
-                  <Form.Item
-                    label="Tools"
-                    name="tools"
-                  >
+                  <Form.Item label="Tools" name="tools">
                     <Select
                       allowClear
                       loading={toolsLoading}
@@ -1257,10 +1356,7 @@ export function Composer() {
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item
-                    label="Functions"
-                    name="functions"
-                  >
+                  <Form.Item label="Functions" name="functions">
                     <Select
                       allowClear
                       loading={functionsLoading}
@@ -1269,27 +1365,24 @@ export function Composer() {
                       optionFilterProp="label"
                     />
                   </Form.Item>
-                  <Form.Item
-                    label="Description"
-                    name="description"
-                  >
-                    <TextArea
-                      autoSize={{ minRows: 4, maxRows: 14 }}
-                    />
-
+                  <Form.Item label="Description" name="description">
+                    <TextArea autoSize={{ minRows: 4, maxRows: 14 }} />
                   </Form.Item>
                 </>
-                : null
-              }
+              ) : null}
               <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
                 <Space>
-                  <Button type="default" onClick={onCancel}>Cancel</Button>
-                  <Button type="primary" htmlType="submit">Save</Button>
+                  <Button type="default" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                  <Button type="primary" htmlType="submit">
+                    Save
+                  </Button>
                 </Space>
               </Form.Item>
             </Form>
           </div>
-          {typeValue === 'flow' ?
+          {typeValue === 'flow' ? (
             <div className="wrapper" ref={reactFlowWrapper}>
               <ReactFlow
                 attributionPosition="top-right"
@@ -1320,8 +1413,7 @@ export function Composer() {
                 <Background color="#aaa" gap={16} />
               </ReactFlow>
             </div>
-            : null
-          }
+          ) : null}
         </Content>
       </Layout>
     </>

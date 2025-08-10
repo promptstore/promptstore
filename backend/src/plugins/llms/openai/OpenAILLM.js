@@ -48,7 +48,7 @@ function OpenAILLM({ __name, constants, logger }) {
     let res;
     try {
       const req = toOpenAIChatRequest(request);
-      logger.debug('req:', req);
+      // logger.debug('req:', req);
       if (request.stream) {
         res = await openai.chat.completions.create(req, { responseType: 'stream' });
       } else {

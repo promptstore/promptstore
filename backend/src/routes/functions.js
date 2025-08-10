@@ -1,21 +1,34 @@
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'functions';
 
-  const { functionsService } = services;
+  const { functionsService, workspacesService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   app.get('/api/workspaces/:workspaceId/functions', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const functions = await functionsService.getFunctions(workspaceId);
     res.json(functions);
   });
 
   app.get('/api/workspaces/:workspaceId/functions/tags', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const tags = req.query.tags.split(',').map(decodeURIComponent);
     const functions = await functionsService.getFunctionsByTags(workspaceId, tags);
     res.json(functions);
@@ -23,25 +36,56 @@ export default ({ app, auth, constants, logger, services }) => {
 
   app.get('/api/workspaces/:workspaceId/functions/tags/:tag', auth, async (req, res, next) => {
     const { tag, workspaceId } = req.params;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const functions = await functionsService.getFunctionsByTag(workspaceId, tag);
     res.json(functions);
   });
 
-  app.get('/api/workspaces/:workspaceId/functions-by-promptset/:promptSetId', auth, async (req, res, next) => {
-    const { promptSetId, workspaceId } = req.params;
-    const functions = await functionsService.getFunctionsByPromptSet(workspaceId, promptSetId);
-    res.json(functions);
-  });
+  app.get(
+    '/api/workspaces/:workspaceId/functions-by-promptset/:promptSetId',
+    auth,
+    async (req, res, next) => {
+      const { promptSetId, workspaceId } = req.params;
+      const { roles, username } = req.user;
+      if (!roles.includes('admin')) {
+        const workspace = await workspacesService.getWorkspace(workspaceId);
+        if (!workspace.members?.find(m => m.username === username)) {
+          return res.status(403).json({ error: 'You are not a member of this workspace' });
+        }
+      }
+      const functions = await functionsService.getFunctionsByPromptSet(workspaceId, promptSetId);
+      res.json(functions);
+    }
+  );
 
-  app.get('/api/functions/:id', auth, async (req, res, next) => {
-    const id = req.params.id;
+  app.get('/api/workspaces/:workspaceId/functions/:id', auth, async (req, res, next) => {
+    const { id, workspaceId } = req.params;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     const func = await functionsService.getFunction(id);
     res.json(func);
   });
 
   app.post('/api/functions', auth, async (req, res, next) => {
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const values = req.body;
+    if (!roles.includes('admin')) {
+      const workspace = await workspacesService.getWorkspace(values.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     let func = await functionsService.upsertFunction(values, username);
     const obj = createSearchableObject(func);
     const chunkId = await indexObject(obj, func.chunkId);
@@ -53,8 +97,15 @@ export default ({ app, auth, constants, logger, services }) => {
 
   app.put('/api/functions/:id', auth, async (req, res, next) => {
     const { id } = req.params;
-    const { username } = req.user;
+    const { roles, username } = req.user;
     const values = req.body;
+    if (!roles.includes('admin')) {
+      const func = await functionsService.getFunction(id);
+      const workspace = await workspacesService.getWorkspace(func.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     let func = await functionsService.upsertFunction({ ...values, id }, username);
     const obj = createSearchableObject(func);
     const chunkId = await indexObject(obj, func.chunkId);
@@ -66,6 +117,14 @@ export default ({ app, auth, constants, logger, services }) => {
 
   app.delete('/api/functions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      const func = await functionsService.getFunction(id);
+      const workspace = await workspacesService.getWorkspace(func.workspaceId);
+      if (!workspace.members?.find(m => m.username === username)) {
+        return res.status(403).json({ error: 'You are not a member of this workspace' });
+      }
+    }
     await functionsService.deleteFunctions([id]);
     await deleteObject(objectId(id));
     res.json(id);
@@ -73,19 +132,25 @@ export default ({ app, auth, constants, logger, services }) => {
 
   app.delete('/api/functions', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
+    const { roles, username } = req.user;
+    if (!roles.includes('admin')) {
+      for (const id of ids) {
+        const func = await functionsService.getFunction(id);
+        const workspace = await workspacesService.getWorkspace(func.workspaceId);
+        if (!workspace.members?.find(m => m.username === username)) {
+          return res.status(403).json({ error: 'You are not a member of this workspace' });
+        }
+      }
+    }
     await functionsService.deleteFunctions(ids);
     await deleteObjects(ids.map(objectId));
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.tags?.join(' '),
-      rec.description,
-    ];
+    const texts = [rec.name, rec.tags?.join(' '), rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -104,5 +169,4 @@ export default ({ app, auth, constants, logger, services }) => {
       },
     };
   }
-
 };

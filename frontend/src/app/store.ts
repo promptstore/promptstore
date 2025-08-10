@@ -5,6 +5,7 @@ import agentNetworksReducer from '../features/agentNetworks/agentNetworksSlice';
 import agentsReducer from '../features/agents/agentsSlice';
 import appUploaderReducer from '../features/apps/appUploaderSlice';
 import appsReducer from '../features/apps/appsSlice';
+import executionReducer from '../features/apps/executionSlice';
 import authReducer from '../authSlice';
 import chatReducer from '../features/designer/chatSlice';
 import chatSessionsReducer from '../features/designer/chatSessionsSlice';
@@ -62,6 +63,7 @@ export const store = configureStore({
     dataSources: dataSourcesReducer,
     destinations: destinationsReducer,
     embedding: embeddingReducer,
+    execution: executionReducer,
     evaluationRuns: evaluationRunsReducer,
     evaluations: evaluationsReducer,
     extractors: extractorsReducer,

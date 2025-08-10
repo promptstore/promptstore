@@ -44,7 +44,6 @@ function ClickHouseTool({ __key, __name, constants, logger }) {
       const query = getInput(args);
       logger.debug('query:', query);
       let rows = await client.query(query).toPromise();
-      logger.debug('rows:', rows)
       const data = rows.map(row => {
         return Object.entries(row).reduce((a, [k, v]) => {
           if (isObject(v)) {  // convert date objects
@@ -55,7 +54,6 @@ function ClickHouseTool({ __key, __name, constants, logger }) {
           return a;
         }, {});
       });
-      logger.debug('data:', data);
       if (raw) {
         return { data };
       }

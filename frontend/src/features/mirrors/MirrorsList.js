@@ -73,9 +73,6 @@ export function MirrorsList() {
   const running = useSelector(selectRunning);
   const workspaces = useSelector(selectWorkspaces);
 
-  // console.log('preview:', preview);
-  // console.log('workspaces:', workspaces);
-
   const data = useMemo(() => {
     const list = Object.values(mirrors).map((row) => {
       return {
@@ -86,8 +83,6 @@ export function MirrorsList() {
     list.sort((a, b) => a.key > b.key ? 1 : -1);
     return list;
   }, [mirrors]);
-
-  // console.log('data:', data);
 
   const previewColumns = [
     {

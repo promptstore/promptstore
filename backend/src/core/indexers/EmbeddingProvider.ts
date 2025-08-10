@@ -54,9 +54,11 @@ export abstract class EmbeddingProvider {
             input: texts,
             model: model.model,
           };
+          logger.debug('request:', request);
           return this.createEmbedding(request);
         });
         const responses = await Promise.all(proms);  // preserves order
+        logger.debug('responses:', responses);
         let i = 0;  // bin iteration
         const usageHashMap = {};  // avoid double counting duplicate text
         for (const res of responses) {

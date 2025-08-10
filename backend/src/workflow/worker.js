@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs-extra';
+import 'web-streams-polyfill/polyfill';
 
 import logger from '../logger';
 import pg from '../db';
@@ -262,18 +263,18 @@ logger.debug('agents:', Object.keys(agents));
 executionsService.addAgents(agents);
 
 async function runWorker() {
-  const cert = await fs.readFile(`${__dirname}/ca.pem`);
-  const key = await fs.readFile(`${__dirname}/ca.key`);
+  // const cert = await fs.readFile(`${__dirname}/ca.pem`);
+  // const key = await fs.readFile(`${__dirname}/ca.key`);
   let connectionOptions;
-  if (ENV === 'dev' && false) {
+  if (ENV === 'dev') {
     connectionOptions = {
       address: TEMPORAL_URL,
     };
   } else {
     connectionOptions = {
-      // address: TEMPORAL_URL,
-      address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
-      tls: { clientCertPair: { crt: cert, key } },
+      address: TEMPORAL_URL,
+      // address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
+      // tls: { clientCertPair: { crt: cert, key } },
     };
   }
   const connection = await NativeConnection.connect(connectionOptions);

@@ -18,6 +18,8 @@ import { AppForm } from './features/apps/AppForm';
 import { AppFormNew } from './features/apps/AppFormNew';
 import { AppView } from './features/apps/AppView';
 import { AppsList } from './features/apps/AppsList';
+import { AppDynamicForm } from './features/apps/AppDynamicForm';
+import { AppResults } from './features/apps/AppResults';
 import { Composer } from './features/composer/Composer';
 import { CompositionsList } from './features/composer/CompositionsList';
 import { DataSourceForm } from './features/dataSources/DataSourceForm';
@@ -112,6 +114,8 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                       <Route path="/agents" element={<Agents />} />
                       <Route path="/admin" element={<AdminFunctions />} />
                       <Route path="/apps-edit/:id" element={<AppFormNew />} />
+                      <Route path="/apps/:id/form" element={<AppDynamicForm />} />
+                      <Route path="/apps/:id/results" element={<AppResults />} />
                       <Route path="/apps/:id" element={<AppChat />} />
                       {/* <Route path="/apps/:id" element={<AppView />} /> */}
                       <Route path="/apps/:id/analyst" element={<Analyst />} />

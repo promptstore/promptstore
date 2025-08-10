@@ -76,8 +76,7 @@ export default function Login() {
         email: u.email,
         photoURL: u.photoURL,
       };
-      dispatch(upsertUserAsync(user));
-      // navigate('/');
+      await dispatch(upsertUserAsync(user));
       window.location.href = '/';
     } catch (e) {
       console.error('Error logging in:', e);

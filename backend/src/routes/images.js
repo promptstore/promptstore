@@ -1,6 +1,6 @@
 import axios from 'axios';
 import fs from 'fs';
-import gm from 'gm';
+// import gm from 'gm';
 import path from 'path';
 import uuid from 'uuid';
 // import { createCanvas } from 'canvas';
@@ -54,221 +54,221 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.json(image);
   });
 
-  app.post('/api/images/:id/crop', auth, async (req, res, next) => {
-    const id = req.params.id;
-    const { width, height, left, top } = req.body;
-    const image = await imagesService.getImage(id);
-    const { objectName, workspaceId } = await imagesService.getImage(id);
-    const filename = objectName.split('/').pop().split('?')[0];
-    const index = filename.lastIndexOf('.');
-    const [name, ext] = splitAtText(filename, index);
-    const targetFilename = `${name}_cropped${ext}`;
-    const dirname = path.join('/tmp/images/', String(workspaceId));
-    fs.mkdirSync(dirname, { recursive: true });
-    const localFilePath = path.join(dirname, filename);
-    const targetFilePath = path.join(dirname, targetFilename);
-    logger.debug('localFilePath:', localFilePath);
-    logger.debug('targetFilePath:', targetFilePath);
-    mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
-      if (err) {
-        let message;
-        if (err instanceof Error) {
-          message = err.message;
-          if (err.stack) {
-            message += '\n' + err.stack;
-          }
-        } else {
-          message = err.toString();
-        }
-        logger.error(message);
-        return res.json({
-          errors: [{ message }],
-        });
-      }
-      logger.debug('presigned url:', presignedUrl);
-      const u = new URL(presignedUrl);
-      const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
-      await downloadImage(imageUrl, localFilePath);
-      gm(localFilePath)
-        .crop(width, height, left, top)
-        .write(targetFilePath, (err) => {
-          if (err) {
-            let message;
-            if (err instanceof Error) {
-              message = err.message;
-              if (err.stack) {
-                message += '\n' + err.stack;
-              }
-            } else {
-              message = err.toString();
-            }
-            logger.error(message);
-            return res.json({
-              errors: [{ message }],
-            });
-          }
-          const metadata = {
-            'Content-Type': 'image/png',
-          };
-          const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
-          logger.debug('bucket:', constants.FILE_BUCKET);
-          logger.debug('objectName:', objectName);
-          mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
-            if (err) {
-              let message;
-              if (err instanceof Error) {
-                message = err.message;
-                if (err.stack) {
-                  message += '\n' + err.stack;
-                }
-              } else {
-                message = err.toString();
-              }
-              logger.error(message);
-              return res.json({
-                errors: [{ message }],
-              });
-            }
-            logger.info('File uploaded successfully.');
-            mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
-              if (err) {
-                let message;
-                if (err instanceof Error) {
-                  message = err.message;
-                  if (err.stack) {
-                    message += '\n' + err.stack;
-                  }
-                } else {
-                  message = err.toString();
-                }
-                logger.error(message);
-                return res.json({
-                  errors: [{ message }],
-                });
-              }
-              logger.debug('presignedUrl:', presignedUrl);
-              let imageUrl;
-              if (constants.ENV === 'dev') {
-                const u = new URL(presignedUrl);
-                imageUrl = '/api/dev/images' + u.pathname + u.search;
-              } else {
-                imageUrl = presignedUrl;
-              }
-              res.json({ imageUrl, objectName });
-            });
-          });
-        });
-    });
-  });
+  // app.post('/api/images/:id/crop', auth, async (req, res, next) => {
+  //   const id = req.params.id;
+  //   const { width, height, left, top } = req.body;
+  //   const image = await imagesService.getImage(id);
+  //   const { objectName, workspaceId } = await imagesService.getImage(id);
+  //   const filename = objectName.split('/').pop().split('?')[0];
+  //   const index = filename.lastIndexOf('.');
+  //   const [name, ext] = splitAtText(filename, index);
+  //   const targetFilename = `${name}_cropped${ext}`;
+  //   const dirname = path.join('/tmp/images/', String(workspaceId));
+  //   fs.mkdirSync(dirname, { recursive: true });
+  //   const localFilePath = path.join(dirname, filename);
+  //   const targetFilePath = path.join(dirname, targetFilename);
+  //   logger.debug('localFilePath:', localFilePath);
+  //   logger.debug('targetFilePath:', targetFilePath);
+  //   mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
+  //     if (err) {
+  //       let message;
+  //       if (err instanceof Error) {
+  //         message = err.message;
+  //         if (err.stack) {
+  //           message += '\n' + err.stack;
+  //         }
+  //       } else {
+  //         message = err.toString();
+  //       }
+  //       logger.error(message);
+  //       return res.json({
+  //         errors: [{ message }],
+  //       });
+  //     }
+  //     logger.debug('presigned url:', presignedUrl);
+  //     const u = new URL(presignedUrl);
+  //     const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+  //     await downloadImage(imageUrl, localFilePath);
+  //     gm(localFilePath)
+  //       .crop(width, height, left, top)
+  //       .write(targetFilePath, (err) => {
+  //         if (err) {
+  //           let message;
+  //           if (err instanceof Error) {
+  //             message = err.message;
+  //             if (err.stack) {
+  //               message += '\n' + err.stack;
+  //             }
+  //           } else {
+  //             message = err.toString();
+  //           }
+  //           logger.error(message);
+  //           return res.json({
+  //             errors: [{ message }],
+  //           });
+  //         }
+  //         const metadata = {
+  //           'Content-Type': 'image/png',
+  //         };
+  //         const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
+  //         logger.debug('bucket:', constants.FILE_BUCKET);
+  //         logger.debug('objectName:', objectName);
+  //         mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
+  //           if (err) {
+  //             let message;
+  //             if (err instanceof Error) {
+  //               message = err.message;
+  //               if (err.stack) {
+  //                 message += '\n' + err.stack;
+  //               }
+  //             } else {
+  //               message = err.toString();
+  //             }
+  //             logger.error(message);
+  //             return res.json({
+  //               errors: [{ message }],
+  //             });
+  //           }
+  //           logger.info('File uploaded successfully.');
+  //           mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+  //             if (err) {
+  //               let message;
+  //               if (err instanceof Error) {
+  //                 message = err.message;
+  //                 if (err.stack) {
+  //                   message += '\n' + err.stack;
+  //                 }
+  //               } else {
+  //                 message = err.toString();
+  //               }
+  //               logger.error(message);
+  //               return res.json({
+  //                 errors: [{ message }],
+  //               });
+  //             }
+  //             logger.debug('presignedUrl:', presignedUrl);
+  //             let imageUrl;
+  //             if (constants.ENV === 'dev') {
+  //               const u = new URL(presignedUrl);
+  //               imageUrl = '/api/dev/images' + u.pathname + u.search;
+  //             } else {
+  //               imageUrl = presignedUrl;
+  //             }
+  //             res.json({ imageUrl, objectName });
+  //           });
+  //         });
+  //       });
+  //   });
+  // });
 
-  app.post('/api/images/:id/create-mask', auth, async (req, res, next) => {
-    const id = req.params.id;
-    const { width, height, left, top } = req.body;
-    const image = await imagesService.getImage(id);
-    const { objectName, workspaceId } = await imagesService.getImage(id);
-    const filename = objectName.split('/').pop().split('?')[0];
-    const index = filename.lastIndexOf('.');
-    const [name, ext] = splitAtText(filename, index);
-    const targetFilename = `${name}_mask${ext}`;
-    const dirname = path.join('/tmp/images/', String(workspaceId));
-    fs.mkdirSync(dirname, { recursive: true });
-    const localFilePath = path.join(dirname, filename);
-    const targetFilePath = path.join(dirname, targetFilename);
-    logger.debug('localFilePath:', localFilePath);
-    logger.debug('targetFilePath:', targetFilePath);
-    mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
-      if (err) {
-        let message;
-        if (err instanceof Error) {
-          message = err.message;
-          if (err.stack) {
-            message += '\n' + err.stack;
-          }
-        } else {
-          message = err.toString();
-        }
-        logger.error(message);
-        return res.json({
-          errors: [{ message }],
-        });
-      }
-      logger.debug('presigned url:', presignedUrl);
-      const u = new URL(presignedUrl);
-      const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
-      await downloadImage(imageUrl, localFilePath);
-      gm(localFilePath)
-        .fill('#00ffff')
-        .drawRectangle(left, top, left + width, top + height)
-        .type('Grayscale')
-        .write(targetFilePath, (err) => {
-          if (err) {
-            let message;
-            if (err instanceof Error) {
-              message = err.message;
-              if (err.stack) {
-                message += '\n' + err.stack;
-              }
-            } else {
-              message = err.toString();
-            }
-            logger.error(message);
-            return res.json({
-              errors: [{ message }],
-            });
-          }
-          const metadata = {
-            'Content-Type': 'image/png',
-          };
-          const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
-          logger.debug('bucket:', constants.FILE_BUCKET);
-          logger.debug('objectName:', objectName);
-          mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
-            if (err) {
-              let message;
-              if (err instanceof Error) {
-                message = err.message;
-                if (err.stack) {
-                  message += '\n' + err.stack;
-                }
-              } else {
-                message = err.toString();
-              }
-              logger.error(message);
-              return res.json({
-                errors: [{ message }],
-              });
-            }
-            logger.info('File uploaded successfully.');
-            mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
-              if (err) {
-                let message;
-                if (err instanceof Error) {
-                  message = err.message;
-                  if (err.stack) {
-                    message += '\n' + err.stack;
-                  }
-                } else {
-                  message = err.toString();
-                }
-                logger.error(message);
-                return res.json({
-                  errors: [{ message }],
-                });
-              }
-              logger.debug('presignedUrl:', presignedUrl);
-              let imageUrl;
-              if (constants.ENV === 'dev') {
-                const u = new URL(presignedUrl);
-                imageUrl = '/api/dev/images' + u.pathname + u.search;
-              } else {
-                imageUrl = presignedUrl;
-              }
-              res.json({ imageUrl, objectName });
-            });
-          });
-        });
-    });
-  });
+  // app.post('/api/images/:id/create-mask', auth, async (req, res, next) => {
+  //   const id = req.params.id;
+  //   const { width, height, left, top } = req.body;
+  //   const image = await imagesService.getImage(id);
+  //   const { objectName, workspaceId } = await imagesService.getImage(id);
+  //   const filename = objectName.split('/').pop().split('?')[0];
+  //   const index = filename.lastIndexOf('.');
+  //   const [name, ext] = splitAtText(filename, index);
+  //   const targetFilename = `${name}_mask${ext}`;
+  //   const dirname = path.join('/tmp/images/', String(workspaceId));
+  //   fs.mkdirSync(dirname, { recursive: true });
+  //   const localFilePath = path.join(dirname, filename);
+  //   const targetFilePath = path.join(dirname, targetFilename);
+  //   logger.debug('localFilePath:', localFilePath);
+  //   logger.debug('targetFilePath:', targetFilePath);
+  //   mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
+  //     if (err) {
+  //       let message;
+  //       if (err instanceof Error) {
+  //         message = err.message;
+  //         if (err.stack) {
+  //           message += '\n' + err.stack;
+  //         }
+  //       } else {
+  //         message = err.toString();
+  //       }
+  //       logger.error(message);
+  //       return res.json({
+  //         errors: [{ message }],
+  //       });
+  //     }
+  //     logger.debug('presigned url:', presignedUrl);
+  //     const u = new URL(presignedUrl);
+  //     const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+  //     await downloadImage(imageUrl, localFilePath);
+  //     gm(localFilePath)
+  //       .fill('#00ffff')
+  //       .drawRectangle(left, top, left + width, top + height)
+  //       .type('Grayscale')
+  //       .write(targetFilePath, (err) => {
+  //         if (err) {
+  //           let message;
+  //           if (err instanceof Error) {
+  //             message = err.message;
+  //             if (err.stack) {
+  //               message += '\n' + err.stack;
+  //             }
+  //           } else {
+  //             message = err.toString();
+  //           }
+  //           logger.error(message);
+  //           return res.json({
+  //             errors: [{ message }],
+  //           });
+  //         }
+  //         const metadata = {
+  //           'Content-Type': 'image/png',
+  //         };
+  //         const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
+  //         logger.debug('bucket:', constants.FILE_BUCKET);
+  //         logger.debug('objectName:', objectName);
+  //         mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
+  //           if (err) {
+  //             let message;
+  //             if (err instanceof Error) {
+  //               message = err.message;
+  //               if (err.stack) {
+  //                 message += '\n' + err.stack;
+  //               }
+  //             } else {
+  //               message = err.toString();
+  //             }
+  //             logger.error(message);
+  //             return res.json({
+  //               errors: [{ message }],
+  //             });
+  //           }
+  //           logger.info('File uploaded successfully.');
+  //           mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+  //             if (err) {
+  //               let message;
+  //               if (err instanceof Error) {
+  //                 message = err.message;
+  //                 if (err.stack) {
+  //                   message += '\n' + err.stack;
+  //                 }
+  //               } else {
+  //                 message = err.toString();
+  //               }
+  //               logger.error(message);
+  //               return res.json({
+  //                 errors: [{ message }],
+  //               });
+  //             }
+  //             logger.debug('presignedUrl:', presignedUrl);
+  //             let imageUrl;
+  //             if (constants.ENV === 'dev') {
+  //               const u = new URL(presignedUrl);
+  //               imageUrl = '/api/dev/images' + u.pathname + u.search;
+  //             } else {
+  //               imageUrl = presignedUrl;
+  //             }
+  //             res.json({ imageUrl, objectName });
+  //           });
+  //         });
+  //       });
+  //   });
+  // });
 
   app.post('/api/bulk-images', auth, async (req, res, next) => {
     const { username } = req.user;
@@ -434,253 +434,253 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   //   return null;
   // }
 
-  const getSize = (font, fontSize, text, localFilePath) => {
-    return new Promise((resolve, reject) => {
-      gm(1024, 256, '#ddff99f3')
-        .font(font, fontSize)
-        .drawText(10, 100, text)
-        .trim()
-        .write(localFilePath, (err) => {
-          if (err) {
-            return reject(err);
-          }
-          gm(localFilePath)
-            .size((err, dims) => {
-              if (err) {
-                return reject(err);
-              }
-              resolve(dims);
-            });
-        });
-    });
-  }
+  // const getSize = (font, fontSize, text, localFilePath) => {
+  //   return new Promise((resolve, reject) => {
+  //     gm(1024, 256, '#ddff99f3')
+  //       .font(font, fontSize)
+  //       .drawText(10, 100, text)
+  //       .trim()
+  //       .write(localFilePath, (err) => {
+  //         if (err) {
+  //           return reject(err);
+  //         }
+  //         gm(localFilePath)
+  //           .size((err, dims) => {
+  //             if (err) {
+  //               return reject(err);
+  //             }
+  //             resolve(dims);
+  //           });
+  //       });
+  //   });
+  // }
 
-  const getTextDims = async (text, font, maxWidth, start = 0) => {
-    const sizes = fontSizes.slice(start);
-    const localFilePath = '/tmp/' + uuid.v4() + '.png';
-    try {
-      for (const fontSize of sizes) {
-        logger.debug('getSize:', font, fontSize, text, localFilePath);
-        const { width, height } = await getSize(font, fontSize, text, localFilePath);
-        if (width <= maxWidth) {
-          fs.unlinkSync(localFilePath);
-          return {
-            fontSize,
-            width,
-            height,
-          };
-        }
-      }
-      return null;
-    } catch (err) {
-      let message = err.message;
-      if (err.stack) {
-        message += '\n' + err.stack;
-      }
-      logger.error(message);
-      throw err;
-    }
-  }
+  // const getTextDims = async (text, font, maxWidth, start = 0) => {
+  //   const sizes = fontSizes.slice(start);
+  //   const localFilePath = '/tmp/' + uuid.v4() + '.png';
+  //   try {
+  //     for (const fontSize of sizes) {
+  //       logger.debug('getSize:', font, fontSize, text, localFilePath);
+  //       const { width, height } = await getSize(font, fontSize, text, localFilePath);
+  //       if (width <= maxWidth) {
+  //         fs.unlinkSync(localFilePath);
+  //         return {
+  //           fontSize,
+  //           width,
+  //           height,
+  //         };
+  //       }
+  //     }
+  //     return null;
+  //   } catch (err) {
+  //     let message = err.message;
+  //     if (err.stack) {
+  //       message += '\n' + err.stack;
+  //     }
+  //     logger.error(message);
+  //     throw err;
+  //   }
+  // }
 
-  app.post('/api/annotate-image', auth, async (req, res) => {
-    const {
-      blurTextBackground,
-      coordinates,
-      font = 'Helvetica',
-      imageId,
-      subText,
-      textBackgroundTransparency,
-      textColor = '#fff',
-      textOverlay,
-      textPlacement,
-    } = req.body;
-    const { objectName, workspaceId } = await imagesService.getImage(imageId);
-    const filename = objectName.split('/').pop().split('?')[0];
-    const index = filename.lastIndexOf('.');
-    const [name, ext] = splitAtText(filename, index);
-    const targetFilename = `${name}_annotated${ext}`;
-    const dirname = path.join('/tmp/images/', String(workspaceId));
-    fs.mkdirSync(dirname, { recursive: true });
-    const localFilePath = path.join(dirname, filename);
-    const targetFilePath = path.join(dirname, targetFilename);
-    logger.debug('localFilePath:', localFilePath);
-    logger.debug('targetFilePath:', targetFilePath);
-    mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
-      if (err) {
-        let message;
-        if (err instanceof Error) {
-          message = err.message;
-          if (err.stack) {
-            message += '\n' + err.stack;
-          }
-        } else {
-          message = err.toString();
-        }
-        logger.error(message);
-        return res.json({
-          errors: [{ message }],
-        });
-      }
-      logger.debug('presigned url:', presignedUrl);
-      const u = new URL(presignedUrl);
-      const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
-      await downloadImage(imageUrl, localFilePath);
-      gm(localFilePath).size(async (err, size) => {
-        if (err) {
-          let message;
-          if (err instanceof Error) {
-            message = err.message;
-            if (err.stack) {
-              message += '\n' + err.stack;
-            }
-          } else {
-            message = err.toString();
-          }
-          logger.error(message);
-          return reject(err);
-        }
-        let maxWidth;
-        if (coordinates?.width) {
-          maxWidth = coordinates.width;
-        } else {
-          maxWidth = (size.width - 60) * .7;
-        }
-        const textOverlayDims = await getTextDims(textOverlay, font, maxWidth);
-        logger.debug('textOverlayDims:', textOverlayDims);
-        const index = fontSizes.indexOf(textOverlayDims.fontSize);
-        let subTextDims;
-        if (subText) {
-          subTextDims = await getTextDims(subText, font, maxWidth, index + 1);
-        } else {
-          subTextDims = { width: 0, height: 0, fontSize: 0 };
-        }
-        const maxTextWidth = Math.max(textOverlayDims.width, subTextDims.width);
-        let textOverlayX, textOverlayY;
-        let subTextX, subTextY;
-        if (coordinates?.width) {
-          const { left, top } = coordinates;
-          textOverlayX = left;
-          subTextX = left;
-          textOverlayY = top + textOverlayDims.height;
-          subTextY = textOverlayY + subTextDims.height + 20;
-        } else if (['top-left', 'middle-left', 'bottom-left'].includes(textPlacement)) {
-          const x = 30;
-          textOverlayX = x;
-          subTextX = x;
-        } else if (['top-center', 'middle-center', 'bottom-center'].includes(textPlacement)) {
-          const x = Math.floor((size.width - maxTextWidth) / 2);
-          textOverlayX = x;
-          subTextX = x;
-        } else if (['top-right', 'middle-right', 'bottom-right'].includes(textPlacement)) {
-          const x = Math.floor(size.width - maxTextWidth - 30);
-          textOverlayX = x;
-          subTextX = x;
-        }
-        if (['top-left', 'top-center', 'top-right'].includes(textPlacement)) {
-          textOverlayY = 100;
-          subTextY = textOverlayY + subTextDims.height + 20;
-        } else if (['middle-left', 'middle-center', 'middle-right'].includes(textPlacement)) {
-          const totalTextHeight = textOverlayDims.height + subTextDims.height + 20;
-          const y = Math.floor((size.height - totalTextHeight) / 2);
-          textOverlayY = Math.floor(y + textOverlayDims.height);
-          subTextY = Math.floor(textOverlayY + subTextDims.height + 20);
-        } else if (['bottom-left', 'bottom-center', 'bottom-right'].includes(textPlacement)) {
-          const totalTextHeight = textOverlayDims.height + subTextDims.height + 20;
-          const y = Math.floor(size.height - totalTextHeight - 100);
-          textOverlayY = Math.floor(y + textOverlayDims.height);
-          subTextY = Math.floor(textOverlayY + subTextDims.height + 20);
-        }
-        let g = gm(localFilePath)
-        if (textBackgroundTransparency) {
-          g = g
-            .fill('#000000' + transparencyHexCodes[textBackgroundTransparency])
-            .drawRectangle(
-              Math.max(textOverlayX - 20),
-              Math.max(textOverlayY - textOverlayDims.height - 20, 0),
-              Math.min(textOverlayX + maxTextWidth + 20, size.width),
-              Math.min(textOverlayY + 20 + subTextDims.height, size.height)
-            );
-        }
-        g = g
-          .font(font, textOverlayDims.fontSize)
-          .stroke(textColor)
-          .fill(textColor)
-          .drawText(textOverlayX, textOverlayY, textOverlay);
-        if (subText) {
-          g = g
-            .font(font, subTextDims.fontSize)
-            .drawText(subTextX, subTextY, subText);
-        }
-        g.write(targetFilePath, (err) => {
-          if (err) {
-            let message;
-            if (err instanceof Error) {
-              message = err.message;
-              if (err.stack) {
-                message += '\n' + err.stack;
-              }
-            } else {
-              message = err.toString();
-            }
-            logger.error(message);
-            return res.json({
-              errors: [{ message }],
-            });
-          }
-          const metadata = {
-            'Content-Type': 'image/png',
-          };
-          const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
-          logger.debug('bucket:', constants.FILE_BUCKET);
-          logger.debug('objectName:', objectName);
-          mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
-            if (err) {
-              let message;
-              if (err instanceof Error) {
-                message = err.message;
-                if (err.stack) {
-                  message += '\n' + err.stack;
-                }
-              } else {
-                message = err.toString();
-              }
-              logger.error(message);
-              return res.json({
-                errors: [{ message }],
-              });
-            }
-            logger.info('File uploaded successfully.');
-            mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
-              if (err) {
-                let message;
-                if (err instanceof Error) {
-                  message = err.message;
-                  if (err.stack) {
-                    message += '\n' + err.stack;
-                  }
-                } else {
-                  message = err.toString();
-                }
-                logger.error(message);
-                return res.json({
-                  errors: [{ message }],
-                });
-              }
-              logger.debug('presignedUrl:', presignedUrl);
-              let imageUrl;
-              if (constants.ENV === 'dev') {
-                const u = new URL(presignedUrl);
-                imageUrl = '/api/dev/images' + u.pathname + u.search;
-              } else {
-                imageUrl = presignedUrl;
-              }
-              res.json({ imageUrl, objectName });
-            });
-          });
-        });
-      })
-    });
-  });
+  // app.post('/api/annotate-image', auth, async (req, res) => {
+  //   const {
+  //     blurTextBackground,
+  //     coordinates,
+  //     font = 'Helvetica',
+  //     imageId,
+  //     subText,
+  //     textBackgroundTransparency,
+  //     textColor = '#fff',
+  //     textOverlay,
+  //     textPlacement,
+  //   } = req.body;
+  //   const { objectName, workspaceId } = await imagesService.getImage(imageId);
+  //   const filename = objectName.split('/').pop().split('?')[0];
+  //   const index = filename.lastIndexOf('.');
+  //   const [name, ext] = splitAtText(filename, index);
+  //   const targetFilename = `${name}_annotated${ext}`;
+  //   const dirname = path.join('/tmp/images/', String(workspaceId));
+  //   fs.mkdirSync(dirname, { recursive: true });
+  //   const localFilePath = path.join(dirname, filename);
+  //   const targetFilePath = path.join(dirname, targetFilename);
+  //   logger.debug('localFilePath:', localFilePath);
+  //   logger.debug('targetFilePath:', targetFilePath);
+  //   mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, async (err, presignedUrl) => {
+  //     if (err) {
+  //       let message;
+  //       if (err instanceof Error) {
+  //         message = err.message;
+  //         if (err.stack) {
+  //           message += '\n' + err.stack;
+  //         }
+  //       } else {
+  //         message = err.toString();
+  //       }
+  //       logger.error(message);
+  //       return res.json({
+  //         errors: [{ message }],
+  //       });
+  //     }
+  //     logger.debug('presigned url:', presignedUrl);
+  //     const u = new URL(presignedUrl);
+  //     const imageUrl = constants.BASE_URL + '/api/dev/images' + u.pathname + u.search;
+  //     await downloadImage(imageUrl, localFilePath);
+  //     gm(localFilePath).size(async (err, size) => {
+  //       if (err) {
+  //         let message;
+  //         if (err instanceof Error) {
+  //           message = err.message;
+  //           if (err.stack) {
+  //             message += '\n' + err.stack;
+  //           }
+  //         } else {
+  //           message = err.toString();
+  //         }
+  //         logger.error(message);
+  //         return reject(err);
+  //       }
+  //       let maxWidth;
+  //       if (coordinates?.width) {
+  //         maxWidth = coordinates.width;
+  //       } else {
+  //         maxWidth = (size.width - 60) * .7;
+  //       }
+  //       const textOverlayDims = await getTextDims(textOverlay, font, maxWidth);
+  //       logger.debug('textOverlayDims:', textOverlayDims);
+  //       const index = fontSizes.indexOf(textOverlayDims.fontSize);
+  //       let subTextDims;
+  //       if (subText) {
+  //         subTextDims = await getTextDims(subText, font, maxWidth, index + 1);
+  //       } else {
+  //         subTextDims = { width: 0, height: 0, fontSize: 0 };
+  //       }
+  //       const maxTextWidth = Math.max(textOverlayDims.width, subTextDims.width);
+  //       let textOverlayX, textOverlayY;
+  //       let subTextX, subTextY;
+  //       if (coordinates?.width) {
+  //         const { left, top } = coordinates;
+  //         textOverlayX = left;
+  //         subTextX = left;
+  //         textOverlayY = top + textOverlayDims.height;
+  //         subTextY = textOverlayY + subTextDims.height + 20;
+  //       } else if (['top-left', 'middle-left', 'bottom-left'].includes(textPlacement)) {
+  //         const x = 30;
+  //         textOverlayX = x;
+  //         subTextX = x;
+  //       } else if (['top-center', 'middle-center', 'bottom-center'].includes(textPlacement)) {
+  //         const x = Math.floor((size.width - maxTextWidth) / 2);
+  //         textOverlayX = x;
+  //         subTextX = x;
+  //       } else if (['top-right', 'middle-right', 'bottom-right'].includes(textPlacement)) {
+  //         const x = Math.floor(size.width - maxTextWidth - 30);
+  //         textOverlayX = x;
+  //         subTextX = x;
+  //       }
+  //       if (['top-left', 'top-center', 'top-right'].includes(textPlacement)) {
+  //         textOverlayY = 100;
+  //         subTextY = textOverlayY + subTextDims.height + 20;
+  //       } else if (['middle-left', 'middle-center', 'middle-right'].includes(textPlacement)) {
+  //         const totalTextHeight = textOverlayDims.height + subTextDims.height + 20;
+  //         const y = Math.floor((size.height - totalTextHeight) / 2);
+  //         textOverlayY = Math.floor(y + textOverlayDims.height);
+  //         subTextY = Math.floor(textOverlayY + subTextDims.height + 20);
+  //       } else if (['bottom-left', 'bottom-center', 'bottom-right'].includes(textPlacement)) {
+  //         const totalTextHeight = textOverlayDims.height + subTextDims.height + 20;
+  //         const y = Math.floor(size.height - totalTextHeight - 100);
+  //         textOverlayY = Math.floor(y + textOverlayDims.height);
+  //         subTextY = Math.floor(textOverlayY + subTextDims.height + 20);
+  //       }
+  //       let g = gm(localFilePath)
+  //       if (textBackgroundTransparency) {
+  //         g = g
+  //           .fill('#000000' + transparencyHexCodes[textBackgroundTransparency])
+  //           .drawRectangle(
+  //             Math.max(textOverlayX - 20),
+  //             Math.max(textOverlayY - textOverlayDims.height - 20, 0),
+  //             Math.min(textOverlayX + maxTextWidth + 20, size.width),
+  //             Math.min(textOverlayY + 20 + subTextDims.height, size.height)
+  //           );
+  //       }
+  //       g = g
+  //         .font(font, textOverlayDims.fontSize)
+  //         .stroke(textColor)
+  //         .fill(textColor)
+  //         .drawText(textOverlayX, textOverlayY, textOverlay);
+  //       if (subText) {
+  //         g = g
+  //           .font(font, subTextDims.fontSize)
+  //           .drawText(subTextX, subTextY, subText);
+  //       }
+  //       g.write(targetFilePath, (err) => {
+  //         if (err) {
+  //           let message;
+  //           if (err instanceof Error) {
+  //             message = err.message;
+  //             if (err.stack) {
+  //               message += '\n' + err.stack;
+  //             }
+  //           } else {
+  //             message = err.toString();
+  //           }
+  //           logger.error(message);
+  //           return res.json({
+  //             errors: [{ message }],
+  //           });
+  //         }
+  //         const metadata = {
+  //           'Content-Type': 'image/png',
+  //         };
+  //         const objectName = path.join(String(workspaceId), constants.IMAGES_PREFIX, targetFilename);
+  //         logger.debug('bucket:', constants.FILE_BUCKET);
+  //         logger.debug('objectName:', objectName);
+  //         mc.fPutObject(constants.FILE_BUCKET, objectName, targetFilePath, metadata, (err, etag) => {
+  //           if (err) {
+  //             let message;
+  //             if (err instanceof Error) {
+  //               message = err.message;
+  //               if (err.stack) {
+  //                 message += '\n' + err.stack;
+  //               }
+  //             } else {
+  //               message = err.toString();
+  //             }
+  //             logger.error(message);
+  //             return res.json({
+  //               errors: [{ message }],
+  //             });
+  //           }
+  //           logger.info('File uploaded successfully.');
+  //           mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
+  //             if (err) {
+  //               let message;
+  //               if (err instanceof Error) {
+  //                 message = err.message;
+  //                 if (err.stack) {
+  //                   message += '\n' + err.stack;
+  //                 }
+  //               } else {
+  //                 message = err.toString();
+  //               }
+  //               logger.error(message);
+  //               return res.json({
+  //                 errors: [{ message }],
+  //               });
+  //             }
+  //             logger.debug('presignedUrl:', presignedUrl);
+  //             let imageUrl;
+  //             if (constants.ENV === 'dev') {
+  //               const u = new URL(presignedUrl);
+  //               imageUrl = '/api/dev/images' + u.pathname + u.search;
+  //             } else {
+  //               imageUrl = presignedUrl;
+  //             }
+  //             res.json({ imageUrl, objectName });
+  //           });
+  //         });
+  //       });
+  //     })
+  //   });
+  // });
 
   app.put('/api/images/:id', auth, async (req, res, next) => {
     const { id } = req.params;

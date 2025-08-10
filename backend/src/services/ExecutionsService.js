@@ -317,7 +317,6 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
         };
       }
     }
-    logger.debug('args:', args);
 
     const executor = new LocalExecutor();
 

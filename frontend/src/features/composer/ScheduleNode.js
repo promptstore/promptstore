@@ -18,8 +18,6 @@ dayjs.extend(customParseFormat);
 
 export default memo(({ id, data, isConnectable }) => {
 
-  console.log('data:', data);
-
   const { setNodes } = useReactFlow();
   const store = useStoreApi();
   const dispatch = useDispatch();

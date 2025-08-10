@@ -41,7 +41,7 @@ export default memo(({ id, data, isConnectable }) => {
   return (
     <>
       <div className="custom-node__header">
-        Sub-composition
+        Subworkflow
       </div>
       <div className="custom-node__body">
         <Select

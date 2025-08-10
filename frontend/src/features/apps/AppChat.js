@@ -7,9 +7,7 @@ import snakeCase from 'lodash.snakecase';
 import { v4 as uuidv4 } from 'uuid';
 
 import { Chat } from '../../components/Chat';
-import {
-  UserUploadsList,
-} from '../../components/UserUploadsList';
+import { UserUploadsList } from '../../components/UserUploadsList';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { slugify } from '../../utils';
@@ -26,30 +24,14 @@ import {
   selectTraceId,
   setTraceId,
 } from '../designer/chatSlice';
-import {
-  indexDocumentAsync,
-  selectIndexed,
-  selectIndexing,
-} from '../uploader/fileUploaderSlice';
-import {
-  getFunctionAsync,
-  selectFunctions,
-} from '../functions/functionsSlice';
-import {
-  fileUploadAsync,
-  selectUploading,
-  selectUploads,
-} from './appUploaderSlice';
-import {
-  getAppAsync,
-  selectLoaded,
-  selectApps,
-} from './appsSlice';
+import { indexDocumentAsync, selectIndexed, selectIndexing } from '../uploader/fileUploaderSlice';
+import { getFunctionAsync, selectFunctions } from '../functions/functionsSlice';
+import { fileUploadAsync, selectUploading, selectUploads } from './appUploaderSlice';
+import { getAppAsync, selectLoaded, selectApps } from './appsSlice';
 
 const { Content, Sider } = Layout;
 
 export function AppChat() {
-
   const [correlationId, setCorrelationId] = useState({});
   const [open, setOpen] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState(null);
@@ -72,36 +54,37 @@ export function AppChat() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // const id = location.pathname.match(/\/apps\/(.*)\/chat/)[1];
   const id = location.pathname.match(/\/apps\/(.*)/)[1];
   const app = apps[id];
   const func = functions[app?.function];
   const sourceUploads = uploads[id] || [];
   const isIndexing = Object.values(indexing).some(v => v);
 
-  // console.log('app:', app);
-  // console.log('sourceUploads:', sourceUploads);
-  // console.log('dataSources:', dataSources);
-
   // useEffect(() => {
   //   dispatch(getAppAsync(id));
   // }, []);
 
   useEffect(() => {
-    if (app) {
-      setNavbarState((state) => ({
+    if (app?.name) {
+      setNavbarState(state => ({
         ...state,
         createLink: null,
         title: app.name,
       }));
-      if (app.function) {
-        dispatch(getFunctionAsync(app.function));
-      }
-      if (app.dataSourceId) {
-        dispatch(getDataSourceAsync(app.dataSourceId));
-      }
     }
-  }, [loaded]);
+  }, [app?.name]);
+
+  useEffect(() => {
+    if (selectedWorkspace?.id && app?.function) {
+      dispatch(getFunctionAsync({ id: app.function, workspaceId: selectedWorkspace.id }));
+    }
+  }, [selectedWorkspace?.id, app?.function]);
+
+  useEffect(() => {
+    if (app?.dataSourceId) {
+      dispatch(getDataSourceAsync(app.dataSourceId));
+    }
+  }, [app?.dataSourceId]);
 
   useEffect(() => {
     if (indexed) {
@@ -117,12 +100,14 @@ export function AppChat() {
       const dataSource = dataSources[dataSourceId];
       const documents = dataSource.documents || [];
 
-      dispatch(updateDataSourceAsync({
-        id: dataSourceId,
-        values: {
-          documents: [...new Set([...documents, upload.id])],
-        },
-      }));
+      dispatch(
+        updateDataSourceAsync({
+          id: dataSourceId,
+          values: {
+            documents: [...new Set([...documents, upload.id])],
+          },
+        })
+      );
 
       const indexId = app.indexes?.[0] || 'new';
       const params = {
@@ -136,12 +121,14 @@ export function AppChat() {
       if (indexId === 'new') {
         params.newIndexName = snakeCase(app.name);
       }
-      dispatch(indexDocumentAsync({
-        appId: app.id,
-        dataSourceId,
-        params,
-        workspaceId,
-      }));
+      dispatch(
+        indexDocumentAsync({
+          appId: app.id,
+          dataSourceId,
+          params,
+          workspaceId,
+        })
+      );
       // setCorrelationId((curr) => ({ ...curr, [uploadId]: null }));
 
       setUploadedFilename(null);
@@ -214,21 +201,23 @@ export function AppChat() {
   //   }));
   // };
 
-  const handleChatSubmit = (values) => {
+  const handleChatSubmit = values => {
     const { messages } = values;
     const content = messages[messages.length - 1].content;
     let args = { content };
-    dispatch(getFunctionResponseAsync({
-      functionName: func.name,
-      args,
-      history: messages.slice(0, messages.length - 1),
-      extraIndexes: app.indexes,
-      params: { maxTokens: 1024 },
-      workspaceId: selectedWorkspace.id,
-    }));
+    dispatch(
+      getFunctionResponseAsync({
+        functionName: func.name,
+        args,
+        history: messages.slice(0, messages.length - 1),
+        extraIndexes: app.indexes,
+        params: { maxTokens: 1024 },
+        workspaceId: selectedWorkspace.id,
+      })
+    );
   };
 
-  const handleChange = (info) => {
+  const handleChange = info => {
     if (info.file.status === 'uploading') {
       return;
     }
@@ -246,9 +235,7 @@ export function AppChat() {
   const uploadButton = (
     <div>
       {uploading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div style={{ marginTop: 8 }}>
-        {uploading ? 'Uploading...' : 'Upload'}
-      </div>
+      <div style={{ marginTop: 8 }}>{uploading ? 'Uploading...' : 'Upload'}</div>
     </div>
   );
 
@@ -258,13 +245,9 @@ export function AppChat() {
       <div style={{ height: '100%', marginTop: 20 }}>
         <Layout style={{ height: '100%' }}>
           <Content>
-            <Chat
-              messages={messages}
-              onSubmit={handleChatSubmit}
-              placeholder="Ask away..."
-            />
+            <Chat messages={messages} onSubmit={handleChatSubmit} placeholder="Ask away..." />
           </Content>
-          {app?.allowUpload ?
+          {app?.allowUpload ? (
             <Drawer
               title="Documents"
               placement="right"
@@ -273,11 +256,7 @@ export function AppChat() {
               open={open}
               width={700}
             >
-              <UserUploadsList
-                loading={isIndexing}
-                workspaceId={selectedWorkspace.id}
-                appId={id}
-              />
+              <UserUploadsList loading={isIndexing} workspaceId={selectedWorkspace.id} appId={id} />
               <div style={{ marginTop: 20, textAlign: 'center' }}>
                 <Upload
                   name="upload"
@@ -292,20 +271,15 @@ export function AppChat() {
                 </Upload>
               </div>
             </Drawer>
-            : null
-          }
-          <Sider
-            style={{ backgroundColor: 'inherit', marginLeft: 20 }}
-          >
+          ) : null}
+          <Sider style={{ backgroundColor: 'inherit', marginLeft: 20 }}>
             <Space>
-              <Button
-                icon={<FileTextOutlined />}
-                onClick={() => setOpen(true)}
-              >Open</Button>
-              <Button
-                icon={<SettingOutlined />}
-                onClick={openSettings}
-              >Settings</Button>
+              <Button icon={<FileTextOutlined />} onClick={() => setOpen(true)}>
+                Open
+              </Button>
+              <Button icon={<SettingOutlined />} onClick={openSettings}>
+                Settings
+              </Button>
             </Space>
           </Sider>
         </Layout>
@@ -314,7 +288,7 @@ export function AppChat() {
   );
 }
 
-const beforeUpload = (file) => {
+const beforeUpload = file => {
   // console.log('file:', file);
 
   const isCSV = file.type === 'text/csv';

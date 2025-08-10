@@ -13,6 +13,8 @@ import background from '../../images/promptstore-background-blank.png';
 
 const DEFAULT_CREDITS = 2000;
 
+const allowedEmailDomains = ['nudjai.com', 'oes.edu.au', 'killarablue.com', 'europa-labs.com', 'careabout.com.au'];
+
 export default function Register() {
 
   const dispatch = useDispatch();
@@ -48,6 +50,9 @@ export default function Register() {
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
     }
+    if (!allowedEmailDomains.includes(email.split('@')[1])) {
+      return setError('Please use an email address from an allowed domain');
+    }
     try {
       setError('');
       setLoading(true);
@@ -64,7 +69,8 @@ export default function Register() {
         email,
         credits: DEFAULT_CREDITS,
       };
-      dispatch(upsertUserAsync(user));
+      await dispatch(upsertUserAsync(user));
+      window.location.href = '/';
     } catch (e) {
       console.error(e);
       setError('Failed to register');

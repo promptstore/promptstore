@@ -1,5 +1,4 @@
 export default ({ app, auth, logger, services }) => {
-
   const { usersService } = services;
 
   app.get('/api/users/current', auth, async (req, res, next) => {
@@ -49,5 +48,4 @@ export default ({ app, auth, logger, services }) => {
     await usersService.deleteUsers(ids);
     res.json(ids);
   });
-
 };

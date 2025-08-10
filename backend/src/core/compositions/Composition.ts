@@ -39,6 +39,7 @@ import {
   IToolNode,
   ITransformerNode,
   IVectorStoreNode,
+  IForkNode,
   Node,
 } from './Composition_types';
 import { SemanticFunction } from '../semanticfunctions/SemanticFunction';
@@ -65,7 +66,6 @@ interface InnerResult {
 }
 
 export class Composition {
-
   name: string;
   nodes: Node[];
   edges: IEdge[];
@@ -74,14 +74,7 @@ export class Composition {
   callbacks: Callback[];
   currentCallbacks: Callback[];
 
-  constructor({
-    name,
-    nodes,
-    edges,
-    dataMapper,
-    pipelinesService,
-    callbacks,
-  }: CompositionParams) {
+  constructor({ name, nodes, edges, dataMapper, pipelinesService, callbacks }: CompositionParams) {
     this.name = name;
     this.nodes = nodes;
     this.edges = edges;
@@ -90,7 +83,16 @@ export class Composition {
     this.callbacks = callbacks || [];
   }
 
-  async call({ args, model, modelParams, functions, isBatch, callbacks = [], workspaceId, username }: CompositionCallParams) {
+  async call({
+    args,
+    model,
+    modelParams,
+    functions,
+    isBatch,
+    callbacks = [],
+    workspaceId,
+    username,
+  }: CompositionCallParams) {
     this.currentCallbacks = [...this.callbacks, ...callbacks];
     this.onStart({ args, model, modelParams, isBatch, workspaceId, username });
     let dataSource: any;
@@ -101,7 +103,7 @@ export class Composition {
       logger.debug('!!!! callAgent myargs:', args);
       const content = await agent.call({
         callbacks: [],
-        email: '',  // TODO
+        email: '', // TODO
         args,
         workspaceId,
         username,
@@ -139,9 +141,15 @@ export class Composition {
       return { messages };
     };
 
-    const executeNode = async (node: Node, sourceNode: Node, nextNode: Node, { myargs, iter, aggregationVar }, res: any) => {
-      logger.debug('^^^^^^^^^^^^^^^^^^^^^^ res:', res)
-      logger.debug('^^^^^^^^^^^^^^^^^^^^^^ myargs:', myargs)
+    const executeNode = async (
+      node: Node,
+      sourceNode: Node,
+      nextNode: Node,
+      { myargs, iter, aggregationVar },
+      res: any
+    ) => {
+      logger.debug('^^^^^^^^^^^^^^^^^^^^^^ res:', res);
+      logger.debug('^^^^^^^^^^^^^^^^^^^^^^ myargs:', myargs);
       let it: any[];
       let aggVar: string;
       if (node.type === 'agentNode') {
@@ -158,7 +166,6 @@ export class Composition {
           const json = await callAgent(agent, myargs);
           res = merge(res, json);
         }
-
       } else if (node.type === 'compositionNode') {
         let compositionNode = node as ICompositionNode;
         let composition = compositionNode.composition;
@@ -185,74 +192,115 @@ export class Composition {
           });
           res = merge(res, response);
         }
-
       } else if (node.type === 'functionNode') {
         const functionNode = node as IFunctionNode;
         const { func, functions } = functionNode;
 
-        const getResults = async (args: any) => {
-          const { messages } = await callFunction(func, args, functions);
-          return messages.map((message: any) => {
-            const call = message.function_call;
-            if (call) {
-              const parsedArgs = JSON.parse(call.arguments);
-              if (nextNode.type === 'functionRouterNode') {
-                return { ...call, arguments: parsedArgs };
-              }
-              return parsedArgs;
-            }
-            return { content: message.content };
-          });
-        };
+        // Check if this function node is directly connected to a fork node
+        const directForkNodes = this.edges
+          .filter(e => e.target === node.id)
+          .map(e => this.nodes.find(n => n.id === e.source))
+          .filter(n => n && n.type === 'forkNode') as IForkNode[];
 
-        if (iter) {
-          const results = [];
-          for (const args of iter) {
-            const rs = await getResults(args);
-            if (rs.length === 1 && nextNode.type !== 'functionRouterNode') {
-              results.push(rs[0]);
-            } else {
-              results.push(rs)
+        let shouldProcessFunction = true;
+
+        if (directForkNodes.length > 0) {
+          // This function node is directly connected to a fork node
+          // Check if the function name matches the fork condition
+          for (const forkNode of directForkNodes) {
+            // Execute the fork code to get the function, then call it
+            const fork = eval(`(${forkNode.forkCode})`);
+            const forkFunctionName = fork(myargs);
+            if (func.name !== forkFunctionName) {
+              shouldProcessFunction = false;
+              break;
             }
-          }
-          res = merge(res, { results });
-        } else {
-          const results = await getResults(myargs);
-          if (results.length === 1 && nextNode.type !== 'functionRouterNode') {
-            res = merge(res, results[0]);
-          } else {
-            res = merge(res, { results });
           }
         }
 
+        if (!shouldProcessFunction) {
+          // Skip processing this function as it doesn't match the fork condition
+          res = merge(res, myargs);
+        } else {
+          const getResults = async (args: any) => {
+            const { messages } = await callFunction(func, args, functions);
+            return messages.map((message: any) => {
+              const call = message.function_call;
+              if (call) {
+                let parsedArgs = JSON.parse(call.arguments);
+
+                // TODO: for Anthropic
+                if ('input' in parsedArgs) {
+                  parsedArgs = parsedArgs.input;
+                }
+
+                if (nextNode.type === 'functionRouterNode') {
+                  return { ...call, arguments: parsedArgs };
+                }
+                return parsedArgs;
+              }
+              const tool_calls = message.tool_calls;
+              if (tool_calls) {
+                let parsedArgs = JSON.parse(tool_calls[0].function.arguments);
+
+                // TODO: for Anthropic
+                if ('input' in parsedArgs) {
+                  parsedArgs = parsedArgs.input;
+                }
+
+                if (nextNode.type === 'functionRouterNode') {
+                  return { ...tool_calls[0].function, arguments: parsedArgs };
+                }
+                return parsedArgs;
+              }
+              return { content: message.content };
+            });
+          };
+
+          if (iter) {
+            const results = [];
+            for (const args of iter) {
+              const rs = await getResults(args);
+              if (rs.length === 1 && nextNode.type !== 'functionRouterNode') {
+                results.push(rs[0]);
+              } else {
+                results.push(rs);
+              }
+            }
+            res = merge(res, { results });
+          } else {
+            const results = await getResults(myargs);
+            if (results.length === 1 && nextNode.type !== 'functionRouterNode') {
+              res = merge(res, results[0]);
+            } else {
+              res = merge(res, { results });
+            }
+          }
+        }
       } else if (node.type === 'functionRouterNode') {
         if (TOOL_CAPABLE_NODES.includes(nextNode.type) && myargs.results?.length) {
           const tool = nextNode as IToolCapable;
           const name = tool.name;
-          logger.debug('^^^^^^^^^^^^^^^^^^^^^^ name:', name)
+          logger.debug('^^^^^^^^^^^^^^^^^^^^^^ name:', name);
           for (const r of myargs.results) {
-            logger.debug('^^^^^^^^^^^^^^^^^^^^^^ r:', r)
+            logger.debug('^^^^^^^^^^^^^^^^^^^^^^ r:', r);
             if (r.name.toLowerCase() === name.toLowerCase()) {
               res = merge(res, r.arguments);
               break;
             }
           }
         }
-
       } else if (node.type === 'indexNode') {
         let indexNode = node as IIndexNode;
         index = indexNode.index;
         ragPipeline[node.type] = node;
-
       } else if (node.type === 'joinerNode') {
         res = merge(res, myargs);
-
       } else if (node.type === 'loopNode') {
         let loopNode = node as ILoopNode;
         res = merge(res, myargs);
         it = res[loopNode.loopVar];
         aggVar = loopNode.aggregationVar;
-
       } else if (node.type === 'mapperNode') {
         const mapperNode = node as IMapperNode;
         const mappingTemplate = mapperNode.mappingTemplate;
@@ -265,11 +313,9 @@ export class Composition {
         }
         const response = await this.mapArgs(source, myargs, mappingTemplate, isBatch);
         res = merge(res, response);
-
       } else if (node.type === 'sourceNode') {
         let dataSourceNode = node as IDataSourceNode;
         dataSource = dataSourceNode.dataSource;
-
       } else if (node.type === 'toolNode') {
         let toolNode = node as IToolNode;
         let tool = toolNode.tool;
@@ -290,21 +336,27 @@ export class Composition {
           let response = await tool.call(myargs, toolNode.raw);
           res = merge(res, response);
         }
-
+      } else if (node.type === 'forkNode') {
+        // Fork nodes just pass through the arguments
+        // The fork logic is handled by directly connected function nodes
+        res = merge(res, myargs);
       } else if (ragPipelineNodes.includes(node.type)) {
         ragPipeline[node.type] = node;
         res = merge(res, myargs);
-
       } else {
         res = merge(res, myargs);
       }
 
       return { aggregationVar: aggVar, iter: it, myargs: res, reverseErrorFlowSource: null };
-    }
+    };
 
     let resultCache: Map<string, InnerResult> = new Map();
 
-    const innerError = async (node: Node, response: InnerResult, errorSourceId: string): Promise<InnerResult> => {
+    const innerError = async (
+      node: Node,
+      response: InnerResult,
+      errorSourceId: string
+    ): Promise<InnerResult> => {
       logger.debug('!!!! process node:', node.type);
       if (node.type === 'outputNode') {
         return { aggregationVar: null, iter: null, myargs: args, reverseErrorFlowSource: null };
@@ -339,7 +391,6 @@ export class Composition {
           aggVar = response.aggregationVar;
           it = response.iter;
           res = response.myargs;
-
         } catch (err) {
           let message = err.message;
           if (err.stack) {
@@ -347,7 +398,8 @@ export class Composition {
           }
           logger.error(message);
           if (errorTargetIds.length) {
-            for (let errorTargetId of errorTargetIds) {  // there should be 0 or 1
+            for (let errorTargetId of errorTargetIds) {
+              // there should be 0 or 1
               let targetNode = this.nodes.find(n => n.id === errorTargetId);
               if (!targetNode) {
                 let message = `Target node (${errorTargetId}) not found.`;
@@ -366,7 +418,7 @@ export class Composition {
         }
       }
       return { aggregationVar: aggVar, iter: it, myargs: res, reverseErrorFlowSource: null };
-    }
+    };
 
     const inner = async (node: Node, nextNode: Node = null): Promise<InnerResult> => {
       logger.debug('==== process node:', node.type);
@@ -377,9 +429,7 @@ export class Composition {
       ret = resultCache[node.id];
       if (!ret) {
         // if (true) {
-        const sourceIds = this.edges
-          .filter(e => e.target === node.id)
-          .map(e => e.source);
+        const sourceIds = this.edges.filter(e => e.target === node.id).map(e => e.source);
 
         const errorTargetIds = this.edges
           .filter(e => e.source === node.id && e.sourceHandle === 'error')
@@ -419,11 +469,7 @@ export class Composition {
           }
 
           const isReverseErrorFlow = this.edges.some(e => {
-            return (
-              e.target === node.id &&
-              e.source === sourceId &&
-              e.sourceHandle === 'error'
-            );
+            return e.target === node.id && e.source === sourceId && e.sourceHandle === 'error';
           });
           logger.debug('==== isReverseErrorFlow:', isReverseErrorFlow);
           if (isReverseErrorFlow) {
@@ -438,13 +484,14 @@ export class Composition {
             if (response.reverseErrorFlowSource && response.reverseErrorFlowSource === node.id) {
               return { aggregationVar: aggVar, iter: it, myargs: res, reverseErrorFlowSource: null };
             }
-            logger.debug('********************** node:', node)
-            logger.debug('********************** res:', res)
+            logger.debug('********************** node:', node.type);
+            logger.debug('********************** res:', res);
             response = await executeNode(node, sourceNode, nextNode, response, res);
             logger.debug('$$$$$$$$$$$$$$$$$$$$$$ response:', response);
             if (response.myargs.error) {
               if (errorTargetIds.length) {
-                for (let errorTargetId of errorTargetIds) {  // there should be 0 or 1
+                for (let errorTargetId of errorTargetIds) {
+                  // there should be 0 or 1
                   let targetNode = this.nodes.find(n => n.id === errorTargetId);
                   if (!targetNode) {
                     let message = `Target node (${errorTargetId}) not found.`;
@@ -466,7 +513,6 @@ export class Composition {
               it = response.iter;
               res = response.myargs;
             }
-
           } catch (err) {
             let message = err.message;
             if (err.stack) {
@@ -474,7 +520,8 @@ export class Composition {
             }
             logger.error(message);
             if (errorTargetIds.length) {
-              for (let errorTargetId of errorTargetIds) {  // there should be 0 or 1
+              for (let errorTargetId of errorTargetIds) {
+                // there should be 0 or 1
                 let targetNode = this.nodes.find(n => n.id === errorTargetId);
                 if (!targetNode) {
                   let message = `Target node (${errorTargetId}) not found.`;
@@ -497,7 +544,7 @@ export class Composition {
         resultCache[node.id] = ret;
       }
       return ret;
-    }
+    };
 
     try {
       const output = this.nodes.find(n => n.type === 'outputNode');
@@ -570,7 +617,6 @@ export class Composition {
 
       this.onEnd({ response });
       return { response };
-
     } catch (err) {
       const errors = err.errors || [{ message: String(err) }];
       this.onEnd({ errors });
@@ -644,7 +690,6 @@ export class Composition {
     }
     throw new CompositionError(message);
   }
-
 }
 
 const getExtractorProvider = (ds: any) => {
@@ -691,15 +736,21 @@ export interface ICompositionNode extends IToolCapable {
   composition: Composition;
 }
 
-export const composition = (name: string, nodes: Node[], edges: IEdge[], pipelinesService: any, callbacks: Callback[]) => {
+export const composition = (
+  name: string,
+  nodes: Node[],
+  edges: IEdge[],
+  pipelinesService: any,
+  callbacks: Callback[]
+) => {
   return new Composition({
     name,
     nodes,
     edges,
     pipelinesService,
-    callbacks
+    callbacks,
   });
-}
+};
 
 interface ExtractorNodeParams {
   extractor: string;
@@ -743,7 +794,6 @@ interface LoaderNodeParams {
 }
 
 class Edge implements IEdge {
-
   id: string;
   source: string;
   sourceHandle: string;
@@ -755,11 +805,9 @@ class Edge implements IEdge {
     this.sourceHandle = sourceHandle;
     this.target = target;
   }
-
 }
 
 class AgentNode implements IAgentNode {
-
   id: string;
   type: string;
   agent: AgentRuntime;
@@ -773,11 +821,9 @@ class AgentNode implements IAgentNode {
   get name(): string {
     return this.agent.name;
   }
-
 }
 
 class CompositionNode implements ICompositionNode {
-
   id: string;
   type: string;
   composition: Composition;
@@ -791,11 +837,9 @@ class CompositionNode implements ICompositionNode {
   get name(): string {
     return this.composition.name;
   }
-
 }
 
 class DataSourceNode implements IDataSourceNode {
-
   id: string;
   type: string;
   dataSource: any;
@@ -805,11 +849,9 @@ class DataSourceNode implements IDataSourceNode {
     this.type = 'sourceNode';
     this.dataSource = dataSource;
   }
-
 }
 
 class EmbeddingNode implements IEmbeddingNode {
-
   id: string;
   type: string;
   embeddingModel: EmbeddingModel;
@@ -825,11 +867,9 @@ class EmbeddingNode implements IEmbeddingNode {
       embeddingModel: this.embeddingModel,
     };
   }
-
 }
 
 class ExtractorNode implements IExtractorNode {
-
   id: string;
   type: string;
   extractor: string;
@@ -888,11 +928,9 @@ class ExtractorNode implements IExtractorNode {
       chunkOverlap: this.chunkOverlap,
     };
   }
-
 }
 
 class FunctionNode implements IFunctionNode {
-
   id: string;
   type: string;
   func: SemanticFunction;
@@ -907,11 +945,9 @@ class FunctionNode implements IFunctionNode {
   get name(): string {
     return this.func.name;
   }
-
 }
 
 class FunctionRouterNode implements IFunctionRouterNode {
-
   id: string;
   type: string;
   functions: Function[];
@@ -925,11 +961,9 @@ class FunctionRouterNode implements IFunctionRouterNode {
   addFunction(func: Function) {
     this.functions.push(func);
   }
-
 }
 
 class GraphStoreNode implements IGraphStoreNode {
-
   id: string;
   type: string;
   graphStoreProvider: string;
@@ -945,11 +979,9 @@ class GraphStoreNode implements IGraphStoreNode {
       graphStoreProvider: this.graphStoreProvider,
     };
   }
-
 }
 
 class IndexNode implements IIndexNode {
-
   id: string;
   type: string;
   index: any;
@@ -965,11 +997,9 @@ class IndexNode implements IIndexNode {
       index: this.index,
     };
   }
-
 }
 
 class JoinerNode implements IJoinerNode {
-
   id: string;
   type: string;
 
@@ -977,11 +1007,9 @@ class JoinerNode implements IJoinerNode {
     this.id = id;
     this.type = 'joinerNode';
   }
-
 }
 
 class LoaderNode implements ILoaderNode {
-
   id: string;
   type: string;
   loader: string;
@@ -1029,11 +1057,9 @@ class LoaderNode implements ILoaderNode {
       spaceKey: this.spaceKey,
     };
   }
-
 }
 
 class LoopNode implements ILoopNode {
-
   id: string;
   type: string;
   loopVar: string;
@@ -1045,11 +1071,9 @@ class LoopNode implements ILoopNode {
     this.loopVar = loopVar;
     this.aggregationVar = aggregationVar;
   }
-
 }
 
 class MapperNode implements IMapperNode {
-
   id: string;
   type: string;
   mappingTemplate: string;
@@ -1059,11 +1083,9 @@ class MapperNode implements IMapperNode {
     this.type = 'mapperNode';
     this.mappingTemplate = mappingTemplate;
   }
-
 }
 
 class OutputNode implements IOutputNode {
-
   id: string;
   type: string;
 
@@ -1071,11 +1093,9 @@ class OutputNode implements IOutputNode {
     this.id = id;
     this.type = 'outputNode';
   }
-
 }
 
 class RequestNode implements IRequestNode {
-
   id: string;
   type: string;
   argsSchema: object;
@@ -1085,11 +1105,9 @@ class RequestNode implements IRequestNode {
     this.type = 'requestNode';
     this.argsSchema = argsSchema;
   }
-
 }
 
 class ScheduleNode implements IScheduleNode {
-
   id: string;
   type: string;
   schedule: any;
@@ -1099,11 +1117,9 @@ class ScheduleNode implements IScheduleNode {
     this.type = 'scheduleNode';
     this.schedule = schedule;
   }
-
 }
 
 class ToolNode implements IToolNode {
-
   id: string;
   type: string;
   tool: Tool;
@@ -1119,11 +1135,9 @@ class ToolNode implements IToolNode {
   get name(): string {
     return this.tool.__name;
   }
-
 }
 
 class TransformerNode implements ITransformerNode {
-
   id: string;
   type: string;
   functionId: number;
@@ -1139,11 +1153,27 @@ class TransformerNode implements ITransformerNode {
       functionId: this.functionId,
     };
   }
+}
 
+class ForkNode implements IForkNode {
+  id: string;
+  type: string;
+  forkCode: string;
+
+  constructor(id: string, forkCode: string) {
+    this.id = id;
+    this.type = 'forkNode';
+    this.forkCode = forkCode;
+  }
+
+  getDataDict() {
+    return {
+      forkCode: this.forkCode,
+    };
+  }
 }
 
 class VectorStoreNode implements IVectorStoreNode {
-
   id: string;
   type: string;
   vectorStoreProvider: string;
@@ -1162,7 +1192,6 @@ class VectorStoreNode implements IVectorStoreNode {
       newIndexName: this.newIndexName,
     };
   }
-
 }
 
 export const edge = (id: string, source: string, sourceHandle: string, target: string) => {
@@ -1215,7 +1244,7 @@ export const loopNode = (id: string, loopVar: string, aggregationVar: string) =>
 
 export const mapperNode = (id: string, mappingTemplate: string) => {
   return new MapperNode(id, mappingTemplate);
-}
+};
 
 export const outputNode = (id: string) => {
   return new OutputNode(id);
@@ -1243,4 +1272,8 @@ export const transformerNode = (id: string, functionId: number) => {
 
 export const vectorStoreNode = (id: string, vectorStoreProvider: string, newIndexName: string) => {
   return new VectorStoreNode(id, vectorStoreProvider, newIndexName);
+};
+
+export const forkNode = (id: string, forkCode: string) => {
+  return new ForkNode(id, forkCode);
 };

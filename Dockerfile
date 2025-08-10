@@ -1,10 +1,10 @@
-FROM node:20.9
+FROM node:16-bullseye
 
-RUN apt-get update && \
-    apt-get install -y graphicsmagick libpango1.0-dev && \
-    wget -O ghostscript-fonts-std-8.11.tar.gz https://sourceforge.net/projects/gs-fonts/files/gs-fonts/8.11%20%28base%2035%2C%20GPL%29/ghostscript-fonts-std-8.11.tar.gz/download && \
-    mkdir /usr/share/fonts/type1/gsfonts && \
-    tar xf ghostscript-fonts-std-8.11.tar.gz -C /usr/share/fonts/type1/gsfonts --strip-components=1
+# RUN apt-get update && \
+#     apt-get install -y graphicsmagick libpango1.0-dev && \
+#     wget -O ghostscript-fonts-std-8.11.tar.gz https://sourceforge.net/projects/gs-fonts/files/gs-fonts/8.11%20%28base%2035%2C%20GPL%29/ghostscript-fonts-std-8.11.tar.gz/download && \
+#     mkdir /usr/share/fonts/type1/gsfonts && \
+#     tar xf ghostscript-fonts-std-8.11.tar.gz -C /usr/share/fonts/type1/gsfonts --strip-components=1
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -17,8 +17,8 @@ COPY ./backend/tsconfig.json ./
 COPY ./backend/scripts/wait-for-it.sh ./
 RUN chmod +x wait-for-it.sh
 
-RUN npx playwright install-deps
-RUN npx playwright install
+# RUN npx playwright install-deps
+# RUN npx playwright install
 
 RUN npm install --legacy-peer-deps
 # If you are building your code for production
@@ -35,6 +35,7 @@ COPY ./backend/src/workflow ./workflow
 COPY ./backend/src/app.js .
 COPY ./backend/src/db.js .
 COPY ./backend/src/initSearchIndex.js .
+COPY ./backend/src/jsonToMarkdown.js .
 COPY ./backend/src/logger.js .
 COPY ./backend/src/searchableObjects.js .
 COPY ./backend/src/searchFunctions.js .

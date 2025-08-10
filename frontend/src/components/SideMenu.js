@@ -144,7 +144,7 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
             {
               key: 'composer',
               icon: <ApartmentOutlined />,
-              label: <NavLink to="/compositions">Compositions</NavLink>,
+              label: <NavLink to="/compositions">Workflows</NavLink>,
             },
             {
               key: 'models',
@@ -243,14 +243,15 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
     ];
   }
 
-  const governanceMenuItems = [
-    {
+  const governanceMenuItems = [];
+  if (isWorkspaceSelected) {
+    governanceMenuItems.push({
       key: 'traces',
       icon: <NodeIndexOutlined />,
       style: { display: 'flex', alignItems: 'center' },
       label: <NavLink to="/traces">Traces</NavLink>,
-    },
-  ];
+    });
+  }
   if (currentUser?.roles?.includes('admin')) {
     governanceMenuItems.push(
       {

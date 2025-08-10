@@ -14,6 +14,11 @@ import {
   updateAppAsync,
 } from './appsSlice';
 import {
+  getCompositionsAsync,
+  selectLoading as selectCompositionsLoading,
+  selectCompositions,
+} from '../composer/compositionsSlice';
+import {
   getFunctionsAsync,
   selectLoading as selectFunctionsLoading,
   selectFunctions,
@@ -27,6 +32,10 @@ const layout = {
 };
 
 const appTypeOptions = [
+  {
+    value: 'app',
+    label: 'App',
+  },
   {
     value: 'analyst',
     label: 'Analyst',
@@ -43,10 +52,21 @@ export function AppFormNew() {
 
   const apps = useSelector(selectApps);
   const loaded = useSelector(selectLoaded);
-  const functions = useSelector(selectFunctions);
+  const compositionsLoading = useSelector(selectCompositionsLoading);
+  const compositions = useSelector(selectCompositions);
   const functionsLoading = useSelector(selectFunctionsLoading);
+  const functions = useSelector(selectFunctions);
 
   const allowUploadValue = Form.useWatch('allowUpload', form);
+
+  const compositionOptions = useMemo(() => {
+    const list = Object.values(compositions).map(c => ({
+      value: c.id,
+      label: c.name,
+    }));
+    list.sort((a, b) => (a.label < b.label ? -1 : 1));
+    return list;
+  }, [compositions]);
 
   const functionOptions = useMemo(() => {
     const list = Object.values(functions).map((f) => ({
@@ -82,6 +102,7 @@ export function AppFormNew() {
   useEffect(() => {
     if (selectedWorkspace) {
       const workspaceId = selectedWorkspace.id;
+      dispatch(getCompositionsAsync({ workspaceId }));
       dispatch(getFunctionsAsync({ workspaceId }));
     }
   }, [selectedWorkspace]);
@@ -170,6 +191,14 @@ export function AppFormNew() {
                 options={functionOptions}
                 optionFilterProp="label"
                 loading={functionsLoading}
+              />
+            </Form.Item>
+            <Form.Item label="Workflow" name="composition">
+              <Select
+                allowClear
+                options={compositionOptions}
+                optionFilterProp="label"
+                loading={compositionsLoading}
               />
             </Form.Item>
             <Form.Item

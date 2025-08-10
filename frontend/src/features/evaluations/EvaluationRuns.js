@@ -2,23 +2,17 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import { Card, Descriptions, Layout, Statistic, Table, Typography } from 'antd';
-import {
-  CheckOutlined,
-  CloseOutlined,
-} from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import * as dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import Highcharts from 'highcharts'
+import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 
 import { JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 import { convertContentTypeToString, decodeEntities } from '../../utils';
-import {
-  getFunctionAsync,
-  selectFunctions,
-} from '../functions/functionsSlice';
+import { getFunctionAsync, selectFunctions } from '../functions/functionsSlice';
 import {
   getTrainingDataByIdAsync,
   selectLoading as selectTrainingDataLoading,
@@ -26,12 +20,7 @@ import {
 } from '../training/trainingSlice';
 import { formatPercentage } from '../../utils';
 
-import {
-  getEvaluationAsync,
-  selectLoaded,
-  selectLoading,
-  selectEvaluations,
-} from './evaluationsSlice';
+import { getEvaluationAsync, selectLoaded, selectLoading, selectEvaluations } from './evaluationsSlice';
 
 dayjs.extend(customParseFormat);
 
@@ -81,7 +70,6 @@ const criteriaOptions = [
 ];
 
 export function EvaluationRuns() {
-
   const [selectedRun, setSelectedRun] = useState(null);
 
   const evaluations = useSelector(selectEvaluations);
@@ -113,14 +101,14 @@ export function EvaluationRuns() {
         numberFailed: run.numberFailed,
         embedding: run.embedding,
       }));
-      list.sort((a, b) => a.runDate > b.runDate ? -1 : 1);
+      list.sort((a, b) => (a.runDate > b.runDate ? -1 : 1));
       return list;
     }
     return [];
   }, [evaluation]);
 
   const data = useMemo(() => {
-    const list = Object.values(trainingData).map((row) => {
+    const list = Object.values(trainingData).map(row => {
       const outputType = row.outputType;
       let response;
       if (outputType === 'function_call') {
@@ -137,13 +125,13 @@ export function EvaluationRuns() {
         functionName: row.functionName,
       };
     });
-    list.sort((a, b) => a.key > b.key ? 1 : -1);
+    list.sort((a, b) => (a.key > b.key ? 1 : -1));
     return list;
   }, [trainingData]);
 
   const criterion = useMemo(() => {
     if (evaluation) {
-      const opt = criteriaOptions.find(o => o.value === evaluation.criteria);
+      const opt = criteriaOptions.find(o => o.value === evaluation.criterion);
       if (opt) {
         return opt.label;
       }
@@ -170,7 +158,7 @@ export function EvaluationRuns() {
   }, [evaluation]);
 
   useEffect(() => {
-    setNavbarState((state) => ({
+    setNavbarState(state => ({
       ...state,
       createLink: null,
       title: 'Evaluation Runs',
@@ -179,15 +167,15 @@ export function EvaluationRuns() {
   }, []);
 
   useEffect(() => {
-    if (evaluation) {
+    if (selectedWorkspace?.id && evaluation) {
       if (evaluation.completionFunction) {
-        dispatch(getFunctionAsync(evaluation.completionFunction));
+        dispatch(getFunctionAsync({ id: evaluation.completionFunction, workspaceId: selectedWorkspace.id }));
       }
       if (evaluation.evalFunction) {
-        dispatch(getFunctionAsync(evaluation.evalFunction));
+        dispatch(getFunctionAsync({ id: evaluation.evalFunction, workspaceId: selectedWorkspace.id }));
       }
     }
-  }, [evaluation]);
+  }, [selectedWorkspace?.id, evaluation]);
 
   useEffect(() => {
     if (runs.length) {
@@ -205,7 +193,7 @@ export function EvaluationRuns() {
     }
   }, [selectedRun]);
 
-  const openRun = (key) => {
+  const openRun = key => {
     const run = runs.find(r => r.key === key);
     setSelectedRun(run);
   };
@@ -222,11 +210,8 @@ export function EvaluationRuns() {
       dataIndex: 'prompt',
       className: 'top',
       render: (_, { prompt }) => (
-        <Typography.Paragraph
-          ellipsis={{ expandable: true, rows: 2 }}
-          style={{ whiteSpace: 'pre-wrap' }}
-        >
-          {decodeEntities(convertContentTypeToString(prompt.messages?.[0].content).trim())}
+        <Typography.Paragraph ellipsis={{ expandable: true, rows: 2 }} style={{ whiteSpace: 'pre-wrap' }}>
+          {decodeEntities(convertContentTypeToString(prompt?.messages?.[0].content).trim())}
         </Typography.Paragraph>
       ),
     },
@@ -239,10 +224,7 @@ export function EvaluationRuns() {
           return <JsonView src={response} />;
         } else {
           return (
-            <Typography.Paragraph
-              ellipsis={{ expandable: true, rows: 2 }}
-              style={{ whiteSpace: 'pre-wrap' }}
-            >
+            <Typography.Paragraph ellipsis={{ expandable: true, rows: 2 }} style={{ whiteSpace: 'pre-wrap' }}>
               {response?.trim()}
             </Typography.Paragraph>
           );
@@ -256,10 +238,7 @@ export function EvaluationRuns() {
       title: 'Date',
       dataIndex: 'runDate',
       render: (_, { key, runDate }) => (
-        <Link
-          onClick={() => openRun(key)}
-          style={{ whiteSpace: 'nowrap' }}
-        >
+        <Link onClick={() => openRun(key)} style={{ whiteSpace: 'nowrap' }}>
           {dayjs(runDate).format('YYYY-MM-DD')}
         </Link>
       ),
@@ -269,9 +248,7 @@ export function EvaluationRuns() {
       dataIndex: 'numberTests',
       align: 'right',
       render: (_, { numberTests }) => (
-        <div style={{ whiteSpace: 'nowrap' }}>
-          {numberFormatter.format(numberTests)}
-        </div>
+        <div style={{ whiteSpace: 'nowrap' }}>{numberFormatter.format(numberTests)}</div>
       ),
     },
     {
@@ -279,17 +256,17 @@ export function EvaluationRuns() {
       dataIndex: 'percentPassed',
       align: 'right',
       render: (_, { percentPassed }) => (
-        <div style={{ whiteSpace: 'nowrap' }}>
-          {formatPercentage(percentPassed)}
-        </div>
+        <div style={{ whiteSpace: 'nowrap' }}>{formatPercentage(percentPassed)}</div>
       ),
     },
   ];
 
   const chartOptions = useMemo(() => {
     if (selectedRun?.embedding) {
-      const yMax = Math.ceil(selectedRun.embedding.map(e => Math.abs(e[0])).reduce((a, x) => Math.max(a, x), 0)) + 2;
-      const xMax = Math.ceil(selectedRun.embedding.map(e => Math.abs(e[1])).reduce((a, x) => Math.max(a, x), 0)) + 2;
+      const yMax =
+        Math.ceil(selectedRun.embedding.map(e => Math.abs(e[0])).reduce((a, x) => Math.max(a, x), 0)) + 2;
+      const xMax =
+        Math.ceil(selectedRun.embedding.map(e => Math.abs(e[1])).reduce((a, x) => Math.max(a, x), 0)) + 2;
       const series = [{ data: selectedRun.embedding }];
       // console.log('series:', series);
       return {
@@ -317,21 +294,21 @@ export function EvaluationRuns() {
               states: {
                 hover: {
                   enabled: true,
-                  lineColor: 'rgb(100,100,100)'
-                }
-              }
+                  lineColor: 'rgb(100,100,100)',
+                },
+              },
             },
             states: {
               hover: {
                 marker: {
-                  enabled: false
-                }
-              }
+                  enabled: false,
+                },
+              },
             },
             jitter: {
-              x: 0.005
-            }
-          }
+              x: 0.005,
+            },
+          },
         },
         tooltip: {
           pointFormatter: function () {
@@ -353,57 +330,34 @@ export function EvaluationRuns() {
   // console.log('selectedRun:', selectedRun);
 
   if (!loaded) {
-    return <div style={{ marginTop: 20 }}>Loading...</div>
+    return <div style={{ marginTop: 20 }}>Loading...</div>;
   }
   return (
     <div style={{ marginTop: 20 }}>
       <Descriptions title="Data Selection Criteria">
-        {evaluation.model ?
-          <Descriptions.Item label="Model">
-            {evaluation.model}
-          </Descriptions.Item>
-          : null
-        }
-        {evaluation.completionFunction ?
+        {evaluation.model ? <Descriptions.Item label="Model">{evaluation.model}</Descriptions.Item> : null}
+        {evaluation.completionFunction ? (
           <Descriptions.Item label="Completion function">
             {functions?.[evaluation.completionFunction]?.name}
           </Descriptions.Item>
-          : null
-        }
-        {dates ?
-          <Descriptions.Item label="Dates">
-            {dates}
-          </Descriptions.Item>
-          : null
-        }
+        ) : null}
+        {dates ? <Descriptions.Item label="Dates">{dates}</Descriptions.Item> : null}
       </Descriptions>
       <Descriptions title="Evaluation Parameters">
-        {evaluation.evalFunction ?
+        {evaluation.evalFunction ? (
           <Descriptions.Item label="Evaluation function">
             {functions?.[evaluation.evalFunction]?.name}
           </Descriptions.Item>
-          : null
-        }
-        <Descriptions.Item label="Criterion">
-          {criterion}
-        </Descriptions.Item>
+        ) : null}
+        <Descriptions.Item label="Criterion">{criterion}</Descriptions.Item>
       </Descriptions>
       <Descriptions title="Runs" />
       <Layout>
-        <Sider
-          style={{ height: '100%', marginRight: 20 }}
-          width={300}
-          theme="light"
-        >
-          <Table
-            columns={runColumns}
-            dataSource={runs}
-            loading={loading}
-            pagination={false}
-          />
+        <Sider style={{ height: '100%', marginRight: 20 }} width={300} theme="light">
+          <Table columns={runColumns} dataSource={runs} loading={loading} pagination={false} />
         </Sider>
         <Content>
-          {selectedRun ?
+          {selectedRun ? (
             <>
               <Typography.Title level={2}>
                 {dayjs(selectedRun.runDate).format('YYYY-MM-DD HH:mm:ss')}
@@ -417,48 +371,27 @@ export function EvaluationRuns() {
                   />
                 </Card>
                 <Card style={{ width: 155 }}>
-                  <Statistic
-                    title="Number of tests"
-                    value={selectedRun.numberTests}
-                  />
+                  <Statistic title="Number of tests" value={selectedRun.numberTests} />
                 </Card>
                 <Card style={{ width: 155 }}>
-                  <Statistic
-                    title="Pass Rate"
-                    value={formatPercentage(selectedRun.percentPassed)}
-                  />
+                  <Statistic title="Pass Rate" value={formatPercentage(selectedRun.percentPassed)} />
                 </Card>
-                {!selectedRun.allTestsPassed ?
+                {!selectedRun.allTestsPassed ? (
                   <Card style={{ width: 155 }}>
-                    <Statistic
-                      title="Number failed"
-                      value={selectedRun.numberFailed}
-                    />
+                    <Statistic title="Number failed" value={selectedRun.numberFailed} />
                   </Card>
-                  : null
-                }
+                ) : null}
               </div>
-              {!selectedRun.allTestsPassed ?
-                <Table
-                  columns={columns}
-                  dataSource={data}
-                  loading={trainingDataLoading}
-                  pagination={false}
-                />
-                : null
-              }
-              {selectedRun.embedding ?
+              {!selectedRun.allTestsPassed ? (
+                <Table columns={columns} dataSource={data} loading={trainingDataLoading} pagination={false} />
+              ) : null}
+              {selectedRun.embedding ? (
                 <div style={{ marginTop: 20, width: 667, height: 400 }}>
-                  <HighchartsReact
-                    highcharts={Highcharts}
-                    options={chartOptions}
-                  />
+                  <HighchartsReact highcharts={Highcharts} options={chartOptions} />
                 </div>
-                : null
-              }
+              ) : null}
             </>
-            : null
-          }
+          ) : null}
         </Content>
       </Layout>
     </div>

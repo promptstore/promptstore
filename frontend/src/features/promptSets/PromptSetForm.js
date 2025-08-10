@@ -6,6 +6,7 @@ import {
   Collapse,
   Divider,
   Dropdown,
+  Flex,
   Form,
   Image,
   Input,
@@ -26,6 +27,8 @@ import {
   CloseOutlined,
   DownloadOutlined,
   LoadingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   MoreOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
@@ -50,6 +53,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as dayjs from 'dayjs';
 import omit from 'lodash.omit';
 import snakeCase from 'lodash.snakecase';
+import useLocalStorageState from 'use-local-storage-state';
 
 import Download from '../../components/Download';
 import { SchemaModalInput } from '../../components/SchemaModalInput';
@@ -152,18 +156,18 @@ function SortableItem({ field, index, remove }) {
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <Flex gap={4} ref={setNodeRef} style={style}>
       <div style={{ flex: 1 }}>
         <Form.Item {...field} name={[field.name, 'prompt']}>
           <PromptField attributes={attributes} listeners={listeners} />
         </Form.Item>
       </div>
-      <div style={{ width: 100, marginLeft: 8 }}>
+      <div style={{ marginLeft: 4, width: 100 }}>
         <Form.Item name={[field.name, 'role']} initialValue="user">
           <Select allowClear optionFilterProp="label" options={roleOptions} placeholder="Role" />
         </Form.Item>
       </div>
-      <div style={{ width: 32, marginLeft: 0 }}>
+      <div style={{ width: 32 }}>
         <Button
           type="text"
           icon={<CloseOutlined />}
@@ -171,12 +175,13 @@ function SortableItem({ field, index, remove }) {
           onClick={() => remove(field.name)}
         />
       </div>
-    </div>
+    </Flex>
   );
 }
 
 export function PromptSetForm() {
   const [backOnSave, setBackOnSave] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorageState('ps-versions', { defaultValue: false });
   const [correlationId, setCorrelationId] = useState(null);
   const [existingTags, setExistingTags] = useState([]);
   const [newSkill, setNewSkill] = useState('');
@@ -887,7 +892,16 @@ export function PromptSetForm() {
       />
       <div id="promptset-form" style={{ marginTop: 20 }}>
         <Layout>
-          <Sider style={{ height: 'fit-content', marginRight: 20 }} width={250} theme="light">
+          <Sider
+            collapsible
+            collapsedWidth={0}
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
+            style={{ height: 'fit-content', marginRight: collapsed ? 0 : 20 }}
+            theme="light"
+            trigger={null}
+            width={250}
+          >
             <div style={{ margin: '24px 8px 16px' }}>
               <Space>
                 <Button danger type="primary" size="small" disabled={!hasSelected} onClick={handleRollback}>
@@ -941,21 +955,37 @@ export function PromptSetForm() {
           </Sider>
           <Content>
             <Form
-              {...layout}
               form={form}
+              layout="vertical"
               name="promptSets"
               autoComplete="off"
               onFinish={onFinish}
               initialValues={promptSet}
             >
-              <Form.Item wrapperCol={{ span: 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 16 }}>
+              <Form.Item wrapperCol={{ span: 24 }} style={{ marginBottom: 0 }}>
+                <Flex align="center" gap={16}>
+                  <div style={{ marginBottom: 10, marginLeft: -8 }}>
+                    <Button
+                      type="text"
+                      icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                      onClick={() => setCollapsed(!collapsed)}
+                      style={{
+                        fontSize: '14px',
+                        width: 32,
+                        height: 32,
+                      }}
+                    />
+                    <span>Versions</span>
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <Link to={`/prompt-sets`}>List</Link>
+                  <Link to={`/prompt-sets/${id}`}>View</Link>
                   {!isNew ? (
                     <>
                       <Dropdown
                         arrow
                         className="action-link"
-                        placement="bottom"
+                        placement="bottomLeft"
                         menu={{
                           items: [
                             {
@@ -982,11 +1012,9 @@ export function PromptSetForm() {
                       >
                         <MoreOutlined />
                       </Dropdown>
-                      <Link to={`/prompt-sets/${id}`}>View</Link>
                     </>
                   ) : null}
-                  <Link to={`/prompt-sets`}>List</Link>
-                </div>
+                </Flex>
               </Form.Item>
               <Form.Item
                 label="Name"
@@ -1001,99 +1029,99 @@ export function PromptSetForm() {
               >
                 <Input />
               </Form.Item>
-              <Form.Item label="Skill" required>
+              <Form.Item
+                label="Skill"
+                name="skill"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please select a type',
+                  },
+                ]}
+                style={{ display: 'inline-block', margin: 0, width: 300 }}
+              >
+                <Select
+                  allowClear
+                  options={skillOptions}
+                  optionFilterProp="label"
+                  dropdownRender={menu => (
+                    <>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space style={{ padding: '0 8px 4px' }}>
+                        <Input
+                          placeholder="Please enter new skill"
+                          ref={newSkillInputRef}
+                          value={newSkill}
+                          onChange={onNewSkillChange}
+                        />
+                        <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
+                          Add skill
+                        </Button>
+                      </Space>
+                    </>
+                  )}
+                />
+              </Form.Item>
+              <Form.Item
+                label="Template"
+                name="isTemplate"
+                valuePropName="checked"
+                style={{ display: 'inline-block', marginLeft: 8 }}
+              >
+                <Switch />
+              </Form.Item>
+              {currentUser?.roles?.includes('admin') ? (
                 <Form.Item
-                  name="skill"
-                  rules={[
-                    {
-                      required: true,
-                      message: 'Please select a type',
-                    },
-                  ]}
-                  style={{ display: 'inline-block', margin: 0, width: 300 }}
-                >
-                  <Select
-                    allowClear
-                    options={skillOptions}
-                    optionFilterProp="label"
-                    dropdownRender={menu => (
-                      <>
-                        {menu}
-                        <Divider style={{ margin: '8px 0' }} />
-                        <Space style={{ padding: '0 8px 4px' }}>
-                          <Input
-                            placeholder="Please enter new skill"
-                            ref={newSkillInputRef}
-                            value={newSkill}
-                            onChange={onNewSkillChange}
-                          />
-                          <Button type="text" icon={<PlusOutlined />} onClick={addNewSkill}>
-                            Add skill
-                          </Button>
-                        </Space>
-                      </>
-                    )}
-                  />
-                </Form.Item>
-                <Form.Item
-                  label="Template"
-                  name="isTemplate"
+                  label="Public"
+                  name="isPublic"
                   valuePropName="checked"
-                  style={{ display: 'inline-block', margin: '0 0 0 16px' }}
+                  style={{ display: 'inline-block', marginLeft: 8 }}
                 >
                   <Switch />
                 </Form.Item>
-                {currentUser?.roles?.includes('admin') ? (
-                  <Form.Item
-                    label="Public"
-                    name="isPublic"
-                    valuePropName="checked"
-                    style={{ display: 'inline-block', margin: '0 0 0 16px' }}
-                  >
-                    <Switch />
-                  </Form.Item>
-                ) : null}
-              </Form.Item>
+              ) : null}
               <Form.Item label="Description" name="description" wrapperCol={{ span: 16 }}>
                 <TextArea autoSize={{ minRows: 1, maxRows: 14 }} />
               </Form.Item>
-              <Form.Item label="Environment">
-                <Form.Item name="environment" style={{ display: 'inline-block', margin: 0, width: 300 }}>
-                  <Select allowClear optionFilterProp="label" options={environmentOptions} />
-                </Form.Item>
-                <Form.Item label="Tags" name="tags" style={{ display: 'inline-block', margin: '0 0 0 16px' }}>
-                  <TagsInput existingTags={existingTags} />
-                </Form.Item>
+              <Form.Item
+                label="Environment"
+                name="environment"
+                style={{ display: 'inline-block', margin: 0, width: 300 }}
+              >
+                <Select allowClear optionFilterProp="label" options={environmentOptions} />
               </Form.Item>
-              <Form.Item label="Schema">
+              <Form.Item label="Tags" name="tags" style={{ display: 'inline-block', marginLeft: 8 }}>
+                <TagsInput existingTags={existingTags} />
+              </Form.Item>
+              <Form.Item
+                label="Schema"
+                name="isTypesDefined"
+                valuePropName="checked"
+                style={{ display: 'inline-block', marginLeft: 8 }}
+              >
+                <Switch />
+              </Form.Item>
+              {typesDefinedValue ? (
                 <Form.Item
-                  name="isTypesDefined"
-                  valuePropName="checked"
-                  style={{ display: 'inline-block', margin: 0 }}
+                  label="Variables"
+                  name="arguments"
+                  style={{ display: 'inline-block', marginLeft: 8 }}
                 >
-                  <Switch />
+                  <SchemaModalInput />
                 </Form.Item>
-                {typesDefinedValue ? (
-                  <Form.Item
-                    label="Variables"
-                    name="arguments"
-                    style={{ display: 'inline-block', margin: '0 0 0 16px' }}
-                  >
-                    <SchemaModalInput />
-                  </Form.Item>
-                ) : null}
-              </Form.Item>
+              ) : null}
               <Form.Item label="Template Engine" name="templateEngine">
                 <Radio.Group optionType="button" buttonStyle="solid" options={templateEngineOptions} />
               </Form.Item>
-              <Form.Item label="Prompts" wrapperCol={{ span: 16 }}>
+              <Form.Item label="Prompts" wrapperCol={{ span: 24 }}>
                 <Form.List name="prompts">
                   {(fields, { add, move, remove }, { errors }) => (
                     <PromptList fields={fields} add={add} move={move} remove={remove} errors={errors} />
                   )}
                 </Form.List>
               </Form.Item>
-              <Form.Item wrapperCol={{ offset: 4 }}>
+              <Form.Item>
                 <Space>
                   <Button type="default" onClick={onCancel}>
                     Cancel

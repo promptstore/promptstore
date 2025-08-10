@@ -9,6 +9,7 @@ import camelCase from 'lodash.camelcase';
 import snakeCase from 'lodash.snakecase';
 import { default as dayjs } from 'dayjs';
 import { UMAP } from 'umap-js';
+import { JSONPath } from 'jsonpath-plus';
 
 import { getDestinationSchema } from '../core/conversions/schema';
 import { EmbeddingProvider } from '../core/indexers/EmbeddingProvider';
@@ -16,6 +17,7 @@ import { GraphStore } from '../core/indexers/GraphStore';
 import { Indexer } from '../core/indexers/Indexer';
 import { Pipeline } from '../core/indexers/Pipeline';
 import { getTextStats } from '../utils';
+import { jsonToMarkdown } from '../jsonToMarkdown';
 
 const supportedMimetypes = [
   'application/pdf',
@@ -37,6 +39,36 @@ const supportedMimetypes = [
 ];
 
 const imageMimetypes = ['image/png', 'image/jpeg'];
+
+const getOutput = message => {
+  const results = [];
+  if (message.tool_calls) {
+    for (const call of message.tool_calls) {
+      const args = JSON.parse(call.function.arguments);
+      if ('input' in args) {
+        results.push(args.input);
+      } else {
+        results.push(args);
+      }
+    }
+  } else if (message.function_call) {
+    const args = JSON.parse(message.function_call.arguments);
+    if ('input' in args) {
+      results.push(args.input);
+    } else {
+      results.push(args);
+    }
+  } else {
+    results.push(message.content);
+  }
+  if (results.length === 0) {
+    return null;
+  }
+  if (results.length === 1) {
+    return results[0];
+  }
+  return results;
+};
 
 export const createActivities = ({
   mc,
@@ -63,7 +95,7 @@ export const createActivities = ({
 }) => ({
   async evaluate(evaluation, workspaceId, username) {
     const filter = {};
-    const { id, model, completionFunction, dateRange, criteria } = evaluation;
+    const { id, model, completionFunction, dateRange, criterion, evalFunction } = evaluation;
     if (model) {
       filter.model = model;
     }
@@ -82,20 +114,55 @@ export const createActivities = ({
     }
     const limit = evaluation.sampleSize;
     const logs = await callLoggingService.getCallLogs(workspaceId, filter, limit, 0);
-    logger.debug('logs:', logs);
-    const args = logs.map(log => ({
-      input: log.modelUserInputText,
-      completion: log.systemOutputText,
-      criteria,
-    }));
 
-    const texts = logs.map(log => log.systemOutputText);
-    const embeddingModel = { provider: 'openai', model: 'text-embedding-ada-002' };
+    const texts = logs
+      .map(callLog => {
+        let output = callLog.systemOutputText;
+        if (output) {
+          return output;
+        }
+        output = getOutput(callLog.systemOutput);
+        if (output) {
+          output = jsonToMarkdown(output);
+          return output;
+        }
+        return null;
+      })
+      .filter(text => text !== null);
+
+    if (texts.length === 0) {
+      return { errors: ['No text to embed'] };
+    }
+    const args = logs.map((log, i) => {
+      const a = { criterion };
+      if (evaluation.includeInput) {
+        if (evaluation.inputPath) {
+          a.input = JSONPath({ path: evaluation.inputPath, json: log.systemInput.args }).join('\n');
+        } else {
+          a.input = log.modelUserInputText;
+        }
+      }
+      if (evaluation.outputPath) {
+        const output = getOutput(log.systemOutput);
+        console.log('$$output:', output);
+        a.completion = JSONPath({ path: evaluation.outputPath, json: output }).join('\n');
+      } else {
+        a.completion = texts[i];
+      }
+      return a;
+    });
+    const embeddingModel = { provider: 'openai', model: 'text-embedding-3-small' };
     const embedder = EmbeddingProvider.create(embeddingModel, llmService);
     const res = await embedder.createEmbeddings(texts, 1024);
     const embeddings = res.data.map(e => e.embedding);
     const umap = new UMAP({ nComponents: 2, nNeighbors: 5 });
-    const embedding = umap.fit(embeddings);
+    let embedding;
+    try {
+      embedding = umap.fit(embeddings);
+    } catch (err) {
+      logger.error('Error fitting UMAP:', err);
+      // continue without it
+    }
     logger.debug('umap embedding:', embedding);
 
     const outputFormatter = {
@@ -126,37 +193,50 @@ export const createActivities = ({
     };
     const functions = [outputFormatter];
     const extraSystemPrompt = `Process each of the provided text items and return the results as a JSON list of objects using the output_formatter.`;
-    const func = await functionsService.getFunctionByName(workspaceId, 'closed_qa_eval_batch');
-    logger.debug('args:', args);
+    let func;
+    if (evalFunction) {
+      func = await functionsService.getFunction(evalFunction);
+    } else {
+      func = await functionsService.getFunctionByName(workspaceId, 'closed_qa_eval_batch');
+    }
     const { errors, response } = await executionsService.executeFunction({
       workspaceId,
       username,
-      batch: true,
+      batch: false,
       func,
       args,
       extraSystemPrompt,
       params: { maxTokens: 512 },
       functions,
-      options: { batchResultKey: 'evaluation_result', contentProp: '__all' },
+      // options: { batchResultKey: 'evaluation_result', contentProp: '__all' },
     });
     if (errors) {
       logger.error('Error calling function "%s":', func.name, errors);
       return { errors };
     }
+    console.log('!!response:', JSON.stringify(response.choices[0].message, null, 2));
     const serializedJson = response.choices[0].message.function_call.arguments;
+    logger.debug('serializedJson:', serializedJson);
     const json = JSON.parse(serializedJson);
+    let results;
+    if ('input' in json) {
+      results = json.input.results;
+    } else {
+      results = json.results;
+    }
     logger.debug('json:', json);
     const failed = [];
     const proms = [];
-    for (let i = 0; i < json.length; i++) {
+    for (let i = 0; i < results.length; i++) {
+      const result = results?.[i].evaluation_result;
       const evaln = {
         evaluationId: id,
-        criteria,
-        result: json[i],
+        criterion,
+        result,
       };
       const log = logs[i];
       const logId = log.id;
-      if (json[i] === 'N') {
+      if (result === 'N') {
         failed.push({
           ...evaln,
           logId,
@@ -220,6 +300,8 @@ export const createActivities = ({
             for (const call of message.tool_calls) {
               results.push(JSON.parse(call.function.arguments));
             }
+          } else if (message.function_call) {
+            results.push(JSON.parse(message.function_call.arguments));
           }
         }
         const tc = await testCasesService.upsertTestCase({

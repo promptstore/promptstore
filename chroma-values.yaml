@@ -1,3 +1,2 @@
 chromadb:
-  allowReset: "true"
-
+  allowReset: 'true'

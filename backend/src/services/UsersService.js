@@ -3,12 +3,12 @@ import omit from 'lodash.omit';
 const DEFAULT_CREDITS = 2000;
 
 export function UsersService({ pg, logger }) {
-
   function mapRow(row) {
     return {
       id: row.id,
       username: row.username,
       ...row.val,
+      fullName: `${row.val.firstName} ${row.val.lastName}`.trim(),
     };
   }
 
@@ -28,9 +28,7 @@ export function UsersService({ pg, logger }) {
   }
 
   async function getUser(username) {
-    let q =
-      `SELECT id, username, val from users ` +
-      `WHERE username = $1`;
+    let q = `SELECT id, username, val from users ` + `WHERE username = $1`;
     const { rows } = await pg.query(q, [username]);
     if (rows.length === 0) {
       return null;
@@ -39,9 +37,7 @@ export function UsersService({ pg, logger }) {
   }
 
   async function getUserByEmail(email) {
-    let q =
-      `SELECT id, username, val from users ` +
-      `WHERE val->>'email' = $1`;
+    let q = `SELECT id, username, val from users ` + `WHERE val->>'email' = $1`;
     const { rows } = await pg.query(q, [email]);
     if (rows.length === 0) {
       return null;
@@ -50,9 +46,7 @@ export function UsersService({ pg, logger }) {
   }
 
   async function getUserById(id) {
-    let q =
-      `SELECT id, username, val from users ` +
-      `WHERE id = $1`;
+    let q = `SELECT id, username, val from users ` + `WHERE id = $1`;
     const { rows } = await pg.query(q, [id]);
     if (rows.length === 0) {
       return null;
@@ -61,9 +55,7 @@ export function UsersService({ pg, logger }) {
   }
 
   async function getUserByKeycloakId(keycloakId) {
-    let q =
-      `SELECT id, username, val from users ` +
-      `WHERE val->>'keycloakId' = $1`;
+    let q = `SELECT id, username, val from users ` + `WHERE val->>'keycloakId' = $1`;
     const { rows } = await pg.query(q, [keycloakId]);
     if (rows.length === 0) {
       return null;
@@ -83,14 +75,10 @@ export function UsersService({ pg, logger }) {
         val.credits = 2000;
       }
       const { rows } = await pg.query(
-        `UPDATE users ` +
-        `SET val = $1 ` +
-        `WHERE username = $2 ` +
-        `RETURNING *`,
+        `UPDATE users ` + `SET val = $1 ` + `WHERE username = $2 ` + `RETURNING *`,
         [val, user.username]
       );
       return mapRow(rows[0]);
-
     } else {
       const val = omit(user, omittedFields);
       logger.debug('val before:', val);
@@ -98,11 +86,10 @@ export function UsersService({ pg, logger }) {
         val.credits = 2000;
       }
       logger.debug('val after:', val);
-      const { rows } = await pg.query(
-        `INSERT INTO users (username, val) ` +
-        `VALUES ($1, $2) RETURNING *`,
-        [user.username, val]
-      );
+      const { rows } = await pg.query(`INSERT INTO users (username, val) ` + `VALUES ($1, $2) RETURNING *`, [
+        user.username,
+        val,
+      ]);
       return mapRow(rows[0]);
     }
   }
@@ -114,13 +101,16 @@ export function UsersService({ pg, logger }) {
     if (!Array.isArray(ids) || ids.length === 0) {
       return [];
     }
-    await pg.query(`
+    await pg.query(
+      `
       DELETE FROM users WHERE id = ANY($1::INT[])
-      `, [ids]);
+      `,
+      [ids]
+    );
     return ids;
   }
 
-  const checkCredits = async (username) => {
+  const checkCredits = async username => {
     const user = await getUser(username);
     if (!user) {
       const errors = [

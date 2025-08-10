@@ -330,7 +330,8 @@ li img {
 .react-flow__node-semanticSearchNode,
 .react-flow__node-toolNode,
 .react-flow__node-transformerNode,
-.react-flow__node-vectorStoreNode {
+.react-flow__node-vectorStoreNode,
+.react-flow__node-forkNode {
   font-size: 10px;
   width: 180px;
   background: #f5f5f6;
@@ -375,7 +376,8 @@ li img {
 .react-flow__node-sourceNode .react-flow__handle,
 .react-flow__node-vectorStoreNode .react-flow__handle,
 .react-flow__node-toolNode .react-flow__handle,
-.react-flow__node-transformerNode .react-flow__handle {
+.react-flow__node-transformerNode .react-flow__handle,
+.react-flow__node-forkNode .react-flow__handle {
   width: 5px;
   height: 8px;
   border: none;
@@ -394,7 +396,8 @@ li img {
 .react-flow__node-requestNode .react-flow__handle-left,
 .react-flow__node-sourceNode .react-flow__handle-left,
 .react-flow__node-transformerNode .react-flow__handle-left,
-.react-flow__node-vectorStoreNode .react-flow__handle-left {
+.react-flow__node-vectorStoreNode .react-flow__handle-left,
+.react-flow__node-forkNode .react-flow__handle-left {
   left: -15px;
 }
 
@@ -418,7 +421,8 @@ li img {
 .react-flow__node-requestNode .react-flow__handle-right,
 .react-flow__node-sourceNode .react-flow__handle-right,
 .react-flow__node-transformerNode .react-flow__handle-right,
-.react-flow__node-vectorStoreNode .react-flow__handle-right {
+.react-flow__node-vectorStoreNode .react-flow__handle-right,
+.react-flow__node-forkNode .react-flow__handle-right {
   right: -15px;
 }
 
