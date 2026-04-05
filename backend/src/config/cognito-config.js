@@ -19,7 +19,7 @@ async function getJwks() {
   }
 
   const { data } = await axios.get(jwksUri);
-  cachedJwks = createLocalJWKSet(data);
+  cachedJwks = data;
   cachedJwksExpiresAt = Date.now() + JWKS_CACHE_MAX_AGE_MS;
   return cachedJwks;
 }
