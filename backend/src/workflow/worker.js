@@ -3,7 +3,6 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import path from 'path';
-import fs from 'fs-extra';
 import 'web-streams-polyfill/polyfill';
 
 import logger from '../logger';
@@ -46,6 +45,7 @@ import { VectorStoreService } from '../services/VectorStoreService';
 import { getPlugins, installModules } from '../utils';
 
 import { createActivities } from './activities';
+import { getTemporalConnectionOptions, getTemporalNamespace } from './connection';
 
 let ENV = process.env.ENV?.toLowerCase();
 logger.debug('ENV:', ENV);
@@ -60,8 +60,6 @@ const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY;
 const BASE_URL = process.env.BASE_URL;
 const FILE_BUCKET = process.env.FILE_BUCKET;
 const FILESTORE_PREFIX = process.env.FILESTORE_PREFIX || process.env.HOME;
-const TEMPORAL_URL = process.env.TEMPORAL_URL;
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 
 const MINIMAL_INSTALL = process.env.MINIMAL_INSTALL === 'true';
@@ -268,21 +266,7 @@ logger.debug('agents:', Object.keys(agents));
 executionsService.addAgents(agents);
 
 async function runWorker() {
-  // const cert = await fs.readFile(`${__dirname}/ca.pem`);
-  // const key = await fs.readFile(`${__dirname}/ca.key`);
-  let connectionOptions;
-  if (ENV === 'dev') {
-    connectionOptions = {
-      address: TEMPORAL_URL,
-    };
-  } else {
-    connectionOptions = {
-      address: TEMPORAL_URL,
-      // address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
-      // tls: { clientCertPair: { crt: cert, key } },
-    };
-  }
-  const connection = await NativeConnection.connect(connectionOptions);
+  const connection = await NativeConnection.connect(getTemporalConnectionOptions());
 
   // Step 1: Register Workflows and Activities with the Worker and connect to
   // the Temporal server.
@@ -291,7 +275,7 @@ async function runWorker() {
     workflowsPath: path.join(__dirname, 'workflows.js'),
     activities: createActivities(options),
     taskQueue: 'worker',
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   // Worker connects to localhost by default and uses console.error for logging.
   // Customize the Worker by passing more options to create():

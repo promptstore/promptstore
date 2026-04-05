@@ -1,8 +1,5 @@
 import { default as dayjs } from 'dayjs';
 import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
-import { fileURLToPath } from 'url';
-import fs from 'fs-extra';
-import path from 'path';
 
 import {
   evaluates,
@@ -15,31 +12,12 @@ import {
   transforms,
   uploads,
 } from './workflows';
+import { getTemporalConnectionOptions, getTemporalNamespace } from './connection';
 
 import logger from '../logger';
 
-const ENV = process.env.ENV?.toLowerCase();
-const TEMPORAL_URL = process.env.TEMPORAL_URL;
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 async function getConnection() {
-  // const crt = await fs.readFile(`${__dirname}/ca.pem`);
-  // const key = await fs.readFile(`${__dirname}/ca.key`);
-  let connectionOptions;
-  if (ENV === 'dev') {
-    connectionOptions = {
-      address: TEMPORAL_URL,
-    };
-  } else {
-    connectionOptions = {
-      address: TEMPORAL_URL,
-      // address: `${TEMPORAL_NAMESPACE}.tmprl.cloud:7233`,
-      // tls: { clientCertPair: { crt, key } },
-    };
-  }
-  const connection = await Connection.connect(connectionOptions);
+  const connection = await Connection.connect(getTemporalConnectionOptions());
   return connection;
 }
 
@@ -55,7 +33,7 @@ export async function evaluate(evaluation, workspaceId, username) {
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(evaluates, {
@@ -76,7 +54,7 @@ export async function scheduleEvaluation(evaluation, workspaceId, username, conn
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const { schedule } = evaluation;
   const spec = getSpec(schedule);
@@ -125,7 +103,7 @@ export async function executeAgentNetwork(params, connectionOptions) {
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(executeAgentNetworks, {
@@ -153,7 +131,7 @@ export async function executeComposition(params, connectionOptions) {
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(executeCompositions, {
@@ -181,7 +159,7 @@ export async function executeTestScenario(testScenarioId, workspaceId, username,
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(executeTestScenarios, {
@@ -202,7 +180,7 @@ export async function scheduleComposition(values, params, connectionOptions) {
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const { compositionId, scheduleId, schedule } = values;
   const spec = getSpec(schedule);
@@ -251,7 +229,7 @@ export async function index(params, loaderProvider, extractorProviders, connecti
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(indexs, {
@@ -279,7 +257,7 @@ export async function logCall(params, connectionOptions) {
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(logCalls, {
@@ -309,7 +287,7 @@ export async function transform(transformation, workspaceId, username, connectio
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(transforms, {
@@ -331,7 +309,7 @@ export async function scheduleTransformation(transformation, workspaceId, userna
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const { schedule } = transformation;
   const spec = getSpec(schedule);
@@ -380,7 +358,7 @@ export async function upload(file, workspaceId, appId, username, constants, conn
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   // console.log('args:', file, workspaceId, username, constants);
@@ -411,7 +389,7 @@ export async function reload(file, workspaceId, username, uploadId, connectionOp
   const client = new Client({
     connection,
     // namespace: 'foo.bar', // connects to 'default' namespace if not specified
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
 
   const handle = await client.workflow.start(reloads, {
@@ -478,7 +456,7 @@ export async function pauseSchedule(scheduleId, connectionOptions) {
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const scheduleHandle = client.schedule.getHandle(scheduleId);
   await scheduleHandle.pause();
@@ -489,7 +467,7 @@ export async function unpauseSchedule(scheduleId, connectionOptions) {
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const scheduleHandle = client.schedule.getHandle(scheduleId);
   await scheduleHandle.unpause();
@@ -500,7 +478,7 @@ export async function deleteSchedule(scheduleId, connectionOptions) {
   const connection = await getConnection();
   const client = new Client({
     connection,
-    namespace: TEMPORAL_NAMESPACE || 'promptstore',
+    namespace: getTemporalNamespace(),
   });
   const scheduleHandle = client.schedule.getHandle(scheduleId);
   await scheduleHandle.delete();
