@@ -178,8 +178,12 @@ jobs:
           REACT_APP_AUTH_ENABLED: "true"
           CI: false
         run: |
-          cp .env .env.production.local
-          cat <<EOF >> .env.production.local
+          cat <<EOF > .env.production.local
+          EXTEND_ESLINT=true
+          REACT_APP_DATA_MAPPER_HELP_URL=https://promptstoredocs.devsheds.io/en/data-mapper
+          REACT_APP_HANDLEBARS_GUIDE_URL=https://handlebarsjs.com/guide/
+          REACT_APP_DOCUMENTATION_URL=https://promptstoredocs.devsheds.io/
+          REACT_APP_ISSUES_URL=https://github.com/promptstore/promptstore/issues
           REACT_APP_AUTH_PROVIDER=${REACT_APP_AUTH_PROVIDER}
           REACT_APP_NO_AUTH=${REACT_APP_NO_AUTH}
           REACT_APP_FILE_BUCKET=${REACT_APP_FILE_BUCKET}
@@ -193,6 +197,7 @@ jobs:
           REACT_APP_COGNITO_SCOPE=${REACT_APP_COGNITO_SCOPE}
           REACT_APP_COGNITO_USER_POOL_ID=${REACT_APP_COGNITO_USER_POOL_ID}
           REACT_APP_AWS_REGION=${REACT_APP_AWS_REGION}
+          REACT_APP_AUTH_ENABLED=${REACT_APP_AUTH_ENABLED}
           EOF
           npm run build
 
