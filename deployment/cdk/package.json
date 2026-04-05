@@ -1,0 +1,37 @@
+{
+  "name": "promptstore-cdk",
+  "version": "1.0.0",
+  "description": "CDK infrastructure for promptstore - deploys into existing tapitriager EKS cluster",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --all --require-approval never",
+    "deploy:testing": "cdk deploy --all -c environment=testing --require-approval never",
+    "deploy:staging": "cdk deploy --all -c environment=staging --require-approval never",
+    "deploy:production": "cdk deploy --all -c environment=production --require-approval never",
+    "destroy": "cdk destroy --all --require-approval never",
+    "destroy:testing": "cdk destroy --all -c environment=testing --require-approval never",
+    "destroy:staging": "cdk destroy --all -c environment=staging --require-approval never",
+    "destroy:production": "cdk destroy --all -c environment=production --require-approval never",
+    "synth:testing": "cdk synth -c environment=testing",
+    "synth:staging": "cdk synth -c environment=staging",
+    "synth:production": "cdk synth -c environment=production",
+    "diff:testing": "cdk diff --all -c environment=testing",
+    "diff:staging": "cdk diff --all -c environment=staging",
+    "diff:production": "cdk diff --all -c environment=production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "aws-cdk": "^2.170.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.3.0",
+    "source-map-support": "^0.5.21"
+  }
+}

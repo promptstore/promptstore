@@ -72,15 +72,14 @@ function ApiService() {
 
   // https://thedutchlab.com/blog/using-axios-interceptors-for-refreshing-your-api-token
   // https://stackoverflow.com/questions/57251719/acquiring-a-new-token-with-axios-interceptors
+  const authProvider = process.env.REACT_APP_AUTH_PROVIDER || 'none';
+
   instance.interceptors.request.use((config) => {
-    // console.log('config:', config);
-
     const accessToken = getAccessToken();
-    // console.log('accessToken:', accessToken);
 
-    if (process.env.REACT_APP_FIREBASE_API_KEY) {
+    if (authProvider === 'cognito' || authProvider === 'firebase' || process.env.REACT_APP_FIREBASE_API_KEY) {
       config.headers['Authorization'] = 'Bearer ' + accessToken;
-    } else {
+    } else if (accessToken) {
       config.headers['apikey'] = accessToken;
     }
 
@@ -114,7 +113,7 @@ function ApiService() {
       });
   };
 
-  if (process.env.REACT_APP_FIREBASE_API_KEY) {
+  if (authProvider !== 'cognito' && process.env.REACT_APP_FIREBASE_API_KEY) {
     import('./config/firebase.js').then(({ default: auth }) => {
       const refreshFirebaseAuthLogic = async (failedRequest) => {
         const user = auth.currentUser;

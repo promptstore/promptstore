@@ -25,17 +25,20 @@ function Navbar() {
 
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
-  const { currentUser, logout, setError } = useAuth();
+  const { currentUser: authUser, logout, setError } = useAuth();
   const { isDarkMode, navbarState, setIsDarkMode } = useContext(NavbarContext);
   const { selectedWorkspace, setSelectedWorkspace } = useContext(WorkspaceContext);
-
-  const [firstName] = (currentUser.displayName || currentUser.email).split(' ');
-  const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const currentUsr = useSelector(selectCurrentUser);
+  // Prefer the backend user (currentUsr) over the auth context user,
+  // since authUser may be a default placeholder (e.g. for Cognito)
+  const currentUser = currentUsr || authUser || {};
+
+  const [firstName] = (currentUser.displayName || currentUser.fullName || currentUser.email || '').split(' ');
+  const avatarName = firstName && firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : (firstName || '');
   const workspaces = useSelector(selectWorkspaces);
   const workspacesLoaded = useSelector(selectWorkspacesLoaded);
   const isWorkspacesEmpty = !Object.keys(workspaces).length;

@@ -64,15 +64,20 @@ const TEMPORAL_URL = process.env.TEMPORAL_URL;
 const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE;
 const DOCUMENTS_PREFIX = process.env.DOCUMENTS_PREFIX || 'documents';
 
-const minioOptions = {
-  endPoint: S3_ENDPOINT,
-  port: parseInt(S3_PORT, 10),
-  useSSL: ENV !== 'dev',
-  accessKey: AWS_ACCESS_KEY,
-  secretKey: AWS_SECRET_KEY,
-};
-logger.debug('minio options:', minioOptions);
-const mc = new Minio.Client(minioOptions);
+const MINIMAL_INSTALL = process.env.MINIMAL_INSTALL === 'true';
+
+let mc;
+if (!MINIMAL_INSTALL) {
+  const minioOptions = {
+    endPoint: S3_ENDPOINT,
+    port: parseInt(S3_PORT, 10),
+    useSSL: ENV !== 'dev',
+    accessKey: AWS_ACCESS_KEY,
+    secretKey: AWS_SECRET_KEY,
+  };
+  logger.debug('minio options:', minioOptions);
+  mc = new Minio.Client(minioOptions);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(__dirname, '..');

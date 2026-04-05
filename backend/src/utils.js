@@ -176,12 +176,14 @@ export const fillTemplate = (templateString, templateVars, engine = 'es6') => {
     return templateString;
   }
 
-  // logger.debug('templateVars:', templateVars);
+  logger.debug('templateVars:', templateVars);
   templateVars = replaceUndefinedAndNullValues(templateVars, '');
-  // logger.debug('templateVars:', templateVars);
+  logger.debug('templateVars:', templateVars);
+  logger.debug('engine:', engine);
 
   if (engine === 'handlebars') {
     const template = Handlebars.compile(templateString);
+    console.log('filled template:', template(templateVars));
     return template(templateVars);
 
   } else {  // `engine === 'es6'`

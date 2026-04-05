@@ -655,7 +655,7 @@ export default ({ app, auth, constants, logger, mc, services, workflowClient }) 
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
 
-        if (!isImage) {
+        if (!constants.MINIMAL_INSTALL && !isImage) {
           const obj = createSearchableObject(result);
 
           // TODO

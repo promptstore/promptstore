@@ -7,6 +7,7 @@ import Register from './components/accounts/Register';
 import Login from './components/accounts/Login';
 import Profile from './components/accounts/Profile';
 import OAuth2Popup from './features/Login/OAuth2Popup';
+import CognitoCallback from './components/accounts/CognitoCallback';
 import { About } from './features/about/About';
 import { AdminFunctions } from './features/adminFunctions/AdminFunctions';
 import { AgentNetwork } from './features/agentNetworks/AgentNetwork';
@@ -90,7 +91,9 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
   return createBrowserRouter(
     createRoutesFromElements(
       <>
-        <Route path="/callback" element={<OAuth2Popup />} />
+        <Route path="/callback" element={
+          process.env.REACT_APP_AUTH_PROVIDER === 'cognito' ? <CognitoCallback /> : <OAuth2Popup />
+        } />
         <Route exact path="/register" element={<Register />} />
         <Route exact path="/login" element={<Login />} />
         <Route

@@ -87,10 +87,12 @@ export default ({ app, auth, constants, logger, services }) => {
       }
     }
     let func = await functionsService.upsertFunction(values, username);
-    const obj = createSearchableObject(func);
-    const chunkId = await indexObject(obj, func.chunkId);
-    if (!func.chunkId) {
-      func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(func);
+      const chunkId = await indexObject(obj, func.chunkId);
+      if (!func.chunkId) {
+        func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+      }
     }
     res.json(func);
   });
@@ -107,10 +109,12 @@ export default ({ app, auth, constants, logger, services }) => {
       }
     }
     let func = await functionsService.upsertFunction({ ...values, id }, username);
-    const obj = createSearchableObject(func);
-    const chunkId = await indexObject(obj, func.chunkId);
-    if (!func.chunkId) {
-      func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(func);
+      const chunkId = await indexObject(obj, func.chunkId);
+      if (!func.chunkId) {
+        func = await functionsService.upsertFunction({ ...func, chunkId }, username);
+      }
     }
     res.json(func);
   });
@@ -126,7 +130,9 @@ export default ({ app, auth, constants, logger, services }) => {
       }
     }
     await functionsService.deleteFunctions([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -143,7 +149,9 @@ export default ({ app, auth, constants, logger, services }) => {
       }
     }
     await functionsService.deleteFunctions(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 

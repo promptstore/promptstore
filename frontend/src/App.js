@@ -11,6 +11,8 @@ import useSessionStorageState from 'use-session-storage-state';
 import CookieManager from './CookieManager';
 import ErrorMessage from './components/ErrorMessage';
 import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider as OidcAuthProvider, useAuth as useOidcAuth } from 'react-oidc-context';
+import authConfig from './config/auth';
 import NavbarContext from './contexts/NavbarContext';
 import UserContext from './contexts/UserContext';
 import WorkspaceContext from './contexts/WorkspaceContext';
@@ -84,8 +86,15 @@ function App() {
     }
   }, [authStatusChecked]);
 
+  const authProvider = process.env.REACT_APP_AUTH_PROVIDER || 'none';
+
   useEffect(() => {
-    if (process.env.REACT_APP_NO_AUTH === 'true') {
+    if (authProvider === 'cognito') {
+      // Cognito auth is handled by react-oidc-context AuthProvider.
+      // Token setup happens in the CognitoAuthBridge component below.
+      return;
+    }
+    if (authProvider === 'none' || process.env.REACT_APP_NO_AUTH === 'true') {
       const email = CookieManager.get('accessToken');
       if (email) {
         console.log('Using anon account:', email);
@@ -96,25 +105,13 @@ function App() {
       } else if (window.location.pathname !== '/login') {
         window.location.replace('/login');
       }
-    } else if (process.env.REACT_APP_FIREBASE_API_KEY) {
+    } else if (authProvider === 'firebase' || process.env.REACT_APP_FIREBASE_API_KEY) {
       console.log('Using firebase');
       let unsubscribe;
       import('./config/firebase.js').then(({ default: auth }) => {
-        // console.log('auth:', auth);
-        // Adds an observer for changes to the signed-in user's ID token,
-        // which includes sign-in, sign-out, and token refresh events. This
-        // method has the same behavior as `firebase.auth.Auth.onAuthStateChanged`
-        // had prior to 4.0.0.
-        // `onAuthStateChanged` - Prior to 4.0.0, this triggered the observer
-        // when users were signed in, signed out, or when the user's ID token
-        // changed in situations such as token expiry or password change. After
-        // 4.0.0, the observer is only triggered on sign-in or sign-out.
-        // current version - ^10.1.0
         unsubscribe = auth.onIdTokenChanged(async user => {
-          // console.log('user:', user);
           if (user) {
             const accessToken = await user.getIdToken();
-            // console.log('accessToken:', accessToken);
             if (accessToken) {
               setToken({ accessToken });
               setCurrentUser(cur => {
@@ -177,6 +174,21 @@ function App() {
   //     <Loading />
   //   );
   // }
+  const appContent = (
+    <UserContext.Provider value={userContextValue}>
+      <WorkspaceContext.Provider value={workspaceContextValue}>
+        <NavbarContext.Provider value={navbarContextValue}>
+          <ReactFlowProvider>
+            <StyleProvider>
+              <ErrorMessage />
+              <RouterProvider router={router({ currentUser, isDarkMode, selectedWorkspace })} />
+            </StyleProvider>
+          </ReactFlowProvider>
+        </NavbarContext.Provider>
+      </WorkspaceContext.Provider>
+    </UserContext.Provider>
+  );
+
   return (
     <Suspense fallback={<Loading />}>
       <ConfigProvider
@@ -184,23 +196,74 @@ function App() {
           algorithm: isDarkMode ? darkAlgorithm : defaultAlgorithm,
         }}
       >
-        <AuthProvider>
-          <UserContext.Provider value={userContextValue}>
-            <WorkspaceContext.Provider value={workspaceContextValue}>
-              <NavbarContext.Provider value={navbarContextValue}>
-                <ReactFlowProvider>
-                  <StyleProvider>
-                    <ErrorMessage />
-                    <RouterProvider router={router({ currentUser, isDarkMode, selectedWorkspace })} />
-                  </StyleProvider>
-                </ReactFlowProvider>
-              </NavbarContext.Provider>
-            </WorkspaceContext.Provider>
-          </UserContext.Provider>
-        </AuthProvider>
+        {authProvider === 'cognito' ? (
+          <OidcAuthProvider {...authConfig}>
+            <AuthProvider>
+              <CognitoAuthBridge
+                setToken={setToken}
+                setCurrentUser={setCurrentUser}
+                dispatch={dispatch}
+              />
+              {appContent}
+            </AuthProvider>
+          </OidcAuthProvider>
+        ) : (
+          <AuthProvider>
+            {appContent}
+          </AuthProvider>
+        )}
       </ConfigProvider>
     </Suspense>
   );
+}
+
+/**
+ * Bridge component that lives inside the OIDC AuthProvider
+ * and syncs the OIDC auth state to the App-level state.
+ */
+function CognitoAuthBridge({ setToken, setCurrentUser, dispatch }) {
+  const oidcAuth = useOidcAuth();
+
+  useEffect(() => {
+    if (oidcAuth.isAuthenticated && oidcAuth.user) {
+      const idToken = oidcAuth.user.id_token;
+      if (idToken) {
+        setToken({ accessToken: idToken });
+      }
+      const profile = oidcAuth.user.profile || {};
+      const name = profile.name || profile.email || profile.preferred_username || 'Unknown User';
+      const email = profile.email;
+      const groups = profile['cognito:groups'] || [];
+      const [firstName, lastName] = (name || '').split(' ');
+      // Set currentUser but NOT ready — let the App useEffect at line 143
+      // handle dispatching getCurrentUserAsync and getWorkspacesAsync
+      setCurrentUser({
+        email,
+        username: email,
+        fullName: name,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        roles: groups.length > 0 ? groups : ['admin'],
+        photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`,
+        displayName: name,
+      });
+    } else if (!oidcAuth.isLoading && !oidcAuth.isAuthenticated) {
+      // OIDC finished loading but user is not authenticated (expired session, etc.)
+      // Redirect to login so they can re-authenticate
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/callback') {
+        window.location.replace('/login');
+      }
+    }
+  }, [oidcAuth.isAuthenticated, oidcAuth.isLoading, oidcAuth.user]);
+
+  // Re-set token when it renews silently
+  useEffect(() => {
+    if (oidcAuth.user?.id_token) {
+      setToken({ accessToken: oidcAuth.user.id_token });
+    }
+  }, [oidcAuth.user?.id_token]);
+
+  return null;
 }
 
 // function PrivateRoute({ children, rules, ...rest }) {

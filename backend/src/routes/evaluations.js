@@ -2,7 +2,6 @@ import searchFunctions from '../searchFunctions';
 import { hasValue } from '../utils';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
-
   const OBJECT_TYPE = 'evaluations';
 
   const { evaluationsService } = services;
@@ -55,10 +54,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       };
     }
     const evaluation = await evaluationsService.upsertEvaluation(values, username);
-    const obj = createSearchableObject(evaluation);
-    const chunkId = await indexObject(obj, evaluation.chunkId);
-    if (!evaluation.chunkId) {
-      evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(evaluation);
+      const chunkId = await indexObject(obj, evaluation.chunkId);
+      if (!evaluation.chunkId) {
+        evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+      }
     }
     res.json(evaluation);
   });
@@ -88,10 +89,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       }
     }
     evaluation = await evaluationsService.upsertEvaluation(values, username);
-    const obj = createSearchableObject(evaluation);
-    const chunkId = await indexObject(obj, evaluation.chunkId);
-    if (!evaluation.chunkId) {
-      evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(evaluation);
+      const chunkId = await indexObject(obj, evaluation.chunkId);
+      if (!evaluation.chunkId) {
+        evaluation = await evaluationsService.upsertEvaluation({ ...evaluation, chunkId }, username);
+      }
     }
     res.json(evaluation);
   });
@@ -105,7 +108,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       });
     }
     await evaluationsService.deleteEvaluations([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -120,7 +125,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       }
     }
     await evaluationsService.deleteEvaluations(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
@@ -132,7 +139,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       .evaluate(eval_, workspaceId, username, {
         address: constants.TEMPORAL_URL,
       })
-      .then((result) => {
+      .then(result => {
         // logger.debug('result:', result);
         if (correlationId) {
           jobs[correlationId] = result;
@@ -142,18 +149,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         setTimeout(() => {
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
-
       });
     res.sendStatus(200);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -168,5 +171,4 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       metadata: {},
     };
   }
-
 };

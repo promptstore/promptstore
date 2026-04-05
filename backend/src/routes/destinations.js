@@ -2,7 +2,6 @@ import searchFunctions from '../searchFunctions';
 import { isTruthy } from '../utils';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'destinations';
 
   const { destinationsService, sqlSourceService } = services;
@@ -87,7 +86,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *           createdBy: markmo@acme.com
    *           modified: 2023-03-01T10:30
    *           modifiedBy: markmo@acme.com
-   * 
+   *
    *     DestinationInput:
    *       type: object
    *       required:
@@ -271,10 +270,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let destination = await destinationsService.upsertDestination(values, username);
-    const obj = createSearchableObject(destination);
-    const chunkId = await indexObject(obj, destination.chunkId);
-    if (!destination.chunkId) {
-      destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(destination);
+      const chunkId = await indexObject(obj, destination.chunkId);
+      if (!destination.chunkId) {
+        destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+      }
     }
     res.json(destination);
   });
@@ -313,10 +314,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let destination = await destinationsService.upsertDestination({ ...values, id }, username);
-    const obj = createSearchableObject(destination);
-    const chunkId = await indexObject(obj, destination.chunkId);
-    if (!destination.chunkId) {
-      destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(destination);
+      const chunkId = await indexObject(obj, destination.chunkId);
+      if (!destination.chunkId) {
+        destination = await destinationsService.upsertDestination({ ...destination, chunkId }, username);
+      }
     }
     res.json(destination);
   });
@@ -346,7 +349,9 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/destinations/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await destinationsService.deleteDestinations([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -377,17 +382,16 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/destinations', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await destinationsService.deleteDestinations(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -405,5 +409,4 @@ export default ({ app, auth, constants, logger, services }) => {
       },
     };
   }
-
 };

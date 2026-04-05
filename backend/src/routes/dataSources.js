@@ -3,16 +3,9 @@ import path from 'path';
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, pg, services }) => {
-
   const OBJECT_TYPE = 'data-sources';
 
-  const {
-    appsService,
-    dataSourcesService,
-    documentsService,
-    extractorService,
-    sqlSourceService,
-  } = services;
+  const { appsService, dataSourcesService, documentsService, extractorService, sqlSourceService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
@@ -237,7 +230,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *           createdBy: markmo@acme.com
    *           modified: 2023-03-01T10:30
    *           modifiedBy: markmo@acme.com
-   * 
+   *
    *     DataSourceInput:
    *       type: object
    *       required:
@@ -441,7 +434,7 @@ export default ({ app, auth, constants, logger, pg, services }) => {
    *           featureService: driver_activity
    *           createdBy: markmo@acme.com
    *           modifiedBy: markmo@acme.com
-   * 
+   *
    *     Dialect:
    *       type: object
    *       required:
@@ -578,64 +571,57 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.get('/api/data-sources/:id/content', auth, (req, res) => {
     let mb = +req.query.maxBytes;
     if (isNaN(mb)) mb = 1000 * 1024;
-    pg.query(
-      'SELECT type, val FROM data_sources WHERE id = $1',
-      [req.params.id],
-      async (e, resp) => {
-        if (e) {
-          logger.error(e);
-          return res.sendStatus(500);
-        }
-        const { type, val } = resp.rows[0];
-        const source = { ...val, type };
-        logger.debug('source:', source);
-        if (source.type === 'document') {
-          const {
-            documentId,
-            documentType,
-            delimiter = ',',
-            quoteChar = '"',
-          } = source;
-          pg.query(
-            'SELECT workspace_id, filename FROM file_uploads WHERE id = $1',
-            [documentId],
-            async (e, resp) => {
-              if (e) {
-                logger.error(e);
-                return res.sendStatus(500);
-              }
-              const upload = resp.rows[0];
-              const objectName = path.join(String(upload.workspace_id), constants.DOCUMENTS_PREFIX, upload.filename);
-
-              if (documentType === 'csv') {
-                const content = await documentsService.read(objectName, mb);
-                const options = {
-                  bom: true,
-                  columns: true,
-                  delimiter,
-                  quote: quoteChar,
-                  skip_records_with_error: true,
-                  trim: true,
-                };
-                const output = await extractorService.getChunks(
-                  'csv',
-                  [{ content, ext: 'csv' }],
-                  { options, raw: true }
-                );
-                res.json(output);
-
-              } else {
-                const text = await documentsService.read(objectName, mb);
-                res.json(text);
-              }
-            }
-          );
-        } else if (source.type === 'sql') {
-          const sample = await sqlSourceService.getData(source, 10);
-          res.json(sample);
-        }
+    pg.query('SELECT type, val FROM data_sources WHERE id = $1', [req.params.id], async (e, resp) => {
+      if (e) {
+        logger.error(e);
+        return res.sendStatus(500);
       }
-    );
+      const { type, val } = resp.rows[0];
+      const source = { ...val, type };
+      logger.debug('source:', source);
+      if (source.type === 'document') {
+        const { documentId, documentType, delimiter = ',', quoteChar = '"' } = source;
+        pg.query(
+          'SELECT workspace_id, filename FROM file_uploads WHERE id = $1',
+          [documentId],
+          async (e, resp) => {
+            if (e) {
+              logger.error(e);
+              return res.sendStatus(500);
+            }
+            const upload = resp.rows[0];
+            const objectName = path.join(
+              String(upload.workspace_id),
+              constants.DOCUMENTS_PREFIX,
+              upload.filename
+            );
+
+            if (documentType === 'csv') {
+              const content = await documentsService.read(objectName, mb);
+              const options = {
+                bom: true,
+                columns: true,
+                delimiter,
+                quote: quoteChar,
+                skip_records_with_error: true,
+                trim: true,
+              };
+              const output = await extractorService.getChunks('csv', [{ content, ext: 'csv' }], {
+                options,
+                raw: true,
+              });
+              res.json(output);
+            } else {
+              const text = await documentsService.read(objectName, mb);
+              res.json(text);
+            }
+          }
+        );
+      } else if (source.type === 'sql') {
+        const sample = await sqlSourceService.getData(source, 10);
+        res.json(sample);
+      }
+    });
   });
 
   /**
@@ -687,19 +673,25 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { appId, uploadId, values } = req.body;
     let dataSource = await dataSourcesService.upsertDataSource(values, username);
     if (appId) {
-      await appsService.upsertApp({
-        id: appId,
-        documents: {
-          [uploadId]: {
-            dataSource: dataSource.id,
+      await appsService.upsertApp(
+        {
+          id: appId,
+          documents: {
+            [uploadId]: {
+              dataSource: dataSource.id,
+            },
           },
         },
-      }, username, true);
+        username,
+        true
+      );
     }
-    const obj = createSearchableObject(dataSource);
-    const chunkId = await indexObject(obj, dataSource.chunkId);
-    if (!dataSource.chunkId) {
-      dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(dataSource);
+      const chunkId = await indexObject(obj, dataSource.chunkId);
+      if (!dataSource.chunkId) {
+        dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+      }
     }
     res.json(dataSource);
   });
@@ -738,10 +730,12 @@ export default ({ app, auth, constants, logger, pg, services }) => {
     const { username } = req.user;
     const values = req.body;
     let dataSource = await dataSourcesService.upsertDataSource({ ...values, id }, username);
-    const obj = createSearchableObject(dataSource);
-    const chunkId = await indexObject(obj, dataSource.chunkId);
-    if (!dataSource.chunkId) {
-      dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(dataSource);
+      const chunkId = await indexObject(obj, dataSource.chunkId);
+      if (!dataSource.chunkId) {
+        dataSource = await dataSourcesService.upsertDataSource({ ...dataSource, chunkId }, username);
+      }
     }
     res.json(dataSource);
   });
@@ -771,7 +765,9 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/data-sources/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await dataSourcesService.deleteDataSources([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -802,17 +798,16 @@ export default ({ app, auth, constants, logger, pg, services }) => {
   app.delete('/api/data-sources', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await dataSourcesService.deleteDataSources(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -829,5 +824,4 @@ export default ({ app, auth, constants, logger, pg, services }) => {
       },
     };
   }
-
 };

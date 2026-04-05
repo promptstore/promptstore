@@ -10,6 +10,15 @@ data:
   DISABLE_TERMINAL: "1"
   BASE_URL: "{{ .Values.base_url }}"
 
+  NO_AUTH: "{{ .Values.no_auth }}"
+  MINIMAL_INSTALL: "{{ .Values.minimal_install }}"
+  AUTH_PROVIDER: "{{ .Values.auth_provider }}"
+
+  # Cognito
+  AWS_COGNITO_REGION: "{{ .Values.cognito.region }}"
+  AWS_COGNITO_USER_POOL_ID: "{{ .Values.cognito.user_pool_id }}"
+  AWS_COGNITO_CLIENT_ID: "{{ .Values.cognito.client_id }}"
+
   # PostgreSQL Metastore
   PGHOST: "{{ .Values.db.host }}"
   PGPORT: "5432"

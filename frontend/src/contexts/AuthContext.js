@@ -52,6 +52,13 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    const authProvider = process.env.REACT_APP_AUTH_PROVIDER || 'none';
+    if (authProvider === 'cognito') {
+      // Cognito auth is handled by react-oidc-context and CognitoAuthBridge.
+      // Don't set a default user here — let CognitoAuthBridge provide the real user.
+      setLoading(false);
+      return;
+    }
     const email = CookieManager.get('accessToken');
     if (process.env.REACT_APP_NO_AUTH === 'true' && email) {
       const currentUser = CookieManager.get('currentUser');

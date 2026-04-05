@@ -1,7 +1,6 @@
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'workspaces';
 
   const { emailService, usersService, workspacesService } = services;
@@ -30,7 +29,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         email:
    *           type: string
    *           description: The user's email address
-   *     
+   *
    *     Workspace:
    *       type: object
    *       required:
@@ -78,7 +77,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         createdBy: markmo@acme.com
    *         modified: 2023-03-01T10:30
    *         modifiedBy: markmo@acme.com
-   * 
+   *
    *     WorkspaceInput:
    *       type: object
    *       required:
@@ -124,7 +123,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         name:
    *           type: string
    *           description: The key purpose used as a label.
-   * 
+   *
    *     MemberInviteInput:
    *       type: object
    *       required:
@@ -139,14 +138,14 @@ export default ({ app, auth, constants, logger, services }) => {
    *           description: A list of email addresses.
    *           items:
    *             type: string
-   * 
+   *
    *     Status:
    *       type: object
    *       properties:
    *         status:
    *           type: string
    *           description: The status - OK
-   * 
+   *
    *     User:
    *       type: object
    *       required:
@@ -304,8 +303,7 @@ export default ({ app, auth, constants, logger, services }) => {
     const apiKeys = workspace.apiKeys || {};
     const maxId = Object.values(apiKeys)
       .filter(v => v.username === username)
-      .reduce((a, v) => Math.max(a, v.id), 0)
-      ;
+      .reduce((a, v) => Math.max(a, v.id), 0);
     const values = {
       ...workspace,
       apiKeys: {
@@ -350,8 +348,7 @@ export default ({ app, auth, constants, logger, services }) => {
       .reduce((a, [k, v]) => {
         a[k] = v;
         return a;
-      }, {})
-      ;
+      }, {});
     logger.debug('new keys:', apiKeys);
     const values = {
       ...workspace,
@@ -389,10 +386,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const values = req.body;
     const user = await usersService.getUser(username);
     let workspace = await workspacesService.upsertWorkspace(values, user);
-    const obj = createSearchableObject(workspace);
-    const chunkId = await indexObject(obj, workspace.chunkId);
-    if (!workspace.chunkId) {
-      workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(workspace);
+      const chunkId = await indexObject(obj, workspace.chunkId);
+      if (!workspace.chunkId) {
+        workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+      }
     }
     res.json(workspace);
   });
@@ -432,10 +431,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const user = await usersService.getUser(username);
     let workspace = await workspacesService.upsertWorkspace({ id, ...values }, user);
-    const obj = createSearchableObject(workspace);
-    const chunkId = await indexObject(obj, workspace.chunkId);
-    if (!workspace.chunkId) {
-      workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(workspace);
+      const chunkId = await indexObject(obj, workspace.chunkId);
+      if (!workspace.chunkId) {
+        workspace = await workspacesService.upsertWorkspace({ ...workspace, chunkId }, username);
+      }
     }
     res.json(workspace);
   });
@@ -465,7 +466,9 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/workspaces/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await workspacesService.deleteWorkspaces([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -496,7 +499,9 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/workspaces', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await workspacesService.deleteWorkspaces(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
@@ -537,18 +542,21 @@ export default ({ app, auth, constants, logger, services }) => {
         const { fullName, email, username } = user;
         members.push({ fullName, email, username });
       } else {
-        const newUser = await usersService.upsertUser({ username: email, email, fullName: email, credits: 2000 });
+        const newUser = await usersService.upsertUser({
+          username: email,
+          email,
+          fullName: email,
+          credits: 2000,
+        });
         logger.debug('newUser:', newUser);
         members.push({
           email,
           username: email,
           fullName: email,
         });
-        await emailService.send(
-          email,
-          constants.MAILTRAP_INVITE_TEMPLATE_UUID,
-          { fullName: req.user.fullName },
-        );
+        await emailService.send(email, constants.MAILTRAP_INVITE_TEMPLATE_UUID, {
+          fullName: req.user.fullName,
+        });
       }
     }
     logger.debug('members:', members);
@@ -567,13 +575,10 @@ export default ({ app, auth, constants, logger, services }) => {
     }
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -587,9 +592,7 @@ export default ({ app, auth, constants, logger, services }) => {
       createdBy: rec.createdBy,
       workspaceId: String(rec.workspaceId),
       isPublic: rec.isPublic,
-      metadata: {
-      },
+      metadata: {},
     };
   }
-
 };

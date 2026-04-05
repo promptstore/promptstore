@@ -10,11 +10,21 @@ imagePullSecret: ""
 containerRegistry: ""
 serviceAccountSecret: ""
 
-version: "0.7.43"
+version: "0.7.45"
 
 port: "5000"
 
-base_url: 
+base_url:
+
+no_auth: "false"
+minimal_install: "true"
+auth_provider: "none"
+
+# Cognito (required when auth_provider=cognito)
+cognito:
+  region:
+  user_pool_id:
+  client_id:
 
 promptstore:
   email:
@@ -235,7 +245,7 @@ mailtrap:
   template_uuid:
   token:
   sender_email:
-  invite_template_uuid"
+  invite_template_uuid:
 
 # OpenWeather - ./plugins/tools/openweather
 openweather:
@@ -252,7 +262,7 @@ serpapi:
 
 # Trello
 trello:
-  api_token:
+  api_key:
 
 ########
 
@@ -277,11 +287,18 @@ vecsearch:
 
 ########
 
+stability_ai:
+  api_key:
+
 clickhouse:
   url:
   database:
   username:
   password:
+
+mistral:
+  api_url:
+  api_key:
 
 neo4j:
   auth:

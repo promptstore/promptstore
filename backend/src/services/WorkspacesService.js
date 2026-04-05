@@ -37,6 +37,9 @@ export function WorkspacesService({ pg, logger }) {
   }
 
   async function getUsernameByApiKey(apiKey) {
+    if (!apiKey || apiKey === 'undefined') {
+      return null;
+    }
     let q = `
       SELECT id, val->'apiKeys'->'${apiKey}'->>'username' AS username
       FROM workspaces

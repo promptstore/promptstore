@@ -4,7 +4,6 @@ import snakeCase from 'lodash.snakecase';
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'apps';
 
   const { appsService, dataSourcesService, indexesService } = services;
@@ -81,7 +80,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         createdBy: markmo@acme.com
    *         modified: 2023-03-01T10:30
    *         modifiedBy: markmo@acme.com
-   * 
+   *
    *     AppInput:
    *       type: object
    *       required:
@@ -267,8 +266,10 @@ export default ({ app, auth, constants, logger, services }) => {
       values = { ...app, dataSourceId: dataSource.id };
       app = await appsService.upsertApp(values, username);
     }
-    const obj = createSearchableObject(app);
-    await indexObject(obj);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(app);
+      await indexObject(obj);
+    }
     res.json(app);
   });
 
@@ -315,8 +316,10 @@ export default ({ app, auth, constants, logger, services }) => {
       values = { ...values, dataSourceId: dataSource.id };
     }
     const app = await appsService.upsertApp({ ...values, id }, username);
-    const obj = createSearchableObject(app);
-    await indexObject(obj);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(app);
+      await indexObject(obj);
+    }
     res.json(app);
   });
 
@@ -349,7 +352,9 @@ export default ({ app, auth, constants, logger, services }) => {
       await dataSourcesService.deleteDataSources([currentApp.dataSourceId]);
     }
     await appsService.deleteApps([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -386,7 +391,7 @@ export default ({ app, auth, constants, logger, services }) => {
       if (app.dataSourceId) {
         dataSourceIds.push(app.dataSourceId);
       }
-      for (const indexId of (app.indexes || [])) {
+      for (const indexId of app.indexes || []) {
         indexIds.push(indexId);
       }
     }
@@ -399,17 +404,16 @@ export default ({ app, auth, constants, logger, services }) => {
       await indexesService.deleteIndexes(indexIds);
     }
     await appsService.deleteApps(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -426,5 +430,4 @@ export default ({ app, auth, constants, logger, services }) => {
       },
     };
   }
-
 };

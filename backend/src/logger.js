@@ -13,7 +13,7 @@ const winstonConfig = {
     info: 4,
     verbose: 5,
     silly: 6,
-    custom: 7
+    custom: 7,
   },
   colors: {
     error: 'red',
@@ -23,8 +23,8 @@ const winstonConfig = {
     info: 'green',
     verbose: 'cyan',
     silly: 'magenta',
-    custom: 'yellow'
-  }
+    custom: 'yellow',
+  },
 };
 
 winston.addColors(winstonConfig.colors);
@@ -47,16 +47,18 @@ const formatObject = (value, i = 0, arr = []) => {
   return value;
 };
 
-const levelFilter = (level) => format((info) => {
-  if (info.level !== level) {
-    return false;
-  }
-  return info;
-})();
+const levelFilter = level =>
+  format(info => {
+    if (info.level !== level) {
+      return false;
+    }
+    return info;
+  })();
 
-const myFormat = printf((info) => {
+const myFormat = printf(info => {
   const splat = info[SPLAT] || [];
-  let message, rest = '';
+  let message,
+    rest = '';
   if (isString(info.message) && info.message.match(/%[scdjifoO%]/g)) {
     message = util.format(info.message, ...splat);
   } else {
@@ -66,9 +68,10 @@ const myFormat = printf((info) => {
   return `${info.timestamp} ${info.level} ${message} ${rest}`;
 });
 
-const lokiFormat = printf((info) => {
+const lokiFormat = printf(info => {
   const splat = info[SPLAT] || [];
-  let message, rest = '';
+  let message,
+    rest = '';
   if (isString(info.message) && info.message.match(/%[scdjifoO%]/g)) {
     message = util.format(info.message, ...splat);
   } else {
@@ -78,36 +81,39 @@ const lokiFormat = printf((info) => {
   return `content ${message} ${rest}`;
 });
 
+const myTransports = [
+  new transports.Console({
+    format: combine(colorize(), timestamp(), myFormat),
+    level: 'custom',
+  }),
+];
+
+const lokiHost = process.env.LOKI_API_URL;
+if (lokiHost) {
+  myTransports.push(
+    new LokiTransport({
+      host: lokiHost,
+      format: combine(levelFilter('custom'), lokiFormat),
+      level: 'custom',
+    })
+  );
+}
+
 const logger = createLogger({
   levels: winstonConfig.levels,
-  transports: [
-    new transports.Console({
-      format: combine(
-        colorize(),
-        timestamp(),
-        myFormat,
-      ),
-      level: 'custom',
-    }),
-    new LokiTransport({
-      host: process.env.LOKI_API_URL,
-      format: combine(
-        levelFilter('custom'),
-        lokiFormat,
-      ),
-      level: 'custom',
-    }),
-  ],
+  transports: myTransports,
 });
 
 const refReplacer = () => {
-  let m = new Map(), v = new Map(), init = null;
+  let m = new Map(),
+    v = new Map(),
+    init = null;
 
   // in TypeScript add "this: any" param to avoid compliation errors - as follows
   //    return function (this: any, field: any, value: any) {
   return function (field, value) {
     let p = m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
-    let isComplex = value === Object(value)
+    let isComplex = value === Object(value);
 
     if (isComplex) m.set(value, p);
 
@@ -115,11 +121,11 @@ const refReplacer = () => {
     let path = p.replace(/undefined\.\.?/, '');
     let val = pp ? `#REF:${pp[0] == '[' ? '$' : '$.'}${pp}` : value;
 
-    !init ? (init = value) : (val === init ? val = "#REF:$" : 0);
+    !init ? (init = value) : val === init ? (val = '#REF:$') : 0;
     if (!pp && isComplex) v.set(value, path);
 
     return val;
-  }
+  };
 };
 
 export default logger;

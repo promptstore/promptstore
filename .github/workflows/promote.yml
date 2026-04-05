@@ -1,0 +1,269 @@
+name: Promote Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_environment:
+        description: "Source environment"
+        required: true
+        type: choice
+        options:
+          - testing
+          - staging
+        default: "testing"
+      target_environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: "staging"
+      git_sha:
+        description: "Git SHA to promote (7+ characters)"
+        required: true
+        type: string
+      skip_verification:
+        description: "Skip health check verification (emergency only)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate-promotion:
+    name: Validate Promotion Path
+    runs-on: ubuntu-latest
+    outputs:
+      is_valid: ${{ steps.validate.outputs.is_valid }}
+      sha_tag: ${{ steps.validate.outputs.sha_tag }}
+      aws_account_id: ${{ steps.config.outputs.aws_account_id }}
+      aws_region: ${{ steps.config.outputs.aws_region }}
+      ecr_repository: ${{ steps.config.outputs.ecr_repository }}
+      eks_cluster_name: ${{ steps.config.outputs.eks_cluster_name }}
+      eks_region: ${{ steps.config.outputs.eks_region }}
+      k8s_namespace: ${{ steps.config.outputs.k8s_namespace }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate promotion path
+        id: validate
+        env:
+          SOURCE: ${{ github.event.inputs.source_environment }}
+          TARGET: ${{ github.event.inputs.target_environment }}
+          SHA: ${{ github.event.inputs.git_sha }}
+        run: |
+          # Validate promotion paths
+          if [[ "$SOURCE" == "testing" && "$TARGET" == "staging" ]]; then
+            echo "Valid promotion: testing -> staging"
+            echo "is_valid=true" >> $GITHUB_OUTPUT
+          elif [[ "$SOURCE" == "staging" && "$TARGET" == "production" ]]; then
+            echo "Valid promotion: staging -> production"
+            echo "is_valid=true" >> $GITHUB_OUTPUT
+          elif [[ "$SOURCE" == "testing" && "$TARGET" == "production" ]]; then
+            echo "ERROR: Cannot promote directly from testing to production"
+            echo "Must go through staging first: testing -> staging -> production"
+            exit 1
+          elif [[ "$SOURCE" == "$TARGET" ]]; then
+            echo "ERROR: Source and target environments are the same"
+            exit 1
+          else
+            echo "ERROR: Invalid promotion path: $SOURCE -> $TARGET"
+            exit 1
+          fi
+
+          SHORT_SHA=${SHA:0:7}
+          echo "sha_tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Read configuration from values file
+        id: config
+        env:
+          SOURCE: ${{ github.event.inputs.source_environment }}
+        run: |
+          VALUES_FILE="deployment/helm-chart/values-${SOURCE}.yaml"
+          echo "Reading configuration from ${VALUES_FILE}"
+
+          echo "aws_account_id=$(yq '.aws.accountId' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "aws_region=$(yq '.aws.region' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "ecr_repository=$(yq '.ecr.repository' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "eks_cluster_name=$(yq '.eks.clusterName' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "eks_region=$(yq '.eks.region' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "k8s_namespace=$(yq '.namespace' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+
+  verify-source-image:
+    name: Verify Source Image
+    runs-on: ubuntu-latest
+    needs: validate-promotion
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ needs.validate-promotion.outputs.aws_account_id }}:role/GitHubActionsPromptstoreDeployRole
+          aws-region: ${{ needs.validate-promotion.outputs.aws_region }}
+
+      - name: Verify image exists in ECR
+        env:
+          SHA_TAG: ${{ needs.validate-promotion.outputs.sha_tag }}
+          ECR_REPOSITORY: ${{ needs.validate-promotion.outputs.ecr_repository }}
+          AWS_REGION: ${{ needs.validate-promotion.outputs.aws_region }}
+        run: |
+          echo "Checking for image: ${ECR_REPOSITORY}:${SHA_TAG}"
+
+          if aws ecr describe-images \
+            --repository-name ${ECR_REPOSITORY} \
+            --image-ids imageTag=${SHA_TAG} \
+            --region ${AWS_REGION} >/dev/null 2>&1; then
+            echo "Image found: ${ECR_REPOSITORY}:${SHA_TAG}"
+          else
+            echo "ERROR: Image not found in ECR"
+            echo "  Repository: ${ECR_REPOSITORY}"
+            echo "  Tag: ${SHA_TAG}"
+            echo ""
+            echo "Available tags:"
+            aws ecr list-images \
+              --repository-name ${ECR_REPOSITORY} \
+              --region ${AWS_REGION} \
+              --max-items 10 || true
+            exit 1
+          fi
+
+      - name: Set up kubectl
+        if: ${{ !github.event.inputs.skip_verification }}
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
+
+      - name: Verify source deployment health
+        if: ${{ !github.event.inputs.skip_verification }}
+        env:
+          SOURCE: ${{ github.event.inputs.source_environment }}
+          EKS_REGION: ${{ needs.validate-promotion.outputs.eks_region }}
+          EKS_CLUSTER_NAME: ${{ needs.validate-promotion.outputs.eks_cluster_name }}
+          K8S_NAMESPACE: ${{ needs.validate-promotion.outputs.k8s_namespace }}
+        run: |
+          aws eks update-kubeconfig \
+            --region ${EKS_REGION} \
+            --name ${EKS_CLUSTER_NAME}
+
+          echo "Checking deployment health in namespace: ${K8S_NAMESPACE}"
+
+          if kubectl get deployment promptstore -n ${K8S_NAMESPACE} >/dev/null 2>&1; then
+            READY=$(kubectl get deployment promptstore -n ${K8S_NAMESPACE} -o jsonpath='{.status.readyReplicas}')
+            DESIRED=$(kubectl get deployment promptstore -n ${K8S_NAMESPACE} -o jsonpath='{.status.replicas}')
+
+            echo "Ready replicas: ${READY}/${DESIRED}"
+
+            if [[ "$READY" == "$DESIRED" && "$READY" -gt 0 ]]; then
+              echo "Source deployment is healthy"
+            else
+              echo "WARNING: Source deployment may not be healthy"
+              echo "  Ready: ${READY}, Desired: ${DESIRED}"
+              exit 1
+            fi
+          else
+            echo "WARNING: Deployment not found in ${K8S_NAMESPACE} namespace"
+            echo "  Continuing anyway (image exists in ECR)"
+          fi
+
+  retag-and-promote:
+    name: Re-tag Image for Target Environment
+    runs-on: ubuntu-latest
+    needs: [validate-promotion, verify-source-image]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ needs.validate-promotion.outputs.aws_account_id }}:role/GitHubActionsPromptstoreDeployRole
+          aws-region: ${{ needs.validate-promotion.outputs.aws_region }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Re-tag image for target environment
+        env:
+          SHA_TAG: ${{ needs.validate-promotion.outputs.sha_tag }}
+          TARGET_ENV: ${{ github.event.inputs.target_environment }}
+          AWS_ACCOUNT_ID: ${{ needs.validate-promotion.outputs.aws_account_id }}
+          AWS_REGION: ${{ needs.validate-promotion.outputs.aws_region }}
+          ECR_REPOSITORY: ${{ needs.validate-promotion.outputs.ecr_repository }}
+        run: |
+          ECR_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
+          ENV_TAG="${TARGET_ENV}-latest"
+
+          # Pull, tag, and push with environment tag
+          docker pull ${ECR_IMAGE}:${SHA_TAG}
+          docker tag ${ECR_IMAGE}:${SHA_TAG} ${ECR_IMAGE}:${ENV_TAG}
+          docker push ${ECR_IMAGE}:${ENV_TAG}
+
+          echo "Successfully tagged ${ECR_IMAGE}:${SHA_TAG} as ${ENV_TAG}"
+
+  deploy-promoted-image:
+    name: Deploy Promoted Image
+    needs: [validate-promotion, retag-and-promote]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: ${{ github.event.inputs.target_environment }}
+      image_tag: ${{ needs.validate-promotion.outputs.sha_tag }}
+    secrets: inherit
+
+  generate-report:
+    name: Generate Promotion Report
+    runs-on: ubuntu-latest
+    needs: [validate-promotion, verify-source-image, retag-and-promote, deploy-promoted-image]
+    if: always()
+    steps:
+      - name: Generate promotion report
+        env:
+          SOURCE: ${{ github.event.inputs.source_environment }}
+          TARGET: ${{ github.event.inputs.target_environment }}
+          SHA: ${{ github.event.inputs.git_sha }}
+          VERIFICATION_RESULT: ${{ needs.verify-source-image.result }}
+          RETAG_RESULT: ${{ needs.retag-and-promote.result }}
+          DEPLOY_RESULT: ${{ needs.deploy-promoted-image.result }}
+        run: |
+          echo "## Promotion Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Source:** ${SOURCE}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${TARGET}" >> $GITHUB_STEP_SUMMARY
+          echo "**Git SHA:** ${SHA:0:7}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Verification | ${VERIFICATION_RESULT} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Re-tag | ${RETAG_RESULT} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${DEPLOY_RESULT} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$DEPLOY_RESULT" == "success" ]]; then
+            echo "### Promotion Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Image \`sha-${SHA:0:7}\` has been promoted from **${SOURCE}** to **${TARGET}**." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Promotion Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Rollback Instructions" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "# Option 1: Re-run promote workflow with previous SHA" >> $GITHUB_STEP_SUMMARY
+            echo "gh workflow run promote.yml -f source_environment=${TARGET} -f target_environment=${TARGET} -f git_sha=<previous-sha>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Option 2: kubectl rollout undo" >> $GITHUB_STEP_SUMMARY
+            echo "kubectl rollout undo deployment/promptstore -n promptstore" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

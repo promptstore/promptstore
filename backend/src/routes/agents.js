@@ -6,26 +6,20 @@ import { AgentTracingCallback } from '../agents/AgentTracingCallback';
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'agents';
 
-  const {
-    agentsService,
-    executionsService,
-    toolService,
-    tracesService,
-  } = services;
+  const { agentsService, executionsService, toolService, tracesService } = services;
 
   const { deleteObjects, deleteObject, indexObject } = searchFunctions({ constants, logger, services });
 
   let clients = [];
   let events = [];
 
-  const sendEventToAllClients = (event) => {
+  const sendEventToAllClients = event => {
     clients.forEach(client => client.response.write(`data: ${JSON.stringify(event)}\n\n`));
   };
 
-  const addEvent = (event) => {
+  const addEvent = event => {
     events.push(event);
     sendEventToAllClients(event);
   };
@@ -33,7 +27,7 @@ export default ({ app, auth, constants, logger, services }) => {
   const eventsHandler = (req, res) => {
     const headers = {
       'Content-Type': 'text/event-stream',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Cache-Control': 'no-cache',
     };
     res.writeHead(200, headers);
@@ -108,7 +102,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         useFunctions:
    *           type: boolean
    *           description: A flag to indicate if the agent will use model supported function calling if available.
-   *       
+   *
    *     AgentExecutionRequest:
    *       type: object
    *       required:
@@ -121,7 +115,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         workspaceId:
    *           type: integer
    *           description: The workspace identifier
-   * 
+   *
    *     Tool:
    *       type: object
    *       required:
@@ -138,7 +132,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         description:
    *           type: string
    *           description: A description of the tool purpose and function. This is used by the LLM to determine when it is applicable for the tool to be called.
-   * 
+   *
    *     Agent:
    *       type: object
    *       required:
@@ -184,7 +178,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *         modifiedBy:
    *           type: string
    *           description: The username of the user who last modified the workspace.
-   * 
+   *
    *     AgentInput:
    *       type: object
    *       required:
@@ -299,17 +293,13 @@ export default ({ app, auth, constants, logger, services }) => {
    *         description: Error
    */
   app.post('/api/agent-executions', auth, async (req, res) => {
-
     // TODO
     events = [];
 
     const { correlationId } = req.body;
-    const {
-      id: agentId,
-      goal,
-    } = req.body.agent;
+    const { id: agentId, goal } = req.body.agent;
     const workspaceId = req.body.workspaceId;
-    const { email, username } = (req.user || {});
+    const { email, username } = req.user || {};
 
     const emitter = new EventEmitter();
     const callbacks = [
@@ -320,10 +310,10 @@ export default ({ app, auth, constants, logger, services }) => {
 
     let done = false;
     events = [];
-    emitter.on('event', (data) => {
+    emitter.on('event', data => {
       addEvent(data);
     });
-    emitter.on('done', (data) => {
+    emitter.on('done', data => {
       addEvent(data);
       done = true;
     });
@@ -464,10 +454,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let agent = await agentsService.upsertAgent(values, username);
-    const obj = createSearchableObject(agent);
-    const chunkId = await indexObject(obj, agent.chunkId);
-    if (!agent.chunkId) {
-      agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(agent);
+      const chunkId = await indexObject(obj, agent.chunkId);
+      if (!agent.chunkId) {
+        agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+      }
     }
     res.json(agent);
   });
@@ -506,10 +498,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let agent = await agentsService.upsertAgent({ ...values, id }, username);
-    const obj = createSearchableObject(agent);
-    const chunkId = await indexObject(obj, agent.chunkId);
-    if (!agent.chunkId) {
-      agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(agent);
+      const chunkId = await indexObject(obj, agent.chunkId);
+      if (!agent.chunkId) {
+        agent = await agentsService.upsertAgent({ ...agent, chunkId }, username);
+      }
     }
     res.json(agent);
   });
@@ -539,7 +533,9 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/agents/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await agentsService.deleteAgents([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -570,17 +566,16 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/agents', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await agentsService.deleteAgents(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.goal,
-    ];
+    const texts = [rec.name, rec.goal];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -597,5 +592,4 @@ export default ({ app, auth, constants, logger, services }) => {
       },
     };
   }
-
-}
+};

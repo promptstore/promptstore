@@ -336,7 +336,7 @@ export function Designer() {
         return textContent.text;
       }
     }
-    return null;
+    return message.content;
   };
 
   // ensure assistant messages have content arrays
@@ -353,6 +353,7 @@ export function Designer() {
   };
 
   const handleChatSubmit = async values => {
+    console.log('values:', values)
     if (!modelParams.models?.length) {
       messageApi.warning({
         content: 'You must select a valid model',
@@ -402,6 +403,7 @@ export function Designer() {
               return p.prompt;
             });
 
+          console.log('contentVar:', contentVar)
           if (contentVar || varsSchema) {
             const nonSystemMessages = ps.prompts
               .filter(p => p.role !== 'system')

@@ -63,6 +63,8 @@
     "jsonpath-plus": "^10.3.0",
     "jsonschema": "^1.4.1",
     "jsonschema2ddl": "^0.1.4",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.0.1",
     "lodash.capitalize": "^4.2.1",
     "lodash.clonedeep": "^4.5.0",
     "lodash.defaultsdeep": "^4.6.1",

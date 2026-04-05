@@ -95,7 +95,9 @@ const S3_ENDPOINT = process.env.S3_ENDPOINT;
 const S3_PORT = process.env.S3_PORT;
 const TEMPORAL_URL = process.env.TEMPORAL_URL;
 
+const MINIMAL_INSTALL = process.env.MINIMAL_INSTALL === 'true';
 const NO_AUTH = process.env.NO_AUTH === 'true';
+const AUTH_PROVIDER = process.env.AUTH_PROVIDER || 'none'; // 'cognito', 'firebase', 'none'
 
 const EXTRACTOR_PLUGINS = process.env.EXTRACTOR_PLUGINS || '';
 const FEATURE_STORE_PLUGINS = process.env.FEATURE_STORE_PLUGINS || '';
@@ -177,24 +179,27 @@ const swaggerOptions = {
   apis,
 };
 
-const minioOptions = {
-  endPoint: S3_ENDPOINT,
-  port: parseInt(S3_PORT, 10),
-  useSSL: ENV !== 'dev',
-  accessKey: process.env.AWS_ACCESS_KEY,
-  secretKey: process.env.AWS_SECRET_KEY,
-};
-logger.debug('minio options:', minioOptions);
-const mc = new Minio.Client(minioOptions);
+let mc, rc;
+if (!MINIMAL_INSTALL) {
+  const minioOptions = {
+    endPoint: S3_ENDPOINT,
+    port: parseInt(S3_PORT, 10),
+    useSSL: ENV !== 'dev',
+    accessKey: process.env.AWS_ACCESS_KEY,
+    secretKey: process.env.AWS_SECRET_KEY,
+  };
+  logger.debug('minio options:', minioOptions);
+  mc = new Minio.Client(minioOptions);
 
-const rc = redis.createClient({
-  url: `redis://${process.env.REDIS_HOST}:6379`,
-  password: process.env.REDIS_PASSWORD,
-  legacyMode: true,
-});
-rc.connect().catch(err => {
-  logger.error(err, err.stack);
-});
+  rc = redis.createClient({
+    url: `redis://${process.env.REDIS_HOST}:6379`,
+    password: process.env.REDIS_PASSWORD,
+    legacyMode: true,
+  });
+  rc.connect().catch(err => {
+    logger.error(err, err.stack);
+  });
+}
 
 const agentNetworksService = AgentNetworksService({ pg, logger });
 
@@ -289,16 +294,27 @@ const vectorStoreService = VectorStoreService({ logger, registry: vectorStorePlu
 
 const creditCalculatorService = CreditCalculatorService({ logger, services: { modelsService } });
 
-const RedisStore = connectRedis(session);
-const sess = {
-  cookie: {},
-  resave: false,
-  saveUninitialized: true,
-  secret: 'Data Science is a workspace sport!',
-  store: new RedisStore({ client: rc }),
-};
+if (!MINIMAL_INSTALL) {
+  const RedisStore = connectRedis(session);
+  const sess = {
+    cookie: {},
+    resave: false,
+    saveUninitialized: true,
+    secret: 'Data Science is a team sport!',
+    store: new RedisStore({ client: rc }),
+  };
 
-app.use(session(sess));
+  app.use(session(sess));
+} else {
+  app.use(
+    session({
+      secret: 'Data Science is a team sport!',
+      resave: false,
+      saveUninitialized: true,
+      cookie: { secure: true },
+    })
+  );
+}
 
 // These must come after `app.use(session(sess))`
 // app.use(passport.initialize());
@@ -347,9 +363,37 @@ app.use(cors());
 // }
 
 const VerifyToken = async (req, res, next) => {
-  // look for firebase token
   const authHeader = req.headers.authorization;
-  if (authHeader) {
+
+  // Cognito JWT verification via JWKS
+  if (AUTH_PROVIDER === 'cognito' && authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2) {
+      const token = parts[1];
+      try {
+        const { verifyCognitoToken, extractUserFromToken } = await import('./config/cognito-config.js');
+        const decoded = await verifyCognitoToken(token);
+        const tokenUser = extractUserFromToken(decoded);
+        let user = await usersService.getUser(tokenUser.email);
+        if (!user) {
+          // Auto-create user on first Cognito login
+          user = await usersService.upsertUser(tokenUser);
+        }
+        req.user = {
+          ...tokenUser,
+          ...(user || {}),
+          roles: user?.roles || tokenUser.roles,
+          username: tokenUser.email,
+        };
+        return next();
+      } catch (err) {
+        logger.error('Cognito token verification failed:', err.message);
+      }
+    }
+  }
+
+  // Firebase token verification
+  if (AUTH_PROVIDER !== 'cognito' && authHeader) {
     const parts = authHeader.split(' ');
     if (parts.length === 2) {
       const token = parts[1];
@@ -499,6 +543,7 @@ const options = {
     FILESTORE_PREFIX,
     IMAGES_PREFIX,
     MAILTRAP_INVITE_TEMPLATE_UUID,
+    MINIMAL_INSTALL,
     S3_ENDPOINT,
     S3_PORT,
     SEARCH_EMBEDDING_PROVIDER,
@@ -574,17 +619,19 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 logger.debug('Installing routes');
 await installModules('routes', { ...options, agents });
 
-initSearchIndex({
-  constants: {
-    SEARCH_EMBEDDING_PROVIDER,
-    SEARCH_INDEX_NAME,
-    SEARCH_NODE_LABEL,
-    SEARCH_WORKSPACE,
-    SEARCH_VECTORSTORE_PROVIDER,
-  },
-  logger,
-  services: { indexesService, llmService, vectorStoreService },
-});
+if (!MINIMAL_INSTALL) {
+  initSearchIndex({
+    constants: {
+      SEARCH_EMBEDDING_PROVIDER,
+      SEARCH_INDEX_NAME,
+      SEARCH_NODE_LABEL,
+      SEARCH_WORKSPACE,
+      SEARCH_VECTORSTORE_PROVIDER,
+    },
+    logger,
+    services: { indexesService, llmService, vectorStoreService },
+  });
+}
 
 const parseQueryString = str => {
   const parts = str.split('?');

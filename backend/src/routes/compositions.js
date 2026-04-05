@@ -2,7 +2,6 @@ import searchFunctions from '../searchFunctions';
 import { hasValue } from '../utils';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
-
   const OBJECT_TYPE = 'compositions';
 
   const { compositionsService } = services;
@@ -41,7 +40,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *         sourceHandle: "a"
    *         target: "b35187e1-da6f-4064-8968-34a035638fa4"
    *         targetHandle: "target"
-   * 
+   *
    *     NodePosition:
    *       type: object
    *       required:
@@ -57,7 +56,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *       example:
    *         x: 15
    *         y: 20
-   * 
+   *
    *     RequestNodeData:
    *       type: object
    *       required:
@@ -78,7 +77,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *               type: string
    *           required:
    *             - input
-   * 
+   *
    *     FunctionNodeData:
    *       type: object
    *       required:
@@ -94,7 +93,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *       example:
    *         functionId: 1
    *         functionName: "summarize"
-   * 
+   *
    *     MapperNodeData:
    *       type: object
    *       required:
@@ -119,13 +118,13 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *               type: string
    *           required:
    *             - text
-   * 
+   *
    *     JoinerNodeData:
    *       type: object
-   * 
+   *
    *     OutputNodeData:
    *       type: object
-   * 
+   *
    *     Node:
    *       type: object
    *       properties:
@@ -187,7 +186,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *         type: "functionNode"
    *         width: 150
    *         zIndex: 1001
-   * 
+   *
    *     Viewport:
    *       type: object
    *       requires:
@@ -208,7 +207,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *         x: 0
    *         y: 0
    *         zoom: 1.5
-   * 
+   *
    *     Flow:
    *       type: object
    *       required:
@@ -255,7 +254,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *           x: 0
    *           y: 0
    *           zoom: 1.5
-   * 
+   *
    *     Composition:
    *       type: object
    *       required:
@@ -332,7 +331,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
    *             x: 0
    *             y: 0
    *             zoom: 1.5
-   * 
+   *
    *     CompositionInput:
    *       type: object
    *       required:
@@ -471,8 +470,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         workspaceId: values.workflowId,
         username,
         compositionName: composition.name,
-        args: {},  // not relevant to schedulable compositions
-        params: {},// "
+        args: {}, // not relevant to schedulable compositions
+        params: {}, // "
       };
       const scheduleId = await workflowClient.scheduleComposition(values, params, {
         address: constants.TEMPORAL_URL,
@@ -484,10 +483,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       };
     }
     const composition = await compositionsService.upsertComposition(values, username);
-    const obj = createSearchableObject(composition);
-    const chunkId = await indexObject(obj, composition.chunkId);
-    if (!composition.chunkId) {
-      composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(composition);
+      const chunkId = await indexObject(obj, composition.chunkId);
+      if (!composition.chunkId) {
+        composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+      }
     }
     res.json(composition);
   });
@@ -543,8 +544,8 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
           workspaceId: values.workspaceId,
           username,
           compositionName: values.name,
-          args: {},  // not relevant to schedulable compositions
-          params: {},// "
+          args: {}, // not relevant to schedulable compositions
+          params: {}, // "
         };
         const scheduleId = await workflowClient.scheduleComposition(scheduleInput, params, {
           address: constants.TEMPORAL_URL,
@@ -558,15 +559,17 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       }
     }
     composition = await compositionsService.upsertComposition(values, username);
-    const obj = createSearchableObject(composition);
-    const chunkId = await indexObject(obj, composition.chunkId);
-    if (!composition.chunkId) {
-      composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(composition);
+      const chunkId = await indexObject(obj, composition.chunkId);
+      if (!composition.chunkId) {
+        composition = await compositionsService.upsertComposition({ ...composition, chunkId }, username);
+      }
     }
     res.json(composition);
   });
 
-  const getSchedule = (composition) => {
+  const getSchedule = composition => {
     if (!composition?.flow) return null;
     const scheduleNode = composition.flow.nodes.find(nd => nd.type === 'scheduleNode');
     if (scheduleNode) {
@@ -600,7 +603,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.delete('/api/compositions/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await compositionsService.deleteCompositions([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -631,17 +636,16 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.delete('/api/compositions', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await compositionsService.deleteCompositions(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -653,9 +657,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       createdDateTime: rec.created,
       createdBy: rec.createdBy,
       workspaceId: String(rec.workspaceId),
-      metadata: {
-      },
+      metadata: {},
     };
   }
-
 };

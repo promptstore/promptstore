@@ -7,7 +7,6 @@ import { hasValue } from '../utils';
 import { Indexer } from '../core/indexers/Indexer';
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
-
   const OBJECT_TYPE = 'transformations';
 
   const {
@@ -51,12 +50,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
   app.post('/api/transformations', auth, async (req, res, next) => {
     const { username } = req.user;
     let values = req.body;
-    const {
-      indexName,
-      name,
-      vectorStoreProvider,
-      workspaceId,
-    } = values;
+    const { indexName, name, vectorStoreProvider, workspaceId } = values;
     if (indexName) {
       const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
       const embeddingModel = {
@@ -102,10 +96,15 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       };
     }
     const transformation = await transformationsService.upsertTransformation(values, username);
-    const obj = createSearchableObject(transformation);
-    const chunkId = await indexObject(obj, transformation.chunkId);
-    if (!transformation.chunkId) {
-      transformation = await transformationsService.upsertTransformation({ ...transformation, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(transformation);
+      const chunkId = await indexObject(obj, transformation.chunkId);
+      if (!transformation.chunkId) {
+        transformation = await transformationsService.upsertTransformation(
+          { ...transformation, chunkId },
+          username
+        );
+      }
     }
     res.json(transformation);
   });
@@ -115,12 +114,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { username } = req.user;
     let transformation = transformationsService.getTransformation(id);
     let values = { ...transformation, ...req.body };
-    const {
-      name,
-      indexName,
-      vectorStoreProvider,
-      workspaceId,
-    } = values;
+    const { name, indexName, vectorStoreProvider, workspaceId } = values;
     const model = await modelsService.getModelByKey(workspaceId, values.embeddingModel);
     const embeddingModel = {
       provider: model.provider,
@@ -170,10 +164,15 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
 
     transformation = await transformationsService.upsertTransformation(values, username);
-    const obj = createSearchableObject(transformation);
-    const chunkId = await indexObject(obj, transformation.chunkId);
-    if (!transformation.chunkId) {
-      transformation = await transformationsService.upsertTransformation({ ...transformation, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(transformation);
+      const chunkId = await indexObject(obj, transformation.chunkId);
+      if (!transformation.chunkId) {
+        transformation = await transformationsService.upsertTransformation(
+          { ...transformation, chunkId },
+          username
+        );
+      }
     }
     res.json(transformation);
   });
@@ -187,7 +186,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       });
     }
     await transformationsService.deleteTransformations([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -202,7 +203,9 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       }
     }
     await transformationsService.deleteTransformations(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
@@ -214,7 +217,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
       .transform(tx, workspaceId, username, {
         address: constants.TEMPORAL_URL,
       })
-      .then((result) => {
+      .then(result => {
         // logger.debug('result:', result);
         if (correlationId) {
           jobs[correlationId] = result;
@@ -224,18 +227,14 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
         setTimeout(() => {
           delete jobs[correlationId];
         }, 10 * 60 * 1000);
-
       });
     res.sendStatus(200);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -256,7 +255,7 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     };
   }
 
-  const getCleanedFeatures = async (features) => {
+  const getCleanedFeatures = async features => {
     const feats = [];
     for (const feature of features) {
       let featureName;
@@ -272,5 +271,4 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
     return feats;
   };
-
 };

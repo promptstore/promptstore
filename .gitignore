@@ -42,3 +42,10 @@ gcp/
 backups/
 build-*.sh
 *.yaml
+helm-chart2/
+.env.bak
+.env.testing
+.env.production
+cloud-sql-proxy
+deployment/cdk/cdk.context.json
+deployment/cdk/cdk.out/

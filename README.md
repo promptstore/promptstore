@@ -69,3 +69,6 @@ measurement, improvement, and governance.
 ## Further Reading
 
 - [Documentation](https://promptstoredocs.devsheds.io)
+
+./cloud-sql-proxy \
+--credentials-file /Users/mark/src/promptstore/gcp/ferrous-store-426202-p6-6f5d3946af8b.json ferrous-store-426202-p6:us-central1:test-eidiex-postgres

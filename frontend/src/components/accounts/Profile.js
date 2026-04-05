@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { Avatar, Button, Card, Form, Input, Modal, Space, Typography } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { selectCurrentUser } from '../../features/users/usersSlice';
 import { generateAvatar } from '../../utils/GenerateAvatar';
 import { getColor } from '../../utils.js';
 
@@ -14,11 +16,13 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(-1);
 
-  const { currentUser, updateUserProfile, setError } = useAuth();
+  const { currentUser: authUser, updateUserProfile, setError } = useAuth();
+  const currentUsr = useSelector(selectCurrentUser);
+  const currentUser = currentUsr || authUser || {};
 
   const [form] = Form.useForm();
 
-  const [firstName, lastName] = (currentUser.displayName || currentUser.email).split(/\s+/);
+  const [firstName, lastName] = (currentUser.displayName || currentUser.fullName || currentUser.email || '').split(/\s+/);
   const avatarName = firstName.length > 4 ? firstName.slice(0, 1).toUpperCase() : firstName;
 
   const fetchAvatars = () => {

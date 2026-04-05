@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Card, Form, Input } from 'antd';
+import { useAuth as useOidcAuth } from 'react-oidc-context';
 
 import CookieManager from '../../CookieManager';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,8 +13,32 @@ import {
 
 import background from '../../images/promptstore-background.png';
 
-export default function Login() {
+const authProvider = process.env.REACT_APP_AUTH_PROVIDER || 'none';
 
+function CognitoLogin() {
+  const oidcAuth = useOidcAuth();
+
+  const handleLogin = () => {
+    oidcAuth.signinRedirect();
+  };
+
+  return (
+    <div style={{ background: `url(${background}) no-repeat center top fixed`, backgroundSize: 'cover', display: 'flex', alignItems: 'center', height: '100vh' }}>
+      <Card
+        title="Login to your account"
+        style={{ width: 500, marginLeft: '20%' }}
+      >
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <Button type="primary" size="large" onClick={handleLogin}>
+            Sign in with AWS Cognito
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function StandardLogin() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -35,8 +60,7 @@ export default function Login() {
       setError('');
       setLoading(true);
       let userCredential;
-      console.log('REACT_APP_NO_AUTH:', process.env.REACT_APP_NO_AUTH);
-      if (process.env.REACT_APP_NO_AUTH === 'true') {
+      if (authProvider === 'none' || process.env.REACT_APP_NO_AUTH === 'true') {
         const photoURL = 'https://api.dicebear.com/7.x/initials/svg?seed=AU';
         const user = {
           displayName: email,
@@ -65,7 +89,6 @@ export default function Login() {
       } else {
         userCredential = await login(email, password);
       }
-      console.log('userCredential:', userCredential);
       const u = userCredential.user;
       const [firstName, lastName] = (u.displayName || '').split(' ');
       const user = {
@@ -135,4 +158,11 @@ export default function Login() {
       </Card>
     </div>
   );
+}
+
+export default function Login() {
+  if (authProvider === 'cognito') {
+    return <CognitoLogin />;
+  }
+  return <StandardLogin />;
 }

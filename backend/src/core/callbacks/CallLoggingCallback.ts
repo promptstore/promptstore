@@ -5,8 +5,9 @@ import {
 } from '../semanticfunctions/SemanticFunction_types';
 import { Callback } from './Callback';
 
-export class CallLoggingCallback extends Callback {
+const MINIMAL_INSTALL = process.env.MINIMAL_INSTALL === 'true';
 
+export class CallLoggingCallback extends Callback {
   startTime: Date[];
   workspaceId: number;
   username: string;
@@ -25,7 +26,14 @@ export class CallLoggingCallback extends Callback {
     });
   }
 
-  onSemanticFunctionStart({ name, args, history, model, modelParams, isBatch }: SemanticFunctionOnStartResponse) {
+  onSemanticFunctionStart({
+    name,
+    args,
+    history,
+    model,
+    modelParams,
+    isBatch,
+  }: SemanticFunctionOnStartResponse) {
     const startTime = new Date();
     this.startTime.push(startTime);
   }
@@ -85,9 +93,10 @@ export class CallLoggingCallback extends Callback {
       start_date: startTime,
       end_date: endTime,
     };
-    workflowClient.logCall(params, {
-      address: process.env.TEMPORAL_URL,
-    });
+    if (!MINIMAL_INSTALL) {
+      workflowClient.logCall(params, {
+        address: process.env.TEMPORAL_URL,
+      });
+    }
   }
-
 }

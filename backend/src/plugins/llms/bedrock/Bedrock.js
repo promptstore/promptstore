@@ -1,4 +1,4 @@
-import Minio from 'minio';
+// import Minio from 'minio';
 import { countTokens } from '@anthropic-ai/tokenizer';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
@@ -23,13 +23,14 @@ import {
 
 function Bedrock({ __name, constants, logger }) {
 
-  const mc = new Minio.Client({
-    endPoint: constants.S3_ENDPOINT,
-    port: parseInt(constants.S3_PORT, 10),
-    useSSL: constants.ENV !== 'dev',
-    accessKey: constants.AWS_ACCESS_KEY,
-    secretKey: constants.AWS_SECRET_KEY,
-  });
+  let mc;
+  // const mc = new Minio.Client({
+  //   endPoint: constants.S3_ENDPOINT,
+  //   port: parseInt(constants.S3_PORT, 10),
+  //   useSSL: constants.ENV !== 'dev',
+  //   accessKey: constants.AWS_ACCESS_KEY,
+  //   secretKey: constants.AWS_SECRET_KEY,
+  // });
 
   let _client;
 
@@ -77,8 +78,32 @@ function Bedrock({ __name, constants, logger }) {
         };
       } else if (model.startsWith('anthropic')) {
         const response = await fromAnthropicChatResponse(parsed, parserService);
-        const prompt_tokens = this.getNumberTokens(model, req.body.prompt);
-        const completion_tokens = this.getNumberTokens(model, parsed.completion);
+        
+        // Handle token counting for both API formats
+        let prompt_tokens = 0;
+        let completion_tokens = 0;
+        
+        // Prefer usage data from Bedrock response if available
+        if (parsed.usage) {
+          prompt_tokens = parsed.usage.input_tokens || 0;
+          completion_tokens = parsed.usage.output_tokens || 0;
+        } else if (model.includes('claude-3') || model.includes('haiku-3') || model.includes('sonnet-3') || model.includes('opus-3')) {
+          // Claude 3+ uses Messages API - count tokens from messages
+          if (req.body.messages) {
+            const promptText = req.body.messages.map(m => m.content).join('\n');
+            prompt_tokens = this.getNumberTokens(model, promptText);
+          }
+          // For completion tokens, we need to get the response content
+          if (parsed.content && parsed.content[0]) {
+            const contentText = parsed.content[0].text || parsed.content[0].content || '';
+            completion_tokens = this.getNumberTokens(model, contentText);
+          }
+        } else {
+          // Legacy Claude models use Completions API
+          prompt_tokens = this.getNumberTokens(model, req.body.prompt || '');
+          completion_tokens = this.getNumberTokens(model, parsed.completion || '');
+        }
+        
         const total_tokens = prompt_tokens + completion_tokens;
         return {
           ...response,
@@ -104,12 +129,12 @@ function Bedrock({ __name, constants, logger }) {
       }
       await delay(2000);
       _client = null;  // try refreshing the client if `ERR_SOCKET_CONNECTION_TIMEOUT`
-      return createChatCompletion(request, retryCount + 1);
+      return createChatCompletion(request, parserService, retryCount + 1);
     }
   }
 
   function createCompletion(request) {
-    return createChatCompletion(request);
+    return createChatCompletion(request, parserService);
   }
 
   async function createImage(request) {

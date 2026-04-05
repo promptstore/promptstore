@@ -3,26 +3,25 @@ import uuid from 'uuid';
 import searchFunctions from '../searchFunctions';
 
 const operatorMap = {
-  'is': 'equal',
-  'is_value': 'equal',
-  'contains': 'equal',  // TODO
-  'at_least': 'at_least',
-  'equal': 'equal',
-  'notEqual': 'notEqual',
-  'lessThan': 'lessThan',
-  'lessThanInclusive': 'lessThanInclusive',
-  'greaterThan': 'greaterThan',
-  'greaterThanInclusive': 'greaterThanInclusive',
-  'before': 'before',
-  'after': 'after',
-  'within_last': 'within_last',
-  'within': 'within',
-  'following': 'following',
-  'preceding': 'preceding',
+  is: 'equal',
+  is_value: 'equal',
+  contains: 'equal', // TODO
+  at_least: 'at_least',
+  equal: 'equal',
+  notEqual: 'notEqual',
+  lessThan: 'lessThan',
+  lessThanInclusive: 'lessThanInclusive',
+  greaterThan: 'greaterThan',
+  greaterThanInclusive: 'greaterThanInclusive',
+  before: 'before',
+  after: 'after',
+  within_last: 'within_last',
+  within: 'within',
+  following: 'following',
+  preceding: 'preceding',
 };
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'rules';
 
   const { rulesService, rulesEngineService } = services;
@@ -71,10 +70,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let rule = await rulesService.upsertRule(values, username);
-    const obj = createSearchableObject(rule);
-    const chunkId = await indexObject(obj, rule.chunkId);
-    if (!rule.chunkId) {
-      rule = await rulesService.upsertRule({ ...rule, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(rule);
+      const chunkId = await indexObject(obj, rule.chunkId);
+      if (!rule.chunkId) {
+        rule = await rulesService.upsertRule({ ...rule, chunkId }, username);
+      }
     }
     res.json(rule);
   });
@@ -84,10 +85,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let rule = await rulesService.upsertRule({ id, ...values }, username);
-    const obj = createSearchableObject(rule);
-    const chunkId = await indexObject(obj, rule.chunkId);
-    if (!rule.chunkId) {
-      rule = await rulesService.upsertRule({ ...rule, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(rule);
+      const chunkId = await indexObject(obj, rule.chunkId);
+      if (!rule.chunkId) {
+        rule = await rulesService.upsertRule({ ...rule, chunkId }, username);
+      }
     }
     res.json(rule);
   });
@@ -95,23 +98,25 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/rules/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await rulesService.deleteRules([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
   app.delete('/api/rules', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await rulesService.deleteRules(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-    ];
+    const texts = [rec.name];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -129,35 +134,36 @@ export default ({ app, auth, constants, logger, services }) => {
     };
   }
 
-  const convertAST = (rules) => {
+  const convertAST = rules => {
     logger.debug('convert rules:', rules);
     const ast = rules.reduce((a, r) => {
-      a[r.logicalType_id] = r.predicates.map((p) => {
-        if (p.logicalType_id) {
-          return convertAST([p]);
-        }
-        const [fact, attr] = p.target_id.split('.');
-        if ('event' === fact) {
+      a[r.logicalType_id] = r.predicates
+        .map(p => {
+          if (p.logicalType_id) {
+            return convertAST([p]);
+          }
+          const [fact, attr] = p.target_id.split('.');
+          if ('event' === fact) {
+            return {
+              fact,
+              operator: 'equal',
+              value: 'true',
+              path: '$.' + attr,
+              key: p.key,
+            };
+          }
           return {
             fact,
-            operator: 'equal',
-            value: 'true',
+            operator: operatorMap[p.operator_id],
+            value: p.argument,
             path: '$.' + attr,
             key: p.key,
           };
-        }
-        return {
-          fact,
-          operator: operatorMap[p.operator_id],
-          value: p.argument,
-          path: '$.' + attr,
-          key: p.key,
-        };
-      }).filter((p) => p.value !== null);
+        })
+        .filter(p => p.value !== null);
       return a;
     }, {});
     // console.log('return ast:', ast);
     return ast;
   };
-
 };

@@ -296,12 +296,15 @@ export const createActivities = ({
         const results = [];
         for (const choice of functionResponse.response.choices) {
           const message = choice.message;
+          logger.debug('message:', message);
           if (message.tool_calls) {
             for (const call of message.tool_calls) {
               results.push(JSON.parse(call.function.arguments));
             }
           } else if (message.function_call) {
             results.push(JSON.parse(message.function_call.arguments));
+          } else {
+            results.push(JSON.parse(message.content));
           }
         }
         const tc = await testCasesService.upsertTestCase({

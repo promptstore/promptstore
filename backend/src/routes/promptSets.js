@@ -136,10 +136,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     //   // proceed without summary
     // }
     let ps = await promptSetsService.upsertPromptSet(values, username);
-    const obj = createSearchableObject(ps);
-    const chunkId = await indexObject(obj, ps.chunkId);
-    if (!ps.chunkId) {
-      ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(ps);
+      const chunkId = await indexObject(obj, ps.chunkId);
+      if (!ps.chunkId) {
+        ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+      }
     }
     res.json(ps);
   });
@@ -162,10 +164,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     //   // proceed without summary
     // }
     let ps = await promptSetsService.upsertPromptSet({ ...values, id }, username);
-    const obj = createSearchableObject(ps);
-    const chunkId = await indexObject(obj, ps.chunkId);
-    if (!ps.chunkId) {
-      ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(ps);
+      const chunkId = await indexObject(obj, ps.chunkId);
+      if (!ps.chunkId) {
+        ps = await promptSetsService.upsertPromptSet({ ...ps, chunkId }, username);
+      }
     }
     res.json(ps);
   });
@@ -181,7 +185,9 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       }
     }
     await promptSetsService.deletePromptSets([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
@@ -198,7 +204,9 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       }
     }
     await promptSetsService.deletePromptSets(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 

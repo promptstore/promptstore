@@ -95,10 +95,12 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     }
     const removedIds = Object.keys(existingIds).filter(id => existingIds[id]);
     await testCasesService.deleteTestCases(removedIds);
-    const obj = createSearchableObject(testScenario);
-    const chunkId = await indexObject(obj, testScenario.chunkId);
-    if (!testScenario.chunkId) {
-      testScenario = await testScenariosService.upsertTestScenario({ ...testScenario, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(testScenario);
+      const chunkId = await indexObject(obj, testScenario.chunkId);
+      if (!testScenario.chunkId) {
+        testScenario = await testScenariosService.upsertTestScenario({ ...testScenario, chunkId }, username);
+      }
     }
     return { ...testScenario, testCases };
   };

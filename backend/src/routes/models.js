@@ -1,7 +1,6 @@
 import searchFunctions from '../searchFunctions';
 
 export default ({ app, auth, constants, logger, services }) => {
-
   const OBJECT_TYPE = 'models';
 
   const { creditCalculatorService, modelsService } = services;
@@ -39,10 +38,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let model = await modelsService.upsertModel(values, username);
-    const obj = createSearchableObject(model);
-    const chunkId = await indexObject(obj, model.chunkId);
-    if (!model.chunkId) {
-      model = await modelsService.upsertModel({ ...model, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(model);
+      const chunkId = await indexObject(obj, model.chunkId);
+      if (!model.chunkId) {
+        model = await modelsService.upsertModel({ ...model, chunkId }, username);
+      }
     }
     res.json(model);
   });
@@ -52,10 +53,12 @@ export default ({ app, auth, constants, logger, services }) => {
     const { username } = req.user;
     const values = req.body;
     let model = await modelsService.upsertModel({ id, ...values }, username);
-    const obj = createSearchableObject(model);
-    const chunkId = await indexObject(obj, model.chunkId);
-    if (!model.chunkId) {
-      model = await modelsService.upsertModel({ ...model, chunkId }, username);
+    if (!constants.MINIMAL_INSTALL) {
+      const obj = createSearchableObject(model);
+      const chunkId = await indexObject(obj, model.chunkId);
+      if (!model.chunkId) {
+        model = await modelsService.upsertModel({ ...model, chunkId }, username);
+      }
     }
     res.json(model);
   });
@@ -63,24 +66,25 @@ export default ({ app, auth, constants, logger, services }) => {
   app.delete('/api/models/:id', auth, async (req, res, next) => {
     const id = req.params.id;
     await modelsService.deleteModels([id]);
-    await deleteObject(objectId(id));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObject(objectId(id));
+    }
     res.json(id);
   });
 
   app.delete('/api/models', auth, async (req, res, next) => {
     const ids = req.query.ids.split(',');
     await modelsService.deleteModels(ids);
-    await deleteObjects(ids.map(objectId));
+    if (!constants.MINIMAL_INSTALL) {
+      await deleteObjects(ids.map(objectId));
+    }
     res.json(ids);
   });
 
-  const objectId = (id) => OBJECT_TYPE + ':' + id;
+  const objectId = id => OBJECT_TYPE + ':' + id;
 
   function createSearchableObject(rec) {
-    const texts = [
-      rec.name,
-      rec.description,
-    ];
+    const texts = [rec.name, rec.description];
     const text = texts.filter(t => t).join('\n');
     return {
       id: objectId(rec.id),
@@ -100,5 +104,4 @@ export default ({ app, auth, constants, logger, services }) => {
       },
     };
   }
-
 };

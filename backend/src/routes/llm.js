@@ -7,12 +7,7 @@ import uuid from 'uuid';
 import { PARA_DELIM } from '../core/conversions/RosettaStone';
 import { Tracer } from '../core/tracing/Tracer';
 import { convertMessagesWithImages, convertResponseWithImages } from '../core/utils';
-import {
-  downloadImage,
-  fillTemplate,
-  getMessages,
-  isTruthy,
-} from '../utils';
+import { downloadImage, fillTemplate, getMessages, isTruthy } from '../utils';
 
 // const DEFAULT_CHAT_MODEL = 'chat-3.5-turbo';
 // const DEFAULT_COPY_GENERATION_SKILL = 'copy_generation';
@@ -20,9 +15,7 @@ const DEFAULT_IMAGE_GENERATION_SKILL = 'image_generation';
 const QA_SKILL = 'qa';
 const LAST_SESSION_NAME = 'last session';
 
-
 export default ({ app, auth, constants, logger, mc, services }) => {
-
   const {
     chatSessionsService,
     creditCalculatorService,
@@ -37,7 +30,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     vectorStoreService,
   } = services;
 
-  const getPresignedUrl = (objectName) => {
+  const getPresignedUrl = objectName => {
     return new Promise((resolve, reject) => {
       mc.presignedUrl('GET', constants.FILE_BUCKET, objectName, (err, presignedUrl) => {
         if (err) {
@@ -185,9 +178,9 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.send(promptSuggestion);
   });*/
 
-  const cleanHistory = (history) => {
+  const cleanHistory = history => {
     if (!history) return [];
-    return history.map((m) => ({
+    return history.map(m => ({
       role: m.role,
       content: Array.isArray(m.content) ? m.content[0].content : m.content,
     }));
@@ -289,39 +282,48 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, 'rag');
     let session;
     if (lastSession) {
-      session = await chatSessionsService.upsertChatSession({
-        ...lastSession,
-        argsFormData,
-        messages: allMessages,
-        modelParams: params || {},
-        functionId,
-        modelId,
-        selectedTags,
-      }, username);
+      session = await chatSessionsService.upsertChatSession(
+        {
+          ...lastSession,
+          argsFormData,
+          messages: allMessages,
+          modelParams: params || {},
+          functionId,
+          modelId,
+          selectedTags,
+        },
+        username
+      );
     } else {
-      session = await chatSessionsService.upsertChatSession({
-        argsFormData,
-        messages: allMessages,
-        modelParams: params || {},
-        name: LAST_SESSION_NAME,
-        type: 'rag',
-        workspaceId,
-        functionId,
-        modelId,
-        selectedTags,
-      }, username);
+      session = await chatSessionsService.upsertChatSession(
+        {
+          argsFormData,
+          messages: allMessages,
+          modelParams: params || {},
+          name: LAST_SESSION_NAME,
+          type: 'rag',
+          workspaceId,
+          functionId,
+          modelId,
+          selectedTags,
+        },
+        username
+      );
     }
     // logger.debug('session:', session);
 
     if (isTruthy(stream)) {
       const headers = {
         'Content-Type': 'text/event-stream',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
         'Cache-Control': 'no-cache',
       };
       res.writeHead(200, headers);
-      response.on('data', (data) => {
-        const lines = data.toString().split('\n').filter(line => line.trim() !== '');
+      response.on('data', data => {
+        const lines = data
+          .toString()
+          .split('\n')
+          .filter(line => line.trim() !== '');
         for (const line of lines) {
           const message = line.replace(/^data: /, '');
           if (message === '[DONE]') {
@@ -404,7 +406,30 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       } else {
         console.error(`prompt set with skill (${promptSetSkill}) not found or has no prompts`);
       }
+    } else {
+      // Process messages with fillTemplate if args are provided
+      if (req.body.messages && args) {
+        for (const m of req.body.messages) {
+          if (typeof m.content === 'string') {
+            messages.push({
+              role: m.role,
+              content: fillTemplate(m.content, args, engine),
+            });
+          } else if (Array.isArray(m.content)) {
+            const content = m.content.map(c => {
+              if (c.type === 'text') {
+                return { ...c, text: fillTemplate(c.text, args, engine) };
+              }
+              return c;
+            });
+            messages.push({ role: m.role, content });
+          } else {
+            messages.push(m);
+          }
+        }
+      }
     }
+    console.log('!! messages:', messages);
     let models = isCritic ? modelParams.criticModels : modelParams.models;
     if (!models || !models.length) {
       // TODO move values to settings
@@ -427,11 +452,11 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     if (systemPromptInput) {
       messages.push({ role: 'system', content: systemPromptInput });
     }
-    if (req.body.messages?.length) {
-      // const msgs = await convertMessagesWithImages(req.body.messages);
-      // messages.push(...msgs);
-      messages.push(...req.body.messages);
-    }
+    // if (req.body.messages?.length) {
+    //   // const msgs = await convertMessagesWithImages(req.body.messages);
+    //   // messages.push(...msgs);
+    //   messages.push(...req.body.messages);
+    // }
     logger.debug('!! messages:', messages);
 
     tracer
@@ -452,18 +477,17 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     messageTemplates.push(...req.body.messages);
     startTime = new Date();
     startTimes.push(startTime);
-    tracer
-      .push({
-        id: uuid.v4(),
-        type: 'call-prompt-template',
-        messageTemplates: await convertMessagesWithImages(messageTemplates),
-        args,
-        startTime: startTime.getTime(),
-      });
+    tracer.push({
+      id: uuid.v4(),
+      type: 'call-prompt-template',
+      messageTemplates: await convertMessagesWithImages(messageTemplates),
+      args,
+      startTime: startTime.getTime(),
+    });
 
     let sp;
 
-    const getContent = (content) => {
+    const getContent = content => {
       if (typeof content === 'string') {
         return fillTemplate(content, args, engine);
       }
@@ -473,7 +497,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         }
         return c;
       });
-    }
+    };
 
     // if (systemPrompt) {
     //   if (args) {
@@ -526,29 +550,27 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
       .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
       .addProperty('messages', await convertMessagesWithImages(outputMessages))
-      .addProperty('success', true)
-      ;
+      .addProperty('success', true);
 
     // TODO place in loop
     if (indexName) {
       const message = messages[messages.length - 1];
       let content;
       if (Array.isArray(message.content)) {
-        content = message.content[0].content;  // use content from the first model
+        content = message.content[0].content; // use content from the first model
       } else {
         content = message.content;
       }
 
       startTime = new Date();
       startTimes.push(startTime);
-      tracer
-        .push({
-          id: uuid.v4(),
-          type: 'semantic-search-enrichment',
-          index: { name: indexName },
-          args: { content },
-          startTime: startTime.getTime(),
-        });
+      tracer.push({
+        id: uuid.v4(),
+        type: 'semantic-search-enrichment',
+        index: { name: indexName },
+        args: { content },
+        startTime: startTime.getTime(),
+      });
 
       const index = await indexesService.getIndexByName(workspaceId, indexName);
       if (index && index.vectorStoreProvider) {
@@ -577,8 +599,8 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           vectorStoreProvider,
           indexName,
           content,
-          null,  // attrs
-          null,  // logicalType
+          null, // attrs
+          null, // logicalType
           searchParams
         );
         let context;
@@ -586,12 +608,12 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           context = hits.map(h => h.content_text).join(PARA_DELIM);
           const promptSets = await promptSetsService.getPromptSetsBySkill(workspaceId, QA_SKILL);
           if (promptSets.length) {
-            const prompts = promptSets[0].prompts;  // use first promptSet
+            const prompts = promptSets[0].prompts; // use first promptSet
             const features = { content, context };
             const ctxMsgs = getMessages(prompts, features);
 
             // TODO what is `i`
-            const i = 0;  // temp
+            const i = 0; // temp
             messages.splice(i, 1, ...ctxMsgs);
           }
         }
@@ -604,8 +626,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
         .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
         .addProperty('enrichedArgs', { content, context })
-        .addProperty('success', true)
-        ;
+        .addProperty('success', true);
     }
 
     let model_params;
@@ -722,8 +743,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
         .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
         .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
         .addProperty('response', await convertResponseWithImages(completion))
-        .addProperty('success', true)
-        ;
+        .addProperty('success', true);
       const { provider } = modelMap[completion.model];
       const { prompt_tokens, completion_tokens } = completion.usage || {};
       const costComponents = await creditCalculatorService.getCostComponents({
@@ -754,8 +774,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
       .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
       .addProperty('response', await Promise.all(resp))
-      .addProperty('success', true)
-      ;
+      .addProperty('success', true);
     const traceRecord = tracer.close();
     const { id } = await tracesService.upsertTrace({ ...traceRecord, workspaceId }, username);
 
@@ -786,39 +805,49 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     const sessionType = isImagegen ? 'imagegen' : 'design';
     let session;
     if (app === 'promptstore') {
-      const lastSession = await chatSessionsService.getChatSessionByName(LAST_SESSION_NAME, username, sessionType);
+      const lastSession = await chatSessionsService.getChatSessionByName(
+        LAST_SESSION_NAME,
+        username,
+        sessionType
+      );
       if (lastSession) {
-        session = await chatSessionsService.upsertChatSession({
-          ...lastSession,
-          argsFormData: args,
-          messages: [...curMessages, ...newMessages],
-          modelParams,
-          promptSetId,
-          systemPromptInput,
-          critiquePromptSetId,
-          critiquePromptInput,
-          criterion,
-          textOverlay,
-          subText,
-          textColor,
-        }, username);
+        session = await chatSessionsService.upsertChatSession(
+          {
+            ...lastSession,
+            argsFormData: args,
+            messages: [...curMessages, ...newMessages],
+            modelParams,
+            promptSetId,
+            systemPromptInput,
+            critiquePromptSetId,
+            critiquePromptInput,
+            criterion,
+            textOverlay,
+            subText,
+            textColor,
+          },
+          username
+        );
       } else {
-        session = await chatSessionsService.upsertChatSession({
-          argsFormData: args,
-          messages: [...curMessages, ...newMessages],
-          modelParams,
-          name: LAST_SESSION_NAME,
-          promptSetId,
-          systemPromptInput,
-          critiquePromptSetId,
-          critiquePromptInput,
-          criterion,
-          textOverlay,
-          subText,
-          textColor,
-          type: sessionType,
-          workspaceId,
-        }, username);
+        session = await chatSessionsService.upsertChatSession(
+          {
+            argsFormData: args,
+            messages: [...curMessages, ...newMessages],
+            modelParams,
+            name: LAST_SESSION_NAME,
+            promptSetId,
+            systemPromptInput,
+            critiquePromptSetId,
+            critiquePromptInput,
+            criterion,
+            textOverlay,
+            subText,
+            textColor,
+            type: sessionType,
+            workspaceId,
+          },
+          username
+        );
       }
     }
 
@@ -858,7 +887,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
           if (modelContent) {
             content = modelContent.content;
           } else {
-            content = m.content[0].content;  // use content from the first model
+            content = m.content[0].content; // use content from the first model
           }
           return { ...m, content };
         }
@@ -920,7 +949,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     res.json(response.data[0].embedding);
   });
 
-  const str2num = (str) => {
+  const str2num = str => {
     const num = +str;
     if (isNaN(num)) {
       throw new Error(`Error parsing "${str}" as number`);
@@ -928,7 +957,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
     return num;
   };
 
-  const getDims = (size) => {
+  const getDims = size => {
     try {
       const dims = size.split('x');
       if (dims.length === 2) {
@@ -938,7 +967,7 @@ export default ({ app, auth, constants, logger, mc, services }) => {
       logger.error('Error parsing "%s" as dims:', size, err);
     }
     return [1024, 1024];
-  }
+  };
 
   app.post('/api/image-request', auth, async (req, res) => {
     const { username } = req.user;
@@ -1212,5 +1241,4 @@ export default ({ app, auth, constants, logger, mc, services }) => {
   //   // return first by skill
   //   return promptSets[0];
   // };
-
 };
