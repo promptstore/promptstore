@@ -1,4 +1,5 @@
-import ReactJson from 'react-json-view';
+import JsonViewComponent from 'react18-json-view';
+import 'react18-json-view/src/style.css';
 
 export function JsonView({ collapsed, enableClipboard = false, src, style, theme }) {
   if (src === null || typeof src === 'undefined') {
@@ -20,16 +21,17 @@ export function JsonView({ collapsed, enableClipboard = false, src, style, theme
   } else {
     json = src;
   }
+  const collapseDepth = collapsed === true ? 1 : (typeof collapsed === 'number' ? collapsed : undefined);
+  const dark = theme === 'grayscale';
   return (
-    <ReactJson
-      name={false}
-      collapsed={collapsed}
-      displayObjectSize={false}
-      enableClipboard={enableClipboard}
-      theme={theme || 'grayscale:inverted'}
-      iconStyle="square"
-      style={{ backgroundColor: 'none', ...style }}
-      src={json}
-    />
+    <div style={style}>
+      <JsonViewComponent
+        src={json}
+        collapsed={collapseDepth}
+        enableClipboard={enableClipboard}
+        dark={dark}
+        theme="default"
+      />
+    </div>
   );
 }

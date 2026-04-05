@@ -524,7 +524,7 @@ article.collapsible .header>span[role=img] {
   margin-left: 0;
 }
 
-article.collapsible .panel .react-json-view {
+article.collapsible .panel .json-view {
   max-height: 250px;
   overflow-y: auto;
 }
