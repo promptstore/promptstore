@@ -324,40 +324,93 @@ jobs:
           echo "  Image Registry: ${IMAGE_REGISTRY}"
           echo "  Values File: deployment/helm-chart/${VALUES_FILE}"
 
+          [ -n "${{ secrets.PGUSER }}" ] || { echo "ERROR: PGUSER is not set for GitHub environment '${{ needs.determine-environment.outputs.environment }}'"; exit 1; }
+          [ -n "${{ secrets.PGPASSWORD }}" ] || { echo "ERROR: PGPASSWORD is not set for GitHub environment '${{ needs.determine-environment.outputs.environment }}'"; exit 1; }
+
+          RUNTIME_SECRETS_FILE="${RUNNER_TEMP}/promptstore-runtime-secrets.yaml"
+          cat > "${RUNTIME_SECRETS_FILE}" <<EOF
+          db:
+            user: |-
+              ${{ secrets.PGUSER }}
+            pass: |-
+              ${{ secrets.PGPASSWORD }}
+          redis:
+            pass: |-
+              ${{ secrets.REDIS_PASSWORD }}
+          s3:
+            access_key: |-
+              ${{ secrets.S3_ACCESS_KEY }}
+            secret_key: |-
+              ${{ secrets.S3_SECRET_KEY }}
+          bedrock:
+            access_key_id: |-
+              ${{ secrets.BEDROCK_ACCESS_KEY_ID }}
+            secret_access_key: |-
+              ${{ secrets.BEDROCK_SECRET_ACCESS_KEY }}
+          system_api_key: |-
+            ${{ secrets.PROMPTSTORE_API_KEY }}
+          openai:
+            api_key: |-
+              ${{ secrets.OPENAI_API_KEY }}
+          anthropic:
+            api_key: |-
+              ${{ secrets.ANTHROPIC_API_KEY }}
+          temporal:
+            api_key: |-
+              ${{ secrets.TEMPORAL_API_KEY }}
+          huggingface:
+            token: |-
+              ${{ secrets.HUGGINGFACE_TOKEN }}
+          cohere:
+            api_key: |-
+              ${{ secrets.COHERE_API_KEY }}
+          gemini:
+            api_key: |-
+              ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          mistral:
+            api_key: |-
+              ${{ secrets.MISTRAL_API_KEY }}
+          google_vertex:
+            api_key: |-
+              ${{ secrets.GOOGLE_API_KEY }}
+          stability_ai:
+            api_key: |-
+              ${{ secrets.STABILITY_AI_API_KEY }}
+          llamaapi:
+            api_key: |-
+              ${{ secrets.LLAMAAPI_API_KEY }}
+          serpapi:
+            api_key: |-
+              ${{ secrets.SERPAPI_KEY }}
+          openweather:
+            api_key: |-
+              ${{ secrets.OPENWEATHER_API_KEY }}
+          mailtrap:
+            token: |-
+              ${{ secrets.MAILTRAP_TOKEN }}
+          jira:
+            email: |-
+              ${{ secrets.JIRA_EMAIL }}
+            pat: |-
+              ${{ secrets.JIRA_PAT }}
+          trello:
+            api_key: |-
+              ${{ secrets.TRELLO_API_TOKEN }}
+          elasticsearch:
+            password: |-
+              ${{ secrets.ES_PASS }}
+          EOF
+
           # ACM cert ARN and IRSA role ARN come from the values file,
           # so no --set overrides needed for those.
-          # Secrets are injected via --set from GitHub Secrets into the
-          # Helm-managed K8s Secret (deployment/helm-chart/templates/secrets.yaml).
+          # Secrets are injected through a generated values file so Helm
+          # does not parse punctuation in credentials passed on the CLI.
           helm upgrade --install ${APP_NAME} \
             --namespace=${NAMESPACE} \
             --set version=${IMAGE_TAG} \
             --set containerRegistry=${IMAGE_REGISTRY} \
-            --set db.user="${{ secrets.PGUSER }}" \
-            --set db.pass="${{ secrets.PGPASSWORD }}" \
-            --set redis.pass="${{ secrets.REDIS_PASSWORD }}" \
-            --set s3.access_key="${{ secrets.S3_ACCESS_KEY }}" \
-            --set s3.secret_key="${{ secrets.S3_SECRET_KEY }}" \
-            --set bedrock.access_key_id="${{ secrets.BEDROCK_ACCESS_KEY_ID }}" \
-            --set bedrock.secret_access_key="${{ secrets.BEDROCK_SECRET_ACCESS_KEY }}" \
-            --set system_api_key="${{ secrets.PROMPTSTORE_API_KEY }}" \
-            --set openai.api_key="${{ secrets.OPENAI_API_KEY }}" \
-            --set anthropic.api_key="${{ secrets.ANTHROPIC_API_KEY }}" \
-            --set temporal.api_key="${{ secrets.TEMPORAL_API_KEY }}" \
-            --set huggingface.token="${{ secrets.HUGGINGFACE_TOKEN }}" \
-            --set cohere.api_key="${{ secrets.COHERE_API_KEY }}" \
-            --set gemini.api_key="${{ secrets.GOOGLE_GEMINI_API_KEY }}" \
-            --set mistral.api_key="${{ secrets.MISTRAL_API_KEY }}" \
-            --set google_vertex.api_key="${{ secrets.GOOGLE_API_KEY }}" \
-            --set stability_ai.api_key="${{ secrets.STABILITY_AI_API_KEY }}" \
-            --set llamaapi.api_key="${{ secrets.LLAMAAPI_API_KEY }}" \
-            --set serpapi.api_key="${{ secrets.SERPAPI_KEY }}" \
-            --set openweather.api_key="${{ secrets.OPENWEATHER_API_KEY }}" \
-            --set mailtrap.token="${{ secrets.MAILTRAP_TOKEN }}" \
-            --set jira.email="${{ secrets.JIRA_EMAIL }}" \
-            --set jira.pat="${{ secrets.JIRA_PAT }}" \
-            --set trello.api_key="${{ secrets.TRELLO_API_TOKEN }}" \
-            --set elasticsearch.password="${{ secrets.ES_PASS }}" \
             --values deployment/helm-chart/${VALUES_FILE} \
+            --values ${RUNTIME_SECRETS_FILE} \
             deployment/helm-chart \
             --wait --timeout 10m
 
