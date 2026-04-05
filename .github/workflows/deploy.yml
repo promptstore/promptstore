@@ -68,6 +68,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install yq
+        uses: mikefarah/yq@v4
+
       - name: Determine environment
         id: env
         run: |
@@ -100,6 +103,11 @@ jobs:
         run: |
           VALUES_FILE="deployment/helm-chart/${{ steps.env.outputs.values_file }}"
           echo "Reading configuration from ${VALUES_FILE}"
+
+          if [ ! -f "${VALUES_FILE}" ]; then
+            echo "ERROR: Values file not found: ${VALUES_FILE}"
+            exit 1
+          fi
 
           # AWS / EKS
           echo "aws_account_id=$(yq '.aws.accountId' ${VALUES_FILE})" >> $GITHUB_OUTPUT
