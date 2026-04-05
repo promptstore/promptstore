@@ -1,0 +1,293 @@
+appname: "promptstore"
+namespace: "promptstore"
+
+aws:
+  accountId: "457663127744"
+  region: "ap-southeast-2"
+
+ecr:
+  repository: "europalabs/promptstore"
+
+eks:
+  clusterName: "tapitriager"
+  region: "ap-southeast-2"
+
+bucket: "promptstore-staging-data-ap-southeast-2"
+documents_prefix: "documents"
+images_prefix: "images"
+filestore_prefix: ""
+
+containerRegistry: ""  # Set via --set during deploy (ECR URI)
+
+version: "0.7.55"
+
+port: "5000"
+
+base_url: ""
+
+env: "prod"
+
+no_auth: "false"
+minimal_install: "true"
+auth_provider: "cognito"
+
+# Database initialization options
+dbInit:
+  dropTables: false
+
+# IRSA Service Account (from CDK PromptstoreIamStack output)
+serviceAccount:
+  roleArn: ""  # e.g. arn:aws:iam::457663127744:role/promptstore-eks-s3-role
+
+# Cognito (from CDK PromptstoreCognitoStack outputs)
+cognito:
+  region: "ap-southeast-2"
+  user_pool_id: ""
+  client_id: ""
+  domain: ""
+  authority: ""
+  callbackUrl: "https://staging.openaiplatform.com/callback"
+  logoutUrl: "https://staging.openaiplatform.com"
+
+promptstore:
+  email: ""
+  search_embedding_model: ""
+  search_embedding_provider: ""
+  search_index_name: "pssearch"
+  search_node_label: "Object"
+  search_workspace: "1"
+  search_vectorstore_provider: ""
+  rules_engine_service_url: ""
+  system_workspace_id: "1"
+
+ingress:
+  domain: "ps-staging.openaiplatform.com"
+  certificateArn: ""  # Set from CDK PromptstoreAcmStack output
+
+# PostgreSQL metastore (CDK PromptstoreRdsStack output)
+db:
+  host: ""  # Set from CDK output: promptstore-postgres-db endpoint
+  name: "promptstore"
+  user: "dbadmin"
+  pass: ""  # Set from Secrets Manager
+
+# Elasticsearch
+elasticsearch:
+  host: ""
+  port: "9200"
+  use_ssl: "true"
+  username: ""
+  password: ""
+
+# Redis (CDK PromptstoreElastiCacheStack output)
+redis:
+  host: ""  # Set from CDK output: ElastiCache primary endpoint
+  pass: ""  # Set from Secrets Manager
+
+# S3 filestore (replaces MinIO - IRSA provides credentials)
+s3:
+  endpoint: "https://s3.ap-southeast-2.amazonaws.com"
+  access_key: ""
+  secret_key: ""
+  region: "ap-southeast-2"
+
+# Background job processing (Temporal Cloud)
+temporal:
+  api_url: ""
+  namespace: "promptstore"
+  tls: "true"
+  api_key: ""
+
+# Log aggregator
+loki:
+  api_url: ""
+
+########
+
+## PLUGINS ########
+
+plugins:
+  embedding: ""
+  extractor: "csv|CSV Parser|./plugins/extractors/csv,json|JSON Parser|./plugins/extractors/json,text|Text Parser|./plugins/extractors/text"
+  featurestore: ""
+  graphstore: ""
+  guardrail: "emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
+  llm: "bedrock|AWS Bedrock|./plugins/llms/bedrock"
+  loader: ""
+  metricstore: ""
+  modelprovider: ""
+  outputparser: "numberedlist|Numbered List|./plugins/outputparsers/numberedlist,list|Inline List|./plugins/outputparsers/list,json|Parse or fix JSON|./plugins/outputparsers/json,boolean|Boolean|./plugins/outputparsers/boolean,datetime|DateTime|./plugins/outputparsers/datetime,action|Action|./plugins/outputparsers/action"
+  passport: "localapikey|Local API Key|./plugins/passport/localapikey"
+  sqlsource: ""
+  tool: "calculator|Calculator|./plugins/tools/calculator"
+  vectorstore: ""
+
+########
+
+## PLUGIN SETTINGS ########
+
+## Feature store plugins ########
+anaml:
+  api_url: ""
+  api_key: ""
+  api_secret: ""
+
+## Graph store plugins ########
+graph_stores:
+  neo4j:
+    host: ""
+    port: ""
+    username: ""
+    password: ""
+
+## Guardrail plugins ########
+custom_models:
+  europa_pii_api_url: ""
+
+## Loader plugins ########
+atlassian:
+  domain: ""
+  username: ""
+  api_token: ""
+
+googledrive:
+  client_id: ""
+  client_secret: ""
+  redirect_url: ""
+
+notion:
+  api_token: ""
+
+onesource:
+  api_url: ""
+
+aws_s3:
+  region: "ap-southeast-2"
+  access_key_id: ""
+  secret_access_key: ""
+
+unstructured:
+  api_url: ""
+
+## Model provider plugins ########
+huggingface:
+  base_url: "https://api-inference.huggingface.co/models"
+  hub_url: "https://huggingface.co/api"
+  pii_api_url: "https://api-inference.huggingface.co/models/beki/en_spacy_pii_distilbert"
+  token: ""
+
+## LLM plugins ########
+anthropic:
+  api_key: ""
+
+bedrock:
+  region: "ap-southeast-2"
+  access_key_id: ""
+  secret_access_key: ""
+  session_token: ""
+
+cohere:
+  api_key: ""
+
+gemini:
+  project_id: ""
+  project_location: ""
+  service_account_key_file: ""
+  learnlm_url: ""
+  api_key: ""
+
+gpt4all:
+  api_url: ""
+
+llama2:
+  base_path: ""
+
+llamaapi:
+  base_path: ""
+  api_key: ""
+
+localai:
+  base_path: ""
+
+mistral:
+  api_url: ""
+  api_key: ""
+
+openai:
+  api_key: ""
+
+google_vertex:
+  palm2_default_model: ""
+  api_key: ""
+
+## Passport auth plugins ########
+keycloak:
+  host: ""
+  callback: ""
+  realm: ""
+  client_id: ""
+  client_secret: ""
+
+system_api_key: ""
+token_store_key: "onetoks"
+
+## SQL sources ########
+bigquery:
+  project_id: ""
+  key_filename: ""
+
+## Tool plugins ########
+jira:
+  api_url: ""
+  email: ""
+  pat: ""
+  project_key: ""
+
+mailtrap:
+  template_uuid: ""
+  token: ""
+  sender_email: ""
+  invite_template_uuid: ""
+
+openweather:
+  api_key: ""
+
+playwright:
+  workspace_id: "1"
+
+serpapi:
+  api_url: ""
+  api_key: ""
+
+trello:
+  api_key: ""
+
+## Vector store plugins ########
+vector_stores:
+  chroma:
+    host: ""
+    token: ""
+  neo4j:
+    host: ""
+    port: ""
+    username: ""
+    password: ""
+
+vecsearch:
+  api_url: ""
+
+stability_ai:
+  api_key: ""
+
+metricflow:
+  environment_id: ""
+  service_token: ""
+
+clickhouse:
+  url: ""
+  database: ""
+  username: ""
+  password: ""
+
+neo4j:
+  auth: ""

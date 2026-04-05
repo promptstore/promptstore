@@ -49,3 +49,7 @@ helm-chart2/
 cloud-sql-proxy
 deployment/cdk/cdk.context.json
 deployment/cdk/cdk.out/
+
+# Allow deployment helm chart yaml files
+!deployment/helm-chart/*.yaml
+!deployment/helm-chart/templates/*.yaml

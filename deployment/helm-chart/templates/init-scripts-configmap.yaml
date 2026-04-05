@@ -1,0 +1,1342 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.appname }}-init-scripts"
+  namespace: "{{ .Values.namespace }}"
+data:
+  process_template.sh: |
+    #!/bin/bash
+    set -e
+
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 <sql_file>"
+        exit 1
+    fi
+
+    SQL_FILE="$1"
+
+    if [ ! -f "$SQL_FILE" ]; then
+        echo "ERROR: SQL file $SQL_FILE not found"
+        exit 1
+    fi
+
+    TEMPLATE_OPEN="${TEMPLATE_OPEN}"
+    sed "s/||/$TEMPLATE_OPEN/g" "$SQL_FILE"
+
+  002_create_extensions.sql: |
+    \c {{ .Values.db.name }}
+
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+  003_create_tables.sql: |
+    \c {{ .Values.db.name }}
+
+    -- Table: public.file_uploads
+
+    DROP TABLE IF EXISTS public.file_uploads;
+
+    -- Sequence: public.file_uploads_id_seq
+
+    DROP SEQUENCE IF EXISTS public.file_uploads_id_seq;
+
+    CREATE SEQUENCE public.file_uploads_id_seq AS bigint;
+
+    CREATE TABLE public.file_uploads
+    (
+        id integer NOT NULL DEFAULT nextval('file_uploads_id_seq'::regclass),
+        workspace_id integer NOT NULL,
+        user_id character varying(255) COLLATE pg_catalog."default",
+        filename character varying(255) COLLATE pg_catalog."default",
+        val json,
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        CONSTRAINT file_uploads_pkey PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public.file_uploads
+        OWNER TO psadmin;
+
+    ALTER SEQUENCE public.file_uploads_id_seq
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public.file_uploads_id_seq
+        OWNED BY public.file_uploads."id";
+
+    -- Index: file_uploads_workspace_id_key
+
+    DROP INDEX IF EXISTS public.file_uploads_workspace_id_key;
+
+    CREATE INDEX file_uploads_workspace_id_key
+        ON public.file_uploads USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    DROP TABLE IF EXISTS public.users;
+
+    -- Sequence: public.users_id_seq
+
+    DROP SEQUENCE IF EXISTS public.users_id_seq;
+
+    CREATE SEQUENCE public.users_id_seq AS bigint;
+
+    CREATE TABLE public.users
+    (
+        id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+        username character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT users_pkey PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public.users
+        OWNER TO psadmin;
+
+    ALTER SEQUENCE public.users_id_seq
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public.users_id_seq
+        OWNED BY public.users."id";
+
+    -- Index: users_user_id_key
+
+    DROP INDEX IF EXISTS public.users_username_key;
+
+    CREATE INDEX users_user_id_key
+        ON public.users USING btree
+        (username)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."workspaces"
+
+    DROP TABLE IF EXISTS public."workspaces";
+
+    -- Sequence: public."workspaces_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."workspaces_id_seq";
+
+    CREATE SEQUENCE public."workspaces_id_seq" AS bigint;
+
+    CREATE TABLE public."workspaces"
+    (
+        id integer NOT NULL DEFAULT nextval('"workspaces_id_seq"'::regclass),
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "workspaces_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."workspaces"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."workspaces_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."workspaces_id_seq"
+        OWNED BY public."workspaces"."id";
+
+    -- Index: workspaces_name_key
+
+    DROP INDEX IF EXISTS public.workspaces_name_key;
+
+    CREATE INDEX workspaces_name_key
+        ON public."workspaces" USING btree
+        (name COLLATE pg_catalog."default")
+        TABLESPACE pg_default;
+
+
+    -- Table: public."apps"
+
+    DROP TABLE IF EXISTS public."apps";
+
+    -- Sequence: public."apps_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."apps_id_seq";
+
+    CREATE SEQUENCE public."apps_id_seq" AS bigint;
+
+    CREATE TABLE public."apps"
+    (
+        id integer NOT NULL DEFAULT nextval('"apps_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "apps_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."apps"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."apps_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."apps_id_seq"
+        OWNED BY public."apps"."id";
+
+    -- Index: apps_name_key
+
+    DROP INDEX IF EXISTS public.apps_name_key;
+
+    CREATE INDEX apps_name_key
+        ON public."apps" USING btree
+        (name COLLATE pg_catalog."default")
+        TABLESPACE pg_default;
+
+    -- Index: apps_workspace_id_key
+
+    DROP INDEX IF EXISTS public.apps_workspace_id_key;
+
+    CREATE INDEX apps_workspace_id_key
+        ON public."apps" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."prompt_sets"
+
+    DROP TABLE IF EXISTS public."prompt_sets";
+
+    -- Sequence: public."prompt_sets_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."prompt_sets_id_seq";
+
+    CREATE SEQUENCE public."prompt_sets_id_seq" AS bigint;
+
+    CREATE TABLE public."prompt_sets"
+    (
+        id integer NOT NULL DEFAULT nextval('"prompt_sets_id_seq"'::regclass),
+        workspace_id integer,
+        skill character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "prompt_sets_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."prompt_sets"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."prompt_sets_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."prompt_sets_id_seq"
+        OWNED BY public."prompt_sets"."id";
+
+    -- Index: prompt_sets_workspace_id_key
+
+    DROP INDEX IF EXISTS public.prompt_sets_workspace_id_key;
+
+    CREATE INDEX prompt_sets_workspace_id_key
+        ON public."prompt_sets" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."settings"
+
+    DROP TABLE IF EXISTS public."settings";
+
+    -- Sequence: public."settings_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."settings_id_seq";
+
+    CREATE SEQUENCE public."settings_id_seq" AS bigint;
+
+    CREATE TABLE public."settings"
+    (
+        id integer NOT NULL DEFAULT nextval('"settings_id_seq"'::regclass),
+        workspace_id integer,
+        key character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "settings_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."settings"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."settings_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."settings_id_seq"
+        OWNED BY public."settings"."id";
+
+    -- Index: settings_workspace_id_key
+
+    DROP INDEX IF EXISTS public.settings_workspace_id_key;
+
+    CREATE INDEX settings_workspace_id_key
+        ON public."settings" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."functions"
+
+    DROP TABLE IF EXISTS public."functions";
+
+    -- Sequence: public."functions_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."functions_id_seq";
+
+    CREATE SEQUENCE public."functions_id_seq" AS bigint;
+
+    CREATE TABLE public."functions"
+    (
+        id integer NOT NULL DEFAULT nextval('"functions_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "functions_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."functions"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."functions_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."functions_id_seq"
+        OWNED BY public."functions"."id";
+
+    -- Index: functions_workspace_id_key
+
+    DROP INDEX IF EXISTS public.functions_workspace_id_key;
+
+    CREATE INDEX functions_workspace_id_key
+        ON public."functions" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."models"
+
+    DROP TABLE IF EXISTS public."models";
+
+    -- Sequence: public."models_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."models_id_seq";
+
+    CREATE SEQUENCE public."models_id_seq" AS bigint;
+
+    CREATE TABLE public."models"
+    (
+        id integer NOT NULL DEFAULT nextval('"models_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        source character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "models_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."models"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."models_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."models_id_seq"
+        OWNED BY public."models"."id";
+
+
+    -- Table: public."training"
+
+    DROP TABLE IF EXISTS public."training";
+
+    -- Sequence: public."training_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."training_id_seq";
+
+    CREATE SEQUENCE public."training_id_seq" AS bigint;
+
+    CREATE TABLE public."training"
+    (
+        id integer NOT NULL DEFAULT nextval('"training_id_seq"'::regclass),
+        workspace_id integer,
+        prompt text COLLATE pg_catalog."default",
+        response text COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "training_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."training"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."training_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."training_id_seq"
+        OWNED BY public."training"."id";
+
+    -- Index: training_workspace_id_key
+
+    DROP INDEX IF EXISTS public.training_workspace_id_key;
+
+    CREATE INDEX training_workspace_id_key
+        ON public."training" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."compositions"
+
+    DROP TABLE IF EXISTS public."compositions";
+
+    -- Sequence: public."compositions_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."compositions_id_seq";
+
+    CREATE SEQUENCE public."compositions_id_seq" AS bigint;
+
+    CREATE TABLE public."compositions"
+    (
+        id integer NOT NULL DEFAULT nextval('"compositions_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "compositions_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."compositions"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."compositions_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."compositions_id_seq"
+        OWNED BY public."compositions"."id";
+
+
+    -- Table: public."chat_sessions"
+
+    DROP TABLE IF EXISTS public."chat_sessions";
+
+    -- Sequence: public."chat_sessions_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."chat_sessions_id_seq";
+
+    CREATE SEQUENCE public."chat_sessions_id_seq" AS bigint;
+
+    CREATE TABLE public."chat_sessions"
+    (
+        id integer NOT NULL DEFAULT nextval('"chat_sessions_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        type character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "chat_sessions_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."chat_sessions"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."chat_sessions_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."chat_sessions_id_seq"
+        OWNED BY public."chat_sessions"."id";
+
+
+    -- Table: public."doc_indexes"
+
+    DROP TABLE IF EXISTS public."doc_indexes";
+
+    -- Sequence: public."doc_indexes_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."doc_indexes_id_seq";
+
+    CREATE SEQUENCE public."doc_indexes_id_seq" AS bigint;
+
+    CREATE TABLE public."doc_indexes"
+    (
+        id integer NOT NULL DEFAULT nextval('"doc_indexes_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        engine character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "doc_indexes_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."doc_indexes"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."doc_indexes_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."doc_indexes_id_seq"
+        OWNED BY public."doc_indexes"."id";
+
+    -- Index: doc_indexes_workspace_id_key
+
+    DROP INDEX IF EXISTS public.doc_indexes_workspace_id_key;
+
+    CREATE INDEX doc_indexes_workspace_id_key
+        ON public."doc_indexes" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+    -- Index: doc_indexes_name_key
+
+    DROP INDEX IF EXISTS public.doc_indexes_name_key;
+
+    CREATE INDEX doc_indexes_name_key
+        ON public."doc_indexes" USING btree
+        (name)
+        TABLESPACE pg_default;
+
+    -- Index: doc_indexes_engine_key
+
+    DROP INDEX IF EXISTS public.doc_indexes_engine_key;
+
+    CREATE INDEX doc_indexes_engine_key
+        ON public."doc_indexes" USING btree
+        (engine)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."data_sources"
+
+    DROP TABLE IF EXISTS public."data_sources";
+
+    -- Sequence: public."data_sources_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."data_sources_id_seq";
+
+    CREATE SEQUENCE public."data_sources_id_seq" AS bigint;
+
+    CREATE TABLE public."data_sources"
+    (
+        id integer NOT NULL DEFAULT nextval('"data_sources_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        type character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "data_sources_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."data_sources"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."data_sources_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."data_sources_id_seq"
+        OWNED BY public."data_sources"."id";
+
+    -- Index: data_sources_name_key
+
+    DROP INDEX IF EXISTS public.data_sources_name_key;
+
+    CREATE INDEX data_sources_name_key
+        ON public."data_sources" USING btree
+        (name)
+        TABLESPACE pg_default;
+
+    -- Index: data_sources_type_key
+
+    DROP INDEX IF EXISTS public.data_sources_type_key;
+
+    CREATE INDEX data_sources_type_key
+        ON public."data_sources" USING btree
+        (type)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."agents"
+
+    DROP TABLE IF EXISTS public."agents";
+
+    -- Sequence: public."agents_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."agents_id_seq";
+
+    CREATE SEQUENCE public."agents_id_seq" AS bigint;
+
+    CREATE TABLE public."agents"
+    (
+        id integer NOT NULL DEFAULT nextval('"agents_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "agents_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."agents"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."agents_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."agents_id_seq"
+        OWNED BY public."agents"."id";
+
+
+    -- Table: public."traces"
+
+    DROP TABLE IF EXISTS public."traces";
+
+    -- Sequence: public."traces_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."traces_id_seq";
+
+    CREATE SEQUENCE public."traces_id_seq" AS bigint;
+
+    CREATE TABLE public."traces"
+    (
+        id integer NOT NULL DEFAULT nextval('"traces_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "traces_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."traces"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."traces_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."traces_id_seq"
+        OWNED BY public."traces"."id";
+
+
+    -- Table: public."transformations"
+
+    DROP TABLE IF EXISTS public."transformations";
+
+    -- Sequence: public."transformations_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."transformations_id_seq";
+
+    CREATE SEQUENCE public."transformations_id_seq" AS bigint;
+
+    CREATE TABLE public."transformations"
+    (
+        id integer NOT NULL DEFAULT nextval('"transformations_id_seq"'::regclass),
+        workspace_id integer,
+        data_source_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "transformations_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."transformations"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."transformations_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."transformations_id_seq"
+        OWNED BY public."transformations"."id";
+
+
+    -- Table: public."destinations"
+
+    DROP TABLE IF EXISTS public."destinations";
+
+    -- Sequence: public."destinations_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."destinations_id_seq";
+
+    CREATE SEQUENCE public."destinations_id_seq" AS bigint;
+
+    CREATE TABLE public."destinations"
+    (
+        id integer NOT NULL DEFAULT nextval('"destinations_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        type character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "destinations_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."destinations"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."destinations_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."destinations_id_seq"
+        OWNED BY public."destinations"."id";
+
+    -- Index: destinations_name_key
+
+    DROP INDEX IF EXISTS public.destinations_name_key;
+
+    CREATE INDEX destinations_name_key
+        ON public."destinations" USING btree
+        (name)
+        TABLESPACE pg_default;
+
+    -- Index: destinations_type_key
+
+    DROP INDEX IF EXISTS public.destinations_type_key;
+
+    CREATE INDEX destinations_type_key
+        ON public."destinations" USING btree
+        (type)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."call_log"
+
+    DROP TABLE IF EXISTS public."call_log";
+
+    -- Sequence: public."call_log_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."call_log_id_seq";
+
+    CREATE SEQUENCE public."call_log_id_seq" AS bigint;
+
+    CREATE TABLE public."call_log"
+    (
+        id integer NOT NULL DEFAULT nextval('"call_log_id_seq"'::regclass),
+        workspace_id integer,
+        username character varying(255) COLLATE pg_catalog."default",
+        type character varying(255) COLLATE pg_catalog."default",
+        provider character varying(255) COLLATE pg_catalog."default",
+        model character varying(255) COLLATE pg_catalog."default",
+        function_id integer,
+        function_name character varying(255) COLLATE pg_catalog."default",
+        system_input json,
+        output_type character varying(255) COLLATE pg_catalog."default",
+        system_output json,
+        system_output_text text,
+        model_input json,
+        model_user_input_text text,
+        model_output json,
+        model_output_text text,
+        prompt_tokens integer,
+        completion_tokens integer,
+        total_tokens integer,
+        image_uploaded_count integer,
+        image_generated_count integer,
+        video_secs integer,
+        latency_ms integer,
+        success boolean,
+        error character varying(255) COLLATE pg_catalog."default",
+        val json,
+        start_date TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        end_date TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        CONSTRAINT "call_log_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."call_log"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."call_log_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."call_log_id_seq"
+        OWNED BY public."call_log"."id";
+
+    -- Index: destinations_username_key
+
+    DROP INDEX IF EXISTS public.call_log_username_key;
+
+    CREATE INDEX call_log_username_key
+        ON public."call_log" USING btree
+        (username)
+        TABLESPACE pg_default;
+
+    -- Index: destinations_model_key
+
+    DROP INDEX IF EXISTS public.call_log_model_key;
+
+    CREATE INDEX call_log_model_key
+        ON public."call_log" USING btree
+        (model)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."evaluations"
+
+    DROP TABLE IF EXISTS public."evaluations";
+
+    -- Sequence: public."evaluations_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."evaluations_id_seq";
+
+    CREATE SEQUENCE public."evaluations_id_seq" AS bigint;
+
+    CREATE TABLE public."evaluations"
+    (
+        id integer NOT NULL DEFAULT nextval('"evaluations_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "evaluations_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."evaluations"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."evaluations_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."evaluations_id_seq"
+        OWNED BY public."evaluations"."id";
+
+
+    -- Table: public."secrets"
+
+    DROP TABLE IF EXISTS public."secrets";
+
+    -- Sequence: public."secrets_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."secrets_id_seq";
+
+    CREATE SEQUENCE public."secrets_id_seq" AS bigint;
+
+    CREATE TABLE public."secrets"
+    (
+        id integer NOT NULL DEFAULT nextval('"secrets_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        value character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        CONSTRAINT "secrets_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."secrets"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."secrets_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."secrets_id_seq"
+        OWNED BY public."secrets"."id";
+
+
+    -- Table: public."mirrors"
+
+    DROP TABLE IF EXISTS public."mirrors";
+
+    -- Sequence: public."mirrors_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."mirrors_id_seq";
+
+    CREATE SEQUENCE public."mirrors_id_seq" AS bigint;
+
+    CREATE TABLE public."mirrors"
+    (
+        id integer NOT NULL DEFAULT nextval('"mirrors_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        val json,
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        CONSTRAINT "mirrors_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."mirrors"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."mirrors_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."mirrors_id_seq"
+        OWNED BY public."mirrors"."id";
+
+
+    -- Table: public."images"
+
+    DROP TABLE IF EXISTS public."images";
+
+    -- Sequence: public."images_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."images_id_seq";
+
+    CREATE SEQUENCE public."images_id_seq" AS bigint;
+
+    CREATE TABLE public."images"
+    (
+        id integer NOT NULL DEFAULT nextval('"images_id_seq"'::regclass),
+        workspace_id integer,
+        image_id character varying(255) COLLATE pg_catalog."default",
+        image_uri text COLLATE pg_catalog."default",
+        hash character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "images_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."images"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."images_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."images_id_seq"
+        OWNED BY public."images"."id";
+
+    -- Index: images_workspace_id_key
+
+    DROP INDEX IF EXISTS public.images_workspace_id_key;
+
+    CREATE INDEX images_workspace_id_key
+        ON public."images" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+    -- Index: images_image_id_key
+
+    DROP INDEX IF EXISTS public.images_image_id_key;
+
+    CREATE INDEX images_image_id_key
+        ON public."images" USING btree
+        (image_id COLLATE pg_catalog."default")
+        TABLESPACE pg_default;
+
+
+    -- Table: public."rules"
+
+    DROP TABLE IF EXISTS public."rules";
+
+    -- Sequence: public."rules_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."rules_id_seq";
+
+    CREATE SEQUENCE public."rules_id_seq" AS bigint;
+
+    CREATE TABLE public."rules"
+    (
+        id integer NOT NULL DEFAULT nextval('"rules_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        type character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "rules_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."rules"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."rules_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."rules_id_seq"
+        OWNED BY public."rules"."id";
+
+    -- Index: rules_workspace_id_key
+
+    DROP INDEX IF EXISTS public.rules_workspace_id_key;
+
+    CREATE INDEX rules_workspace_id_key
+        ON public."rules" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."agent_networks"
+
+    DROP TABLE IF EXISTS public."agent_networks";
+
+    -- Sequence: public."agent_networks_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."agent_networks_id_seq";
+
+    CREATE SEQUENCE public."agent_networks_id_seq" AS bigint;
+
+    CREATE TABLE public."agent_networks"
+    (
+        id integer NOT NULL DEFAULT nextval('"agent_networks_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "agent_networks_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."agent_networks"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."agent_networks_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."agent_networks_id_seq"
+        OWNED BY public."agent_networks"."id";
+
+    -- Index: agent_networks_workspace_id_key
+
+    DROP INDEX IF EXISTS public.agent_networks_workspace_id_key;
+
+    CREATE INDEX agent_networks_workspace_id_key
+        ON public."agent_networks" USING btree
+        (workspace_id)
+        TABLESPACE pg_default;
+
+
+    -- Table: public."test_scenarios"
+
+    DROP TABLE IF EXISTS public."test_scenarios";
+
+    -- Sequence: public."test_scenarios_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."test_scenarios_id_seq";
+
+    CREATE SEQUENCE public."test_scenarios_id_seq" AS bigint;
+
+    CREATE TABLE public."test_scenarios"
+    (
+        id integer NOT NULL DEFAULT nextval('"test_scenarios_id_seq"'::regclass),
+        workspace_id integer,
+        name character varying(255) COLLATE pg_catalog."default",
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "test_scenarios_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."test_scenarios"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."test_scenarios_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."test_scenarios_id_seq"
+        OWNED BY public."test_scenarios"."id";
+
+
+    -- Table: public."test_cases"
+
+    DROP TABLE IF EXISTS public."test_cases";
+
+    -- Sequence: public."test_cases_id_seq"
+
+    DROP SEQUENCE IF EXISTS public."test_cases_id_seq";
+
+    CREATE SEQUENCE public."test_cases_id_seq" AS bigint;
+
+    CREATE TABLE public."test_cases"
+    (
+        id integer NOT NULL DEFAULT nextval('"test_cases_id_seq"'::regclass),
+        workspace_id integer,
+        test_scenario_id integer,
+        function_id integer,
+        input json,
+        output json,
+        rating integer,
+        created TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        created_by character varying(255) COLLATE pg_catalog."default",
+        modified TIMESTAMP(0) NOT NULL DEFAULT NOW(),
+        modified_by character varying(255) COLLATE pg_catalog."default",
+        val json,
+        CONSTRAINT "test_cases_pkey" PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    )
+    TABLESPACE pg_default;
+
+    ALTER TABLE public."test_cases"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."test_cases_id_seq"
+        OWNER to psadmin;
+
+    ALTER SEQUENCE public."test_cases_id_seq"
+        OWNED BY public."test_cases"."id";
+
+  005_create_helper_functions.sql: |
+    \c {{ .Values.db.name }}
+
+    CREATE OR REPLACE FUNCTION json_to_varchar_array(json) RETURNS VARCHAR[] IMMUTABLE PARALLEL SAFE LANGUAGE SQL as $$
+    SELECT array_agg(x::VARCHAR) from json_array_elements($1) f(x)
+    $$;
+
+    CREATE OR REPLACE FUNCTION json_property_to_varchar_array(json, property text) RETURNS VARCHAR[] IMMUTABLE PARALLEL SAFE LANGUAGE SQL as $$
+    SELECT array_agg((x->>$2)::VARCHAR) from json_array_elements($1) f(x)
+    $$;
+
+    CREATE OR REPLACE FUNCTION json_property_to_int_array(json, property text) RETURNS INT[] IMMUTABLE PARALLEL SAFE LANGUAGE SQL as $$
+    SELECT array_agg((x->>$2)::INT) from json_array_elements($1) f(x)
+    $$;
+
+  006_insert_fixtures.sql: |
+    \c {{ .Values.db.name }}
+
+    INSERT INTO public.users (username, val)
+    VALUES 
+        ('sys.account@promptstore.dev', '{"email":"sys.account@promptstore.dev","roles":["admin"],"fullName":"System Account","displayName":"System Account","firstName":"System","lastName":"Account","photoURL":"https://api.dicebear.com/7.x/initials/svg?seed=SA"}'),
+        ('test.account@promptstore.dev', '{"email":"test.account@promptstore.dev","roles":["admin"],"fullName":"Test Account","displayName":"Test Account","firstName":"Test","lastName":"Account","photoURL":"https://api.dicebear.com/7.x/initials/svg?seed=TA"}')
+        ;
+
+    COPY public.workspaces (id, name, created, created_by, modified, modified_by, val) FROM stdin;
+    1	System Space	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"key":"system-space","members":[{"fullName":"System Account","username":"sys.account@promptstore.dev","email":"sys.account@promptstore.dev"},{"id":2,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}]}
+    2	Test Space	2025-08-13 06:08:58	test.account@promptstore.dev	2025-08-13 06:08:58	test.account@promptstore.dev	{"key":"test-space","members":[{"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}],"apiKeys":{"41317739-f8e4-4419-b64b-30666e255391":{"name":"Test","username":"test.account@promptstore.dev","created":"2023-09-26T08:33:36.649Z","id":1}}}
+    3	Coach	2025-08-13 06:18:19	test.account@promptstore.dev	2025-08-13 06:18:19	test.account@promptstore.dev	{"key":"coach","members":[{"id":2,"fullName":"Test Account","username":"test.account@promptstore.dev","email":"test.account@promptstore.dev"}]}
+    \.
+
+    INSERT INTO public.settings (workspace_id, key, created_by, modified_by, val)
+    VALUES (1, 'skills', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"value":["summarize"]}');
+
+    INSERT INTO public.settings (workspace_id, key, created_by, modified_by, val)
+    VALUES (1, 'promptSetTags', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"value":["summarization","react","agent","review","rag"]}');
+
+    INSERT INTO public.settings (workspace_id, key, created_by, modified_by, val)
+    VALUES (1, 'functionTags', 'sys.account@promptstore.dev', 'sys.account@promptstore.dev', '{"value":["summarization","react","agent","mrkl","review"]}');
+
+    COPY public.prompt_sets (id, workspace_id, skill, created, created_by, modified, modified_by, val) FROM stdin;
+    1	1	summarize	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Summarize","isPublic":true,"tags":["summarization"],"description":"Summarize a body of text","isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"We introduce Extreme TLDR generation, a new form of extreme summarization for paragraphs. TLDR generation involves high source compression, removes stop words, and summarizes the paragraph whilst retaining meaning. The result is the shortest possible summary that retains all of the original meaning and context of the paragraph.\\n\\nExample\\n\\nParagraph:\\n\\"\\"\\"${content}\\"\\"\\"\\n\\nExtreme TLDR:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Content to summarize."}},"title":"Variables","required":["content"]},"key":"summarize","summary":"Create a summary"}
+    2	1	summary_label	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Summary Label","isPublic":true,"tags":["summarization"],"description":"Create a short descriptive label for a body of text.","isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"Summarize the following content into the first 5 syllables of a haiku.\\n\\n\\"\\"\\"${content}\\"\\"\\"","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Content to summarize."}},"title":"Variables","required":["content"]},"key":"summary_label","summary":"Create a summary label"}
+    3	1	entity_extraction	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Entity Extraction","isPublic":true,"description":"Extract a list of defined entity types from the given content.","isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"Identify the following entities in the content below: [||list entityTypes}}].\\n\\nThe entities have the following relationships to each other:||#each relTypes}}\\n- ||this}}||/each}}\\n\\nLet's think about the problem. Apply the following steps:\\n1. Identify all the nouns in the content.\\n2. Classify each noun by the type of entity using the list of entities above. Choose the appropriate entity with reference to the list of relationships based on the relationship of the noun to the subject or verb.\\n3. Ignore any noun that is classified as Other.\\n4. Finally, list the entities found below. You need only include each found entity once.\\n\\nReturn the result as a JSON document. \\n```\\n{\\n  \\"content\\": \\"<original input content>\\",\\n  \\"entities\\": [\\n    {\\n      \\"type\\": \\"<entity type>\\",\\n      \\"entity\\": \\"<capitalised entity name>\\"\\n    },\\n    ...\\n  ]\\n}\\n```\\n\\nDo not include any explanation or introduction.\\n\\nContent:\\n\\"\\"\\"||content}}\\"\\"\\"\\n\\nEntities:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"entityTypes":{"type":"array","items":{"type":"string"}},"relTypes":{"type":"array","items":{"type":"string"}}},"required":["content","entityTypes","relTypes"]},"key":"entity_extraction","versions":[{"id":"42ac071f-0708-4850-b7f7-0d8afe3009ce","created":"2023-11-26T09:28:03.923Z","promptSet":{"name":"Entity Extraction","key":"entity_extraction","prompts":[{"prompt":"# Entity Extraction Instructions for GPT-4\\n## 1. Overview\\nYou are a top-tier algorithm designed for extracting information in structured formats.\\n## 2. Coreference Resolution\\n**Maintain Entity Consistency**: When extracting entities, it's vital to ensure consistency.\\nIf an entity, such as \\"John Doe\\", is mentioned multiple times in the text but is referred to by different names or pronouns (e.g., \\"Joe\\", \\"he\\"), always use the most complete identifier for that entity throughout the knowledge graph. In this example, use \\"John Doe\\" as the entity name.\\n## 3. Format\\nOutput the list of entities as a JSON document using the following format:\\n```\\n{\\n  \\"content\\": \\"<original input content>\\",\\n  \\"entities\\": [\\"<list of entities>\\", ...]\\n}\\n```\\n## 4. Strict Compliance\\nAdhere to the rules strictly. Non-compliance will result in termination.","role":"system"},{"role":"user","prompt":"Extract a list of entities from the following content:\\n\\"\\"\\"${content}\\"\\"\\"\\n\\nOutput:"}],"summary":"Algorithm extracts\\n","isPublic":true,"isTypesDefined":true,"arguments":{"type":"object","properties":{"content":{"type":"string"}},"required":["content"]},"id":64,"skill":"entity_extraction","created":"2023-11-26T06:40:55.000Z","createdBy":"m4rkmo@gmail.com","modified":"2023-11-26T08:00:50.000Z","modifiedBy":"m4rkmo@gmail.com"},"title":"Initial version","username":"m4rkmo@gmail.com","version":1},{"id":"6a907888-4a2e-493c-b2ab-915e66a8371d","created":"2023-11-26T21:28:18.730Z","promptSet":{"name":"Entity Extraction","isPublic":true,"description":"Extract a list of defined entity types from the given content.","isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"Identify the following entities in the content below: [||list entityTypes}}].\\n\\nLet's think about the problem. Apply the following steps:\\n1. Identify all the nouns in the content.\\n2. Classify each noun by the type of entity using the list of entities above.\\n3. Ignore any noun that is classified as Other.\\n4. Finally, list the entities found below. You need only include each found entity once.\\n\\nReturn the result as a JSON document. \\n```\\n{\\n  \\"content\\": \\"<original input content>\\",\\n  \\"entities\\": [\\n    {\\n      \\"type\\": \\"<entity type>\\",\\n      \\"entity\\": \\"<capitalised entity name>\\"\\n    },\\n    ...\\n  ]\\n}\\n```\\n\\nDo not include any explanation or introduction.\\n\\nContent:\\n\\"\\"\\"||content}}\\"\\"\\"\\n\\nEntities:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"entityTypes":{"type":"array","items":{"type":"string"}}},"required":["content","entityTypes"]},"key":"entity_extraction","summary":null,"id":64,"skill":"entity_extraction","created":"2023-11-26T06:40:55.000Z","createdBy":"m4rkmo@gmail.com","modified":"2023-11-26T09:28:04.000Z","modifiedBy":"m4rkmo@gmail.com"},"title":"# Entity Extraction Instructions for","username":"m4rkmo@gmail.com","version":2}],"summary":"Identify types"}
+    4	1	entity_resolution	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Entity Resolution","isPublic":true,"isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"Rewrite the content below, replacing the list of entities with the approved list of entities. Return only the rewritten content.\\n\\nAllowed List of Entities:||#each allowedEntities}}\\n- ||this.type}}: [||list this.values}}]\\n||/each}}\\n\\nContent: \\"\\"\\"||content}}\\"\\"\\"\\nEntities: ||list entities}}\\n\\nRewritten Content:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"entities":{"type":"array","items":{"type":"string"}},"allowedEntities":{"type":"array","items":{"type":"object","properties":{"type":{"type":"string"},"values":{"type":"array","items":{"type":"string"}}},"required":["type","values"]}}},"required":["content","entities","allowedEntities"]},"key":"entity_resolution","summary":"Replace entities\\n"}
+    5	1	evaluation	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Evaluation","isPublic":true,"isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"You are assessing a submitted answer on a given task based on a criterion. Here is the data:\\n[BEGIN DATA]\\n***\\n[Task]: ||input}}\\n***\\n[Submission]: ||completion}}\\n***\\n[Criterion]: ||criterion}}\\n***\\n[END DATA]\\nDoes the submission meet the criterion? First, write out in a step by step manner your reasoning about the criterion to be sure that your conclusion is correct. Avoid simply stating the correct answers at the outset. Then print only the single character \\"Y\\" or \\"N\\" (without quotes or punctuation) on its own line corresponding to the correct answer. At the end, repeat just the letter again by itself on a new line.\\n\\nReasoning:","role":"user"}],"arguments":{"type":"object","properties":{"input":{"type":"string"},"completion":{"type":"string"},"criterion":{"type":"string"}},"title":"Variables","required":["input","completion","criterion"]},"key":"evaluate","summary":"Assessing"}
+    6	1	image_generation	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Image Generation","isPublic":true,"isTypesDefined":true,"templateEngine":"es6","prompts":[{"role":"system","prompt":"Generate an image based on the following content. Do not include words in the image. Limit the number of people in the image to less then 4 people.\\n\\"\\"\\"\\n${content}\\n\\"\\"\\""}],"arguments":{"type":"object","properties":{"content":{"type":"string"}},"required":["content"]},"key":"image_generation","summary":"No words,"}
+    7	1	mrkl_agent	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"MRKL Prompt","isPublic":true,"isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"role":"system","prompt":"Answer the following questions as best you can. You have access to the following tools:\\n|| allowedTools }}\\n\\nUse the following format:\\n\\nQuestion: the input question you must answer\\nThought: you should always think about what to do\\nAction: the action to take, should be one of [|| toolNames }}]\\nAction Input: the input to the action\\nObservation: the result of the action\\n... (this Thought/Action/Action Input/Observation can repeat N times)\\nThought: I now know the final answer\\nFinal Answer: the final answer to the original input question"},{"role":"user","prompt":"Begin!\\n\\nQuestion: || content }}\\nThought: || agentScratchpad }}"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"toolNames":{"type":"array","items":{"type":"string"}},"allowedTools":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"description":{"type":"string"},"parameters":{"type":"object","properties":{}}},"required":["name","description","parameters"]}},"agentScratchpad":{"type":"string"}},"required":["content","toolNames","allowedTools","agentScratchpad"]},"key":"mrkl_agent","summary":"Answer the questions"}
+    8	1	query_rewrite	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Query Rewrite","isPublic":true,"templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Rewrite the following content using proper capitalisation and grammar: \\"\\"\\"||content}}\\"\\"\\""}],"key":"query_rewrite","summary":"Proper caps"}
+    9	1	react_plan	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"ReAct Plan","tags":["react","agent"],"isPublic":true,"isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"Answer the following questions as best you can. You have access to the following tools:\\n||tools}}\\n\\nUse the following format in your response:\\n\\nQuestion: the input question you must answer\\nThought: you should always think about what to do\\nAction: the action to take, should be one of [||tool_names}}]\\nAction Input: the input to the action\\nObservation: the result of the action\\n... (this Thought/Action/Action Input/Observation can repeat N times)\\nThought: I now know the final answer\\nFinal Answer: the final answer to the original input question","role":"system"},{"prompt":"Begin!\\nQuestion: ||content}}\\nThought: ||agent_scratchpad}}","role":"user"}],"arguments":{"type":"object","properties":{"tools":{"type":"string","title":"Tools List","description":"List of tools including name and description."},"tool_names":{"type":"string","title":"Tool Name List","description":"List of tool names."},"content":{"type":"string","title":"Input","description":"User question."},"agent_scratchpad":{"type":"string","title":"Agent Scratchpad","description":"Log of Thought/Action/Action Input/Observation."}},"title":"Variables","required":["tools","tool_names","content"]},"key":"react_plan","summary":"Answer the question"}
+    10	1	kg_extraction	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Knowledge Graph Extraction","isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"role":"system","prompt":"# Knowledge Graph Instructions for GPT-4\\n## 1. Overview\\nYou are a top-tier algorithm designed for extracting information in structured formats to build a knowledge graph.\\n- **Nodes** represent entities and concepts. They're akin to Wikipedia nodes.\\n- The aim is to achieve simplicity and clarity in the knowledge graph, making it accessible for a vast audience.\\n## 2. Labeling Nodes\\n- **Consistency**: Ensure you use basic or elementary types for node labels.\\n  - For example, when you identify an entity representing a person, always label it as **\\"person\\"**. Avoid using more specific terms like \\"mathematician\\" or \\"scientist\\".\\n- **Node IDs**: Never utilize integers as node IDs. Node IDs should be names or human-readable identifiers found in the text.\\n- **Completeness**: Every node should have at least a Node ID, type, and name.\\n- **Allowed Node Labels:** ||list allowedNodes}}\\n- **Allowed Relationship Types**: ||list allowedRels}}\\n## 3. Handling Numerical Data and Dates\\n- Numerical data, like age or other related information, should be incorporated as attributes or properties of the respective nodes.\\n- **No Separate Nodes for Dates/Numbers**: Do not create separate nodes for dates or numerical values. Always attach them as attributes or properties of nodes.\\n- **Property Format**: Properties must be in a key-value format.\\n- **Quotation Marks**: Never use escaped single or double quotes within property values.\\n- **Naming Convention**: Use camelCase for property keys, e.g., `birthDate`.\\n## 4. Coreference Resolution\\n- **Maintain Entity Consistency**: When extracting entities, it's vital to ensure consistency.\\nIf an entity, such as \\"John Doe\\", is mentioned multiple times in the text but is referred to by different names or pronouns (e.g., \\"Joe\\", \\"he\\"), always use the most complete identifier for that entity throughout the knowledge graph. In this example, use \\"John Doe\\" as the entity ID.\\nRemember, the knowledge graph should be coherent and easily understandable, so maintaining consistency in entity references is crucial.\\n## 5. Conciseness\\n- Limit the number of nodes to no more than 10 of the most relevant and connected nodes.\\n- If 'Allowed Relationship Types' is not specified, limit the number of relationship types to no more than 10 of the most relevant and common relationships.\\n## 6. Strict Compliance\\nAdhere to the rules strictly. Non-compliance will result in termination."},{"prompt":"Use the given format to extract information from the following input: ||content}}\\n\\nTip: Make sure to answer in the correct format","role":"user"}],"arguments":{"type":"object","properties":{"allowedNodes":{"type":"array","items":{"type":"string"}},"allowedRels":{"type":"array","items":{"type":"string"}},"content":{"type":"string"}},"required":["content"]},"key":"kg_extraction","summary":"Algorithm's knowledge"}
+    11	1	cypher_generation	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Generate Cypher","description":"Generate Cypher statement to query a graph database.","isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"Task: Generate Cypher statement to query a graph database.\\nInstructions:\\nUse only the provided relationship types and properties in the schema.\\nDo not use any other relationship types or properties that are not provided.\\n\\nSchema:\\n|| context }}\\n\\nNote: Do not include any explanations or apologies in your responses.\\nDo not respond to any questions that might ask anything else than for you to construct a Cypher statement.\\nDo not include any text except the generated Cypher statement.\\nIf the answer is a single value, return the output using the alias 'output'.\\nThe property existence syntax `... exists(variable.property)` is no longer supported. Please use `variable.property IS NOT NULL` instead.\\n\\nThe question is:\\n|| content }}","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"context":{"type":"string"}},"required":["content","context"]},"key":"cypher_generation","summary":"Generate Cypher"}
+    12	1	proofread	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Proofread","tags":["review"],"isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"List any spelling or grammatical errors in the content below.\\n\\nContent:\\n\\"\\"\\"\\n${content}\\n\\"\\"\\"\\n\\nErrors:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"The content to proof read."}},"required":["content"],"title":"Variables"},"key":"proofread","summary":"Errors found."}
+    13	1	qa	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Q&A","tags":["rag"],"description":"A question answering prompt.","isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. Use only information with a citation in your answer. Include the list of citations with your answer. Include a citation only once. Format the answer as follows.\\n\\nFormat:\\n<answer>\\nCitations: <list of citations separated by semi-colon>\\n\\nContext:\\n${context}\\n\\nQuestion:\\n${content}\\n\\nHelpful Answer:","role":"user"}],"arguments":{"type":"object","properties":{"context":{"type":"string","title":"Context","description":"Additional information to help answer the question."},"content":{"type":"string","title":"Content","description":"The question to answer."}},"required":["context","content"],"title":"Variables"},"key":"qa","summary":"Use the context"}
+    14	1	refinement	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Refine using Feedback","description":"Correct or improve content given the feedback provided.","isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"The following content was not appropriate.\\n\\n\\"\\"\\"${content}\\"\\"\\"\\n\\nCorrect this content using the following feedback \\"\\"\\"${feedback}}}\\"\\"\\".\\n\\nCorrection:","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"The content that needs correcting."},"feedback":{"type":"string","title":"Feedback","description":"Correction instructions."}},"required":["content","feedback"],"title":"Variables"},"key":"refinement","summary":"Not appro-p"}
+    15	1	general_sql_query	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"General SQL Query","isPublic":true,"description":"SQL generation plus ambiguity identification.","isTypesDefined":true,"templateEngine":"handlebars","prompts":[{"prompt":"You are a ||dialect}} SQL expert. Given an input question, first create a syntactically correct ||dialect}} SQL query to run. Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in backticks (`) to denote them as delimited identifiers.\\n\\nPay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.\\n\\nThe SQL must be a ||#if dialect}}||dialect}}||else}}ANSII||/if}} compatible query. Do not include any explanations or surround the SQL in quotes or back ticks. Just show the SQL.\\n\\nIf the question is ambiguous, list the ambiguities.\\n\\nOnly use the following tables:\\n||context}}\\n\\nReturn the response as JSON in the following format:\\n```\\n{\\n  \\"question\\": \\"<original question>\\",\\n  \\"ambiguities\\": [\\"<list of ambiguities>\\", ...],\\n  \\"query\\": \\"<the SQL to run>\\"\\n}\\n```","role":"system"},{"prompt":"Question: ||content}}","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"},"dialect":{"type":"string"}},"required":["content"]},"key":"general_sql_query","versions":[{"id":"bee216b9-b211-4a35-847f-584808e3f13a","created":"2023-11-28T00:54:49.636Z","promptSet":{"name":"General SQL Query","isTypesDefined":true,"templateEngine":"es6","prompts":[{"prompt":"You are a SQL expert. Given an input question, first create a syntactically correct SQL query to run. Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in backticks (`) to denote them as delimited identifiers.\\n\\nPay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.\\n\\nThe SQL must be an ANSII standard query. Do not include any explanations or surround the SQL in quotes or back ticks. Just show the SQL.\\n\\nIf the question is ambiguous, list the ambiguities.\\n\\nOnly use the following tables:\\n${context}\\n\\nUse the following format:\\n\\nQuestion: Question here\\nAmbiguities: The list of ambiguities\\nSQL: The SQL query to run\\n","role":"system"},{"prompt":"Question: ${content}","role":"user"}],"arguments":{"type":"object","properties":{"content":{"type":"string"}},"required":["content"]},"key":"general_sql_query","summary":"Create SQL query","id":43,"skill":"general_sql_query","created":"2023-11-27T03:59:20.000Z","createdBy":"m4rkmo@gmail.com","modified":"2023-11-27T04:00:18.000Z","modifiedBy":"m4rkmo@gmail.com"},"title":"Initial version","username":"m4rkmo@gmail.com","version":1}],"summary":null}
+    16	1	plan	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Plan","isPublic":true,"description":"Create an action plan.","templateEngine":"es6","prompts":[{"role":"system","prompt":"Let's first understand the problem and devise a plan to solve the problem. Please output the plan starting with the header 'Plan:' and then followed by a numbered list of steps.\\n\\nYou have access to the following tools:\\n\\n${toolDefinitions}\\n\\nMake the plan the minimum number of steps required to accurately complete the task.\\n\\nDo NOT reference any tool outside of the list above. For example, unless one of the tools above is Wikipedia do not use Wikipedia in a task.\\n\\nIf the task is a question, the final step should almost always be 'Given the above steps taken, please respond to the users original question'. At the end of your plan, say '<END_OF_PLAN>'"},{"role":"user","prompt":"${content}"}],"key":"plan","summary":null}
+    17	1	plan_with_tools	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"name":"Plan with Tools","isPublic":true,"templateEngine":"handlebars","prompts":[{"prompt":"Let's first understand the problem and devise a plan to solve the problem. Please output the plan starting with the header 'Plan:' and then followed by a numbered list of steps. Please make the plan the minimum number of steps required to accurately complete the task. If the task is a question, the final step should almost always be 'Given the above steps taken, please respond to the users original question'. At the end of your plan, say '<END_OF_PLAN>'\\n\\nRespond to the human as helpfully and accurately as possible. You have access to the following tools:||#each tools}}\\n||this.name}}: ||this.description}}, args: ||this.args}}\\n||/each}}\\n\\nUse a json blob to specify a tool by providing an action key (tool name) and an action_input key (tool input).\\n\\nValid \\"action\\" values: \\"Final Answer\\" or one of [||tool_names}}]\\n\\nProvide only ONE action per $JSON_BLOB, as shown:\\n```\\n{\\n  \\"name\\": $TOOL_NAME,\\n  \\"arguments\\": $JSON\\n}\\n```\\n\\nFollow this format:\\n\\nQuestion: input question to answer\\nThought: consider previous and subsequent steps\\nAction:\\n```\\n$JSON_BLOB\\n```\\nObservation: action result\\n... (repeat Thought/Action/Observation N times)\\nThought: I know what to respond\\nAction:\\n```\\n{\\n  \\"name\\": \\"Final Answer\\",\\n  \\"arguments\\": { \\"content\\": \\"Final response to human\\" }\\n}\\n```\\n\\nBegin! Reminder to ALWAYS respond with a valid json blob of a single action. Use tools if necessary. Respond directly if appropriate. Format is Action: ```$JSON_BLOB``` then Observation:.\\nThought:","role":"system"},{"prompt":"||content}}","role":"user"}],"key":"plan_with_tools","summary":null}
+    18	3	check_close_compliance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Close Compliance Check","prompts":[{"role":"system","prompt":"CLOSE Compliance Check Prompt\\nInstructions: Review the conversation/call transcript and evaluate whether the following closing criteria were met. Mark each item as \\"Achieved\\" or \\"Not Achieved\\" and provide the overall compliance score.\\n\\nChecklist:\\n- Offered further assistance\\n- Summarised outcome and any next steps\\n- Confirmed timelines for next steps\\n- Confirmed satisfaction with outcome\\n- Thanked customer for time/effort\\n- Farewelled customer in a personalised and engaging way (linking benefits)\\n\\nCompliance Score: /6 (%)"},{"role":"user","prompt":"Transcript:\\n||transcript}}"}],"key":"check_close_compliance","chunkId":"UhdlGpgBi12hmUyGwbNq","isSystem":false}
+    19	3	collaboration_conversation_analysis	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Collaboration Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this collaboration meeting for effectiveness. Focus on:\\n- Participation balance (who dominated, who was silent)\\n- Idea building (how ideas evolved through discussion)\\n- Decision quality (clear outcomes vs circular discussion)\\n- Action clarity (specific ownership and deadlines)\\n- Team dynamics (psychological safety, conflict handling)\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"deepScores\\": {\\n    \\"scores\\": {\\n      \\"participation\\": {\\n        \\"score\\": 72,\\n        \\"details\\": \\"3 of 5 participants spoke >20% each. 2 members contributed <10%.\\",\\n        \\"benchmark\\": \\"Effective teams have all members speaking 15-25% of time\\"\\n      },\\n      \\"ideaBuilding\\": {\\n        \\"score\\": 85,\\n        \\"details\\": \\"12 ideas proposed, 8 built upon by others. Strong 'yes, and' culture evident.\\",\\n        \\"benchmark\\": \\"Excellent - high-performing teams build on 60%+ of ideas\\"\\n      },\\n      \\"decisionQuality\\": {\\n        \\"score\\": 68,\\n        \\"details\\": \\"Made 2 clear decisions but spent 15 min in circular discussion on budget.\\",\\n        \\"benchmark\\": \\"Top teams make decision or explicitly table within 10 minutes\\"\\n      },\\n      \\"actionClarity\\": {\\n        \\"score\\": 90,\\n        \\"details\\": \\"5 actions assigned with owners and dates. All confirmed understanding.\\",\\n        \\"benchmark\\": \\"Excellent - all actions have owner, deadline, and success criteria\\"\\n      },\\n      \\"teamDynamics\\": {\\n        \\"score\\": 78,\\n        \\"details\\": \\"Healthy debate on 2 topics. One moment of tension handled well.\\",\\n        \\"benchmark\\": \\"Good - constructive conflict with respectful resolution\\"\\n      }\\n    },\\n    \\"overallScore\\": 79,\\n    \\"summary\\": \\"Productive collaboration with strong idea building but needs better participation balance and faster decision-making.\\"\\n  }\\n}\\n"}],"key":"collaboration_conversation_analysis","chunkId":"KBea2JcBi12hmUyGSrMX","isSystem":false}
+    20	3	conversation_structure_analysis	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Conversation Structure Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this ||conversationType}} conversation transcript for basic metrics and structure.\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nRespond with ONLY valid JSON (no markdown):\\n{\\n  \\"basicMetrics\\": {\\n    \\"participants\\": [\\"Speaker A\\", \\"Speaker B\\"],\\n    \\"duration\\": \\"estimated duration in minutes\\",\\n    \\"totalTurns\\": 45,\\n    \\"wordCount\\": {\\"Speaker A\\": 1200, \\"Speaker B\\": 800},\\n    \\"talkTimeRatio\\": {\\"Speaker A\\": 60, \\"Speaker B\\": 40},\\n    \\"questionCount\\": {\\"Speaker A\\": 8, \\"Speaker B\\": 12},\\n    \\"longestMonologue\\": {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245},\\n    \\"averageTurnLength\\": {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8},\\n    \\"topicChanges\\": 5,\\n    \\"interruptions\\": 3\\n  }\\n}\\n"}],"key":"conversation_structure_analysis","chunkId":"JheX2JcBi12hmUyGO7Ni","isSystem":false}
+    21	3	create_improvement_plan	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Create Improvement Plan","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Create a specific, personalized improvement plan based on this ||conversationType}} conversation analysis.\\n\\nCONVERSATION ANALYSIS:\\n||json analysisResults}}\\n\\nGenerate 3-5 specific, actionable improvements. Respond with ONLY valid JSON:\\n{\\n  \\"improvementPlan\\": {\\n    \\"improvements\\": [\\n      {\\n        \\"title\\": \\"Reduce your talk time by 20%\\",\\n        \\"why\\": \\"You spoke 60% of the time. Top performers speak <40%, allowing more client discovery.\\",\\n        \\"how\\": \\"After each question, count to 3 before speaking. Let them fill the silence.\\",\\n        \\"practice\\": \\"In your next 3 calls, set a timer. Aim for <2 min monologues.\\",\\n        \\"metric\\": \\"Track talk-time ratio weekly. Target: 45% week 1, 40% week 2.\\"\\n      }\\n    ],\\n    \\"strengthsToLeverage\\": [\\n      {\\n        \\"strength\\": \\"Excellent rapport building\\",\\n        \\"howToUse\\": \\"Spend first 5 min on rapport, then transition with 'I want to be respectful of your time...'\\"\\n      }\\n    ],\\n    \\"priorityFocus\\": \\"Focus on ONE improvement: asking more discovery questions before presenting solutions.\\"\\n  }\\n}\\n"}],"key":"create_improvement_plan","chunkId":"LBef2JcBi12hmUyGCbNJ","isSystem":false}
+    22	3	check_discover_compliance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Discover Compliance Check","templateEngine":"handlebars","prompts":[{"role":"system","prompt":"DISCOVER Compliance Check Prompt\\nInstructions: Review the conversation/call transcript and evaluate whether the following discovery criteria were met. Mark each item as \\"Achieved\\" or \\"Not Achieved\\" and provide the overall compliance score.\\n\\nChecklist:\\n- Asked questions to identify underlying reason for the call\\n- Asked questions to understand the current-desired situation\\n- Asked questions to understand the impact of the current-desired situation\\n- Asked questions to understand how they feel about current-desired situation\\n- Acknowledged displayed emotions (empathy)\\n- Summarised and confirmed agreement with key points before moving to solution\\n\\nCompliance Score: /6 (%)"},{"role":"user","prompt":"Transcript:\\n||transcript}}"}],"key":"check_discover_compliance","chunkId":"TxdfGpgBi12hmUyGn7MZ","isSystem":false}
+    23	3	check_engage_compliance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Engage Compliance Check","templateEngine":"handlebars","prompts":[{"role":"system","prompt":"ENGAGE Compliance Check Prompt\\nInstructions: Review the conversation/call transcript and evaluate whether the following engagement criteria were met. Mark each item as \\"Achieved\\" or \\"Not Achieved\\" and provide the overall compliance score.\\n\\nChecklist:\\n- Greeted the customer\\n- Used customer's name\\n- Delivered a credibility statement\\n- Delivered strong statement of assistance\\n- Introduced process\\n- Sought permission to proceed\\n\\nCompliance Score: /6 (%)"},{"role":"user","prompt":"Transcript:\\n||transcript}}"}],"key":"check_engage_compliance","chunkId":"ThdeGpgBi12hmUyGBLO4","isSystem":false}
+    24	3	extract_moments_and_quotes	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Extract Moments and Quotes","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Extract specific moments and quotes from this ||conversationType}} conversation that illustrate successes and failures.\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nSCORES AND ANALYSIS:\\n||json deepScores}}\\n\\nFind 3-4 specific moments with exact or close-to-exact quotes. Respond with ONLY valid JSON:\\n{\\n  \\"specificMoments\\": {\\n    \\"strongMoments\\": [\\n      {\\n        \\"category\\": \\"Active Listening\\",\\n        \\"quote\\": \\"So what I'm hearing is that your main concern is the integration timeline, not the cost itself. Is that right?\\",\\n        \\"impact\\": \\"This reflection statement showed deep understanding and led client to open up more.\\",\\n        \\"timestamp\\": \\"~10 minutes in\\"\\n      }\\n    ],\\n    \\"improvementMoments\\": [\\n      {\\n        \\"category\\": \\"Missed Opportunity\\",\\n        \\"quote\\": \\"Client: 'We've had bad experiences with similar tools...' You: 'Our tool is different because...'\\",\\n        \\"impact\\": \\"Jumped to defense instead of exploring their specific bad experiences.\\",\\n        \\"betterApproach\\": \\"Tell me more about those experiences. What specifically went wrong?\\",\\n        \\"timestamp\\": \\"~15 minutes in\\"\\n      }\\n    ],\\n    \\"keyTakeaways\\": [\\n      \\"You excel at building rapport in the first 5 minutes\\",\\n      \\"Tendency to rush through concerns when time is short\\",\\n      \\"Strong closer - always end with clear next steps\\"\\n    ]\\n  }\\n}\\n"}],"key":"extract_moments_and_quotes","chunkId":"Kxed2JcBi12hmUyGlrPb","isSystem":false}
+    25	3	check_gain_agreement_compliance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Gain Agreement Compliance Check","templateEngine":"handlebars","prompts":[{"role":"system","prompt":"GAIN AGREEMENT Compliance Check Prompt\\nInstructions: Review the conversation/call transcript and evaluate whether the following agreement criteria were met. Mark each item as \\"Achieved\\" or \\"Not Achieved\\" and provide the overall compliance score.\\n\\nChecklist:\\n- Assumptively presented next steps\\n- Asked for the referral\\n- Acknowledged concerns/hesitation\\n- Asked questions to clarify concerns/hesitation\\n- Offered alternative solution\\n\\nCompliance Score: /5 (%)"},{"role":"user","prompt":"Transcript:\\n||transcript}}"}],"key":"check_gain_agreement_compliance","chunkId":"URdkGpgBi12hmUyGb7Pr","isSystem":false}
+    26	3	general_conversation_analysis	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"General Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this general conversation for effectiveness. Focus on:\\n- Engagement quality (genuine interest vs politeness)\\n- Conversational flow (natural vs forced)\\n- Depth achieved (surface vs meaningful)\\n- Reciprocity (balanced sharing and curiosity)\\n- Connection building (rapport and understanding)\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"deepScores\\": {\\n    \\"scores\\": {\\n      \\"engagement\\": {\\n        \\"score\\": 78,\\n        \\"details\\": \\"Both parties asked follow-up questions. 3 moments of shared laughter.\\",\\n        \\"benchmark\\": \\"Good engagement shows curiosity beyond initial questions\\"\\n      },\\n      \\"flow\\": {\\n        \\"score\\": 85,\\n        \\"details\\": \\"Natural topic transitions. Only 1 awkward pause. Good rhythm throughout.\\",\\n        \\"benchmark\\": \\"Excellent - conversations should feel effortless\\"\\n      },\\n      \\"depth\\": {\\n        \\"score\\": 65,\\n        \\"details\\": \\"Stayed surface-level on 3 of 5 topics. Went deeper on career discussion.\\",\\n        \\"benchmark\\": \\"Meaningful conversations go beyond facts to feelings/values\\"\\n      },\\n      \\"reciprocity\\": {\\n        \\"score\\": 72,\\n        \\"details\\": \\"You shared 4 personal stories, they shared 6. Question ratio fairly balanced.\\",\\n        \\"benchmark\\": \\"Best conversations have 40-60% balance in all metrics\\"\\n      },\\n      \\"connection\\": {\\n        \\"score\\": 80,\\n        \\"details\\": \\"Found 3 common interests. Exchanged contact info. Made future plans.\\",\\n        \\"benchmark\\": \\"Good connection leads to concrete next interactions\\"\\n      }\\n    },\\n    \\"overallScore\\": 76,\\n    \\"summary\\": \\"Pleasant conversation with good flow but missed opportunities to go deeper on several topics for more meaningful connection.\\"\\n  }\\n}\\n"}],"key":"general_conversation_analysis","chunkId":"Khec2JcBi12hmUyGHLP-","isSystem":false}
+    27	3	mentoring_conversation_analysis	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Mentoring Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this general conversation for effectiveness. Focus on:\\n- Engagement quality (genuine interest vs politeness)\\n- Conversational flow (natural vs forced)\\n- Depth achieved (surface vs meaningful)\\n- Reciprocity (balanced sharing and curiosity)\\n- Connection building (rapport and understanding)\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"deepScores\\": {\\n    \\"scores\\": {\\n      \\"engagement\\": {\\n        \\"score\\": 78,\\n        \\"details\\": \\"Both parties asked follow-up questions. 3 moments of shared laughter.\\",\\n        \\"benchmark\\": \\"Good engagement shows curiosity beyond initial questions\\"\\n      },\\n      \\"flow\\": {\\n        \\"score\\": 85,\\n        \\"details\\": \\"Natural topic transitions. Only 1 awkward pause. Good rhythm throughout.\\",\\n        \\"benchmark\\": \\"Excellent - conversations should feel effortless\\"\\n      },\\n      \\"depth\\": {\\n        \\"score\\": 65,\\n        \\"details\\": \\"Stayed surface-level on 3 of 5 topics. Went deeper on career discussion.\\",\\n        \\"benchmark\\": \\"Meaningful conversations go beyond facts to feelings/values\\"\\n      },\\n      \\"reciprocity\\": {\\n        \\"score\\": 72,\\n        \\"details\\": \\"You shared 4 personal stories, they shared 6. Question ratio fairly balanced.\\",\\n        \\"benchmark\\": \\"Best conversations have 40-60% balance in all metrics\\"\\n      },\\n      \\"connection\\": {\\n        \\"score\\": 80,\\n        \\"details\\": \\"Found 3 common interests. Exchanged contact info. Made future plans.\\",\\n        \\"benchmark\\": \\"Good connection leads to concrete next interactions\\"\\n      }\\n    },\\n    \\"overallScore\\": 76,\\n    \\"summary\\": \\"Pleasant conversation with good flow but missed opportunities to go deeper on several topics for more meaningful connection.\\"\\n  }\\n}\\n"}],"key":"mentoring_conversation_analysis","chunkId":"KReb2JcBi12hmUyGV7M-","isSystem":false}
+    28	3	check_present_solutions_compliance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Present Solutions Compliance Check","templateEngine":"handlebars","prompts":[{"role":"system","prompt":"PRESENT SOLUTIONS Compliance Check Prompt\\nInstructions: Review the conversation/call transcript and evaluate whether the following solution presentation criteria were met. Mark each item as \\"Achieved\\" or \\"Not Achieved\\" and provide the overall compliance score.\\n\\nChecklist:\\n- Recommended a specific solution\\n- Presented a feature of the solution relevant to the customer's situation\\n- Connected the feature to a personalised benefit\\n- Asked agreement question\\n- Checked understanding of recommendation\\n- Confirmed satisfaction with recommendation\\n\\nCompliance Score: /6 (%)"},{"role":"user","prompt":"Transcript:\\n||transcript}}"}],"key":"check_present_solutions_compliance","chunkId":"UBdiGpgBi12hmUyGmrMg","isSystem":false}
+    29	3	sales_conversation_analysis	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Sales Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this sales conversation using the 5-stage framework. Evaluate each stage:\\n\\nENGAGE: How well did they welcome and connect with the customer?\\nDISCOVER: How effectively did they understand the customer's situation and needs?\\nPRESENT SOLUTIONS: How well did they provide relevant, personalized solutions?\\nGAIN AGREEMENT: How effectively did they address concerns and move forward?\\nCLOSE: How well did they wrap up with clear next steps and satisfaction?\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"deepScores\\": {\\n    \\"scores\\": {\\n      \\"engage\\": {\\n        \\"score\\": 75,\\n        \\"details\\": \\"Greeted customer by name 3x. Established credibility mentioning 5 years experience. Clear assistance offer. Explained process but rushed permission to proceed. Missing personal connection.\\",\\n        \\"benchmark\\": \\"Top performers establish rapport in first 60 seconds with personal connection, use name 4+ times, always seek permission\\"\\n      },\\n      \\"discover\\": {\\n        \\"score\\": 85,\\n        \\"details\\": \\"Identified core reason: cost reduction need. Mapped current 3-vendor setup vs desired unified platform. Quantified $50k savings. Acknowledged frustration 4x. Asked 12 discovery questions. Missed timeline urgency.\\",\\n        \\"benchmark\\": \\"Excellent discovery uncovers 3-5 pain points with emotional drivers, quantifies impact, confirms understanding before solutions\\"\\n      },\\n      \\"presentSolutions\\": {\\n        \\"score\\": 70,\\n        \\"details\\": \\"Recommended Premium package with integration features. Connected to cost savings goal. Asked 'How does this sound?' Only presented 1 option. Missed ROI calculation and team adoption benefits.\\",\\n        \\"benchmark\\": \\"Best practice: present 2-3 options, address 100% of identified pain points, quantify ROI, confirm understanding\\"\\n      },\\n      \\"gainAgreement\\": {\\n        \\"score\\": 80,\\n        \\"details\\": \\"Proposed pilot program as next step. Addressed timeline concern with phased approach. Asked for CFO referral. Clarified budget process. Training hesitation not fully resolved. No written commitment.\\",\\n        \\"benchmark\\": \\"Top sellers address all concerns with examples, offer alternatives, secure verbal commitment in 78% of qualified calls\\"\\n      },\\n      \\"close\\": {\\n        \\"score\\": 90,\\n        \\"details\\": \\"Scheduled Tuesday 2pm follow-up with decision maker. Sent calendar invite. Summarized 3 decisions. Confirmed satisfaction. Offered resources. Personalized farewell referencing growth goals.\\",\\n        \\"benchmark\\": \\"Excellent closing includes calendar invite during call, written summary, confirmed stakeholders, satisfaction check\\"\\n      }\\n    },\\n    \\"overallScore\\": 80,\\n    \\"summary\\": \\"Strong framework execution with excellent discovery (85) and closing (90). Room to improve personal connection in engage phase and solution options in presentation. Successfully moved from problem identification to scheduled next steps with decision maker.\\"\\n  }\\n}"}],"key":"sales_conversation_analysis","versions":[{"id":"82e935b5-0712-4d24-93a0-d6abb436e4a1","created":"2025-07-17T06:58:32.752Z","promptSet":{"name":"Sales Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this sales conversation for effectiveness. Focus on:\\n- Listening quality (not just time, but active listening indicators)\\n- Pain point discovery (specific problems identified)\\n- Value articulation (how well solutions matched problems)\\n- Objection handling (concerns raised and addressed)\\n- Next steps clarity\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"deepScores\\": {\\n    \\"scores\\": {\\n      \\"listening\\": {\\n        \\"score\\": 75,\\n        \\"details\\": \\"You spoke 60% of the time. Asked 8 follow-up questions. Interrupted 2 times.\\",\\n        \\"benchmark\\": \\"Top salespeople speak <40% of the time\\"\\n      },\\n      \\"painPointDiscovery\\": {\\n        \\"score\\": 88,\\n        \\"details\\": \\"Identified 3 major pain points: budget constraints, integration issues, team adoption\\",\\n        \\"benchmark\\": \\"Excellent - most sales calls identify 1-2 pain points\\"\\n      },\\n      \\"valueArticulation\\": {\\n        \\"score\\": 65,\\n        \\"details\\": \\"Connected solution to 2 of 3 pain points. Missed opportunity on integration concerns.\\",\\n        \\"benchmark\\": \\"Good sellers address 100% of identified pain points\\"\\n      },\\n      \\"objectionHandling\\": {\\n        \\"score\\": 70,\\n        \\"details\\": \\"Client raised 2 concerns. Addressed pricing well but rushed through security question.\\",\\n        \\"benchmark\\": \\"Address all objections with specific examples or data\\"\\n      },\\n      \\"nextSteps\\": {\\n        \\"score\\": 90,\\n        \\"details\\": \\"Clear next meeting scheduled with agenda. Decision maker confirmed.\\",\\n        \\"benchmark\\": \\"Excellent - specific date, time, and participants confirmed\\"\\n      }\\n    },\\n    \\"overallScore\\": 78,\\n    \\"summary\\": \\"A solid sales conversation with good pain discovery but room to improve listening ratio and value articulation.\\"\\n  }\\n}\\n"}],"key":"sales_conversation_analysis","chunkId":"JxeZ2JcBi12hmUyGIrPX","id":150,"workspaceId":10,"skill":"sales_conversation_analysis","created":"2025-07-05T03:20:04.000Z","createdBy":"m4rkmo@gmail.com","modified":"2025-07-17T06:58:09.000Z","modifiedBy":"m4rkmo@gmail.com"},"title":"Version 1","username":"m4rkmo@gmail.com","version":1},{"id":"aa43ba07-4886-4e3c-9406-12dbf391ff24","created":"2025-07-17T07:21:34.382Z","promptSet":{"name":"Sales Conversation Analysis","templateEngine":"handlebars","prompts":[{"role":"user","prompt":"Analyze this sales conversation using the 5-stage sales framework. Evaluate each stage for effectiveness:\\n\\nENGAGE: How well did the salesperson welcome and connect with the customer?\\nDISCOVER: How effectively did they understand the customer's situation and needs?\\nPRESENT SOLUTIONS: How well did they provide relevant, personalized solutions?\\nGAIN AGREEMENT: How effectively did they address concerns and move forward?\\nCLOSE: How well did they wrap up with clear next steps and satisfaction?\\n\\nTRANSCRIPT:\\n||transcript}}\\n\\nBASIC METRICS:\\n||json basicMetrics}}\\n\\nRespond with ONLY valid JSON:\\n{\\n  \\"frameworkAnalysis\\": {\\n    \\"stages\\": {\\n      \\"engage\\": {\\n        \\"score\\": 75,\\n        \\"elements\\": {\\n          \\"greeting\\": \\"Used customer's name 3 times\\",\\n          \\"credibility\\": \\"Mentioned 5 years industry experience\\",\\n          \\"assistance\\": \\"Clear offer to help with specific needs\\",\\n          \\"process\\": \\"Explained call structure\\",\\n          \\"permission\\": \\"Asked before proceeding\\"\\n        },\\n        \\"missing\\": [\\"Personal connection beyond business\\"],\\n        \\"benchmark\\": \\"Top performers establish rapport in first 60 seconds\\"\\n      },\\n      \\"discover\\": {\\n        \\"score\\": 85,\\n        \\"elements\\": {\\n          \\"underlyingReason\\": \\"Identified need for cost reduction\\",\\n          \\"currentSituation\\": \\"Mapped current 3-vendor setup\\",\\n          \\"desiredSituation\\": \\"Understood goal of unified platform\\",\\n          \\"impact\\": \\"Quantified $50k annual savings potential\\",\\n          \\"emotions\\": \\"Acknowledged frustration with complexity\\"\\n        },\\n        \\"missing\\": [\\"Deeper exploration of timeline urgency\\"],\\n        \\"benchmark\\": \\"Excellent discovery uncovers 3-5 pain points with emotional drivers\\"\\n      },\\n      \\"presentSolutions\\": {\\n        \\"score\\": 70,\\n        \\"elements\\": {\\n          \\"specificSolution\\": \\"Recommended Premium package\\",\\n          \\"relevantFeatures\\": \\"Highlighted integration capabilities\\",\\n          \\"personalizedBenefits\\": \\"Connected to their cost reduction goal\\",\\n          \\"agreementQuestion\\": \\"Asked 'How does this sound?'\\",\\n          \\"understanding\\": \\"Confirmed comprehension of key features\\"\\n        },\\n        \\"missing\\": [\\"Multiple solution options\\", \\"ROI calculation\\"],\\n        \\"benchmark\\": \\"Best practice: present 2-3 options with clear differentiation\\"\\n      },\\n      \\"gainAgreement\\": {\\n        \\"score\\": 80,\\n        \\"elements\\": {\\n          \\"nextSteps\\": \\"Proposed pilot program\\",\\n          \\"referralAsk\\": \\"Requested introduction to CFO\\",\\n          \\"concerns\\": \\"Addressed implementation timeline worry\\",\\n          \\"clarification\\": \\"Explored budget approval process\\",\\n          \\"alternative\\": \\"Offered phased rollout option\\"\\n        },\\n        \\"missing\\": [\\"Written commitment\\", \\"Specific timeline\\"],\\n        \\"benchmark\\": \\"Top sellers gain verbal commitment in 78% of qualified calls\\"\\n      },\\n      \\"close\\": {\\n        \\"score\\": 90,\\n        \\"elements\\": {\\n          \\"assistance\\": \\"Offered to send resources\\",\\n          \\"summary\\": \\"Recapped 3 key decisions made\\",\\n          \\"timeline\\": \\"Set follow-up for Tuesday 2pm\\",\\n          \\"satisfaction\\": \\"Confirmed customer felt heard\\",\\n          \\"personalizedFarewell\\": \\"Referenced their growth goals\\"\\n        },\\n        \\"missing\\": [\\"Calendar invite sent during call\\"],\\n        \\"benchmark\\": \\"Excellent - clear next steps with confirmed stakeholders\\"\\n      }\\n    },\\n    \\"overallScore\\": 80,\\n    \\"strengths\\": [\\n      \\"Strong discovery process with emotional connection\\",\\n      \\"Clear next steps and follow-up scheduled\\",\\n      \\"Good objection handling in gain agreement phase\\"\\n    ],\\n    \\"improvements\\": [\\n      \\"Build more personal rapport in engage phase\\",\\n      \\"Present multiple solution options\\",\\n      \\"Secure written commitment before close\\"\\n    ],\\n    \\"summary\\": \\"Solid execution of the sales framework with particularly strong discovery and close stages. Focus on enhancing solution presentation with more options and securing stronger commitments.\\"\\n  }\\n}"}],"key":"sales_conversation_analysis","chunkId":"TBctF5gBi12hmUyGerPp","id":150,"workspaceId":10,"skill":"sales_conversation_analysis","created":"2025-07-05T03:20:04.000Z","createdBy":"m4rkmo@gmail.com","modified":"2025-07-17T07:20:29.000Z","modifiedBy":"m4rkmo@gmail.com"},"title":"Version 2","username":"m4rkmo@gmail.com","version":2}],"chunkId":"TRdCF5gBi12hmUyGj7Ow","isSystem":false}
+    30	3	summarize_agent_performance	2025-08-13 06:18:36	test.account@promptstore.dev	2025-08-13 06:18:36	test.account@promptstore.dev	{"name":"Summarize Agent Performance","templateEngine":"handlebars","prompts":[{"role":"system","prompt":"# Home Care Sales Agent Evaluation Framework\\n\\nYour task is to evaluate a sales agent helping customers connect with quality Home Care Package providers and Nursing Homes. Agents are expected to exhibit the following behaviors:\\n\\n## Clear and Effective Communication\\n\\n**Definition:** Providing information about care options in a clear, accessible manner using appropriate language for the customer's situation.\\n\\n**Key Behaviors:**\\n* Breaking down complex care terminology into understandable terms\\n* Organizing information logically (care needs → options → next steps)\\n* Checking for understanding regularly\\n* Using clear transitions between topics\\n* Leaving space for two-way dialogue\\n\\n**Examples:**\\n* \\"Let me explain what Level 2 Home Care Package means in practical terms...\\"\\n* \\"Does that make sense? Would you like me to clarify anything about the assessment process?\\"\\n\\n## Confidence and Expertise\\n\\n**Definition:** Demonstrating knowledge about care options, providers, and processes while instilling trust in customers during a vulnerable time.\\n\\n**Key Behaviors:**\\n* Providing accurate information about care levels, providers, and processes\\n* Explaining eligibility requirements and assessment procedures confidently\\n* Offering insights into provider quality and service differences\\n* Using authoritative language appropriately\\n\\n**Examples:**\\n* \\"Based on what you've shared, you'd likely qualify for a Level 3 package, which includes...\\"\\n* \\"I can assure you that all our partner providers are ACFI-approved and regularly audited...\\"\\n\\n## Empathy and Tone\\n\\n**Definition:** Showing understanding and sensitivity to the emotional challenges of seeking care for oneself or loved ones.\\n\\n**Key Behaviors:**\\n* Acknowledging the difficulty of care decisions\\n* Validating customer emotions and concerns\\n* Using supportive, respectful language\\n* Recognizing family dynamics and stress\\n\\n**Examples:**\\n* \\"I understand how overwhelming it can feel when you're trying to find the right care for your mother.\\"\\n* \\"It's completely natural to feel anxious about this transition. Many families go through these same concerns.\\"\\n\\n## Active Listening\\n\\n**Definition:** Demonstrating attentiveness to customer needs, preferences, and concerns through paraphrasing and confirming understanding.\\n\\n**Key Behaviors:**\\n* Reflecting back customer priorities and concerns\\n* Asking clarifying questions about care needs\\n* Summarizing key points to confirm understanding\\n* Responding to both spoken and unspoken concerns\\n\\n**Examples:**\\n* \\"So you're looking for care that allows your father to stay at home while getting help with daily tasks. Is that right?\\"\\n* \\"I hear that maintaining independence is really important to you. Let's talk about how home care can support that.\\"\\n\\n## Objection Handling\\n\\n**Definition:** Effectively addressing concerns about cost, quality, timing, or family dynamics by acknowledging concerns and providing relevant solutions.\\n\\n**Key Behaviors:**\\n* Acknowledging and validating concerns\\n* Providing specific information to address worries\\n* Offering practical solutions or alternatives\\n* Checking if concerns have been resolved\\n\\n**Examples:**\\n* \\"I understand your concern about the cost. Let me explain what government subsidies are available...\\"\\n* \\"Many families worry about quality of care. Here's how we ensure our providers meet high standards...\\"\\n* \\"Does that help address your concern about the waiting time?\\"\\n\\n---\\n\\n## Evaluation Instructions\\n\\nProvide a concise summary of the agent's performance in each of the categories below. Provide a few examples from the content where the agent excelled in the category if any, and a few examples where they didn't if any.\\nThe response format must be a JSON object with the following fields and format:\\n{\\n  \\"communication\\": {\\n    \\"summary\\": \\"A concise summary of the agent's performance in the communication category.\\",\\n    \\"score\\": 75,\\n    \\"strengths_to_leverage_examples\\": \\"examples of the agent's strengths in the communication category\\",\\n    \\"areas_for_improvement_examples\\": \\"examples of the agent's areas for improvement in the communication category\\"\\n  },\\n  \\"confidence\\": {\\n    \\"summary\\": \\"A concise summary of the agent's performance in the confidence category.\\",\\n    \\"score\\": 75,\\n    \\"strengths_to_leverage_examples\\": \\"examples of the agent's strengths in the confidence category\\",\\n    \\"areas_for_improvement_examples\\": \\"examples of the agent's areas for improvement in the confidence category\\"\\n  },\\n  \\"empathy\\": {\\n    \\"summary\\": \\"A concise summary of the agent's performance in the empathy category.\\",\\n    \\"score\\": 75,\\n    \\"strengths_to_leverage_examples\\": \\"examples of the agent's strengths in the empathy category\\",\\n    \\"areas_for_improvement_examples\\": \\"examples of the agent's areas for improvement in the empathy category\\"\\n  },\\n  \\"listening\\": {\\n    \\"summary\\": \\"A concise summary of the agent's performance in the listening category.\\",\\n    \\"score\\": 75,\\n    \\"strengths_to_leverage_examples\\": \\"examples of the agent's strengths in the listening category\\",\\n    \\"areas_for_improvement_examples\\": \\"examples of the agent's areas for improvement in the listening category\\"\\n  },\\n  \\"objection_handling\\": {\\n    \\"summary\\": \\"A concise summary of the agent's performance in the objection handling category.\\",\\n    \\"score\\": 75,\\n    \\"strengths_to_leverage_examples\\": \\"examples of the agent's strengths in the objection handling category\\",\\n    \\"areas_for_improvement_examples\\": \\"examples of the agent's areas for improvement in the objection handling category\\"\\n  }\\n}\\n"},{"role":"user","prompt":"Performance:\\n||json evaluation_summaries}}"}],"key":"summarize_agent_performance","chunkId":"PhcS75cBi12hmUyG0LOx","isSystem":false}
+    \.
+
+    COPY public.models (id, workspace_id, name, source, created, created_by, modified, modified_by, val) FROM stdin;
+    2	1	AWS Bedrock Anthropic Claude Haiku 3.0	\N	2025-08-13 06:19:45	test.account@promptstore.dev	2025-08-13 06:19:45	test.account@promptstore.dev	{"key":"anthropic.claude-3-haiku-20240307-v1:0","isPublic":true,"type":"gpt","provider":"bedrock","currency":"USD"}
+    \.
+
+    COPY public.functions (id, workspace_id, name, created, created_by, modified, modified_by, val) FROM stdin;
+    1	1	summarize	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"Create a summary.","isPublic":true,"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Content to summarize."}},"title":"Request","required":["content"]},"returnType":"text/plain","implementations":[{"isDefault":true,"modelId":1,"mappingData":"{\\n  \\"content\\": \\"content\\"\\n}","promptSetId":1,"returnMappingData":[]}],"tags":["summarization"]}
+    2	1	create_summary_label	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"Create a label that describes a body of text.","isPublic":true,"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Content to summarize."}},"title":"Request","required":["content"]},"returnType":"text/plain","implementations":[{"isDefault":true,"modelId":1,"mappingData":"{\\n  \\"content\\": \\"content\\"\\n}","promptSetId":2,"returnMappingData":[]}],"tags":["summarization"]}
+    3	1	extract_entities	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"isPublic":true,"arguments":{"type":"object","properties":{"content":{"type":"string"},"entityTypes":{"type":"array","items":{"type":"string"}},"relTypes":{"type":"array","items":{"type":"string"}}},"required":["content","entityTypes","relTypes"]},"returnType":"application/json","implementations":[{"mappingData":"{\\n  \\"content\\": \\"content\\",\\n  \\"entityTypes\\": \\"entityTypes\\",\\n  \\"relTypes\\": \\"relTypes\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":3}],"returnTypeSchema":{"type":"object","properties":{"content":{"type":"string"},"entities":{"type":"array","items":{"type":"object","properties":{"type":{"type":"string"},"entity":{"type":"string"}},"required":["type","entity"]}}},"required":["content","entities"]}}
+    4	1	react_plan	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"A modular, neuro-symbolic architecture that combines large language models, external knowledge sources and discrete reasoning. We describe this neuro-symbolic architecture, dubbed the Modular Reasoning, Knowledge and Language (MRKL) system. https://arxiv.org/abs/2205.00445","tags":["react","agent","mrkl"],"arguments":{"type":"object","properties":{"tools":{"type":"string","title":"Tools List","description":"List of tools including name and description."},"tool_names":{"type":"string","title":"Tool Name List","description":"List of tool names."},"input":{"type":"string","title":"Input","description":"User question."},"agent_scratchpad":{"type":"string","title":"Agent Scratchpad","description":"Log of Thought/Action/Action Input/Observation."}},"title":"Request","required":["tools","tool_names","input"]},"implementations":[{"mappingData":"{\\n  \\"tools\\": \\"tools\\",\\n  \\"tool_names\\": \\"tool_names\\",\\n  \\"input\\": \\"input\\",\\n  \\"agent_scratchpad\\": \\"agent_scratchpad\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":9}],"isPublic":true}
+    5	1	resolve_entities	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"arguments":{"type":"object","properties":{"content":{"type":"string"},"entities":{"type":"array","items":{"type":"string"}},"allowedEntities":{"type":"array","items":{"type":"object","properties":{"type":{"type":"string"},"values":{"type":"array","items":{"type":"string"}}},"required":["type","values"]}}},"required":["content","entities","allowedEntities"]},"returnType":"text/plain","implementations":[{"mappingData":"{\\n  \\"content\\": \\"content\\",\\n  \\"entities\\": \\"entities\\",\\n  \\"allowedEntities\\": \\"allowedEntities\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":4}],"isPublic":true}
+    6	1	rewrite_query	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"isPublic":true,"implementations":[{"mappingData":"","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":8}],"arguments":{"type":"object","properties":{"content":{"type":"string"}},"required":["content"]}}
+    7	1	extract_graph	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"Extract a knowledge graph from the input content.","arguments":{"type":"object","properties":{"allowedNodes":{"type":"array","items":{"type":"string"},"title":"Allowed Node Labels","description":"List of allowed node labels"},"allowedRels":{"type":"array","items":{"type":"string"},"description":"List of allowed relationships","title":"Allowed Relationships"},"content":{"type":"string","title":"Input Text","description":"Text from which to extract a knowledge graph"}},"title":"Request","required":["content"]},"returnType":"application/json","implementations":[{"mappingData":"{\\n  \\"allowedNodes\\": \\"allowedNodes\\",\\n  \\"content\\": \\"content\\",\\n  \\"allowedRels\\": \\"allowedRels\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":10}],"returnTypeSchema":{"type":"object","properties":{"nodes":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"type":{"type":"string"},"properties":{"type":"array","items":{"type":"object","properties":{"key":{"type":"string","title":"Node Property Name"},"value":{"type":"string","title":"Node Property Value"}},"required":["key","value"]}},"name":{"type":"string"}},"required":["id","type","name"]},"title":"List of Nodes"},"rels":{"type":"array","items":{"type":"object","properties":{"source":{"type":"object","properties":{"id":{"type":"string"},"type":{"type":"string"}},"required":["id","type"],"title":"Source Node"},"target":{"type":"object","properties":{"id":{"type":"string"},"type":{"type":"string"}},"title":"Target Node","required":["id","type"]},"type":{"type":"string","title":"Relationship Type"},"properties":{"type":"array","items":{"type":"object","properties":{"key":{"type":"string","title":"Relationship Property Name"},"value":{"type":"string","title":"Relationship Property Value"}},"required":["key","value"]}}},"required":["source","target","type"]},"title":"List of Relationships"}},"required":["nodes","rels"],"description":"A knowledge graph consisting of nodes and relationships"}}
+    8	1	proofread	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"Proof read the input text.","tags":["review"],"arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"The content to proof read."}},"required":["content"],"title":"Request"},"returnType":"text/plain","implementations":[{"mappingData":"{\\n  \\"content\\": \\"content\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":12}]}
+    9	1	q_and_a	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"implementations":[{"mappingData":"","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":13,"indexes":[{"indexContentPropertyPath":"content","indexContextPropertyPath":"context"}]}]}
+    10	1	refine_using_feedback	2025-08-13 06:08:58	sys.account@promptstore.dev	2025-08-13 06:08:58	sys.account@promptstore.dev	{"description":"Correct or improve generated content using feedback from the user.","arguments":{"type":"object","properties":{"content":{"type":"string","title":"Content","description":"Content to correct."},"feedback":{"type":"string","title":"Feedback","description":"User-supplied instructions to correct or improve generated content."}},"required":["content","feedback"],"title":"Request"},"returnType":"text/plain","implementations":[{"mappingData":"{\\n  \\"content\\": \\"content\\",\\n  \\"feedback\\": \\"feedback\\"\\n}","returnMappingData":"","isDefault":true,"modelId":1,"promptSetId":14}]}
+    13	3	check_engage_compliance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:22:14	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":23,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"VRd0GpgBi12hmUyG3rPV","arguments":{"type":"object","properties":{"transcript":{"type":"string"}},"required":["transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"checklist":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"achieved":{"type":"boolean"}},"required":["description","achieved"]}},"score_percentage":{"type":"number"},"score_numerator":{"type":"number"},"score_denominator":{"type":"number"}},"required":["checklist","score_percentage","score_numerator","score_denominator"]}}
+    14	3	check_gain_agreement_compliance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:22:26	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":25,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Vhd0GpgBi12hmUyG5LNl","arguments":{"type":"object","properties":{"transcript":{"type":"string"}},"required":["transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"checklist":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"achieved":{"type":"boolean"}},"required":["description","achieved"]}},"score_percentage":{"type":"number"},"score_numerator":{"type":"number"},"score_denominator":{"type":"number"}},"required":["checklist","score_percentage","score_numerator","score_denominator"]}}
+    15	3	check_present_solutions_compliance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:22:40	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":28,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Vxd0GpgBi12hmUyG6bO5","arguments":{"type":"object","properties":{"transcript":{"type":"string"}},"required":["transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"checklist":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"achieved":{"type":"boolean"}},"required":["description","achieved"]}},"score_percentage":{"type":"number"},"score_numerator":{"type":"number"},"score_denominator":{"type":"number"}},"required":["checklist","score_percentage","score_numerator","score_denominator"]}}
+    16	3	collaboration_conversation_analysis	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:22:52	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":19,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Lxe22JcBi12hmUyGobP4","arguments":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"transcript":{"type":"string"}},"required":["basicMetrics","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"participation":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"ideaBuilding":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"decisionQuality":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"actionClarity":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"teamDynamics":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["participation","ideaBuilding","decisionQuality","actionClarity","teamDynamics"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]}},"required":["deepScores"]}}
+    18	3	create_improvement_plan	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:23:10	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":21,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Mxcg2ZcBi12hmUyG-7Op","arguments":{"type":"object","properties":{"analysisResults":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{}},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]},"specificMoments":{"type":"object","properties":{"strongMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact"]}},"improvementMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"betterApproach":{"type":"string"},"timestamp":{"type":"string"}}},"required":["category","quote","impact","betterApproach","timestamp"]},"keyTakeaways":{"type":"array","items":{"type":"string"}}},"required":["strongMoments","improvementMoments","keyTakeaways"]}},"required":["basicMetrics","deepScores","specificMoments"]},"conversationType":{"type":"string"}},"required":["analysisResults","conversationType"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"improvementPlan":{"type":"object","properties":{"improvements":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"why":{"type":"string"},"how":{"type":"string"},"practice":{"type":"string"},"metric":{"type":"string"}},"required":["title","why","how","practice","metric"]}},"strengthsToLeverage":{"type":"array","items":{"type":"object","properties":{"strength":{"type":"string"},"howToUse":{"type":"string"}},"required":["strength","howToUse"]}},"priorityFocus":{"type":"string"}},"required":["improvements","strengthsToLeverage","priorityFocus"]}},"required":["improvementPlan"]}}
+    20	3	extract_moments_and_quotes	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:23:32	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":24,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Mhcd2ZcBi12hmUyGfrOE","arguments":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{}},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]},"transcript":{"type":"string"}},"required":["deepScores","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"specificMoments":{"type":"object","properties":{"strongMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact"]}},"improvementMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"betterApproach":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact","betterApproach","timestamp"]}},"keyTakeaways":{"type":"array","items":{"type":"string"}}},"required":["strongMoments","improvementMoments","keyTakeaways"]}},"required":["specificMoments"]}}
+    21	3	extract_moments_and_quotes_v2	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:23:48	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":24,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Mhcd2ZcBi12hmUyGfrOE","arguments":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"engage":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"discover":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"presentSolutions":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"gainAgreement":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"close":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["engage","discover","presentSolutions","gainAgreement","close"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]},"transcript":{"type":"string"}},"required":["deepScores","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"specificMoments":{"type":"object","properties":{"strongMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact"]}},"improvementMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"betterApproach":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact","betterApproach","timestamp"]}},"keyTakeaways":{"type":"array","items":{"type":"string"}}},"required":["strongMoments","improvementMoments","keyTakeaways"]}},"required":["specificMoments"]}}
+    23	3	mentoring_conversation_analysis	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:24:14	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":27,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"MBe82JcBi12hmUyGLbN5","arguments":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"transcript":{"type":"string"}},"required":["basicMetrics","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"listeningDepth":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"questionQuality":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"guidanceBalance":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"growthFocus":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"emotionalSafety":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["participation","listeningDepth","questionQuality","guidanceBalance","growthFocus","emotionalSafety"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]}},"required":["deepScores"]}}
+    24	3	sales_conversation_analysis	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:24:28	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":29,"mappingData":"","returnMappingData":"","isDefault":true,"promptSetVersion":"82e935b5-0712-4d24-93a0-d6abb436e4a1"}],"chunkId":"Lheq2JcBi12hmUyGqbNE","arguments":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"transcript":{"type":"string"}},"required":["basicMetrics","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"listening":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"painPointDiscovery":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"valueArticulation":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"objectionHandling":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"nextSteps":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["listening","painPointDiscovery","valueArticulation","objectionHandling","nextSteps"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]}},"required":["deepScores"]}}
+    11	3	check_close_compliance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:21:52	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":18,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"UxdxGpgBi12hmUyGarMZ","arguments":{"type":"object","properties":{"transcript":{"type":"string"}},"required":["transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"checklist":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"achieved":{"type":"boolean"}},"required":["description","achieved"]}},"score_percentage":{"type":"number"},"score_numerator":{"type":"number"},"score_denominator":{"type":"number"}},"required":["checklist","score_percentage","score_numerator","score_denominator"]}}
+    12	3	check_discover_compliance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:22:05	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":22,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"VBd0GpgBi12hmUyG2LMP","arguments":{"type":"object","properties":{"transcript":{"type":"string"}},"required":["transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"checklist":{"type":"array","items":{"type":"object","properties":{"description":{"type":"string"},"achieved":{"type":"boolean"}},"required":["description","achieved"]}},"score_percentage":{"type":"number"},"score_numerator":{"type":"number"},"score_denominator":{"type":"number"}},"required":["checklist","score_percentage","score_numerator","score_denominator"]}}
+    17	3	conversation_structure_analysis	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:23:01	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":20,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"LReg2JcBi12hmUyGpLOj","arguments":{"type":"object","properties":{"conversationType":{"type":"string"},"transcript":{"type":"string"}},"required":["conversationType","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]}},"required":["basicMetrics"]}}
+    19	3	create_improvement_plan_v2	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:23:21	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":21,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Mxcg2ZcBi12hmUyG-7Op","arguments":{"type":"object","properties":{"analysisResults":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"engage":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"discover":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"presentSolutions":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"gainAgreement":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"close":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["engage","discover","presentSolutions","gainAgreement","close"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]},"specificMoments":{"type":"object","properties":{"strongMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"timestamp":{"type":"string"}},"required":["category","quote","impact"]}},"improvementMoments":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"quote":{"type":"string"},"impact":{"type":"string"},"betterApproach":{"type":"string"},"timestamp":{"type":"string"}}},"required":["category","quote","impact","betterApproach","timestamp"]},"keyTakeaways":{"type":"array","items":{"type":"string"}}},"required":["strongMoments","improvementMoments","keyTakeaways"]}},"required":["basicMetrics","deepScores","specificMoments"]},"conversationType":{"type":"string"}},"required":["analysisResults","conversationType"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"improvementPlan":{"type":"object","properties":{"improvements":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"why":{"type":"string"},"how":{"type":"string"},"practice":{"type":"string"},"metric":{"type":"string"}},"required":["title","why","how","practice","metric"]}},"strengthsToLeverage":{"type":"array","items":{"type":"object","properties":{"strength":{"type":"string"},"howToUse":{"type":"string"}},"required":["strength","howToUse"]}},"priorityFocus":{"type":"string"}},"required":["improvements","strengthsToLeverage","priorityFocus"]}},"required":["improvementPlan"]}}
+    22	3	general_conversation_analysis	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:24:03	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":26,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"MRff2JcBi12hmUyG9LNW","arguments":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{}},"transcript":{"type":"string"}},"required":["basicMetrics","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"engagement":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"flow":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"depth":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"reciprocity":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"connection":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["engagement","flow","depth","reciprocity","connection"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]}},"required":["deepScores"]}}
+    26	3	summarize_agent_performance	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:24:58	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":30,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Pxcg75cBi12hmUyGkbPP","arguments":{"type":"object","properties":{"evaluation_summaries":{"type":"array","items":{"type":"object","properties":{}}}},"required":["evaluation_summaries"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"communication":{"type":"object","properties":{"summary":{"type":"string"},"score":{"type":"number","description":"Score out of 100"},"strengths_to_leverage_examples":{"type":"string"},"areas_for_improvement_examples":{"type":"string"}},"required":["summary","score","strengths_to_leverage_examples","areas_for_improvement_examples"]},"confidence":{"type":"object","properties":{"summary":{"type":"string"},"score":{"type":"number","description":"Score out of 100"},"strengths_to_leverage_examples":{"type":"string"},"areas_for_improvement_examples":{"type":"string"}},"required":["summary","score","strengths_to_leverage_examples","areas_for_improvement_examples"]},"empathy":{"type":"object","properties":{"summary":{"type":"string"},"score":{"type":"number","description":"Score out of 100"},"strengths_to_leverage_examples":{"type":"string"},"areas_for_improvement_examples":{"type":"string"}},"required":["summary","score","strengths_to_leverage_examples","areas_for_improvement_examples"]},"listening":{"type":"object","properties":{"summary":{"type":"string"},"score":{"type":"number","description":"Score out of 100"},"strengths_to_leverage_examples":{"type":"string"},"areas_for_improvement_examples":{"type":"string"}},"required":["summary","score","strengths_to_leverage_examples","areas_for_improvement_examples"]},"objection_handling":{"type":"object","properties":{"summary":{"type":"string"},"score":{"type":"number","description":"Score out of 100"},"strengths_to_leverage_examples":{"type":"string"},"areas_for_improvement_examples":{"type":"string"}},"required":["summary","score","strengths_to_leverage_examples","areas_for_improvement_examples"]}},"required":["communication","confidence","empathy","listening","objection_handling"]}}
+    25	3	sales_conversation_analysis_v2	2025-08-13 06:21:31	test.account@promptstore.dev	2025-08-13 06:24:43	test.account@promptstore.dev	{"implementations":[{"modelId":2,"promptSetId":29,"mappingData":"","returnMappingData":"","isDefault":true}],"chunkId":"Lheq2JcBi12hmUyGqbNE","arguments":{"type":"object","properties":{"basicMetrics":{"type":"object","properties":{"participants":{"type":"array","items":{"type":"string"}},"duration":{"type":"number","description":"estimated duration in minutes"},"totalTurns":{"type":"number"},"wordCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 1200, \\"Speaker B\\": 800}"},"talkTimeRatio":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 60, \\"Speaker B\\": 40}"},"questionCount":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 8, \\"Speaker B\\": 12}"},"longestMonologue":{"type":"object","properties":{},"required":[],"description":"A dict with each participant a key, e.g. {\\"speaker\\": \\"Speaker A\\", \\"words\\": 245}"},"averageTurnLength":{"type":"object","properties":{},"description":"A dict with each participant a key, e.g. {\\"Speaker A\\": 26.7, \\"Speaker B\\": 17.8}"},"topicChanges":{"type":"number"},"interruptions":{"type":"string"}},"required":["participants","duration","totalTurns","wordCount","talkTimeRatio","questionCount","longestMonologue","averageTurnLength","topicChanges","interruptions"]},"transcript":{"type":"string"}},"required":["basicMetrics","transcript"]},"returnType":"application/json","returnTypeSchema":{"type":"object","properties":{"deepScores":{"type":"object","properties":{"scores":{"type":"object","properties":{"engage":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"discover":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"presentSolutions":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"gainAgreement":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]},"close":{"type":"object","properties":{"score":{"type":"number"},"details":{"type":"string"},"benchmark":{"type":"string"}},"required":["score","details","benchmark"]}},"required":["engage","discover","presentSolutions","gainAgreement","close"]},"overallScore":{"type":"number"},"summary":{"type":"string"}},"required":["scores","overallScore","summary"]}},"required":["deepScores"]}}
+    \.
+
+    COPY public.test_scenarios (id, workspace_id, name, created, created_by, modified, modified_by, val) FROM stdin;
+    4	3	Test Sales Conversation Analysis	2025-08-14 00:42:09	test.account@promptstore.dev	2025-08-14 00:48:53	test.account@promptstore.dev	{"purpose":"Test sales analysis.","status":"active","functionId":25,"testCasesCount":3}
+    1	3	Conversation Structure Analysis Test	2025-08-13 06:25:33	test.account@promptstore.dev	2025-08-14 00:35:03	test.account@promptstore.dev	{"purpose":"Test structural analysis.","status":"active","functionId":17,"testCasesCount":4}
+    2	3	Test Creation of Improvement Plan	2025-08-14 00:35:24	test.account@promptstore.dev	2025-08-14 00:37:19	test.account@promptstore.dev	{"purpose":"Test improvement plan.","status":"active","functionId":18,"testCasesCount":1}
+    3	3	Test Extraction of Moments and Quotes	2025-08-14 00:40:52	test.account@promptstore.dev	2025-08-14 00:41:39	test.account@promptstore.dev	{"purpose":"Test moment extraction.","status":"active","functionId":20,"testCasesCount":1}
+    \.
+
+    COPY public.test_cases (id, workspace_id, test_scenario_id, function_id, input, output, rating, created, created_by, modified, modified_by, val) FROM stdin;
+    9	3	4	25	{"conversationType":"sales","transcript":"=== Conversation Transcript === Start Time: 6/30/2025, 11:54:19 PM [00:00] external | are you free sneezing please leave a message after the tone [00:08] internal | hello [X REDACTED X] it's [X REDACTED X] calling you back from care about just wanted to teach base with you and see how you're going and whether i can order any you know [00:44] internal | So I'm not sure where that leaves but give me a call if you need anything else === End of Transcript ===","basicMetrics":{"participants":["external","internal"],"duration":5,"totalTurns":4,"wordCount":{"external":0,"internal":136},"talkTimeRatio":{"external":0,"internal":100},"questionCount":{"external":0,"internal":1},"longestMonologue":{"speaker":"internal","words":136},"averageTurnLength":{"external":0,"internal":34},"topicChanges":1,"interruptions":"none"}}	{"deepScores":{"scores":{"engage":{"score":75,"details":"Greeted customer by name 3x. Established credibility mentioning 5 years experience. Clear assistance offer. Explained process but rushed permission to proceed. Missing personal connection.","benchmark":"Top performers establish rapport in first 60 seconds with personal connection, use name 4+ times, always seek permission"},"discover":{"score":85,"details":"Identified core reason: cost reduction need. Mapped current 3-vendor setup vs desired unified platform. Quantified $50k savings. Acknowledged frustration 4x. Asked 12 discovery questions. Missed timeline urgency.","benchmark":"Excellent discovery uncovers 3-5 pain points with emotional drivers, quantifies impact, confirms understanding before solutions"},"presentSolutions":{"score":70,"details":"Recommended Premium package with integration features. Connected to cost savings goal. Asked 'How does this sound?' Only presented 1 option. Missed ROI calculation and team adoption benefits.","benchmark":"Best practice: present 2-3 options, address 100% of identified pain points, quantify ROI, confirm understanding"},"gainAgreement":{"score":80,"details":"Proposed pilot program as next step. Addressed timeline concern with phased approach. Asked for CFO referral. Clarified budget process. Training hesitation not fully resolved. No written commitment.","benchmark":"Top sellers address all concerns with examples, offer alternatives, secure verbal commitment in 78% of qualified calls"},"close":{"score":90,"details":"Scheduled Tuesday 2pm follow-up with decision maker. Sent calendar invite. Summarized 3 decisions. Confirmed satisfaction. Offered resources. Personalized farewell referencing growth goals.","benchmark":"Excellent closing includes calendar invite during call, written summary, confirmed stakeholders, satisfaction check"}},"overallScore":80,"summary":"Strong framework execution with excellent discovery (85) and closing (90). Room to improve personal connection in engage phase and solution options in presentation. Successfully moved from problem identification to scheduled next steps with decision maker."}}	\N	2025-08-14 00:46:05	test.account@promptstore.dev	2025-08-14 00:48:53	test.account@promptstore.dev	{"key":"47b0009b-4faa-4a9b-b43a-212cece051ca","description":"No next steps","index":2,"scenarioId":4}
+    1	3	1	17	{"conversationType":"interview","transcript":"Interviewer: Good morning, thank you for joining us today. Can you tell me about your background?\\nCandidate: Good morning! I have five years of experience in software development, primarily working with Python and JavaScript. I graduated from State University with a computer science degree.\\nInterviewer: That's great. What motivated you to apply for this position?\\nCandidate: I'm really excited about the opportunity to work on AI projects. Your company's mission aligns with my passion for using technology to solve real-world problems. I've been following your recent product launches and I'm impressed by the innovation.\\nInterviewer: What would you say is your biggest strength?\\nCandidate: I'd say my ability to learn quickly and adapt to new technologies. In my previous role, I had to master React Native within two weeks to deliver a critical mobile app feature."}	{"basicMetrics":{"participants":["Interviewer","Candidate"],"duration":"15","totalTurns":6,"wordCount":{"Interviewer":59,"Candidate":104},"talkTimeRatio":{"Interviewer":36,"Candidate":64},"questionCount":{"Interviewer":3,"Candidate":0},"longestMonologue":{"speaker":"Candidate","words":54},"averageTurnLength":{"Interviewer":19.7,"Candidate":34.7},"topicChanges":2,"interruptions":0}}	\N	2025-08-13 06:26:09	test.account@promptstore.dev	2025-08-14 00:35:03	test.account@promptstore.dev	{"key":"198f840e-9027-4bb8-aa77-4cda8115b5f4","description":"Basic Two Speaker Interview","index":0,"scenarioId":1}
+    2	3	1	17	{"conversationType":"sales","transcript":"=== Conversation Transcript === Start Time: 6/30/2025, 11:54:19 PM [00:00] external | are you free sneezing please leave a message after the tone [00:08] internal | hello [X REDACTED X] it's [X REDACTED X] calling you back from care about just wanted to teach base with you and see how you're going and whether i can order any you know [00:24] internal | can i answer any further questions for you you had the meeting with the provider that i set up for you that the the small living choices and i think that went well so yeah if you could please contact me on one three one three double zero with any questions you may have that would be great i'll [00:44] internal | pop you out a message as well thank you bye bye === End of Transcript ==="}	{"basicMetrics":{"participants":["external","internal"],"duration":"0.8 minutes","totalTurns":6,"wordCount":{"external":8,"internal":87},"talkTimeRatio":{"external":10,"internal":90},"questionCount":{"external":0,"internal":1},"longestMonologue":{"speaker":"internal","words":51},"averageTurnLength":{"external":4,"internal":43.5},"topicChanges":1,"interruptions":0}}	\N	2025-08-14 00:25:59	test.account@promptstore.dev	2025-08-14 00:35:03	test.account@promptstore.dev	{"key":"4285073e-9b36-4f0c-9e17-773f17eafa33","description":"Base case","index":1,"scenarioId":1}
+    4	3	1	17	{"conversationType":"sales","transcript":"foo"}	{"basicMetrics":{"participants":["Speaker A","Speaker B"],"duration":"30","totalTurns":45,"wordCount":{"Speaker A":1200,"Speaker B":800},"talkTimeRatio":{"Speaker A":60,"Speaker B":40},"questionCount":{"Speaker A":8,"Speaker B":12},"longestMonologue":{"speaker":"Speaker A","words":245},"averageTurnLength":{"Speaker A":26.7,"Speaker B":17.8},"topicChanges":5,"interruptions":3}}	\N	2025-08-14 00:25:59	test.account@promptstore.dev	2025-08-14 00:35:03	test.account@promptstore.dev	{"key":"4bfa25e3-de17-4d16-a51f-7ee4aecbaa6d","description":"No transcript","index":3,"scenarioId":1}
+    7	3	4	25	{"conversationType":"sales","transcript":"=== Conversation Transcript === Start Time: 6/30/2025, 11:54:19 PM [00:00] external | are you free sneezing please leave a message after the tone [00:08] internal | hello [X REDACTED X] it's [X REDACTED X] calling you back from care about just wanted to teach base with you and see how you're going and whether i can order any you know [00:24] internal | can i answer any further questions for you you had the meeting with the provider that i set up for you that the the small living choices and i think that went well so yeah if you could please contact me on one three one three double zero with any questions you may have that would be great i'll [00:44] internal | pop you out a message as well thank you bye bye === End of Transcript ===","basicMetrics":{"participants":["external","internal"],"duration":5,"totalTurns":4,"wordCount":{"external":0,"internal":136},"talkTimeRatio":{"external":0,"internal":100},"questionCount":{"external":0,"internal":1},"longestMonologue":{"speaker":"internal","words":136},"averageTurnLength":{"external":0,"internal":34},"topicChanges":1,"interruptions":"none"}}	{"deepScores":{"scores":{"engage":{"score":75,"details":"Greeted customer by name 3x. Established credibility mentioning 5 years experience. Clear assistance offer. Explained process but rushed permission to proceed. Missing personal connection.","benchmark":"Top performers establish rapport in first 60 seconds with personal connection, use name 4+ times, always seek permission"},"discover":{"score":85,"details":"Identified core reason: cost reduction need. Mapped current 3-vendor setup vs desired unified platform. Quantified $50k savings. Acknowledged frustration 4x. Asked 12 discovery questions. Missed timeline urgency.","benchmark":"Excellent discovery uncovers 3-5 pain points with emotional drivers, quantifies impact, confirms understanding before solutions"},"presentSolutions":{"score":70,"details":"Recommended Premium package with integration features. Connected to cost savings goal. Asked 'How does this sound?' Only presented 1 option. Missed ROI calculation and team adoption benefits.","benchmark":"Best practice: present 2-3 options, address 100% of identified pain points, quantify ROI, confirm understanding"},"gainAgreement":{"score":80,"details":"Proposed pilot program as next step. Addressed timeline concern with phased approach. Asked for CFO referral. Clarified budget process. Training hesitation not fully resolved. No written commitment.","benchmark":"Top sellers address all concerns with examples, offer alternatives, secure verbal commitment in 78% of qualified calls"},"close":{"score":90,"details":"Scheduled Tuesday 2pm follow-up with decision maker. Sent calendar invite. Summarized 3 decisions. Confirmed satisfaction. Offered resources. Personalized farewell referencing growth goals.","benchmark":"Excellent closing includes calendar invite during call, written summary, confirmed stakeholders, satisfaction check"}},"overallScore":80,"summary":"Strong framework execution with excellent discovery (85) and closing (90). Room to improve personal connection in engage phase and solution options in presentation. Successfully moved from problem identification to scheduled next steps with decision maker."}}	\N	2025-08-14 00:46:05	test.account@promptstore.dev	2025-08-14 00:48:53	test.account@promptstore.dev	{"key":"9d87237d-6f1f-4daa-a8f3-e9091f605457","description":"Base case","index":0,"scenarioId":4}
+    8	3	4	25	{"basicMetrics":{"participants":["Sales Rep","Prospect"],"duration":45,"totalTurns":32,"wordCount":{"Sales Rep":1850,"Prospect":1200},"talkTimeRatio":{"Sales Rep":65,"Prospect":35},"questionCount":{"Sales Rep":12,"Prospect":8},"longestMonologue":{"speaker":"Sales Rep","words":180},"averageTurnLength":{"Sales Rep":57.8,"Prospect":37.5},"topicChanges":6,"interruptions":"2 by Sales Rep, 1 by Prospect"},"transcript":"Sales Rep: Hi Sarah, thanks for taking the time to meet with me today. I know you're busy running operations at TechFlow Solutions. How are things going with your current customer support processes?\\n\\nProspect: Hi Mike, thanks for reaching out. Honestly, things have been pretty challenging lately. We're growing fast - about 40% this quarter - but our support team is drowning. We're still using a mix of email and spreadsheets to track everything.\\n\\nSales Rep: That sounds incredibly frustrating. When you say drowning, what does that look like day-to-day for your team?\\n\\nProspect: Well, tickets are getting lost, response times are averaging 3-4 days instead of our target 24 hours, and my team is working overtime constantly. Customer satisfaction scores have dropped from 4.2 to 3.1 in the past six months.\\n\\nSales Rep: Ouch, that's a significant drop. I can imagine how stressful that must be for everyone involved. Have you looked into any solutions to address this?\\n\\nProspect: We've evaluated a few options, but most seem either too expensive or too complex for our team to implement quickly. We need something that works out of the box but can scale with us.\\n\\nSales Rep: That makes perfect sense. Quick implementation and scalability are crucial when you're in growth mode. Our platform actually specializes in exactly that - we can have you up and running in under two weeks, and we've helped companies like yours reduce response times by 70% on average.\\n\\nProspect: That sounds promising, but I'm concerned about the learning curve. My team is already stretched thin.\\n\\nSales Rep: I completely understand that concern. That's actually one of our key differentiators. Our interface is designed to feel familiar - it's similar to Gmail, so your team can start using it immediately. Plus, we provide dedicated onboarding support and training for the first 30 days.\\n\\nProspect: What about cost? We're budget-conscious right now.\\n\\nSales Rep: I appreciate you being upfront about that. Let me ask - what's the cost of your current situation? With overtime, potential customer churn, and the stress on your team?\\n\\nProspect: Good point. We're probably spending about $15,000 a month on overtime alone, and we've lost three major clients in the past quarter due to slow response times.\\n\\nSales Rep: So you're looking at significant ongoing costs and revenue impact. Our solution would actually cost less than what you're currently spending on overtime, while solving the root problem. Would it be helpful if I showed you a quick demo of how this would work specifically for your team?\\n\\nProspect: Yes, I'd like to see that. But I'll need to involve my IT director in any final decisions.\\n\\nSales Rep: Absolutely, that makes complete sense. How about we schedule a 30-minute demo for next Tuesday? I can show you the platform, and we can have your IT director join for the technical discussion. Does 2 PM work for both of you?\\n\\nProspect: Let me check... Yes, that works. Can you send me some case studies of similar companies beforehand?\\n\\nSales Rep: Perfect, I'll send you three case studies of companies in your industry and size range by tomorrow morning. I'll also include our implementation timeline so you can see exactly what the next steps would look like. Sound good?\\n\\nProspect: That sounds great. I'm looking forward to seeing how this could help us get back on track.\\n\\nSales Rep: Excellent. I'll send those materials over first thing tomorrow, and I'll see you and your IT director next Tuesday at 2 PM. Thanks for your time today, Sarah."}	{"deepScores":{"scores":{"engage":{"score":75,"details":"Greeted customer by name 3x. Established credibility mentioning 5 years experience. Clear assistance offer. Explained process but rushed permission to proceed. Missing personal connection.","benchmark":"Top performers establish rapport in first 60 seconds with personal connection, use name 4+ times, always seek permission"},"discover":{"score":85,"details":"Identified core reason: cost reduction need. Mapped current 3-vendor setup vs desired unified platform. Quantified $50k savings. Acknowledged frustration 4x. Asked 12 discovery questions. Missed timeline urgency.","benchmark":"Excellent discovery uncovers 3-5 pain points with emotional drivers, quantifies impact, confirms understanding before solutions"},"presentSolutions":{"score":70,"details":"Recommended Premium package with integration features. Connected to cost savings goal. Asked 'How does this sound?' Only presented 1 option. Missed ROI calculation and team adoption benefits.","benchmark":"Best practice: present 2-3 options, address 100% of identified pain points, quantify ROI, confirm understanding"},"gainAgreement":{"score":80,"details":"Proposed pilot program as next step. Addressed timeline concern with phased approach. Asked for CFO referral. Clarified budget process. Training hesitation not fully resolved. No written commitment.","benchmark":"Top sellers address all concerns with examples, offer alternatives, secure verbal commitment in 78% of qualified calls"},"close":{"score":90,"details":"Scheduled Tuesday 2pm follow-up with decision maker. Sent calendar invite. Summarized 3 decisions. Confirmed satisfaction. Offered resources. Personalized farewell referencing growth goals.","benchmark":"Excellent closing includes calendar invite during call, written summary, confirmed stakeholders, satisfaction check"}},"overallScore":80,"summary":"Strong framework execution with excellent discovery (85) and closing (90). Room to improve personal connection in engage phase and solution options in presentation. Successfully moved from problem identification to scheduled next steps with decision maker."}}	\N	2025-08-14 00:46:05	test.account@promptstore.dev	2025-08-14 00:48:53	test.account@promptstore.dev	{"key":"599de48f-e366-4292-81a0-59f60c9b2026","description":"Variation 1","index":1,"scenarioId":4}
+    3	3	1	17	{"conversationType":"sales","transcript":"Sales Rep: Good morning, Mrs. Johnson. Thank you for taking the time to speak with me today about our Sunset Manor care facility. How are you feeling about the transition for your mother?\\n\\nMrs. Johnson: Well, I'm quite worried actually. She's been living independently for so long, and I'm not sure how she'll adjust to a care environment.\\n\\nSales Rep: I completely understand your concerns. That's very natural. Can you tell me a bit about your mother's current situation and what specific care needs she has?\\n\\nMrs. Johnson: She's 87 and has been having some mobility issues lately. She fell last month, which really scared us. She also sometimes forgets to take her medication.\\n\\nSales Rep: I see. Safety and medication management are definitely areas where we excel. Our facility has 24/7 nursing staff and we have a comprehensive medication management program. Would you like me to explain how that works?\\n\\nMrs. Johnson: Yes, please. And what about the social aspects? She's quite social and I worry she'll feel isolated.\\n\\nSales Rep: That's a great question. We have a full activities program with daily social events, group meals, and even pet therapy sessions. Many of our residents form close friendships here. Would you be interested in scheduling a tour so your mother can see the facility and meet some of our current residents?\\n\\nMrs. Johnson: That sounds like a good idea. What would be the next steps if we decide to move forward?\\n\\nSales Rep: Excellent! I can schedule a tour for this week if that works for you. We'll also need to complete an assessment of your mother's care needs to ensure we can provide the right level of support. The whole process typically takes about two weeks from initial visit to move-in."}	{"basicMetrics":{"participants":["Sales Rep","Mrs. Johnson"],"duration":"10","totalTurns":12,"wordCount":{"Sales Rep":276,"Mrs. Johnson":196},"talkTimeRatio":{"Sales Rep":58,"Mrs. Johnson":42},"questionCount":{"Sales Rep":3,"Mrs. Johnson":1},"longestMonologue":{"speaker":"Sales Rep","words":141},"averageTurnLength":{"Sales Rep":23,"Mrs. Johnson":16.3},"topicChanges":1,"interruptions":0}}	\N	2025-08-14 00:25:59	test.account@promptstore.dev	2025-08-14 00:35:03	test.account@promptstore.dev	{"key":"b5f6d6e8-ce1e-4c7c-b522-db6b3c98ff81","description":"Aged care sales consultation","index":2,"scenarioId":1}
+    6	3	3	20	{"deepScores":{"scores":{"listening":{"score":75,"details":"You spoke 60% of the time. Asked 8 follow-up questions. Interrupted 2 times.","benchmark":"Top salespeople speak <40% of the time"},"painPointDiscovery":{"score":88,"details":"Identified 3 major pain points: budget constraints, integration issues, team adoption","benchmark":"Excellent - most sales calls identify 1-2 pain points"},"valueArticulation":{"score":65,"details":"Connected solution to 2 of 3 pain points. Missed opportunity on integration concerns.","benchmark":"Good sellers address 100% of identified pain points"},"objectionHandling":{"score":70,"details":"Client raised 2 concerns. Addressed pricing well but rushed through security question.","benchmark":"Address all objections with specific examples or data"},"nextSteps":{"score":90,"details":"Clear next meeting scheduled with agenda. Decision maker confirmed.","benchmark":"Excellent - specific date, time, and participants confirmed"}},"overallScore":78,"summary":"A solid sales conversation with good pain discovery but room to improve listening ratio and value articulation."},"conversationType":"sales","transcript":"=== Conversation Transcript === Start Time: 6/30/2025, 11:54:19 PM [00:00] external | are you free sneezing please leave a message after the tone [00:08] internal | hello [X REDACTED X] it's [X REDACTED X] calling you back from care about just wanted to teach base with you and see how you're going and whether i can order any you know [00:24] internal | can i answer any further questions for you you had the meeting with the provider that i set up for you that the the small living choices and i think that went well so yeah if you could please contact me on one three one three double zero with any questions you may have that would be great i'll [00:44] internal | pop you out a message as well thank you bye bye === End of Transcript ==="}	{"specificMoments":{"strongMoments":[{"category":"Pain Point Discovery","quote":"I think that went well so yeah if you could please contact me on one three one three double zero with any questions you may have that would be great","impact":"The salesperson proactively followed up to address any remaining questions, showing they are attentive to the client's needs.","timestamp":"~40 seconds in"}],"improvementMoments":[{"category":"Listening","quote":"can i answer any further questions for you you had the meeting with the provider that i set up for you that the the small living choices and i think that went well","impact":"The salesperson interrupted the client and made assumptions about the meeting, rather than actively listening to understand the client's perspective.","betterApproach":"Could you tell me more about how the meeting went? What were your key takeaways or concerns?","timestamp":"~30 seconds in"},{"category":"Value Articulation","quote":"None provided","impact":"The transcript does not contain any quotes that illustrate the salesperson effectively articulating the value of their solution to the client's pain points.","betterApproach":"Based on the pain points we discussed, here's how our solution could help address [pain point 1], [pain point 2], and [pain point 3].","timestamp":"N/A"}],"keyTakeaways":["The salesperson demonstrated strong follow-up skills to ensure the client's questions were addressed.","The salesperson could improve their active listening skills by allowing the client to share their perspective without interruption.","The salesperson missed an opportunity to clearly articulate how their solution could address the client's identified pain points."]}}	\N	2025-08-14 00:41:17	test.account@promptstore.dev	2025-08-14 00:41:39	test.account@promptstore.dev	{"key":"882f6a52-e016-46ce-a0e2-ff4de9d1c0fb","description":"Base case","index":0,"scenarioId":3}
+    5	3	2	18	{"conversationType":"sales","analysisResults":{"basicMetrics":{"participants":["external","internal"],"duration":5,"totalTurns":4,"wordCount":{"external":0,"internal":136},"talkTimeRatio":{"external":0,"internal":100},"questionCount":{"external":0,"internal":1},"longestMonologue":{"speaker":"internal","words":136},"averageTurnLength":{"external":0,"internal":34},"topicChanges":1,"interruptions":"none"},"deepScores":{"scores":{"listening":{"score":75,"details":"You spoke 60% of the time. Asked 8 follow-up questions. Interrupted 2 times.","benchmark":"Top salespeople speak <40% of the time"},"painPointDiscovery":{"score":88,"details":"Identified 3 major pain points: budget constraints, integration issues, team adoption","benchmark":"Excellent - most sales calls identify 1-2 pain points"},"valueArticulation":{"score":65,"details":"Connected solution to 2 of 3 pain points. Missed opportunity on integration concerns.","benchmark":"Good sellers address 100% of identified pain points"},"objectionHandling":{"score":70,"details":"Client raised 2 concerns. Addressed pricing well but rushed through security question.","benchmark":"Address all objections with specific examples or data"},"nextSteps":{"score":90,"details":"Clear next meeting scheduled with agenda. Decision maker confirmed.","benchmark":"Excellent - specific date, time, and participants confirmed"}},"overallScore":78,"summary":"A solid sales conversation with good pain discovery but room to improve listening ratio and value articulation."},"specificMoments":{"strongMoments":[{"category":"Follow-up Excellence","quote":"wanted to teach base with you and see how you're going and whether i can order any you know can i answer any further questions for you","impact":"Proactive follow-up showing care and availability for questions","timestamp":"[00:08]"},{"category":"Meeting Acknowledgment","quote":"you had the meeting with the provider that i set up for you that the the small living choices and i think that went well","impact":"Acknowledges previous meeting success and maintains momentum","timestamp":"[00:24]"}],"improvementMoments":[{"category":"Voicemail Quality","quote":"whether i can order any you know can i answer any further questions","impact":"Unclear articulation and incomplete thought in voicemail","betterApproach":"Prepare a clear, concise voicemail script: 'I wanted to follow up and see if you have any questions about our meeting'","timestamp":"[00:08]"},{"category":"Call to Action","quote":"if you could please contact me on one three one three double zero with any questions you may have","impact":"Generic request without specific next steps or urgency","betterApproach":"Be more specific: 'I'd like to schedule a brief 15-minute call this week to discuss your next steps. Are you available Tuesday or Wednesday?'","timestamp":"[00:44]"}],"keyTakeaways":["This appears to be a follow-up voicemail, not the actual sales conversation referenced in the analysis","The transcript shows good follow-up habits but lacks the detailed sales conversation elements mentioned in the scores","The voicemail could be more structured and professional in delivery"]}}}	{"improvementPlan":{"improvements":[{"title":"Increase Discovery Questions","why":"You identified 3 pain points, but missed an opportunity on the integration concerns. Asking more discovery questions helps uncover all key issues.","how":"Prepare a list of 5-7 open-ended questions to ask before proposing any solutions. Focus on understanding their full situation and challenges.","practice":"In your next 3 calls, plan out your discovery questions in advance. Aim for 3-4 questions before moving to solutions.","metric":"Track the number of discovery questions asked. Target: 4 questions in week 1, 5 in week 2."},{"title":"Improve Voicemail Professionalism","why":"Your voicemail had some unclear articulation and incomplete thoughts. A more structured, professional voicemail can improve client impressions.","how":"Prepare a voicemail script ahead of time, focusing on clarity, concision, and a clear call-to-action.","practice":"Record yourself leaving the voicemail and review for clarity. Practice 3-4 times before your next call.","metric":"Client response rate on voicemails. Target: 20% increase in week 1, 30% in week 2."},{"title":"Enhance Solution Articulation","why":"You connected the solution to 2 of 3 pain points. Addressing all identified issues more thoroughly can improve conversion rates.","how":"For each pain point, prepare 2-3 specific examples of how your solution solves that challenge. Use data, case studies, or client testimonials.","practice":"In your next 3 calls, deliberately hit each pain point with a tailored solution example.","metric":"Track the percentage of pain points you address with specific solutions. Target: 80% in week 1, 100% in week 2."}],"strengthsToLeverage":[{"strength":"Excellent next steps and meeting confirmation","howToUse":"Lead with this strength to build momentum and get the client excited about next actions."}],"priorityFocus":"Focus on ONE improvement: asking more discovery questions before presenting solutions."}}	\N	2025-08-14 00:36:24	test.account@promptstore.dev	2025-08-14 00:37:19	test.account@promptstore.dev	{"key":"e6508358-b2aa-4f39-a03f-b75dc4ff4fe0","description":"Base case","index":0,"scenarioId":2}
+    \.

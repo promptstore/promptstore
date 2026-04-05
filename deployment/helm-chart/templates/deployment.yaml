@@ -1,0 +1,203 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Values.appname }}"
+  namespace: "{{ .Values.namespace }}"
+spec:
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      serviceAccountName: "{{ .Values.appname }}"
+      initContainers:
+        - name: db-init
+          image: postgres:14
+          command: ["/bin/bash"]
+          args:
+            - -c
+            - |
+              set -e
+              set -o pipefail
+
+              handle_error() {
+                local exit_code=$?
+                local line_number=$1
+                echo "ERROR: Script failed with exit code $exit_code at line $line_number"
+                echo "Command that failed: $BASH_COMMAND"
+                echo "Environment variables:"
+                echo "  PGHOST: $PGHOST"
+                echo "  PGPORT: $PGPORT"
+                echo "  PGDATABASE: $PGDATABASE"
+                echo "  PGUSER: $PGUSER"
+                exit $exit_code
+              }
+
+              trap 'handle_error $LINENO' ERR
+
+              echo "Checking if database initialization is needed..."
+
+              # Wait for database to be ready (max 5 minutes)
+              echo "Waiting for database to be ready..."
+              READINESS_TIMEOUT=300
+              READINESS_ELAPSED=0
+              while ! pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE"; do
+                if [ $READINESS_ELAPSED -ge $READINESS_TIMEOUT ]; then
+                  echo "ERROR: Database readiness check timed out after ${READINESS_TIMEOUT} seconds"
+                  exit 1
+                fi
+                echo "Database not ready yet (${READINESS_ELAPSED}s elapsed)..."
+                sleep 5
+                READINESS_ELAPSED=$((READINESS_ELAPSED + 5))
+              done
+              echo "Database is ready!"
+
+              # Test actual database connection (max 2 minutes)
+              echo "Testing database connection..."
+              CONNECTION_TIMEOUT=120
+              CONNECTION_ELAPSED=0
+              while ! psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" > /dev/null 2>&1; do
+                if [ $CONNECTION_ELAPSED -ge $CONNECTION_TIMEOUT ]; then
+                  echo "ERROR: Database connection test timed out after ${CONNECTION_TIMEOUT} seconds"
+                  echo "Please check database credentials and network connectivity"
+                  exit 1
+                fi
+                echo "Database connection test failed, retrying... (${CONNECTION_ELAPSED}s elapsed)"
+                sleep 5
+                CONNECTION_ELAPSED=$((CONNECTION_ELAPSED + 5))
+              done
+              echo "Database connection successful!"
+
+              # Copy and make the template processing script executable
+              echo "Setting up template processing script..."
+              cp /init-scripts/process_template.sh /tmp/process_template.sh
+              chmod +x /tmp/process_template.sh
+
+              # Check if tables exist
+              echo "Checking existing database state..."
+              if ! TABLE_COUNT=$(psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>/dev/null); then
+                echo "WARNING: Could not query table count, assuming empty database"
+                TABLE_COUNT="0"
+              fi
+
+              TABLE_COUNT=$(echo $TABLE_COUNT | tr -d ' ')
+              echo "Found $TABLE_COUNT tables in database"
+
+              {{ if .Values.dbInit.dropTables }}
+              echo "DROP_TABLES flag is enabled. Force recreating database..."
+              FORCE_INIT=true
+              {{ else }}
+              FORCE_INIT=false
+              {{ end }}
+
+              if [ "$TABLE_COUNT" -eq 0 ] || [ "$FORCE_INIT" = "true" ]; then
+                if [ "$FORCE_INIT" = "true" ]; then
+                  echo "Force initializing database (will drop and recreate tables)..."
+                else
+                  echo "No tables found. Initializing database..."
+                fi
+
+                echo "Creating extensions..."
+                if ! /tmp/process_template.sh /init-scripts/002_create_extensions.sql | psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE; then
+                  echo "ERROR: Failed to create extensions"
+                  exit 1
+                fi
+
+                echo "Creating tables..."
+                if ! /tmp/process_template.sh /init-scripts/003_create_tables.sql | psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE; then
+                  echo "ERROR: Failed to create tables"
+                  exit 1
+                fi
+
+                echo "Creating helper functions..."
+                if ! /tmp/process_template.sh /init-scripts/005_create_helper_functions.sql | psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE; then
+                  echo "ERROR: Failed to create helper functions"
+                  exit 1
+                fi
+
+                echo "Inserting fixtures..."
+                if ! /tmp/process_template.sh /init-scripts/006_insert_fixtures.sql | psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE; then
+                  echo "ERROR: Failed to insert fixtures"
+                  exit 1
+                fi
+
+                echo "Database initialization completed successfully!"
+              else
+                echo "Database already initialized (found $TABLE_COUNT tables). Skipping initialization."
+              fi
+          env:
+            - name: PGHOST
+              valueFrom:
+                configMapKeyRef:
+                  key: PGHOST
+                  name: "{{ .Values.appname }}"
+            - name: PGPORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PGPORT
+                  name: "{{ .Values.appname }}"
+            - name: PGDATABASE
+              valueFrom:
+                configMapKeyRef:
+                  key: PGDATABASE
+                  name: "{{ .Values.appname }}"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  key: PGUSER
+                  name: "{{ .Values.appname }}"
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PGPASSWORD
+                  name: "{{ .Values.appname }}"
+            - name: TEMPLATE_OPEN
+              value: "||"
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /init-scripts
+              readOnly: true
+      containers:
+        - name: api
+          image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
+          envFrom:
+            - configMapRef:
+                name: "{{ .Values.appname }}"
+            - secretRef:
+                name: "{{ .Values.appname }}"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+        - name: worker
+          image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
+          command: ["node"]
+          args: ["--loader", "ts-node/esm", "workflow/worker.js"]
+          env:
+            - name: NODE_OPTIONS
+              value: "--experimental-modules --es-module-specifier-resolution=node"
+          envFrom:
+            - configMapRef:
+                name: "{{ .Values.appname }}"
+            - secretRef:
+                name: "{{ .Values.appname }}"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: "{{ .Values.appname }}-init-scripts"

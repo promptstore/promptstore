@@ -1,0 +1,245 @@
+apiVersion: v1
+data:
+  ENV: "prod"
+  FILE_BUCKET: "{{ .Values.bucket }}"
+  DOCUMENTS_PREFIX: "{{ .Values.documents_prefix }}"
+  FILESTORE_PREFIX: "{{ .Values.filestore_prefix }}"
+  IMAGES_PREFIX: "{{ .Values.images_prefix }}"
+  PORT: "{{ .Values.port }}"
+  PROJECT_NAME: "{{ .Values.appname }}"
+  DISABLE_TERMINAL: "1"
+  BASE_URL: "{{ .Values.base_url }}"
+
+  NO_AUTH: "{{ .Values.no_auth }}"
+  MINIMAL_INSTALL: "{{ .Values.minimal_install }}"
+  AUTH_PROVIDER: "{{ .Values.auth_provider }}"
+
+  # PostgreSQL Metastore
+  PGHOST: "{{ .Values.db.host }}"
+  PGPORT: "5432"
+  PGDATABASE: "{{ .Values.db.name }}"
+
+  # Redis
+  REDIS_HOST: "{{ .Values.redis.host }}"
+
+  # S3 filestore (AWS S3 - replaces MinIO)
+  S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
+  S3_PORT: "443"
+
+  # Background job processing
+  TEMPORAL_URL: "{{ .Values.temporal.api_url }}"
+  TEMPORAL_NAMESPACE: "{{ .Values.temporal.namespace }}"
+  TEMPORAL_TLS: "{{ .Values.temporal.tls }}"
+
+  # Log aggregator
+  LOKI_API_URL: "{{ .Values.loki.api_url }}"
+
+  ########
+
+  ## PLUGINS ########
+
+  # Embedding plugins
+  EMBEDDING_PLUGINS: "{{ .Values.plugins.embedding }}"
+
+  # Extractor plugins
+  EXTRACTOR_PLUGINS: "{{ .Values.plugins.extractor }}"
+
+  # Feature store plugins
+  FEATURE_STORE_PLUGINS: "{{ .Values.plugins.featurestore }}"
+
+  # Graph store plugins
+  GRAPH_STORE_PLUGINS: "{{ .Values.plugins.graphstore }}"
+
+  # Guardrail plugins
+  GUARDRAIL_PLUGINS: "{{ .Values.plugins.guardrail }}"
+
+  # LLM plugins
+  LLM_PLUGINS: "{{ .Values.plugins.llm }}"
+
+  # Loader plugins
+  LOADER_PLUGINS: "{{ .Values.plugins.loader }}"
+
+  # Metric store plugins
+  METRIC_STORE_PLUGINS: "{{ .Values.plugins.metricstore }}"
+
+  # Model Provider plugins
+  MODEL_PROVIDER_PLUGINS: "{{ .Values.plugins.modelprovider }}"
+
+  # Output Parser plugins
+  OUTPUT_PARSER_PLUGINS: "{{ .Values.plugins.outputparser }}"
+
+  # Passport auth plugins
+  PASSPORT_PLUGINS: "{{ .Values.plugins.passport }}"
+
+  # SQL source plugins
+  SQL_SOURCE_PLUGINS: "{{ .Values.plugins.sqlsource }}"
+
+  # Tool plugins
+  TOOL_PLUGINS: "{{ .Values.plugins.tool }}"
+
+  # Vector store plugins
+  VECTOR_STORE_PLUGINS: "{{ .Values.plugins.vectorstore }}"
+
+  ########
+
+  ## PLUGIN SETTINGS ########
+
+  ## Feature store plugins ########
+
+  # Anaml
+  ANAML_API_URL: "{{ .Values.anaml.api_url }}"
+
+  ########
+
+  ## Graph store plugins ########
+
+  # Neo4j
+  NEO4J_HOST: "{{ .Values.graph_stores.neo4j.host }}"
+  NEO4J_PORT: "{{ .Values.graph_stores.neo4j.port }}"
+
+  ########
+
+  ## Guardrail plugins ########
+
+  # PII Guardrail
+  EUROPA_PII_API_URL: "{{ .Values.custom_models.europa_pii_api_url }}"
+  HUGGINGFACE_PII_API_URL: "{{ .Values.huggingface.pii_api_url }}"
+
+  ########
+
+  ## Loader plugins ########
+
+  # Google Drive
+  GOOGLE_DRIVE_REDIRECT_URL: "{{ .Values.googledrive.redirect_url }}"
+
+  # Onesource
+  ONESOURCE_API_URL: "{{ .Values.onesource.api_url }}"
+
+  # S3
+  S3_REGION: "{{ .Values.aws_s3.region }}"
+
+  # Unstructured
+  UNSTRUCTURED_API_URL: "{{ .Values.unstructured.api_url }}"
+
+  ########
+
+  ## Model provider plugins ########
+
+  # Huggingface
+  HUGGINGFACE_BASE_URL: "{{ .Values.huggingface.base_url }}"
+  HUGGINGFACE_HUB_API: "{{ .Values.huggingface.hub_url }}"
+
+  ########
+
+  ## LLM plugins ########
+
+  # Bedrock - ./plugins/llms/bedrock
+  AWS_REGION: "{{ .Values.bedrock.region }}"
+
+  # gemini - ./plugins/llms/gemini
+  GOOGLE_PROJECT_ID: "{{ .Values.gemini.project_id }}"
+  GOOGLE_PROJECT_LOCATION: "{{ .Values.gemini.project_location }}"
+  GCS_BUCKET: "{{ .Values.appname }}"
+  GOOGLE_LEARNLM_URL: "{{ .Values.gemini.learnlm_url }}"
+
+  # gpt4all - ./plugins/llms/gpt4all
+  GPT4ALL_API: "{{ .Values.gpt4all.api_url }}"
+
+  # Llama 2 - ./plugins/llms/llama2
+  LLAMA2_BASE_PATH: "{{ .Values.llama2.base_path }}"
+
+  # Llama API - ./plugins/llms/llamaapi
+  LLAMAAPI_BASE_PATH: "{{ .Values.llamaapi.base_path }}"
+
+  # LocalAI - ./plugins/llms/localai
+  LOCALAI_BASE_PATH: "{{ .Values.localai.base_path }}"
+
+  # Mistral - ./plugins/llms/mistral
+  MISTRAL_API: "{{ .Values.mistral.api_url }}"
+
+  # Vertex AI - ./plugins/llms/vertexai
+  PALM2_MODEL_NAME: "{{ .Values.google_vertex.palm2_default_model }}"
+
+  ########
+
+  ## Passport auth plugins ########
+
+  # Keycloak - ./plugins/passport/keycloak
+  KEYCLOAK_HOST: "{{ .Values.keycloak.host }}"
+  KEYCLOAK_CALLBACK: "{{ .Values.keycloak.callback }}"
+  KEYCLOAK_REALM: "{{ .Values.keycloak.realm }}"
+  KEYCLOAK_CLIENT_ID: "{{ .Values.keycloak.client_id }}"
+
+  # localapikey - ./plugins/passport/localapikey
+  TOKEN_STORE_KEY: "onetoks"
+
+  ########
+
+  ## Tool plugins ########
+
+  # Jira - ./plugins/tools/jira
+  JIRA_API_URL: "{{ .Values.jira.api_url }}"
+  JIRA_PROJECT_KEY: "{{ .Values.jira.project_key }}"
+
+  # Playwright
+  WORKSPACE_ID: "{{ .Values.playwright.workspace_id }}"
+
+  # SERP API - ./plugins/tools/serpapi
+  SERPAPI_URL: "{{ .Values.serpapi.api_url }}"
+
+  ########
+
+  ## Vector store plugins ########
+
+  # Chroma
+  CHROMA_SERVER: "{{ .Values.vector_stores.chroma.host }}"
+
+  # Elasticsearch
+  ES_SERVER: "{{ .Values.elasticsearch.host }}"
+  ES_PORT: "{{ .Values.elasticsearch.port }}"
+  ES_SSL: "{{ .Values.elasticsearch.use_ssl }}"
+  ES_USER: "{{ .Values.elasticsearch.username }}"
+
+  # Neo4j
+  NEO4J_VECTOR_STORE_HOST: "{{ .Values.vector_stores.neo4j.host }}"
+  NEO4J_VECTOR_STORE_PORT: "{{ .Values.vector_stores.neo4j.port }}"
+
+  # Redis
+  SEARCH_API: "{{ .Values.vecsearch.api_url }}"
+
+  NEO4J_AUTH: "{{ .Values.neo4j.auth }}"
+  NEO4J_server_memory_pagecache_size: "1G"
+  NEO4J_server_memory_heap_initial__size: "1G"
+  NEO4J_server_memory_heap_max__size: "2G"
+  NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+  NEO4J_dbms_security_procedures_unrestricted: "gds.*,apoc.*"
+  NEO4J_dbms_security_procedures_allowlist: "gds.*,apoc.*"
+  NEO4J_dbms_memory_transaction_total_max: "0"
+  NEO4J_apoc_trigger_enabled: "true"
+  NEO4J_dbms_routing_enabled: "true"
+  NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
+  NEO4J_apoc_export_file_enabled: "true"
+  NEO4J_apoc_import_file_enabled: "true"
+  NEO4J_server_config_strict__validation_enabled: "false"
+
+  ########
+
+  SEARCH_EMBEDDING_MODEL: "{{ .Values.promptstore.search_embedding_model }}"
+  SEARCH_EMBEDDING_PROVIDER: "{{ .Values.promptstore.search_embedding_provider }}"
+  SEARCH_INDEX_NAME: "{{ .Values.promptstore.search_index_name }}"
+  SEARCH_NODE_LABEL: "{{ .Values.promptstore.search_node_label }}"
+  SEARCH_WORKSPACE: "{{ .Values.promptstore.search_workspace }}"
+  SEARCH_VECTORSTORE_PROVIDER: "{{ .Values.promptstore.search_vectorstore_provider }}"
+
+  RULES_ENGINE_SERVICE_URL: "{{ .Values.promptstore.rules_engine_service_url }}"
+  SYSTEM_WORKSPACE_ID: "{{ .Values.promptstore.system_workspace_id }}"
+
+  # Cognito
+  AWS_COGNITO_REGION: "{{ .Values.cognito.region }}"
+  AWS_COGNITO_USER_POOL_ID: "{{ .Values.cognito.user_pool_id }}"
+  AWS_COGNITO_CLIENT_ID: "{{ .Values.cognito.client_id }}"
+
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.appname }}"
+  namespace: "{{ .Values.namespace }}"
