@@ -61,6 +61,10 @@ jobs:
       cognito_authority: ${{ steps.config.outputs.cognito_authority }}
       cognito_callback_url: ${{ steps.config.outputs.cognito_callback_url }}
       cognito_logout_url: ${{ steps.config.outputs.cognito_logout_url }}
+      auth_provider: ${{ steps.config.outputs.auth_provider }}
+      no_auth: ${{ steps.config.outputs.no_auth }}
+      file_bucket: ${{ steps.config.outputs.file_bucket }}
+      search_index_name: ${{ steps.config.outputs.search_index_name }}
       # ARNs (non-secret)
       acm_certificate_arn: ${{ steps.config.outputs.acm_certificate_arn }}
       irsa_role_arn: ${{ steps.config.outputs.irsa_role_arn }}
@@ -125,6 +129,10 @@ jobs:
           echo "cognito_authority=$(yq '.cognito.authority' ${VALUES_FILE})" >> $GITHUB_OUTPUT
           echo "cognito_callback_url=$(yq '.cognito.callbackUrl' ${VALUES_FILE})" >> $GITHUB_OUTPUT
           echo "cognito_logout_url=$(yq '.cognito.logoutUrl' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "auth_provider=$(yq '.auth_provider' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "no_auth=$(yq '.no_auth' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "file_bucket=$(yq '.bucket' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "search_index_name=$(yq '.promptstore.search_index_name' ${VALUES_FILE})" >> $GITHUB_OUTPUT
 
           # ARNs (non-secret)
           echo "acm_certificate_arn=$(yq '.ingress.certificateArn' ${VALUES_FILE})" >> $GITHUB_OUTPUT
@@ -154,7 +162,11 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          # All Cognito values from values file (not secrets)
+          FRONTEND_ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+          REACT_APP_AUTH_PROVIDER: ${{ needs.determine-environment.outputs.auth_provider }}
+          REACT_APP_NO_AUTH: ${{ needs.determine-environment.outputs.no_auth }}
+          REACT_APP_FILE_BUCKET: ${{ needs.determine-environment.outputs.file_bucket }}
+          REACT_APP_SEARCH_INDEX: ${{ needs.determine-environment.outputs.search_index_name }}
           REACT_APP_COGNITO_AUTHORITY: ${{ needs.determine-environment.outputs.cognito_authority }}
           REACT_APP_COGNITO_CLIENT_ID: ${{ needs.determine-environment.outputs.cognito_client_id }}
           REACT_APP_COGNITO_REDIRECT_URI: ${{ needs.determine-environment.outputs.cognito_callback_url }}
@@ -165,7 +177,24 @@ jobs:
           REACT_APP_AWS_REGION: ${{ needs.determine-environment.outputs.cognito_region }}
           REACT_APP_AUTH_ENABLED: "true"
           CI: false
-        run: npm run build
+        run: |
+          cp .env .env.production.local
+          cat <<EOF >> .env.production.local
+          REACT_APP_AUTH_PROVIDER=${REACT_APP_AUTH_PROVIDER}
+          REACT_APP_NO_AUTH=${REACT_APP_NO_AUTH}
+          REACT_APP_FILE_BUCKET=${REACT_APP_FILE_BUCKET}
+          REACT_APP_SEARCH_INDEX=${REACT_APP_SEARCH_INDEX}
+          REACT_APP_ENVIRONMENT=${FRONTEND_ENVIRONMENT}
+          REACT_APP_COGNITO_AUTHORITY=${REACT_APP_COGNITO_AUTHORITY}
+          REACT_APP_COGNITO_CLIENT_ID=${REACT_APP_COGNITO_CLIENT_ID}
+          REACT_APP_COGNITO_REDIRECT_URI=${REACT_APP_COGNITO_REDIRECT_URI}
+          REACT_APP_COGNITO_LOGOUT_REDIRECT_URI=${REACT_APP_COGNITO_LOGOUT_REDIRECT_URI}
+          REACT_APP_COGNITO_DOMAIN=${REACT_APP_COGNITO_DOMAIN}
+          REACT_APP_COGNITO_SCOPE=${REACT_APP_COGNITO_SCOPE}
+          REACT_APP_COGNITO_USER_POOL_ID=${REACT_APP_COGNITO_USER_POOL_ID}
+          REACT_APP_AWS_REGION=${REACT_APP_AWS_REGION}
+          EOF
+          npm run build
 
       - name: Upload frontend build artifact
         uses: actions/upload-artifact@v4
