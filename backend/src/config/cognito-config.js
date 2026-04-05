@@ -1,4 +1,5 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import axios from 'axios';
+import { createLocalJWKSet, jwtVerify } from 'jose';
 
 const region = process.env.AWS_COGNITO_REGION;
 const userPoolId = process.env.AWS_COGNITO_USER_POOL_ID;
@@ -6,7 +7,21 @@ const clientId = process.env.AWS_COGNITO_CLIENT_ID;
 
 const issuer = `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`;
 const jwksUri = `${issuer}/.well-known/jwks.json`;
-const jwks = createRemoteJWKSet(new URL(jwksUri));
+const JWKS_CACHE_MAX_AGE_MS = 600000;
+
+let cachedJwks = null;
+let cachedJwksExpiresAt = 0;
+
+async function getJwks() {
+  if (cachedJwks && Date.now() < cachedJwksExpiresAt) {
+    return cachedJwks;
+  }
+
+  const { data } = await axios.get(jwksUri);
+  cachedJwks = createLocalJWKSet(data);
+  cachedJwksExpiresAt = Date.now() + JWKS_CACHE_MAX_AGE_MS;
+  return cachedJwks;
+}
 
 /**
  * Verify a Cognito JWT token and return the decoded claims.
@@ -14,10 +29,10 @@ const jwks = createRemoteJWKSet(new URL(jwksUri));
  * @returns {Promise<object>} Decoded token with user claims
  */
 export function verifyCognitoToken(token) {
-  return jwtVerify(token, jwks, {
+  return getJwks().then((jwks) => jwtVerify(token, jwks, {
       algorithms: ['RS256'],
       issuer,
-    }).then(({ payload }) => {
+    })).then(({ payload }) => {
       // Validate audience (ID tokens use 'aud', access tokens use 'client_id')
       if (payload.aud !== clientId && payload.client_id !== clientId) {
         throw new Error('Token was not issued for this client');
