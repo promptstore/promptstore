@@ -641,22 +641,36 @@ const parseQueryString = str => {
   return '';
 };
 
+app.get('/api/v1/health', (req, res) => {
+  res.status(200).send({ status: 'ok' });
+});
+
 app.get('/api/v1/*', async (req, res, next) => {
-  logger.debug('originalUrl:', req.originalUrl);
-  const path = req.originalUrl.split('?')[0];
-  const searchParams = new URLSearchParams(parseQueryString(req.originalUrl));
-  const tenant = searchParams.get('tenant');
-  searchParams.delete('tenant');
-  const url = `https://${tenant}${path}?${searchParams.toString()}`;
-  logger.debug('url:', url);
-  const headers = {
-    ...req.headers,
-    host: tenant,
-  };
-  const resp = await axios.get(url, {
-    headers,
-  });
-  res.send(resp.data);
+  try {
+    logger.debug('originalUrl:', req.originalUrl);
+    const path = req.originalUrl.split('?')[0];
+    const searchParams = new URLSearchParams(parseQueryString(req.originalUrl));
+    const tenant = searchParams.get('tenant');
+
+    if (!tenant || tenant === 'null' || tenant === 'undefined') {
+      res.status(400).send({ error: 'Missing required tenant query parameter.' });
+      return;
+    }
+
+    searchParams.delete('tenant');
+    const url = `https://${tenant}${path}?${searchParams.toString()}`;
+    logger.debug('url:', url);
+    const headers = {
+      ...req.headers,
+      host: tenant,
+    };
+    const resp = await axios.get(url, {
+      headers,
+    });
+    res.send(resp.data);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // app.use('/realms/*', async (req, res, next) => {
