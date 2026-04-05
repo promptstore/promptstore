@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { createLocalJWKSet, jwtVerify } from 'jose';
+import { createPublicKey } from 'crypto';
+import jwt from 'jsonwebtoken';
 
 const region = process.env.AWS_COGNITO_REGION;
 const userPoolId = process.env.AWS_COGNITO_USER_POOL_ID;
@@ -23,22 +24,49 @@ async function getJwks() {
   return cachedJwks;
 }
 
+async function getPublicKey(kid) {
+  const jwks = await getJwks();
+  const jwk = jwks.keys?.find((key) => key.kid === kid);
+
+  if (!jwk) {
+    throw new Error(`Unable to find signing key for kid: ${kid}`);
+  }
+
+  return createPublicKey({ key: jwk, format: 'jwk' });
+}
+
 /**
  * Verify a Cognito JWT token and return the decoded claims.
  * @param {string} token - The JWT token from the Authorization header
  * @returns {Promise<object>} Decoded token with user claims
  */
 export function verifyCognitoToken(token) {
-  return getJwks().then((jwks) => jwtVerify(token, jwks, {
+  const decoded = jwt.decode(token, { complete: true });
+  const kid = decoded?.header?.kid;
+
+  if (!kid) {
+    return Promise.reject(new Error('Token is missing kid header'));
+  }
+
+  return getPublicKey(kid).then((publicKey) => new Promise((resolve, reject) => {
+    jwt.verify(token, publicKey, {
       algorithms: ['RS256'],
       issuer,
-    })).then(({ payload }) => {
+    }, (err, payload) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
       // Validate audience (ID tokens use 'aud', access tokens use 'client_id')
       if (payload.aud !== clientId && payload.client_id !== clientId) {
-        throw new Error('Token was not issued for this client');
+        reject(new Error('Token was not issued for this client'));
+        return;
       }
-      return payload;
+
+      resolve(payload);
     });
+  }));
 }
 
 /**
