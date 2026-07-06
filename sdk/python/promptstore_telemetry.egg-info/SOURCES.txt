@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+promptstore_telemetry/__init__.py
+promptstore_telemetry/client.py
+promptstore_telemetry.egg-info/PKG-INFO
+promptstore_telemetry.egg-info/SOURCES.txt
+promptstore_telemetry.egg-info/dependency_links.txt
+promptstore_telemetry.egg-info/requires.txt
+promptstore_telemetry.egg-info/top_level.txt

@@ -152,11 +152,11 @@ const testing: EnvironmentConfig = {
   // Cognito
   cognitoDomainPrefix: 'promptstore-testing',
   cognitoCallbackUrls: [
-    'http://localhost:3001/callback',
+    'http://localhost:3007/callback',
     'https://testing.openaiplatform.com/callback',
   ],
   cognitoLogoutUrls: [
-    'http://localhost:3001',
+    'http://localhost:3007',
     'https://testing.openaiplatform.com',
   ],
   cognitoSelfSignUpEnabled: true,

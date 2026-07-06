@@ -44,6 +44,8 @@ import useLocalStorageState from 'use-local-storage-state';
 import MyLogo from '../images/promptstore_logo_colour.png';
 import { GrafanaLogo } from '../logos/GrafanaLogo';
 import { TemporalLogo } from '../logos/TemporalLogo';
+import { getAllowedMenuKeys, isRestricted } from '../config/roles';
+import { getDisabledMenuKeys } from '../config/featureFlags';
 
 const { Sider } = Layout;
 
@@ -251,6 +253,24 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
       style: { display: 'flex', alignItems: 'center' },
       label: <NavLink to="/traces">Traces</NavLink>,
     });
+    governanceMenuItems.push({
+      key: 'harness',
+      icon: <NodeIndexOutlined />,
+      style: { display: 'flex', alignItems: 'center' },
+      label: <NavLink to="/harness">Harness Traces</NavLink>,
+    });
+    governanceMenuItems.push({
+      key: 'harness-cost',
+      icon: <NodeIndexOutlined />,
+      style: { display: 'flex', alignItems: 'center' },
+      label: <NavLink to="/harness/cost">Cost &amp; Usage</NavLink>,
+    });
+    governanceMenuItems.push({
+      key: 'harness-insights',
+      icon: <NodeIndexOutlined />,
+      style: { display: 'flex', alignItems: 'center' },
+      label: <NavLink to="/harness/insights">Insights</NavLink>,
+    });
   }
   if (currentUser?.roles?.includes('admin')) {
     governanceMenuItems.push(
@@ -365,7 +385,33 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
     ];
   }
 
+  // Hide menu items belonging to disabled features (applies to all users,
+  // including admins).
+  const disabledKeys = getDisabledMenuKeys();
+  if (disabledKeys.size) {
+    sideMenuItems = pruneMenuItems(sideMenuItems, (key) => !disabledKeys.has(key));
+  }
+
+  // Restrict the menu to the allowed items for a restricted (non-admin) role.
+  if (isRestricted(currentUser)) {
+    const allowedKeys = getAllowedMenuKeys(currentUser);
+    sideMenuItems = pruneMenuItems(sideMenuItems, (key) => allowedKeys.has(key));
+  }
+
   return sideMenuItems;
 };
+
+// Keep only items whose key satisfies `isKeyAllowed`, prune group children the
+// same way, and drop any group left with no children.
+const pruneMenuItems = (items, isKeyAllowed) =>
+  items
+    .filter((item) => isKeyAllowed(item.key))
+    .map((item) => {
+      if (!item.children) {
+        return item;
+      }
+      return { ...item, children: item.children.filter((child) => isKeyAllowed(child.key)) };
+    })
+    .filter((item) => !item.children || item.children.length > 0);
 
 export default SideMenu;

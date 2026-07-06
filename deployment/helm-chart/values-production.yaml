@@ -82,6 +82,7 @@ elasticsearch:
 # Redis (CDK PromptstoreElastiCacheStack output)
 redis:
   host: ""  # Set from CDK output: ElastiCache primary endpoint
+  port: "6379"
   pass: ""  # Set from Secrets Manager
 
 # S3 filestore (replaces MinIO - IRSA provides credentials)
@@ -112,7 +113,7 @@ plugins:
   featurestore: ""
   graphstore: ""
   guardrail: "emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
-  llm: "bedrock|AWS Bedrock|./plugins/llms/bedrock"
+  llm: "bedrock|AWS Bedrock|./plugins/llms/bedrock,litellm|LiteLLM|./plugins/llms/litellm"
   loader: ""
   metricstore: ""
   modelprovider: ""
@@ -291,3 +292,26 @@ clickhouse:
 
 neo4j:
   auth: ""
+
+## LiteLLM proxy - ./plugins/llms/litellm
+litellm:
+  base_url: ""
+  api_key: ""  # Set from Secrets Manager (GitHub secret LITELLM_API_KEY)
+
+## Telemetry / harness observability
+telemetry:
+  stream_secret: ""  # Set from Secrets Manager (GitHub secret TELEMETRY_STREAM_SECRET)
+  stale_span_ttl_ms: "600000"
+  stale_span_sweep_ms: "60000"
+  span_reaper_ttl_ms: "1800000"
+  span_reaper_interval_ms: "300000"
+
+## Frontend feature flags (baked into the build by the build-frontend job)
+features:
+  apps: "false"
+  imagegen: "false"
+  agent_networks: "false"
+  guardrails: "true"
+  background_jobs: "false"
+  monitoring: "true"
+  support: "false"

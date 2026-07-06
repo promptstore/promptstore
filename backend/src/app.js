@@ -24,6 +24,7 @@ import initSearchIndex from './initSearchIndex';
 import logger from './logger';
 import { AgentNetworksService } from './services/AgentNetworksService';
 import { AgentsService } from './services/AgentsService';
+import { ApiKeysService } from './services/ApiKeysService';
 import { AppsService } from './services/AppsService';
 import { CallLoggingService } from './services/CallLoggingService';
 import { ChatSessionsService } from './services/ChatSessionsService';
@@ -60,6 +61,14 @@ import { TestCasesService } from './services/TestCasesService';
 import { TestScenariosService } from './services/TestScenariosService.js';
 import { ToolService } from './services/ToolService';
 import { TracesService } from './services/TracesService';
+import { PricingService } from './services/PricingService';
+import { BudgetsService } from './services/BudgetsService';
+import { InsightsService } from './services/InsightsService';
+import { PostgresSpanStore } from './services/spanstore/PostgresSpanStore';
+import { PostgresPayloadStore } from './services/spanstore/PayloadStore';
+import { TelemetryIngestService } from './services/TelemetryIngestService';
+import { TelemetryLiveBus } from './services/TelemetryLiveBus';
+import { SpanReadService } from './services/SpanReadService';
 import { TrainingService } from './services/TrainingService';
 import { TransformationsService } from './services/TransformationsService';
 import { UploadsService } from './services/UploadsService';
@@ -205,6 +214,8 @@ const agentNetworksService = AgentNetworksService({ pg, logger });
 
 const agentsService = AgentsService({ pg, logger });
 
+const apiKeysService = ApiKeysService({ pg, logger });
+
 const appsService = AppsService({ pg, logger });
 
 const callLoggingService = CallLoggingService({ pg, logger });
@@ -279,6 +290,38 @@ const testCasesService = TestCasesService({ pg, logger });
 const testScenariosService = TestScenariosService({ pg, logger });
 
 const tracesService = TracesService({ pg, logger });
+
+const pricingService = PricingService({ logger, services: { modelsService } });
+
+const spanStore = PostgresSpanStore({ pg, logger });
+
+const payloadStore = PostgresPayloadStore({ pg, logger });
+
+const telemetryLiveBus = TelemetryLiveBus({ logger });
+
+const telemetryIngestService = TelemetryIngestService({ logger, spanStore, pricingService, livePublisher: telemetryLiveBus, payloadStore });
+
+const spanReadService = SpanReadService({ logger, spanStore });
+
+const budgetsService = BudgetsService({ pg, logger, spanStore });
+
+const insightsService = InsightsService({ pg, logger, spanStore });
+
+// Periodically close orphaned "running" spans — an abandoned run whose end event
+// never arrived (e.g. a detached sub-agent worker that died) would otherwise show
+// as running forever in the live view, since a trace ends only when its root span
+// is closed. reapStaleSpans keys on server-side received_at, so a slow-but-live
+// run keeps itself fresh and is not reaped.
+const STALE_SPAN_TTL_MS = +(process.env.TELEMETRY_STALE_SPAN_TTL_MS || 10 * 60 * 1000);
+const STALE_SPAN_SWEEP_MS = +(process.env.TELEMETRY_STALE_SPAN_SWEEP_MS || 60 * 1000);
+setInterval(async () => {
+  try {
+    const { spans, traces } = await spanStore.reapStaleSpans(STALE_SPAN_TTL_MS);
+    if (spans) logger.info(`telemetry reaper closed ${spans} orphaned spans across ${traces} traces`);
+  } catch (err) {
+    logger.warn('telemetry reaper failed:', err.message);
+  }
+}, STALE_SPAN_SWEEP_MS).unref();
 
 const trainingService = TrainingService({ pg, logger });
 
@@ -439,15 +482,35 @@ const VerifyToken = async (req, res, next) => {
         user = await usersService.getUser(resp.username);
         if (user) {
           req.user = user;
+          // Bind the workspace the API key belongs to so downstream handlers
+          // (e.g. telemetry ingestion) can scope writes to it rather than
+          // trusting a caller-supplied workspaceId in the request body.
+          req.apiKeyWorkspaceId = resp.workspaceId;
+          return next();
+        }
+      } else if (apiKey === process.env.PROMPTSTORE_API_KEY) {
+        user = await usersService.getUser('test.account@promptstore.dev');
+        if (user) {
+          req.user = user;
           return next();
         }
       } else {
-        if (apiKey === process.env.PROMPTSTORE_API_KEY) {
-          user = await usersService.getUser('test.account@promptstore.dev');
-          if (user) {
-            req.user = user;
-            return next();
+        // hashed keys in the api_keys table (e.g. write-only telemetry keys)
+        const record = await apiKeysService.getByRawKey(apiKey);
+        if (record) {
+          const scopes = record.scopes || [];
+          const isWildcard = scopes.includes('*');
+          // A scoped (non-wildcard) key may only reach the telemetry surface,
+          // so a key leaked in a client bundle cannot read traces or invoke
+          // functions.
+          if (!isWildcard && !req.path.startsWith('/v1/telemetry')) {
+            return res.status(403).json('Forbidden: key not permitted for this resource');
           }
+          req.user = { username: record.username || `telemetry@ws${record.workspaceId}` };
+          req.apiKeyWorkspaceId = record.workspaceId;
+          req.apiKeyScopes = scopes;
+          req.apiKeyType = record.type;
+          return next();
         }
       }
     }
@@ -561,6 +624,7 @@ const options = {
   services: {
     agentNetworksService,
     agentsService,
+    apiKeysService,
     appsService,
     callLoggingService,
     chatSessionsService,
@@ -593,6 +657,14 @@ const options = {
     secretsService,
     settingsService,
     sqlSourceService,
+    pricingService,
+    spanStore,
+    payloadStore,
+    telemetryIngestService,
+    telemetryLiveBus,
+    spanReadService,
+    budgetsService,
+    insightsService,
     testCasesService,
     testScenariosService,
     toolService,
@@ -730,6 +802,15 @@ if (ENV === 'dev') {
   });
 }
 
+// Unmatched /api routes must 404, not fall into the catch-all client proxy
+// below. In dev that proxy targets CLIENT_DEV_URL (the frontend), whose own
+// proxy forwards /api straight back here — an unregistered/typo'd API route
+// would otherwise ping-pong between the two servers, accreting headers on each
+// hop until it dies as a confusing 431 instead of a clean 404.
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Not found', path: req.originalUrl });
+});
+
 app.get('*', (req, res) => {
   logger.debug('GET ' + req.originalUrl);
   if (ENV === 'dev') {
@@ -746,3 +827,28 @@ const server = http.createServer(app);
 server.listen(PORT, () => {
   logger.info(`Server running at http://${os.hostname()}:${PORT}`);
 });
+
+// Reap orphaned "running" traces: an emitter that dies before its teardown
+// (e.g. a detached sub-agent worker thread when its stream closes) leaves spans
+// open forever, since a trace only ends when its root span gets an end event.
+// Periodically close spans in traces idle longer than the TTL. Both the TTL and
+// interval are env-tunable; set SPAN_REAPER_TTL_MS=0 to disable.
+if (!MINIMAL_INSTALL) {
+  const reaperTtlMs = Number(process.env.SPAN_REAPER_TTL_MS ?? 30 * 60 * 1000);
+  const reaperIntervalMs = Number(process.env.SPAN_REAPER_INTERVAL_MS ?? 5 * 60 * 1000);
+  if (reaperTtlMs > 0) {
+    const runReaper = async () => {
+      try {
+        const { spans, traces } = await spanStore.reapStaleSpans(reaperTtlMs);
+        if (spans > 0) {
+          logger.warn(`Span reaper closed ${spans} orphaned span(s) across ${traces} trace(s) (idle > ${reaperTtlMs}ms)`);
+        }
+      } catch (err) {
+        logger.error(`Span reaper failed: ${err && err.stack ? err.stack : err}`);
+      }
+    };
+    const reaperTimer = setInterval(runReaper, reaperIntervalMs);
+    reaperTimer.unref?.();  // don't keep the process alive for the timer alone
+    logger.info(`Span reaper enabled (ttl=${reaperTtlMs}ms, interval=${reaperIntervalMs}ms)`);
+  }
+}

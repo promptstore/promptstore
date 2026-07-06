@@ -247,13 +247,11 @@ function CognitoAuthBridge({ setToken, setCurrentUser, dispatch }) {
         photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`,
         displayName: name,
       });
-    } else if (!oidcAuth.isLoading && !oidcAuth.isAuthenticated) {
-      // OIDC finished loading but user is not authenticated (expired session, etc.)
-      // Redirect to login so they can re-authenticate
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/callback') {
-        window.location.replace('/login');
-      }
     }
+    // When not authenticated, gating is handled by WithPrivateRoute via
+    // client-side navigation. Doing a hard window.location redirect here
+    // caused a full-page reload that fought the router and produced a
+    // login -> home -> login flicker after logout.
   }, [oidcAuth.isAuthenticated, oidcAuth.isLoading, oidcAuth.user]);
 
   // Re-set token when it renews silently

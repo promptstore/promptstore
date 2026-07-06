@@ -4,7 +4,7 @@ services:
   postgresql:
     image: postgres:14
     ports:
-      - "5432:5432"
+      - "5437:5432"
     restart: always
     environment:
       POSTGRES_PASSWORD: changeme
@@ -15,7 +15,7 @@ services:
       - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
 
   redis:
-    image: redislabs/redisearch:latest
+    image: redis/redis-stack-server:latest
     ports:
       - "6379:6379"
     volumes:

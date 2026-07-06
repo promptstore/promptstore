@@ -1,6 +1,8 @@
 import axios from 'axios';
 import createAuthRefreshInterceptor from 'axios-auth-refresh';
 
+import { clearOidcStorage } from './utils/cognitoAuth';
+
 function ApiService() {
 
   const instance = axios.create({
@@ -88,6 +90,33 @@ function ApiService() {
   }, (err) => {
     return Promise.reject(err);
   });
+
+  // Cognito has no token-refresh interceptor (unlike Firebase below), so an
+  // expired or revoked token would otherwise fail silently and leave the app
+  // in a broken half-authenticated state. Deterministically send the user to
+  // login on 401/403. Guarded by getAccessToken() so the initial-load race
+  // (a request fired before CognitoAuthBridge attaches the token) does not
+  // trigger a spurious redirect, and we clear the stale OIDC session first so
+  // the login page doesn't immediately re-authenticate from it.
+  if (authProvider === 'cognito') {
+    instance.interceptors.response.use(
+      (res) => res,
+      (err) => {
+        const status = err?.response?.status;
+        const path = window.location.pathname;
+        if (
+          (status === 401 || status === 403) &&
+          getAccessToken() &&
+          path !== '/login' &&
+          path !== '/callback'
+        ) {
+          clearOidcStorage();
+          window.location.replace('/login');
+        }
+        return Promise.reject(err);
+      },
+    );
+  }
 
   // https://www.npmjs.com/package/axios-auth-refresh
   const refreshAuthLogic = (failedRequest) => {

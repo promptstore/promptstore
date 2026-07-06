@@ -41,6 +41,9 @@ import toolsReducer from '../features/agents/toolsSlice';
 import testScenariosReducer from '../features/testScenarios/testScenariosSlice';
 import traceAnalyticsReducer from '../features/traces/traceAnalyticsSlice';
 import tracesReducer from '../features/traces/tracesSlice';
+import harnessTracesReducer from '../features/harness/harnessTracesSlice';
+import harnessCostReducer from '../features/harness/harnessCostSlice';
+import harnessInsightsReducer from '../features/harness/harnessInsightsSlice';
 import trainingReducer from '../features/training/trainingSlice';
 import transformationsReducer from '../features/transformations/transformationsSlice';
 import usersReducer from '../features/users/usersSlice';
@@ -90,6 +93,9 @@ export const store = configureStore({
     tools: toolsReducer,
     traceAnalytics: traceAnalyticsReducer,
     traces: tracesReducer,
+    harnessTraces: harnessTracesReducer,
+    harnessCost: harnessCostReducer,
+    harnessInsights: harnessInsightsReducer,
     training: trainingReducer,
     transformations: transformationsReducer,
     users: usersReducer,

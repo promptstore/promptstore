@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useAuth as useOidcAuth } from 'react-oidc-context';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -31,6 +32,11 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Returns the OIDC auth object when running under react-oidc-context
+  // (Cognito), or undefined otherwise — useContext returns undefined when
+  // there is no surrounding OidcAuthProvider.
+  const oidcAuth = useOidcAuth();
+
   async function register(email, password) {
     const { default: auth } = await import('../config/firebase.js');
     return await createUserWithEmailAndPassword(auth, email, password);
@@ -42,6 +48,17 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    const authProvider = process.env.REACT_APP_AUTH_PROVIDER || 'none';
+    if (authProvider === 'cognito') {
+      const { performLogout } = await import('../utils/cognitoAuth.js');
+      return await performLogout(oidcAuth || {});
+    }
+    if (process.env.REACT_APP_NO_AUTH === 'true' || !process.env.REACT_APP_FIREBASE_API_KEY) {
+      CookieManager.delete('accessToken');
+      CookieManager.delete('currentUser');
+      setCurrentUser(null);
+      return;
+    }
     const { default: auth } = await import('../config/firebase.js');
     return await signOut(auth);
   }

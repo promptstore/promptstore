@@ -21,6 +21,7 @@ data:
 
   # Redis
   REDIS_HOST: "{{ .Values.redis.host }}"
+  REDIS_PORT: "{{ .Values.redis.port }}"
 
   # S3 filestore (AWS S3 - replaces MinIO)
   S3_ENDPOINT: "{{ .Values.s3.endpoint }}"
@@ -160,6 +161,9 @@ data:
   # Vertex AI - ./plugins/llms/vertexai
   PALM2_MODEL_NAME: "{{ .Values.google_vertex.palm2_default_model }}"
 
+  # LiteLLM - ./plugins/llms/litellm
+  LITELLM_BASE_URL: "{{ .Values.litellm.base_url }}"
+
   ########
 
   ## Passport auth plugins ########
@@ -233,6 +237,12 @@ data:
 
   RULES_ENGINE_SERVICE_URL: "{{ .Values.promptstore.rules_engine_service_url }}"
   SYSTEM_WORKSPACE_ID: "{{ .Values.promptstore.system_workspace_id }}"
+
+  # Telemetry / harness observability (optional overrides of code defaults)
+  TELEMETRY_STALE_SPAN_TTL_MS: "{{ .Values.telemetry.stale_span_ttl_ms }}"
+  TELEMETRY_STALE_SPAN_SWEEP_MS: "{{ .Values.telemetry.stale_span_sweep_ms }}"
+  SPAN_REAPER_TTL_MS: "{{ .Values.telemetry.span_reaper_ttl_ms }}"
+  SPAN_REAPER_INTERVAL_MS: "{{ .Values.telemetry.span_reaper_interval_ms }}"
 
   # Cognito
   AWS_COGNITO_REGION: "{{ .Values.cognito.region }}"

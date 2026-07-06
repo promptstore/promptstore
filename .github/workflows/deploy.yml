@@ -68,6 +68,14 @@ jobs:
       # ARNs (non-secret)
       acm_certificate_arn: ${{ steps.config.outputs.acm_certificate_arn }}
       irsa_role_arn: ${{ steps.config.outputs.irsa_role_arn }}
+      # Frontend feature flags (build-time)
+      feature_apps: ${{ steps.config.outputs.feature_apps }}
+      feature_imagegen: ${{ steps.config.outputs.feature_imagegen }}
+      feature_agent_networks: ${{ steps.config.outputs.feature_agent_networks }}
+      feature_guardrails: ${{ steps.config.outputs.feature_guardrails }}
+      feature_background_jobs: ${{ steps.config.outputs.feature_background_jobs }}
+      feature_monitoring: ${{ steps.config.outputs.feature_monitoring }}
+      feature_support: ${{ steps.config.outputs.feature_support }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -138,6 +146,15 @@ jobs:
           echo "acm_certificate_arn=$(yq '.ingress.certificateArn' ${VALUES_FILE})" >> $GITHUB_OUTPUT
           echo "irsa_role_arn=$(yq '.serviceAccount.roleArn' ${VALUES_FILE})" >> $GITHUB_OUTPUT
 
+          # Frontend feature flags (build-time)
+          echo "feature_apps=$(yq '.features.apps' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_imagegen=$(yq '.features.imagegen' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_agent_networks=$(yq '.features.agent_networks' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_guardrails=$(yq '.features.guardrails' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_background_jobs=$(yq '.features.background_jobs' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_monitoring=$(yq '.features.monitoring' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+          echo "feature_support=$(yq '.features.support' ${VALUES_FILE})" >> $GITHUB_OUTPUT
+
   # Job 2: Build Frontend (React)
   build-frontend:
     name: Build Frontend
@@ -176,6 +193,13 @@ jobs:
           REACT_APP_COGNITO_USER_POOL_ID: ${{ needs.determine-environment.outputs.cognito_user_pool_id }}
           REACT_APP_AWS_REGION: ${{ needs.determine-environment.outputs.cognito_region }}
           REACT_APP_AUTH_ENABLED: "true"
+          REACT_APP_FEATURE_APPS: ${{ needs.determine-environment.outputs.feature_apps }}
+          REACT_APP_FEATURE_IMAGEGEN: ${{ needs.determine-environment.outputs.feature_imagegen }}
+          REACT_APP_FEATURE_AGENT_NETWORKS: ${{ needs.determine-environment.outputs.feature_agent_networks }}
+          REACT_APP_FEATURE_GUARDRAILS: ${{ needs.determine-environment.outputs.feature_guardrails }}
+          REACT_APP_FEATURE_BACKGROUND_JOBS: ${{ needs.determine-environment.outputs.feature_background_jobs }}
+          REACT_APP_FEATURE_MONITORING: ${{ needs.determine-environment.outputs.feature_monitoring }}
+          REACT_APP_FEATURE_SUPPORT: ${{ needs.determine-environment.outputs.feature_support }}
           CI: false
         run: |
           cat <<EOF > .env.production.local
@@ -198,6 +222,13 @@ jobs:
           REACT_APP_COGNITO_USER_POOL_ID=${REACT_APP_COGNITO_USER_POOL_ID}
           REACT_APP_AWS_REGION=${REACT_APP_AWS_REGION}
           REACT_APP_AUTH_ENABLED=${REACT_APP_AUTH_ENABLED}
+          REACT_APP_FEATURE_APPS=${REACT_APP_FEATURE_APPS}
+          REACT_APP_FEATURE_IMAGEGEN=${REACT_APP_FEATURE_IMAGEGEN}
+          REACT_APP_FEATURE_AGENT_NETWORKS=${REACT_APP_FEATURE_AGENT_NETWORKS}
+          REACT_APP_FEATURE_GUARDRAILS=${REACT_APP_FEATURE_GUARDRAILS}
+          REACT_APP_FEATURE_BACKGROUND_JOBS=${REACT_APP_FEATURE_BACKGROUND_JOBS}
+          REACT_APP_FEATURE_MONITORING=${REACT_APP_FEATURE_MONITORING}
+          REACT_APP_FEATURE_SUPPORT=${REACT_APP_FEATURE_SUPPORT}
           EOF
           npm run build
 
@@ -433,6 +464,12 @@ jobs:
           elasticsearch:
             password: |-
               ${{ secrets.ES_PASS }}
+          litellm:
+            api_key: |-
+              ${{ secrets.LITELLM_API_KEY }}
+          telemetry:
+            stream_secret: |-
+              ${{ secrets.TELEMETRY_STREAM_SECRET }}
           EOF
 
           # ACM cert ARN and IRSA role ARN come from the values file,

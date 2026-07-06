@@ -191,7 +191,7 @@ export function TracesService({ pg, logger }) {
         WHERE id = $5
         RETURNING *
         `,
-        [trace.name, val, trace.id, modified, trace.id]
+        [trace.name, val, username, modified, trace.id]
       );
       return mapRow(rows[0]);
 

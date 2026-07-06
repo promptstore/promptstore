@@ -1,12 +1,14 @@
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Form, Input, InputNumber, Space } from 'antd';
+import { Button, Form, Input, InputNumber, Select, Space } from 'antd';
 
 import NavbarContext from '../../contexts/NavbarContext';
+import { ROLE_OPTIONS } from '../../config/roles';
 
 import {
   getUserAsync,
+  selectCurrentUser,
   selectUsers,
   selectLoaded,
   upsertUserAsync,
@@ -23,6 +25,7 @@ export function UserForm() {
 
   const [form] = Form.useForm();
 
+  const currentUser = useSelector(selectCurrentUser);
   const users = useSelector(selectUsers);
   const loaded = useSelector(selectLoaded);
 
@@ -136,6 +139,19 @@ export function UserForm() {
             >
               <InputNumber />
             </Form.Item>
+            {currentUser?.roles?.includes('admin') ? (
+              <Form.Item
+                label="Roles"
+                name="roles"
+              >
+                <Select
+                  mode="multiple"
+                  allowClear
+                  options={ROLE_OPTIONS}
+                  placeholder="Assign roles"
+                />
+              </Form.Item>
+            ) : null}
             <Form.Item wrapperCol={{ ...layout.wrapperCol, offset: 4 }}>
               <Space>
                 <Button type="default" onClick={onCancel}>Cancel</Button>

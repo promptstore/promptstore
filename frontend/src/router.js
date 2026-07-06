@@ -1,6 +1,9 @@
 import { lazy } from 'react';
-import { Routes, Route, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
 import { Layout } from 'antd';
+
+import { isRestricted, isPathAllowed } from './config/roles';
+import { isPathFeatureDisabled } from './config/featureFlags';
 
 import SideMenu from './components/SideMenu';
 import Register from './components/accounts/Register';
@@ -62,6 +65,10 @@ import { TestScenarios } from './features/testScenarios/TestScenarios';
 import { TracesDashboard } from './features/traces/TracesDashboard';
 import { TraceView } from './features/traces/TraceView';
 import { TracesList } from './features/traces/TracesList';
+import { HarnessTracesList } from './features/harness/HarnessTracesList';
+import { HarnessTraceView } from './features/harness/HarnessTraceView';
+import { HarnessCostDashboard } from './features/harness/HarnessCostDashboard';
+import { HarnessInsights } from './features/harness/HarnessInsights';
 import { TrainingList } from './features/training/TrainingList';
 import { TransformationForm } from './features/transformations/TransformationForm';
 import { TransformationsList } from './features/transformations/TransformationsList';
@@ -87,6 +94,20 @@ function MyHeader({ isDarkMode }) {
   );
 }
 
+// Client-side access guard: redirects to Home when the URL belongs to a
+// disabled feature, or is disallowed for a restricted (non-admin) role. This
+// is a navigation boundary, not a backend security boundary.
+function OpsRouteGuard({ currentUser, children }) {
+  const location = useLocation();
+  if (isPathFeatureDisabled(location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
+  if (isRestricted(currentUser) && !isPathAllowed(currentUser, location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
   return createBrowserRouter(
     createRoutesFromElements(
@@ -109,6 +130,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                 <Layout className="site-layout">
                   <MyHeader isDarkMode={isDarkMode} />
                   <Content style={{ margin: '0 16px' }}>
+                    <OpsRouteGuard currentUser={currentUser}>
                     <Routes>
                       <Route exact path="/profile" element={<Profile />} />
                       <Route path="/about" element={<About />} />
@@ -159,6 +181,10 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                       <Route path="/traces/:id" element={<TraceView />} />
                       <Route path="/traces" element={<TracesList />} />
                       <Route path="/traces-dash" element={<TracesDashboard />} />
+                      <Route path="/harness/cost" element={<HarnessCostDashboard />} />
+                      <Route path="/harness/insights" element={<HarnessInsights />} />
+                      <Route path="/harness/:id" element={<HarnessTraceView />} />
+                      <Route path="/harness" element={<HarnessTracesList />} />
                       <Route path="/datasets" element={<TrainingList />} />
                       <Route path="/rules/:id" element={<RuleForm />} />
                       <Route path="/rules" element={<RulesList />} />
@@ -174,8 +200,9 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                       <Route path="/workspaces" element={<WorkspacesList />} />
                       <Route path="/" element={<Home />} />
                     </Routes>
+                    </OpsRouteGuard>
                   </Content>
-                  <Footer style={{ textAlign: 'center' }}>Prompt Store ©2025</Footer>
+                  <Footer style={{ textAlign: 'center' }}>Prompt Store ©2026</Footer>
                 </Layout>
               </Layout>
             </WithPrivateRoute>

@@ -91,7 +91,7 @@
     "node-gyp": "^10.1.0",
     "node-sql-parser": "^4.9.0",
     "npm": "^10.4.0",
-    "openai": "^4.24.7",
+    "openai": "^4.104.0",
     "openweather-api-node": "^3.1.1",
     "p-queue": "^7.4.1",
     "p-retry": "^6.1.0",

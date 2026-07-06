@@ -40,13 +40,14 @@ export function WorkspacesService({ pg, logger }) {
     if (!apiKey || apiKey === 'undefined') {
       return null;
     }
+    // Parameterized to avoid SQL injection: the api key is passed as a bind
+    // parameter and used as a JSON object key via the `->` (json -> text) operator.
     let q = `
-      SELECT id, val->'apiKeys'->'${apiKey}'->>'username' AS username
+      SELECT id, val->'apiKeys'->$1->>'username' AS username
       FROM workspaces
-      WHERE val->'apiKeys'->>'${apiKey}' <> ''
+      WHERE val->'apiKeys'->$1 IS NOT NULL
     `;
-    logger.debug('q:', q);
-    const { rows } = await pg.query(q);
+    const { rows } = await pg.query(q, [apiKey]);
     if (rows.length === 0) {
       return null;
     }

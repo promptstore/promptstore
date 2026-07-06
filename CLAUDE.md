@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run temporal` - Start Temporal server (dev UI on port 8080)
 
 ### Frontend (React)
-- `npm start` - Start development server on port 3001
+- `npm start` - Start development server on port 3007
 - `npm run build` - Build for production
 - `npm test` - Run tests
 

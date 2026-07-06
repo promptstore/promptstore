@@ -8,6 +8,7 @@ import useLocalStorageState from 'use-local-storage-state';
 import NavbarContext from '../../contexts/NavbarContext';
 import UserContext from '../../contexts/UserContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
+import { isFeatureEnabled } from '../../config/featureFlags';
 import {
   deleteWorkspacesAsync,
   getWorkspacesAsync,
@@ -140,12 +141,14 @@ export function WorkspacesList() {
       width: 225,
       render: (_, record) => (
         <Space size="middle">
-          <Button type="link"
-            style={{ paddingLeft: 0 }}
-            onClick={linkToApps(record.key)}
-          >
-            Apps
-          </Button>
+          {isFeatureEnabled('apps') ? (
+            <Button type="link"
+              style={{ paddingLeft: 0 }}
+              onClick={linkToApps(record.key)}
+            >
+              Apps
+            </Button>
+          ) : null}
           <Button type="link"
             style={{ paddingLeft: 0 }}
             onClick={onSelectWorkspace(record.key)}

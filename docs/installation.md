@@ -19,7 +19,7 @@ In Dev mode:
 3. Create Temporal namespace: In separate window/tab `docker exec -it --env TEMPORAL_CLI_ADDRESS=temporal:7233 temporal-admin-tools tctl --namespace promptstore namespace register`
 4. Start app server: In separate window/tab, `cd backend & npm start`
 5. Start client: In separate window/tab, `cd frontend & npm start`
-6. Navigate to `http://localhost:3001`
+6. Navigate to `http://localhost:3007`
 
 Alernatively, use ngrok to use HTTPS (required by third party auth services):
 

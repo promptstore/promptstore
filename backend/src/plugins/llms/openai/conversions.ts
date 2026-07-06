@@ -22,34 +22,24 @@ import {
   OpenAIImageResponse,
 } from '../../../core/models/openai_types';
 
+// Prefix-matched model families that support the native function/tool-calling API.
+// All current OpenAI chat models (gpt-4.x, gpt-4o, gpt-5, o-series reasoning models)
+// support tools; older completion-style models fall back to the prompt-embedded path.
 const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
+  'gpt-5',
+  'gpt-4.1',
+  'gpt-4o',
+  'gpt-4-turbo',
   'gpt-4',
-  'gpt-4o',
-  'gpt-4o-mini',
-  'gpt-4o-mini-2024-07-18',
-  'gpt-4o-2024-05-13',
-  'gpt-4o-2024-08-06',
-  'gpt-4-1106-preview',
-  'gpt-4-0125-preview',
-  'gpt-4-0613',
   'gpt-3.5-turbo',
-  'gpt-3.5-turbo-1106',
-  'gpt-3.5-turbo-0613',
-];
-
-const OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING = [
-  'gpt-4-1106-preview',
-  'gpt-3.5-turbo-1106',
-  'gpt-4o',
-  'gpt-4o-2024-05-13',
+  'o1',
+  'o3',
+  'o4',
+  'chatgpt-4o',
 ];
 
 function isFunctionCallingModel(model: string) {
-  const models = [
-    ...OPENAI_MODELS_SUPPORTING_FUNCTIONS,
-    ...OPENAI_MODELS_SUPPORTING_PARALLEL_FUNCTION_CALLING,
-  ];
-  for (const m of models) {
+  for (const m of OPENAI_MODELS_SUPPORTING_FUNCTIONS) {
     if (model.startsWith(m)) {
       return true;
     }
@@ -62,6 +52,9 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     model,
     model_params,
     stream,
+    stream_options,
+    tool_choice,
+    parallel_tool_calls,
     user,
   } = request;
   const {
@@ -70,9 +63,13 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     n,
     stop,
     max_tokens,
+    max_completion_tokens,
+    reasoning_effort,
     presence_penalty,
     frequency_penalty,
     logit_bias,
+    seed,
+    response_format,
   } = model_params;
   let functions: Function[];
   let function_call: FunctionCallType | object;
@@ -95,16 +92,25 @@ export function toOpenAIChatRequest(request: ChatRequest) {
     functions,
     function_call,
     tools,
+    // Only send tool_choice / parallel_tool_calls when tools are present, else the API errors.
+    tool_choice: tools?.length ? tool_choice : undefined,
+    parallel_tool_calls: tools?.length ? parallel_tool_calls : undefined,
     stream,
+    // include_usage lets us recover token usage from the final streamed chunk.
+    stream_options: stream ? stream_options : undefined,
     user,
     temperature,
     top_p,
     n,
     stop,
-    max_tokens,
+    // Prefer max_completion_tokens (o1-series/newer); fall back to max_tokens for older models.
+    max_completion_tokens: max_completion_tokens ?? max_tokens,
+    reasoning_effort,
     presence_penalty,
     frequency_penalty,
     logit_bias,
+    seed,
+    response_format,
   };
 }
 
@@ -118,6 +124,8 @@ export async function fromOpenAIChatResponse(
     created,
     model,
     usage,
+    system_fingerprint,
+    service_tier,
   } = response;
   let choices: ChatCompletionChoice[];
   logger.debug('model:', model);
@@ -158,14 +166,18 @@ export async function fromOpenAIChatResponse(
     }
     if (!choices) {
       choices = response.choices.map(c => {
+        // Surface a model refusal as content so downstream callers aren't left with null.
+        const content = c.message.content ?? c.message.refusal ?? null;
         if (c.message.tool_calls) {
           return {
             finish_reason: c.finish_reason,
             index: c.index,
+            logprobs: c.logprobs,
             message: {
               role: c.message.role,
-              content: c.message.content,
+              content,
               name: c.message.name,
+              refusal: c.message.refusal,
               tool_calls: c.message.tool_calls,
             }
           };
@@ -173,10 +185,12 @@ export async function fromOpenAIChatResponse(
         return {
           finish_reason: c.finish_reason,
           index: c.index,
+          logprobs: c.logprobs,
           message: {
             role: c.message.role,
-            content: c.message.content,
+            content,
             name: c.message.name,
+            refusal: c.message.refusal,
             function_call: c.message.function_call,
           }
         };
@@ -278,6 +292,8 @@ export async function fromOpenAIChatResponse(
     n: choices.length,
     choices,
     usage,
+    system_fingerprint,
+    service_tier,
   };
 }
 
