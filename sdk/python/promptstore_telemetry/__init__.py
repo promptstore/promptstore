@@ -17,6 +17,21 @@ Quick start::
                                  window_tokens_before=180000, window_tokens_after=90000,
                                  tokens_reclaimed=90000, method="summarize")
 
+Conversations (HITL long-running loop). A conversation is one run; each user
+turn is a loop iteration, and waiting on the user is a first-class ``hitl.pause``
+span. Ids are derived from the conversation id, so turns in separate
+processes/requests resolve to the same run with no shared handle::
+
+    # turn N's request
+    with ps.conversation(conversation_id, close_on_exit=False):
+        ps.hitl_pause_close(index=n - 1)          # the user just replied
+        with ps.turn(index=n):
+            with ps.span(ps.SpanKind.MODEL_CALL, "respond") as m:
+                m.set_usage(prompt_tokens=1000, completion_tokens=120)
+        ps.hitl_pause_open(index=n)               # yield back to the user
+    # ...and once the conversation is truly done:
+    ps.end_conversation(conversation_id)
+
 The SDK never blocks, never raises into your code, and drops data rather than
 grow unbounded or fail your app if promptstore is unavailable.
 """
@@ -26,14 +41,22 @@ from .client import (  # noqa: F401
     trace,
     span,
     subagent,
+    conversation,
+    turn,
+    hitl_pause_open,
+    hitl_pause_close,
+    end_conversation,
     tool,
     agent,
     context_event,
     set_attributes,
     get_traceparent,
+    derive_trace_id,
+    derive_span_id,
     flush,
     shutdown,
     SpanKind,
+    LinkRel,
     TelemetryClient,
 )
 
@@ -45,4 +68,4 @@ class ContextEventName:
     EVICT = "ps.context.evict"
 
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

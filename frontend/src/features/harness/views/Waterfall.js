@@ -15,6 +15,7 @@ export const KIND_COLORS = {
   'model.call': '#22c55e',
   'tool.call': '#f59e0b',
   'subagent.spawn': '#a855f7',
+  'hitl.pause': '#94a3b8',
   'composition.call': '#14b8a6',
   'function.call': '#84cc16',
   'prompt.render': '#eab308',

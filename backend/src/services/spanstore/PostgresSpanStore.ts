@@ -178,11 +178,12 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
   }
 
   async function listTraces(workspaceId: number, params: ListTracesParams = {}): Promise<{ count: number; data: TraceSummary[] }> {
-    const { limit = 50, offset = 0, name, from, to, status } = params;
+    const { limit = 50, offset = 0, name, from, to, status, sessionId } = params;
     const args: any[] = [workspaceId];
     const conds: string[] = ['workspace_id = $1'];
     if (from) { args.push(from); conds.push(`start_time >= $${args.length}`); }
     if (to) { args.push(to); conds.push(`start_time <= $${args.length}`); }
+    if (sessionId) { args.push(sessionId); conds.push(`session_id = $${args.length}`); }
     const where = conds.join(' AND ');
 
     // Aggregate spans into per-trace summaries. The root span (parent_span_id
@@ -197,6 +198,8 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
           COUNT(*) AS span_count,
           COUNT(*) FILTER (WHERE span_kind = 'loop.iteration') AS turns,
           COUNT(*) FILTER (WHERE span_kind = 'tool.call') AS tool_calls,
+          bool_or(span_kind = 'hitl.pause' AND end_time IS NULL) AS awaiting_user,
+          MAX(session_id) AS session_id,
           COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
           COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
           COALESCE(SUM(cached_tokens), 0) AS cached_tokens,
@@ -249,7 +252,9 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
         total_tokens: Number(r.total_tokens),
         cost_total: Number(r.cost_total),
         user_id: r.user_id,
+        session_id: r.session_id,
         running: !!r.running,
+        awaiting_user: !!r.awaiting_user,
       };
     });
     return { count, data };
@@ -372,12 +377,16 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
     // ingest time, so a slow/long but still-live run keeps itself fresh and is
     // not reaped). Close each open span in a stale trace at the trace's last
     // known activity (never before the span's own start), marking it errored.
+    // A conversation parked on a human (an open hitl.pause span) is *suspended*,
+    // not *abandoned*, so those traces are excluded — a long user think-time
+    // must never be mistaken for a dead run.
     const q = `
       WITH stale AS (
         SELECT trace_id, MAX(received_at) AS last_activity
         FROM spans
         GROUP BY trace_id
         HAVING bool_or(end_time IS NULL)
+           AND NOT bool_or(span_kind = 'hitl.pause' AND end_time IS NULL)
            AND MAX(received_at) < NOW() - ($1::double precision * INTERVAL '1 millisecond')
       )
       UPDATE spans s

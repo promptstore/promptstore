@@ -113,10 +113,22 @@ export function HarnessTracesList() {
     {
       title: 'Status',
       dataIndex: 'status',
-      width: 110,
-      render: (status, row) => row.running
-        ? <Tag color="processing">running</Tag>
-        : <Tag color={status === 'error' ? 'red' : 'green'}>{status}</Tag>,
+      width: 130,
+      // Three-state for conversations: an open hitl.pause => suspended on the
+      // user; else an open span => actively working; else the final status.
+      render: (status, row) => row.awaiting_user
+        ? <Tag color="gold">awaiting user</Tag>
+        : row.running
+          ? <Tag color="processing">running</Tag>
+          : <Tag color={status === 'error' ? 'red' : 'green'}>{status}</Tag>,
+    },
+    {
+      title: 'Conversation',
+      dataIndex: 'session_id',
+      width: 140,
+      render: (sid) => sid
+        ? <Tag title={sid} style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sid}</Tag>
+        : <span style={{ color: '#bbb' }}>—</span>,
     },
     { title: 'Turns', dataIndex: 'turns', width: 80 },
     { title: 'Tools', dataIndex: 'tool_calls', width: 80 },

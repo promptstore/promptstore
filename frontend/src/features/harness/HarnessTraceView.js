@@ -43,6 +43,7 @@ function nodeTitle(span) {
         status={running ? 'processing' : undefined}
       />
       <span style={{ marginLeft: 4 }}>{span.name || span.span_kind}</span>
+      {span.span_kind === 'hitl.pause' && running ? <Tag color="gold" style={{ marginLeft: 6 }}>waiting</Tag> : null}
       {error ? <Tag color="red" style={{ marginLeft: 6 }}>error</Tag> : null}
       {dur != null ? <Tag style={{ marginLeft: 6 }} color={dur > 5000 ? 'orange' : 'default'}>{dur} ms</Tag> : null}
       {tokens ? <Tag style={{ marginLeft: 2 }}>{tokens} tok</Tag> : null}
@@ -221,7 +222,12 @@ export function HarnessTraceView() {
   return (
     <div style={{ padding: 16 }}>
       <div style={{ marginBottom: 12 }}>
-        {isRunning ? <Tag color="processing">● LIVE</Tag> : <Tag color="green">✓ done</Tag>}
+        {summary && summary.awaiting_user
+          ? <Tag color="gold">⏸ awaiting user</Tag>
+          : isRunning ? <Tag color="processing">● LIVE</Tag> : <Tag color="green">✓ done</Tag>}
+        {summary && summary.session_id
+          ? <Tag title={summary.session_id}>conversation: {summary.session_id}</Tag>
+          : null}
         {summary ? (
           <>
             <Tag>{summary.turns} turns</Tag>

@@ -11,6 +11,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import JsonViewComponent from 'react18-json-view';
 import 'react18-json-view/src/style.css';
+import { looksLikePythonLiteral, parsePythonLiteral } from '../utils/pythonLiteral';
 
 export function JsonView({ collapsed, enableClipboard = false, src, style, theme }) {
   if (src === null || typeof src === 'undefined') {
@@ -18,9 +19,17 @@ export function JsonView({ collapsed, enableClipboard = false, src, style, theme
   }
   let json;
   if (typeof src === 'string') {
-    try {
-      json = JSON.parse(src);
-    } catch (err) {
+    // parseStructured only claims objects/arrays; a bare JSON scalar ("42",
+    // "true") is still valid input here, so fall back to a plain parse.
+    json = parseStructured(src);
+    if (json === undefined) {
+      try {
+        json = JSON.parse(src);
+      } catch (err) {
+        json = undefined;
+      }
+    }
+    if (json === undefined) {
       return (
         <div>
           <span
@@ -83,21 +92,57 @@ function decodeEntities(str) {
   return el.value;
 }
 
-// Coerce a value that may be a JSON string, an object, or plain text into a
-// parsed JS value. Returns { value, isJson } — isJson is false for plain
-// (non-JSON) strings so callers can fall back to text rendering.
+// Parse a string that holds structured data, whether it was serialized as JSON
+// or captured as a Python repr (single-quoted keys, None/True/False) — the
+// latter is what instrumented Python apps emit when they str() an SDK response
+// object. Returns undefined when the string is not structured data.
+function parseStructured(str) {
+  const trimmed = str.trim();
+  if (!trimmed) return undefined;
+  if (trimmed[0] === '{' || trimmed[0] === '[') {
+    try {
+      return JSON.parse(trimmed);
+    } catch (err) {
+      // not JSON — may still be a Python literal
+    }
+  }
+  if (looksLikePythonLiteral(trimmed)) {
+    const { ok, value } = parsePythonLiteral(trimmed);
+    if (ok && isContainer(value)) return value;
+  }
+  return undefined;
+}
+
+// Recursively replace strings that themselves hold JSON/Python-literal objects
+// with the parsed value, so nested payloads (a tool call's `arguments`, a
+// stringified response body) render as tree nodes instead of one long line.
+// `unwraps` bounds only the parse-a-string-inside-a-string chain, not how deep
+// the tree itself may go.
+function expandEmbedded(value, unwraps = 0) {
+  if (typeof value === 'string') {
+    if (unwraps >= 4) return value;
+    const parsed = parseStructured(value);
+    return parsed === undefined ? value : expandEmbedded(parsed, unwraps + 1);
+  }
+  if (Array.isArray(value)) return value.map((v) => expandEmbedded(v, unwraps));
+  if (isContainer(value)) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = expandEmbedded(v, unwraps);
+    return out;
+  }
+  return value;
+}
+
+// Coerce a value that may be a JSON string, a Python repr, an object, or plain
+// text into a parsed JS value. Returns { value, isJson } — isJson is false for
+// plain (non-structured) strings so callers can fall back to text rendering.
 function coerceJson(src) {
   if (typeof src === 'string') {
-    const trimmed = src.trim();
-    if (trimmed && (trimmed[0] === '{' || trimmed[0] === '[')) {
-      try {
-        return { value: JSON.parse(src), isJson: true };
-      } catch (err) {
-        // fall through — treat as plain string
-      }
-    }
-    return { value: src, isJson: false };
+    const parsed = parseStructured(src);
+    if (parsed === undefined) return { value: src, isJson: false };
+    return { value: expandEmbedded(parsed), isJson: true };
   }
+  if (isContainer(src)) return { value: expandEmbedded(src), isJson: true };
   return { value: src, isJson: true };
 }
 

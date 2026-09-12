@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextvars
 import functools
+import hashlib
 import json
 import logging
 import os
@@ -39,19 +40,28 @@ __all__ = [
     "trace",
     "span",
     "subagent",
+    "conversation",
+    "turn",
+    "hitl_pause_open",
+    "hitl_pause_close",
+    "end_conversation",
     "tool",
     "agent",
     "context_event",
     "set_attributes",
     "get_traceparent",
+    "derive_trace_id",
+    "derive_span_id",
     "flush",
     "shutdown",
     "SpanKind",
+    "LinkRel",
     "TelemetryClient",
 ]
 
 _log = logging.getLogger("promptstore.telemetry")
-_SDK_VERSION = "0.1.0"
+_SDK_VERSION = "0.1.1"
+_USER_AGENT = f"promptstore-telemetry/{_SDK_VERSION}"
 
 
 class SpanKind:
@@ -60,6 +70,7 @@ class SpanKind:
     MODEL_CALL = "model.call"
     TOOL_CALL = "tool.call"
     SUBAGENT_SPAWN = "subagent.spawn"
+    HITL_PAUSE = "hitl.pause"
     COMPOSITION_CALL = "composition.call"
     FUNCTION_CALL = "function.call"
     PROMPT_RENDER = "prompt.render"
@@ -68,6 +79,14 @@ class SpanKind:
     EVALUATION = "evaluation"
     GUARDRAIL = "guardrail"
     CUSTOM = "custom"
+
+
+class LinkRel:
+    SPAWNS = "spawns"
+    SPAWNED_BY = "spawned_by"
+    RESUMES = "resumes"
+    RETRIES = "retries"
+    FOLLOWS_FROM = "follows_from"
 
 
 def _now_iso() -> str:
@@ -80,6 +99,22 @@ def _gen_trace_id() -> str:
 
 def _gen_span_id() -> str:
     return secrets.token_hex(8)  # 64-bit
+
+
+# Deterministic ids derived from a conversation id, so every turn — in any
+# process, in any order — opens/closes exactly the right span with no shared
+# handoff state (ingest upserts on (trace_id, span_id)).
+def _derive_hex(seed: str, nbytes: int) -> str:
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[: nbytes * 2]
+
+
+def derive_trace_id(conversation_id: str) -> str:
+    return _derive_hex(conversation_id, 16)  # 128-bit, 32 hex chars
+
+
+def derive_span_id(conversation_id: str, *parts) -> str:
+    seed = ":".join([conversation_id, *[str(p) for p in parts]])
+    return _derive_hex(seed, 8)  # 64-bit, 16 hex chars
 
 
 # Active span context — enables automatic parent/child nesting across `with`
@@ -134,13 +169,14 @@ def _apply_deny(obj, deny):
 class _SpanHandle:
     """Represents an open span. Returned by the ``span`` context manager."""
 
-    def __init__(self, client, trace_id, span_id, parent_span_id, kind, name):
+    def __init__(self, client, trace_id, span_id, parent_span_id, kind, name, session_id=None):
         self._client = client
         self.trace_id = trace_id
         self.span_id = span_id
         self.parent_span_id = parent_span_id
         self.kind = kind
         self.name = name
+        self.session_id = session_id
         self.start_time = _now_iso()
         self.end_time = None
         self.status = "unset"
@@ -231,6 +267,7 @@ class _SpanHandle:
             "links": self.links,
             "content": (self._client._prepare_content(self.content)
                         if (self._client.capture_content and self.content is not None) else None),
+            "session_id": self.session_id if self.session_id is not None else self._client.session_id,
             "sdk_version": _SDK_VERSION,
         }
 
@@ -255,9 +292,11 @@ class TelemetryClient:
         default_redaction: bool = True,
         content_max_bytes: int = 200_000,
         enabled: bool = True,
+        session_id=None,
     ):
         self.base_url = base_url.rstrip("/") if base_url else ""
         self.api_key = api_key or ""
+        self.session_id = session_id
         self.endpoint = self.base_url + "/v1/telemetry/spans"
         self.flush_interval = flush_interval
         self.max_batch = max_batch
@@ -386,7 +425,15 @@ class TelemetryClient:
             self.endpoint,
             data=body,
             method="POST",
-            headers={"Content-Type": "application/json", "apikey": self.api_key},
+            headers={
+                "Content-Type": "application/json",
+                "apikey": self.api_key,
+                # Identify ourselves. urllib's default (``Python-urllib/3.x``) is
+                # blocked outright by common WAF bot rules — Cloudflare answers it
+                # with 403 ``error code: 1010`` — which silently drops every batch
+                # for any promptstore deployment sitting behind one.
+                "User-Agent": _USER_AGENT,
+            },
         )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -402,14 +449,17 @@ class TelemetryClient:
                              self.circuit_cooldown, err)
 
     # ---- public span API ----
-    def start_span(self, kind, name=None, *, trace_id=None, parent_span_id=None,
-                   attributes=None, links=None) -> _SpanHandle:
+    def start_span(self, kind, name=None, *, trace_id=None, span_id=None, parent_span_id=None,
+                   attributes=None, links=None, session_id=None) -> _SpanHandle:
         parent = _current.get()
         if trace_id is None:
             trace_id = parent.trace_id if parent else _gen_trace_id()
         if parent_span_id is None and parent is not None:
             parent_span_id = parent.span_id
-        h = _SpanHandle(self, trace_id, _gen_span_id(), parent_span_id, kind, name)
+        if session_id is None and parent is not None:
+            session_id = parent.session_id
+        h = _SpanHandle(self, trace_id, span_id or _gen_span_id(), parent_span_id, kind, name,
+                        session_id=session_id)
         if attributes:
             h.attributes.update(attributes)
         if links:
@@ -427,6 +477,50 @@ class TelemetryClient:
                 h.status = "ok"
             if status_message:
                 h.status_message = status_message
+            self._enqueue(h._to_payload(closing=True))
+        except Exception:  # pragma: no cover
+            pass
+
+    # ---- deterministic, handle-free emits (cross-process HITL conversations) ----
+    # These build a span from ids derived from the conversation id and enqueue it
+    # directly, so a later turn (in another process) can open/close exactly the
+    # same span with no shared in-memory handle. Ingest upserts on
+    # (trace_id, span_id): LEAST keeps the true earlier start, the later end wins.
+    def emit_hitl_pause(self, conversation_id, index, *, closing,
+                        name=None, status=None, status_message=None):
+        try:
+            h = _SpanHandle(
+                self,
+                derive_trace_id(conversation_id),
+                derive_span_id(conversation_id, "pause", index),
+                derive_span_id(conversation_id, "root"),
+                SpanKind.HITL_PAUSE,
+                name or "awaiting user input",
+                session_id=conversation_id,
+            )
+            if closing:
+                h.end_time = _now_iso()
+                h.status = status or "ok"
+                h.status_message = status_message
+            self._enqueue(h._to_payload(closing=closing))
+        except Exception:  # pragma: no cover - never raise into caller
+            pass
+
+    def emit_conversation_end(self, conversation_id, *, status="ok",
+                              status_message=None, name=None):
+        try:
+            h = _SpanHandle(
+                self,
+                derive_trace_id(conversation_id),
+                derive_span_id(conversation_id, "root"),
+                None,
+                SpanKind.HARNESS_RUN,
+                name or "conversation",
+                session_id=conversation_id,
+            )
+            h.end_time = _now_iso()
+            h.status = status
+            h.status_message = status_message
             self._enqueue(h._to_payload(closing=True))
         except Exception:  # pragma: no cover
             pass
@@ -553,10 +647,120 @@ def subagent(name=None, **kw):
     links to that child trace with rel='spawns'.
     """
     child_trace = _gen_trace_id()
-    links = [{"trace_id": child_trace, "rel": "spawns"}]
+    links = [{"trace_id": child_trace, "rel": LinkRel.SPAWNS}]
     ctx = _SpanCtx(SpanKind.SUBAGENT_SPAWN, name, links=links, **kw)
     ctx._child_trace = child_trace  # exposed to get_traceparent via the handle
     return ctx
+
+
+def _current_session_id():
+    try:
+        cur = _current.get()
+        return getattr(cur, "session_id", None) if cur is not None else None
+    except Exception:  # pragma: no cover
+        return None
+
+
+class _ConversationCtx:
+    """Context manager for a conversation modelled as one long-running run.
+
+    Opens (or re-adopts, across processes) the conversation's ``harness.run``
+    root — trace_id and root span_id are derived from ``conversation_id`` so
+    every turn resolves to the same root with no shared handle. The raw id is
+    stored in ``session_id``.
+
+    ``close_on_exit=True`` (default) closes the root when the block exits — right
+    for a single long-lived loop process. For the turn-per-process case, pass
+    ``close_on_exit=False`` so intermediate turns leave the root open, and call
+    ``end_conversation(conversation_id)`` on the final turn.
+    """
+
+    def __init__(self, conversation_id, name=None, close_on_exit=True, **kw):
+        self.cid = conversation_id
+        self.name = name or "conversation"
+        self.close_on_exit = close_on_exit
+        self.kw = kw
+        self._h = None
+        self._token = None
+
+    def __enter__(self) -> _SpanHandle:
+        try:
+            self._h = _get().start_span(
+                SpanKind.HARNESS_RUN, self.name,
+                trace_id=derive_trace_id(self.cid),
+                span_id=derive_span_id(self.cid, "root"),
+                parent_span_id=None,
+                session_id=self.cid,
+                **self.kw,
+            )
+            self._token = _current.set(self._h)
+        except Exception:  # pragma: no cover
+            self._h = _SpanHandle(_get(), derive_trace_id(self.cid),
+                                  derive_span_id(self.cid, "root"), None,
+                                  SpanKind.HARNESS_RUN, self.name, session_id=self.cid)
+        return self._h
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if self.close_on_exit:
+                if exc_type is not None:
+                    _get().end_span(self._h, status="error", status_message=str(exc))
+                else:
+                    _get().end_span(self._h)
+        except Exception:  # pragma: no cover
+            pass
+        finally:
+            try:
+                if self._token is not None:
+                    _current.reset(self._token)
+            except Exception:  # pragma: no cover
+                pass
+        return False  # never suppress the user's exception
+
+
+def conversation(conversation_id, name=None, close_on_exit=True, **kw):
+    """Open/adopt the ``harness.run`` root for a conversation (see _ConversationCtx)."""
+    return _ConversationCtx(conversation_id, name=name, close_on_exit=close_on_exit, **kw)
+
+
+def turn(index, name=None, conversation_id=None, **kw):
+    """Open a ``loop.iteration`` for turn ``index`` under the current conversation.
+
+    The span id is derived from (conversation_id, 'turn', index); turn N links to
+    turn N-1 with rel='resumes'. Auto-parents to the conversation root.
+    """
+    cid = conversation_id or _current_session_id()
+    links = list(kw.pop("links", None) or [])
+    if cid and index and index > 0:
+        links.append({
+            "trace_id": derive_trace_id(cid),
+            "span_id": derive_span_id(cid, "turn", index - 1),
+            "rel": LinkRel.RESUMES,
+        })
+    span_id = derive_span_id(cid, "turn", index) if cid else None
+    return _SpanCtx(SpanKind.LOOP_ITERATION, name or f"turn {index}",
+                    span_id=span_id, links=links, **kw)
+
+
+def hitl_pause_open(index, name=None, conversation_id=None):
+    """Open the HITL pause span for the gap after turn ``index`` (fire-and-forget)."""
+    cid = conversation_id or _current_session_id()
+    if cid:
+        _get().emit_hitl_pause(cid, index, closing=False, name=name)
+
+
+def hitl_pause_close(index, conversation_id=None, status="ok"):
+    """Close the HITL pause span for turn ``index`` when the next message arrives."""
+    cid = conversation_id or _current_session_id()
+    if cid:
+        _get().emit_hitl_pause(cid, index, closing=True, status=status)
+
+
+def end_conversation(conversation_id=None, status="ok", status_message=None):
+    """Close the conversation root run. Use with ``conversation(..., close_on_exit=False)``."""
+    cid = conversation_id or _current_session_id()
+    if cid:
+        _get().emit_conversation_end(cid, status=status, status_message=status_message)
 
 
 def context_event(name, **payload):

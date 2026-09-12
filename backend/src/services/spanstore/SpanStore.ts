@@ -21,7 +21,9 @@ export interface TraceSummary {
   total_tokens: number;
   cost_total: number;
   user_id: string | null;
+  session_id: string | null;   // conversation id (raw), for grouping/search
   running: boolean;
+  awaiting_user: boolean;       // an open hitl.pause span => suspended on the human
 }
 
 export interface ListTracesParams {
@@ -31,6 +33,7 @@ export interface ListTracesParams {
   from?: string;
   to?: string;
   status?: string;
+  sessionId?: string;          // filter to a single conversation
 }
 
 export interface CostRollupRow {

@@ -69,7 +69,7 @@ export default ({ app, auth, logger, services }) => {
   // ---- Trace reads (UI) -------------------------------------------------------
   app.get('/api/workspaces/:workspaceId/harness-traces', auth, async (req, res) => {
     const workspaceId = +req.params.workspaceId;
-    const { limit, start, name, from, to, status } = req.query;
+    const { limit, start, name, from, to, status, session } = req.query;
     const result = await spanStore.listTraces(workspaceId, {
       limit: limit ? +limit : 50,
       offset: start ? +start : 0,
@@ -77,6 +77,7 @@ export default ({ app, auth, logger, services }) => {
       from,
       to,
       status,
+      sessionId: session,
     });
     res.json({ count: result.count, data: result.data });
   });

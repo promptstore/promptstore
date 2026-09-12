@@ -58,8 +58,8 @@ WITH (
 )
 TABLESPACE pg_default;
 
-ALTER TABLE public."spans" OWNER to psadmin;
-ALTER SEQUENCE public."spans_id_seq" OWNER to psadmin;
+ALTER TABLE public."spans" OWNER to dbadmin;
+ALTER SEQUENCE public."spans_id_seq" OWNER to dbadmin;
 ALTER SEQUENCE public."spans_id_seq" OWNED BY public."spans"."id";
 
 -- Tree reads by trace, workspace-scoped analytics, and live replay by seq.
@@ -93,7 +93,7 @@ WITH (
 )
 TABLESPACE pg_default;
 
-ALTER TABLE public."span_payloads" OWNER to psadmin;
+ALTER TABLE public."span_payloads" OWNER to dbadmin;
 
 CREATE INDEX "span_payloads_ws_trace_idx" ON public."span_payloads" (workspace_id, trace_id);
 
@@ -132,8 +132,8 @@ WITH (
 )
 TABLESPACE pg_default;
 
-ALTER TABLE public."api_keys" OWNER to psadmin;
-ALTER SEQUENCE public."api_keys_id_seq" OWNER to psadmin;
+ALTER TABLE public."api_keys" OWNER to dbadmin;
+ALTER SEQUENCE public."api_keys_id_seq" OWNER to dbadmin;
 ALTER SEQUENCE public."api_keys_id_seq" OWNED BY public."api_keys"."id";
 
 -- ---------------------------------------------------------------------------
@@ -167,8 +167,8 @@ WITH (
 )
 TABLESPACE pg_default;
 
-ALTER TABLE public."budgets" OWNER to psadmin;
-ALTER SEQUENCE public."budgets_id_seq" OWNER to psadmin;
+ALTER TABLE public."budgets" OWNER to dbadmin;
+ALTER SEQUENCE public."budgets_id_seq" OWNER to dbadmin;
 ALTER SEQUENCE public."budgets_id_seq" OWNED BY public."budgets"."id";
 
 CREATE INDEX "budgets_ws_idx" ON public."budgets" (workspace_id);

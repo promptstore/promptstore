@@ -89,6 +89,7 @@ Useful configuration options (all optional):
 | `capture_content` | `True` | Capture model/tool input & output via `set_content` (see below). Set `False` to disable entirely. |
 | `default_redaction` | `True` | Run the built-in secret scrubber over everything captured. |
 | `content_max_bytes` | `200000` | Per-span content cap; larger content is replaced by a truncation marker + preview. |
+| `session_id` | `None` | Default conversation/session id stamped on every span. Usually set per-conversation via `ps.conversation(...)` instead (see [Conversations](#conversations-multi-turn-human-in-the-loop)). |
 
 Example with redaction:
 
@@ -391,11 +392,81 @@ with ps.subagent("summarizer"):
         ...
 ```
 
+### Conversations (multi-turn, human-in-the-loop)
+
+A conversation — a chat that spans several user turns, with the harness waiting
+on the human between them — is modelled as **one run**, not one run per turn.
+Each turn is a `LOOP_ITERATION`; the wait for the user's next message is a
+first-class `HITL_PAUSE` span whose duration is the user's think-time. In the UI
+the whole conversation is a **single row** (turns, tokens, cost and duration roll
+up), its status is **active / awaiting user / done**, and the waterfall shows each
+turn separated by a "waiting for user" pause.
+
+Because each turn may run in a **separate process or request**, the SDK derives
+the run's ids deterministically from your conversation id, so any turn — in any
+process, in any order — resolves to the same run with no handoff state to persist:
+
+```python
+import promptstore_telemetry as ps
+ps.configure(base_url="https://your-promptstore", api_key="pst_...")
+
+# On each incoming user message for conversation `conv_id`, at turn index `n`:
+with ps.conversation(conv_id, close_on_exit=False):   # adopt the conversation's run
+    ps.hitl_pause_close(index=n - 1)                   # the user just replied → end the previous pause
+    with ps.turn(index=n):                             # a loop.iteration for this turn
+        with ps.span(ps.SpanKind.MODEL_CALL, "respond") as m:
+            m.set_usage(prompt_tokens=1000, completion_tokens=120)
+        reply_to_user(...)
+    ps.hitl_pause_open(index=n)                        # yield back to the user → start a pause
+
+# When the conversation truly ends (resolved / closed / timed out):
+ps.end_conversation(conv_id)
+```
+
+- `conversation(conversation_id, name=None, close_on_exit=True)` — opens or
+  re-adopts the conversation's root `harness.run` span. The raw id is stored as
+  the span's `session_id`, which is searchable and shown as the **Conversation**
+  column in the traces list. Pass **`close_on_exit=False`** in the
+  turn-per-process pattern above so an intermediate turn leaves the run open; the
+  default `True` closes the run when the block exits (right for a single
+  long-lived loop process — see below).
+- `turn(index)` — a `LOOP_ITERATION` for turn `index`, parented to the
+  conversation root. Turn *n* links to turn *n-1* with `rel="resumes"`.
+- `hitl_pause_open(index)` / `hitl_pause_close(index)` — open the pause after
+  turn `index` when you yield to the user, and close the same pause when their
+  next message arrives. On the first turn, `hitl_pause_close(index=-1)` is a
+  harmless no-op (that pause was never opened); you can also just skip it.
+- `end_conversation(conversation_id)` — closes the run's root span. Only needed
+  with `close_on_exit=False`.
+
+**Single long-lived loop.** If a conversation runs inside one process (e.g. a
+durable workflow that suspends on a signal), keep the block open for the whole
+conversation and let the default `close_on_exit=True` close it:
+
+```python
+with ps.conversation(conv_id) as run:          # closes automatically at the end
+    for n in itertools.count():
+        msg = await wait_for_user_message()     # the loop is suspended on the human here
+        ps.hitl_pause_close(index=n - 1)
+        with ps.turn(index=n):
+            respond(msg)
+        if done:
+            break
+        ps.hitl_pause_open(index=n)             # bracket the wait so it shows on the waterfall
+```
+
+> **The stale-run reaper leaves suspended conversations alone.** promptstore
+> closes runs that go silent past a TTL (assumed crashed). A conversation parked
+> on an **open `HITL_PAUSE`** is exempt — a long user think-time is never mistaken
+> for a dead run. A run left open with *no* open pause is still reaped, so call
+> `hitl_pause_open` whenever you actually yield to the user, and
+> `end_conversation` (or let the block close) when it ends.
+
 ### Span kinds
 
 `ps.SpanKind` values: `HARNESS_RUN`, `LOOP_ITERATION`, `MODEL_CALL`, `TOOL_CALL`,
-`SUBAGENT_SPAWN`, `COMPOSITION_CALL`, `FUNCTION_CALL`, `PROMPT_RENDER`,
-`CONTEXT_OP`, `RETRIEVAL`, `EVALUATION`, `GUARDRAIL`, `CUSTOM`.
+`SUBAGENT_SPAWN`, `HITL_PAUSE`, `COMPOSITION_CALL`, `FUNCTION_CALL`,
+`PROMPT_RENDER`, `CONTEXT_OP`, `RETRIEVAL`, `EVALUATION`, `GUARDRAIL`, `CUSTOM`.
 
 ### Flushing on exit
 

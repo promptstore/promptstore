@@ -32,12 +32,14 @@ export function SpanReadService({ logger, spanStore }: { logger: any; spanStore:
 
   function summarize(spans: Span[]) {
     let running = false;
+    let awaitingUser = false;
     let promptTokens = 0, completionTokens = 0, cachedTokens = 0, totalTokens = 0, cost = 0;
     let turns = 0, toolCalls = 0;
     let root: Span | undefined;
     for (const s of spans) {
       if (!s.parent_span_id) root = root || s;
       if (!s.end_time) running = true;
+      if (s.span_kind === 'hitl.pause' && !s.end_time) awaitingUser = true;
       if (s.span_kind === 'loop.iteration') turns++;
       if (s.span_kind === 'tool.call') toolCalls++;
       const u = s.usage || {};
@@ -51,6 +53,8 @@ export function SpanReadService({ logger, spanStore }: { logger: any; spanStore:
       name: root?.name || null,
       status: root?.status || 'unset',
       running,
+      awaiting_user: awaitingUser,
+      session_id: root?.session_id || null,
       turns,
       tool_calls: toolCalls,
       prompt_tokens: promptTokens,

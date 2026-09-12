@@ -22,6 +22,7 @@ export enum SpanKind {
   ModelCall = 'model.call',          // an LLM request/response
   ToolCall = 'tool.call',            // a tool/function invocation
   SubagentSpawn = 'subagent.spawn',  // a spawned sub-agent (links to child trace)
+  HitlPause = 'hitl.pause',          // a turn-level pause awaiting human input (HITL); child of the run root
   CompositionCall = 'composition.call',
   FunctionCall = 'function.call',
   PromptRender = 'prompt.render',
