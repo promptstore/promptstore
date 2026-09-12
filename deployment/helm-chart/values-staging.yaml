@@ -19,7 +19,7 @@ filestore_prefix: ""
 
 containerRegistry: ""  # Set via --set during deploy (ECR URI)
 
-version: "0.7.65"
+version: "0.7.66"
 
 port: "5000"
 

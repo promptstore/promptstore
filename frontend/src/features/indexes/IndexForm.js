@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -15,7 +15,6 @@ import {
 } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactFlow, { addEdge, useNodesState, useEdgesState, MarkerType } from 'reactflow';
-import { GraphCanvas } from 'reagraph';
 import { v4 as uuidv4 } from 'uuid';
 import lowerCase from 'lodash.lowercase';
 
@@ -68,6 +67,10 @@ import CustomConnectionLine from './CustomConnectionLine';
 
 import 'reactflow/dist/style.css';
 import './style.css';
+
+// reagraph pulls in three.js and is only needed when the Graph Network drawer
+// is opened, so it is loaded on demand to keep it out of the main bundle.
+const GraphCanvas = lazy(() => import('reagraph').then(m => ({ default: m.GraphCanvas })));
 
 const { TextArea } = Input;
 const { Content, Sider } = Layout;
@@ -812,10 +815,12 @@ export function IndexForm() {
           <Content>
             {graph ?
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                <GraphCanvas
-                  {...graph}
-                  onNodeClick={handleNodeClick}
-                />
+                <Suspense fallback={null}>
+                  <GraphCanvas
+                    {...graph}
+                    onNodeClick={handleNodeClick}
+                  />
+                </Suspense>
               </div>
               : null
             }
