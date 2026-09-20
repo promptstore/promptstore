@@ -76,6 +76,18 @@ with ps.trace("research-agent") as run:
                              window_limit=200000,
                              tokens_reclaimed=90000, method="summarize")
 
+            # decisions — powers the Decision Tree view. POINT names the step
+            # put to the user and the branches it offered; CHOICE names the
+            # branch their reply took, and repeats the offer it resolved so a
+            # step asked outside a turn can still be drawn. See
+            # docs/telemetry-sdk.md ("Instrumenting decisions").
+            ps.decision_event(ps.DecisionEventName.POINT,
+                              step="triage", question="Is this urgent?",
+                              options=["Yes", "No"], allows_free_text=True)
+            ps.decision_event(ps.DecisionEventName.CHOICE,
+                              offer_step="triage", offer_options=["Yes", "No"],
+                              branch="No", branch_index=1, match="exact")
+
 @ps.tool("web_search")
 def web_search(q): ...
 
@@ -108,7 +120,8 @@ ps.end_conversation(conv_id)
 
 For a single long-lived loop that owns the whole conversation, keep the block
 open and let the default `close_on_exit=True` close it. A conversation parked on
-an open `HITL_PAUSE` is exempt from the stale-run reaper. See
+an open `HITL_PAUSE` is exempt from the stale-run reaper; a much longer
+abandonment TTL (default 7 days) eventually closes it as `abandoned`. See
 [docs/telemetry-sdk.md](../../docs/telemetry-sdk.md#conversations-multi-turn-human-in-the-loop).
 
 Get a write-only telemetry key from promptstore:

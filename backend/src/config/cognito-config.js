@@ -2,6 +2,8 @@ import axios from 'axios';
 import { createPublicKey } from 'crypto';
 import jwt from 'jsonwebtoken';
 
+import { DEFAULT_ROLE } from './roles';
+
 const region = process.env.AWS_COGNITO_REGION;
 const userPoolId = process.env.AWS_COGNITO_USER_POOL_ID;
 const clientId = process.env.AWS_COGNITO_CLIENT_ID;
@@ -75,7 +77,7 @@ export function verifyCognitoToken(token) {
 export function extractUserFromToken(decoded) {
   const email = decoded.email || decoded['cognito:username'];
   const groups = decoded['cognito:groups'] || [];
-  const roles = groups.length > 0 ? groups : ['admin']; // default role if no groups
+  const roles = groups.length > 0 ? groups : [DEFAULT_ROLE];
 
   const givenName = decoded.given_name || '';
   const familyName = decoded.family_name || '';

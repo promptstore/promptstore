@@ -13,6 +13,7 @@ import ErrorMessage from './components/ErrorMessage';
 import { AuthProvider } from './contexts/AuthContext';
 import { AuthProvider as OidcAuthProvider, useAuth as useOidcAuth } from 'react-oidc-context';
 import authConfig from './config/auth';
+import { DEFAULT_ROLE } from './config/roles';
 import NavbarContext from './contexts/NavbarContext';
 import UserContext from './contexts/UserContext';
 import WorkspaceContext from './contexts/WorkspaceContext';
@@ -243,7 +244,7 @@ function CognitoAuthBridge({ setToken, setCurrentUser, dispatch }) {
         fullName: name,
         firstName: firstName || '',
         lastName: lastName || '',
-        roles: groups.length > 0 ? groups : ['admin'],
+        roles: groups.length > 0 ? groups : [DEFAULT_ROLE],
         photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${(firstName || '')[0] || ''}${(lastName || '')[0] || ''}`,
         displayName: name,
       });

@@ -1,16 +1,17 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { Badge, Button, Col, Descriptions, Row, Segmented, Space, Spin, Tag, Tree } from 'antd';
+import { Badge, Button, Col, ConfigProvider, Descriptions, Grid, Row, Segmented, Spin, Tag, Tree } from 'antd';
 import { VerticalAlignBottomOutlined } from '@ant-design/icons';
 
 import { JsonField, JsonView } from '../../components/JsonView';
 import NavbarContext from '../../contexts/NavbarContext';
 import WorkspaceContext from '../../contexts/WorkspaceContext';
 
-import Waterfall, { KIND_COLORS } from './views/Waterfall';
+import Waterfall, { KIND_COLORS, ROW_H } from './views/Waterfall';
 import SubAgentGraph from './views/SubAgentGraph';
 import ContextLifecycle from './views/ContextLifecycle';
+import DecisionTree from './views/DecisionTree';
 import {
   subscribeTraceAsync,
   unsubscribeTrace,
@@ -30,33 +31,42 @@ function durationMs(span) {
   return new Date(span.end_time).getTime() - new Date(span.start_time).getTime();
 }
 
-function nodeTitle(span) {
+// Row density by column width: below xxl (2xl, 1600px) drop the token/cost tags
+// and render the duration bare; below xl (1200px) drop the duration too, so each
+// span still fits on one line.
+function nodeTitle(span, { compact, showDuration }) {
   const dur = durationMs(span);
   const tokens = span.usage && span.usage.total_tokens;
   const cost = span.cost_total;
   const running = !span.end_time;
   const error = span.status === 'error';
+  const abandoned = span.status === 'abandoned';
+  // small pills throughout: a tree row has to fit the waterfall's 26px band
+  const tag = { flex: '0 0 auto', margin: 0, fontSize: compact ? 10 : 11, lineHeight: '16px', height: 16, padding: '0 4px' };
   return (
-    <span>
+    <span className="harness-span-title" style={compact ? { fontSize: 12 } : null} title={span.name || span.span_kind}>
       <Badge
         color={running ? 'processing' : (KIND_COLORS[span.span_kind] || '#94a3b8')}
         status={running ? 'processing' : undefined}
       />
-      <span style={{ marginLeft: 4 }}>{span.name || span.span_kind}</span>
-      {span.span_kind === 'hitl.pause' && running ? <Tag color="gold" style={{ marginLeft: 6 }}>waiting</Tag> : null}
-      {error ? <Tag color="red" style={{ marginLeft: 6 }}>error</Tag> : null}
-      {dur != null ? <Tag style={{ marginLeft: 6 }} color={dur > 5000 ? 'orange' : 'default'}>{dur} ms</Tag> : null}
-      {tokens ? <Tag style={{ marginLeft: 2 }}>{tokens} tok</Tag> : null}
-      {cost ? <Tag style={{ marginLeft: 2 }}>${Number(cost).toFixed(4)}</Tag> : null}
+      <span className="harness-span-name">{span.name || span.span_kind}</span>
+      {span.span_kind === 'hitl.pause' && running ? <Tag color="gold" style={tag}>waiting</Tag> : null}
+      {error ? <Tag color="red" style={tag}>error</Tag> : null}
+      {abandoned ? <Tag style={tag} title="no user reply within the HITL pause TTL">abandoned</Tag> : null}
+      {dur == null || !showDuration ? null : compact
+        ? <span className="harness-span-meta" style={dur > 5000 ? { color: '#d46b08' } : null}>{dur} ms</span>
+        : <Tag style={tag} color={dur > 5000 ? 'orange' : 'default'}>{dur} ms</Tag>}
+      {!compact && tokens ? <Tag style={tag}>{tokens} tok</Tag> : null}
+      {!compact && cost ? <Tag style={tag}>${Number(cost).toFixed(4)}</Tag> : null}
     </span>
   );
 }
 
-function toTreeData(nodes) {
+function toTreeData(nodes, density) {
   return nodes.map((n) => ({
     key: n.span_id,
-    title: nodeTitle(n),
-    children: n.children && n.children.length ? toTreeData(n.children) : undefined,
+    title: nodeTitle(n, density),
+    children: n.children && n.children.length ? toTreeData(n.children, density) : undefined,
   }));
 }
 
@@ -176,6 +186,20 @@ function SpanDetail({ span, workspaceId, traceId }) {
   );
 }
 
+// Each column is a full-height flex box whose body is the only scrolling part,
+// keeping the panel's own header (tree controls, view switcher) pinned.
+const PANEL = { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 };
+// Vertical scrolling only; long content wraps (see .harness-panel-body in App.css).
+const PANEL_BODY = { flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' };
+// One header line per panel, all controls small, so their text sits on a common
+// baseline and both panel bodies start at the same y.
+const PANEL_HEADER = { flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, height: 24, marginBottom: 12 };
+// Tree rows are sized through antd's own tokens rather than by overriding its
+// (runtime-injected, so cascade-winning) CSS: titleHeight is the row height and
+// treeNodePadding — derived from paddingXS — is the gap below each row. Zero the
+// gap and the pitch is exactly ROW_H, matching the waterfall's per-span band.
+const TREE_THEME = { components: { Tree: { titleHeight: ROW_H, paddingXS: 0 } } };
+
 export function HarnessTraceView() {
   const dispatch = useDispatch();
   const { id: traceId } = useParams();
@@ -187,7 +211,10 @@ export function HarnessTraceView() {
   const selectedSpan = useSelector(selectSelectedSpan);
   const tailing = useSelector(selectTailing);
   const isRunning = useSelector(selectIsRunning);
+  const screens = Grid.useBreakpoint();
+  const density = useMemo(() => ({ compact: !screens.xxl, showDuration: !!screens.xl }), [screens.xxl, screens.xl]);
   const [centerView, setCenterView] = useState('waterfall');
+  const [scale, setScale] = useState('linear');
   const [expandedKeys, setExpandedKeys] = useState([]);
   const seenKeysRef = useRef(new Set());
 
@@ -205,7 +232,7 @@ export function HarnessTraceView() {
     return () => { dispatch(unsubscribeTrace()); };
   }, [dispatch, workspaceId, traceId]);
 
-  const treeData = useMemo(() => toTreeData(tree), [tree]);
+  const treeData = useMemo(() => toTreeData(tree, density), [tree, density]);
   const expandableKeys = useMemo(() => collectExpandableKeys(treeData), [treeData]);
   const summary = current.summary;
 
@@ -220,11 +247,16 @@ export function HarnessTraceView() {
   }, [expandableKeys]);
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ marginBottom: 12 }}>
+    // Fill the viewport (minus chrome) and let each of the three panels scroll on
+    // its own, so a long waterfall or span tree doesn't push the others off-screen.
+    <div style={{ padding: '16px 16px 0 16px', height: 'calc(100vh - 112px)', minHeight: 420, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: '0 0 auto', marginBottom: 12 }}>
         {summary && summary.awaiting_user
           ? <Tag color="gold">⏸ awaiting user</Tag>
-          : isRunning ? <Tag color="processing">● LIVE</Tag> : <Tag color="green">✓ done</Tag>}
+          : isRunning ? <Tag color="processing">● LIVE</Tag>
+            : summary && summary.status === 'abandoned'
+              ? <Tag title="suspended on the user and never resumed; closed by the reaper">⊘ abandoned</Tag>
+              : <Tag color="green">✓ done</Tag>}
         {summary && summary.session_id
           ? <Tag title={summary.session_id}>conversation: {summary.session_id}</Tag>
           : null}
@@ -248,44 +280,71 @@ export function HarnessTraceView() {
           </Button>
         ) : null}
       </div>
-      <Spin spinning={current.loading}>
-        <Row gutter={16}>
-          <Col span={7}>
-            <Space size="small" style={{ marginBottom: 8 }}>
-              <Button size="small" onClick={() => setExpandedKeys(expandableKeys)}>Expand all</Button>
-              <Button size="small" onClick={() => setExpandedKeys([])}>Collapse all</Button>
-            </Space>
-            <Tree
-              showLine
-              treeData={treeData}
-              expandedKeys={expandedKeys}
-              onExpand={(keys) => setExpandedKeys(keys)}
-              selectedKeys={current.selectedSpanId ? [current.selectedSpanId] : []}
-              onSelect={(keys) => { if (keys[0]) dispatch(selectSpan(keys[0])); }}
-            />
-          </Col>
-          <Col span={10}>
-            <Segmented
-              value={centerView}
-              onChange={setCenterView}
-              options={[
-                { label: 'Waterfall', value: 'waterfall' },
-                { label: 'Context', value: 'context' },
-                { label: 'Sub-agents', value: 'graph' },
-                { label: 'Raw', value: 'raw' },
-              ]}
-              style={{ marginBottom: 12 }}
-            />
-            {centerView === 'waterfall' ? <Waterfall /> : null}
-            {centerView === 'context' ? <ContextLifecycle /> : null}
-            {centerView === 'graph' ? <SubAgentGraph /> : null}
-            {centerView === 'raw' ? <JsonView src={Object.values(current.spans)} collapsed={2} /> : null}
-          </Col>
-          <Col span={7}>
-            <SpanDetail span={selectedSpan} workspaceId={workspaceId} traceId={traceId} />
-          </Col>
-        </Row>
-      </Spin>
+      <div style={{ flex: '1 1 auto', minHeight: 0 }}>
+        <Spin spinning={current.loading} wrapperClassName="harness-trace-spin">
+          <Row gutter={16} style={{ height: '100%' }}>
+            <Col span={7} style={PANEL}>
+              <div style={PANEL_HEADER}>
+                <Button size="small" onClick={() => setExpandedKeys(expandableKeys)}>Expand all</Button>
+                <Button size="small" onClick={() => setExpandedKeys([])}>Collapse all</Button>
+              </div>
+              <div className="harness-panel-body" style={PANEL_BODY}>
+                <ConfigProvider theme={TREE_THEME}>
+                  <Tree
+                    blockNode
+                    className="harness-span-tree"
+                    showLine
+                    treeData={treeData}
+                    expandedKeys={expandedKeys}
+                    onExpand={(keys) => setExpandedKeys(keys)}
+                    selectedKeys={current.selectedSpanId ? [current.selectedSpanId] : []}
+                    onSelect={(keys) => { if (keys[0]) dispatch(selectSpan(keys[0])); }}
+                  />
+                </ConfigProvider>
+              </div>
+            </Col>
+            <Col span={10} style={PANEL}>
+              <div style={PANEL_HEADER}>
+                <Segmented
+                  size="small"
+                  value={centerView}
+                  onChange={setCenterView}
+                  options={[
+                    { label: 'Waterfall', value: 'waterfall' },
+                    { label: 'Context', value: 'context' },
+                    { label: 'Decisions', value: 'decisions' },
+                    { label: 'Sub-agents', value: 'graph' },
+                    { label: 'Raw', value: 'raw' },
+                  ]}
+                />
+                {/* the scale switch shares the view switch's line, and is dropped
+                    below xl where there isn't room for both */}
+                {centerView === 'waterfall' && screens.xl ? (
+                  <Segmented
+                    size="small"
+                    value={scale}
+                    onChange={setScale}
+                    options={[{ label: 'Linear', value: 'linear' }, { label: 'Log', value: 'log' }]}
+                    style={{ marginLeft: 'auto' }}
+                  />
+                ) : null}
+              </div>
+              <div className="harness-panel-body" style={PANEL_BODY}>
+                {centerView === 'waterfall' ? <Waterfall scale={scale} expandedKeys={expandedKeys} /> : null}
+                {centerView === 'context' ? <ContextLifecycle /> : null}
+                {centerView === 'decisions' ? <DecisionTree /> : null}
+                {centerView === 'graph' ? <SubAgentGraph /> : null}
+                {centerView === 'raw' ? <JsonView src={Object.values(current.spans)} collapsed={2} /> : null}
+              </div>
+            </Col>
+            <Col span={7} style={PANEL}>
+              <div className="harness-panel-body" style={PANEL_BODY}>
+                <SpanDetail span={selectedSpan} workspaceId={workspaceId} traceId={traceId} />
+              </div>
+            </Col>
+          </Row>
+        </Spin>
+      </div>
     </div>
   );
 }

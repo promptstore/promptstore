@@ -48,6 +48,7 @@ __all__ = [
     "tool",
     "agent",
     "context_event",
+    "decision_event",
     "set_attributes",
     "get_traceparent",
     "derive_trace_id",
@@ -60,7 +61,7 @@ __all__ = [
 ]
 
 _log = logging.getLogger("promptstore.telemetry")
-_SDK_VERSION = "0.1.1"
+_SDK_VERSION = "0.1.2"
 _USER_AGENT = f"promptstore-telemetry/{_SDK_VERSION}"
 
 
@@ -767,6 +768,23 @@ def context_event(name, **payload):
     """Record a context-lifecycle event (assemble/retrieve/compact/evict) on the
     current span. Payload fields: window_tokens_before/after, window_limit,
     tokens_reclaimed, sources, method, policy, reason, etc."""
+    try:
+        cur = _current.get()
+        if cur is not None:
+            cur.add_event(name, payload)
+    except Exception:  # pragma: no cover
+        pass
+
+
+def decision_event(name, **payload):
+    """Record a decision event (point/choice) on the current span.
+
+    The counterpart to ``context_event`` for the Decisions view: a
+    ``ps.decision.point`` names the step put to the user and the branches it
+    offered, a ``ps.decision.choice`` names the branch their reply took. Same
+    mechanics as ``context_event`` -- a named event on whichever span the
+    ``turn()`` / ``span()`` context manager currently has open -- under its own
+    name so call sites read honestly."""
     try:
         cur = _current.get()
         if cur is not None:

@@ -53,3 +53,30 @@ deployment/cdk/cdk.out/
 # Allow deployment helm chart yaml files
 !deployment/helm-chart/*.yaml
 !deployment/helm-chart/templates/*.yaml
+
+# Credentials — generalized rules (templates stay tracked)
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.env.*
+!.env.template
+!.env.*.template
+**/keys/
+# Service-account / credential key files. Case variants matter: GCP writes
+# serviceAccountKey-*.json (camelCase) while gcloud writes *-service-account.json.
+# All end in .json so k8s serviceaccount.yaml manifests stay tracked.
+*[Ss]ervice[Aa]ccount*.json
+*[Ss]ervice[-_][Aa]ccount*.json
+*SERVICE[-_]ACCOUNT*.json
+*[Cc]redentials*.json
+*[-_]sa.json
+*[-_]sa[-_]key*.json
+
+# Python package build artifacts. The SDK's wheels/sdists were tracked until
+# 0.1.2; they are reproducible from a tagged source tree and the published
+# release lives on PyPI, so keeping binaries in the repo bought nothing.
+dist/
+*.egg-info/

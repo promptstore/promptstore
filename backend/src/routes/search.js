@@ -164,7 +164,7 @@ export default ({ app, auth, constants, logger, services }) => {
   //   }
   // });
 
-  app.post('/api/bulk-delete', async (req, res) => {
+  app.post('/api/bulk-delete', auth, async (req, res) => {
     const { ids, params, vectorStoreProvider } = req.body;
     try {
       const resp = await vectorStoreService.deleteChunks(vectorStoreProvider, ids, params);

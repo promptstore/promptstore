@@ -6,17 +6,25 @@ import crypto from 'crypto';
 // passes it as ?token=. The token only needs to survive the SSE handshake.
 //
 // The secret MUST be shared across replicas for tokens minted on one instance to
-// verify on another. Set TELEMETRY_STREAM_SECRET in production.
+// verify on another. TELEMETRY_STREAM_SECRET is required - there is deliberately
+// no default, since a default in source would let anyone mint stream tokens.
+// Read at call time, not import time: dotenv runs after imports are evaluated.
 
-const SECRET = process.env.TELEMETRY_STREAM_SECRET || 'promptstore-telemetry-stream-dev-secret';
+import { requireEnv } from '../config/requiredEnv';
+
+const SECRET_HINT = 'Required to sign telemetry stream tokens. Generate with: openssl rand -hex 32';
 const DEFAULT_TTL_MS = 60 * 1000;
+
+function secret() {
+  return requireEnv('TELEMETRY_STREAM_SECRET', SECRET_HINT);
+}
 
 function b64url(buf) {
   return Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function sign(payloadB64) {
-  return b64url(crypto.createHmac('sha256', SECRET).update(payloadB64).digest());
+  return b64url(crypto.createHmac('sha256', secret()).update(payloadB64).digest());
 }
 
 export function signStreamToken({ workspaceId, traceId = null, ttlMs = DEFAULT_TTL_MS }) {

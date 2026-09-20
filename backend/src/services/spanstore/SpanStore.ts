@@ -108,4 +108,15 @@ export interface SpanStore {
   // end event. Marks them status='error' so they're distinguishable from clean
   // completions. Returns { spans, traces } reaped.
   reapStaleSpans(olderThanMs: number): Promise<{ spans: number; traces: number }>;
+
+  // Close conversations suspended on a human who never came back. These traces
+  // are deliberately exempt from reapStaleSpans (a slow human is not a crash),
+  // so without this they stay "awaiting user" forever. A much longer TTL than
+  // the crash reaper's applies: only when no ingest activity has been seen for
+  // `olderThanMs` is the pause treated as abandoned rather than merely slow.
+  // Open spans are closed at (last activity + TTL) — the deterministic moment
+  // abandonment was declared, so the result does not depend on when the sweep
+  // happened to run — and marked status='abandoned', distinct from both the
+  // crash reaper's 'error' and a clean 'ok'. Returns { spans, traces } reaped.
+  reapAbandonedPauses(olderThanMs: number): Promise<{ spans: number; traces: number }>;
 }

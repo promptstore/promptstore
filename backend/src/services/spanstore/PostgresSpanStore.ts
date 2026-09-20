@@ -403,5 +403,43 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
     return { spans: rowCount || 0, traces };
   }
 
-  return { writeSpans, getSpans, listTraces, deleteTraces, costRollup, costKpis, costDistribution, costInWindow, reapStaleSpans };
+  async function reapAbandonedPauses(olderThanMs: number): Promise<{ spans: number; traces: number }> {
+    // The mirror image of reapStaleSpans: it skips traces with an open
+    // hitl.pause, this one handles *only* those. A conversation parked on a
+    // human is suspended, not dead, so it is never reaped on the crash TTL —
+    // but a human who never replies must not leave the trace "awaiting user"
+    // forever either. On a much longer TTL, close it as `abandoned`, keeping
+    // the three cases distinguishable: error = the run died, abandoned = nobody
+    // came back, ok = it actually finished.
+    //
+    // Open spans are closed at (last_activity + TTL), the deterministic instant
+    // abandonment was declared, rather than NOW() — so a sweep that runs late
+    // (or a backlog swept in one pass) yields the same end_time either way, and
+    // the pause's duration reads as the real wait we gave the human.
+    const q = `
+      WITH abandoned AS (
+        SELECT trace_id, MAX(received_at) AS last_activity
+        FROM spans
+        GROUP BY trace_id
+        HAVING bool_or(span_kind = 'hitl.pause' AND end_time IS NULL)
+           AND MAX(received_at) < NOW() - ($1::double precision * INTERVAL '1 millisecond')
+      )
+      UPDATE spans s
+      SET end_time       = GREATEST(
+                             ab.last_activity + ($1::double precision * INTERVAL '1 millisecond'),
+                             s.start_time
+                           ),
+          status         = CASE WHEN s.status = 'unset' THEN 'abandoned' ELSE s.status END,
+          status_message = COALESCE(s.status_message, 'reaped: conversation abandoned (no user reply within HITL pause TTL)')
+      FROM abandoned ab
+      WHERE s.trace_id = ab.trace_id
+        AND s.end_time IS NULL
+      RETURNING s.trace_id
+    `;
+    const { rows, rowCount } = await pg.query(q, [olderThanMs]);
+    const traces = new Set(rows.map((r: any) => r.trace_id)).size;
+    return { spans: rowCount || 0, traces };
+  }
+
+  return { writeSpans, getSpans, listTraces, deleteTraces, costRollup, costKpis, costDistribution, costInWindow, reapStaleSpans, reapAbandonedPauses };
 }

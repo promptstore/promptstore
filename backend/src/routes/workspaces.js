@@ -1,4 +1,5 @@
 import searchFunctions from '../searchFunctions';
+import { DEFAULT_ROLE } from '../config/roles';
 
 export default ({ app, auth, constants, logger, services }) => {
   const OBJECT_TYPE = 'workspaces';
@@ -209,7 +210,7 @@ export default ({ app, auth, constants, logger, services }) => {
     const user = await usersService.getUser(req.user.username);
     logger.debug('user:', user);
     let workspaces;
-    if (user.roles && user.roles.indexOf['admin'] !== -1) {
+    if (user.roles?.includes('admin')) {
       workspaces = await workspacesService.getWorkspaces(limit, start);
     } else {
       workspaces = await workspacesService.getWorkspacesByUser(user.username, limit, start);
@@ -547,6 +548,7 @@ export default ({ app, auth, constants, logger, services }) => {
           email,
           fullName: email,
           credits: 2000,
+          roles: [DEFAULT_ROLE],
         });
         logger.debug('newUser:', newUser);
         members.push({

@@ -19,7 +19,7 @@ filestore_prefix: ""
 
 containerRegistry: ""  # Set via --set during deploy (ECR URI)
 
-version: "0.7.66"
+version: "0.7.67"
 
 port: "5000"
 
@@ -299,6 +299,9 @@ litellm:
   api_key: ""  # Set from Secrets Manager (GitHub secret LITELLM_API_KEY)
 
 ## Telemetry / harness observability
+session:
+  secret: ""  # Set from Secrets Manager (GitHub secret SESSION_SECRET)
+
 telemetry:
   stream_secret: ""  # Set from Secrets Manager (GitHub secret TELEMETRY_STREAM_SECRET)
   stale_span_ttl_ms: "600000"

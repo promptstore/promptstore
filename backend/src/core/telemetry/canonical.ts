@@ -37,6 +37,10 @@ export enum SpanStatus {
   Unset = 'unset',
   Ok = 'ok',
   Error = 'error',
+  // Never reported by an emitter — only written by the server-side reaper when
+  // a conversation parked on an open hitl.pause is never resumed. Distinct from
+  // Error (a run that died) and from Ok (a run that actually finished).
+  Abandoned = 'abandoned',
 }
 
 // Relationship carried on a span link (ps.link.rel). Expresses causality that
@@ -96,6 +100,46 @@ export interface ContextEventPayload {
   method?: string;                  // 'summarize' | 'truncate' | 'dedupe'
   policy?: string;                  // 'lru' | 'relevance' | 'age'
   reason?: string;
+}
+
+// Decision-tree events. A conversational harness puts a step to the user and
+// offers a set of options; the reply takes one of them, or an implicit "other"
+// branch when it matches none. Chained turn by turn that is the path the
+// conversation walked, which is what the Decisions view draws.
+export const DecisionEventName = {
+  Point: 'ps.decision.point',
+  Choice: 'ps.decision.choice',
+} as const;
+
+// A step put to the user, and the branches it offered.
+export interface DecisionPointPayload {
+  step: string;                     // the harness's name for this step (a graph node, a state)
+  question?: string;                // what was asked, truncated for display
+  options?: string[];               // the branch labels offered
+  options_en?: string[];            // order-aligned English twin, for a translated offer
+  allows_free_text?: boolean;       // false when the UI only accepts one of the options
+  message_type?: string;            // 'text' | 'form' | ...
+  possible_next_nodes?: string[];
+}
+
+// Which branch the user's reply took. Deliberately REPEATS the offer it
+// resolved (offer_*), so a step whose point event never reached the trace --
+// e.g. an opening message emitted outside any turn -- can still be drawn.
+export interface DecisionChoicePayload {
+  offer_step?: string;
+  offer_options?: string[];
+  offer_options_en?: string[];
+  offer_allows_free_text?: boolean;
+  branch: string;                   // an offered label, or '__other__'
+  branch_index?: number;            // absent for '__other__'
+  branch_en?: string;
+  // How the reply was matched to the branch, strictest first. Emitters decide
+  // their own ladder; the view only uses it to mark an inferred edge as
+  // inferred, so an unknown value renders as inferred rather than breaking.
+  match?: 'exact' | 'normalized' | 'translated' | 'synonym' | 'contains' | 'fuzzy' | 'none' | string;
+  ambiguous?: boolean;              // >1 option matched; resolved to '__other__' rather than guessed
+  reply_chars?: number;
+  reply_preview?: string;           // only for '__other__', whose label says nothing
 }
 
 // Token usage on a model.call span. Mirrors RosettaStone ChatCompletionUsage.

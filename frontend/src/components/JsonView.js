@@ -9,6 +9,7 @@ import {
   UpOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import JsonViewComponent from 'react18-json-view';
 import 'react18-json-view/src/style.css';
 import { looksLikePythonLiteral, parsePythonLiteral } from '../utils/pythonLiteral';
@@ -540,7 +541,7 @@ export function FullScreenTextViewer({ open, onClose, text, title = 'Content' })
           className="markdown"
           style={{ margin: 0, height: '78vh', overflow: 'auto', padding: 16, fontSize: 13, lineHeight: 1.6, background: '#f6f6f4' }}
         >
-          <ReactMarkdown>{body}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{decoded}</ReactMarkdown>
         </div>
       ) : (
         <div

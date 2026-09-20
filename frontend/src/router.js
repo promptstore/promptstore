@@ -2,8 +2,7 @@ import { lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
 import { Layout } from 'antd';
 
-import { isRestricted, isPathAllowed } from './config/roles';
-import { isPathFeatureDisabled } from './config/featureFlags';
+import { isPathVisible } from './config/roles';
 
 import SideMenu from './components/SideMenu';
 import Register from './components/accounts/Register';
@@ -99,10 +98,7 @@ function MyHeader({ isDarkMode }) {
 // is a navigation boundary, not a backend security boundary.
 function OpsRouteGuard({ currentUser, children }) {
   const location = useLocation();
-  if (isPathFeatureDisabled(location.pathname)) {
-    return <Navigate to="/" replace />;
-  }
-  if (isRestricted(currentUser) && !isPathAllowed(currentUser, location.pathname)) {
+  if (!isPathVisible(currentUser, location.pathname)) {
     return <Navigate to="/" replace />;
   }
   return children;
@@ -202,7 +198,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                     </Routes>
                     </OpsRouteGuard>
                   </Content>
-                  <Footer style={{ textAlign: 'center' }}>Prompt Store ©2026</Footer>
+                  <Footer style={{ textAlign: 'center', padding: '14px 50px' }}>Prompt Store ©2026</Footer>
                 </Layout>
               </Layout>
             </WithPrivateRoute>

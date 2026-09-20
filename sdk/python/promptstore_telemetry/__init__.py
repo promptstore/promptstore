@@ -49,6 +49,7 @@ from .client import (  # noqa: F401
     tool,
     agent,
     context_event,
+    decision_event,
     set_attributes,
     get_traceparent,
     derive_trace_id,
@@ -68,4 +69,16 @@ class ContextEventName:
     EVICT = "ps.context.evict"
 
 
-__version__ = "0.1.1"
+class DecisionEventName:
+    """Event names the Decisions view reads.
+
+    POINT names the step put to the user and the branches it offered; CHOICE
+    names the branch their reply took, and repeats the offer it resolved so a
+    step whose POINT never reached the trace can still be drawn.
+    """
+
+    POINT = "ps.decision.point"
+    CHOICE = "ps.decision.choice"
+
+
+__version__ = "0.1.2"

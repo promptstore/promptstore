@@ -1,8 +1,25 @@
+import { isPathFeatureDisabled } from './featureFlags';
+
 // Central definition of application roles and the access rules for restricted
 // (non-admin) roles. Keeping this in one place avoids scattering role string
 // literals across the codebase.
+//
+// Counterpart: backend/src/config/roles.js. This map governs the side menu and
+// router paths; the backend one governs API paths. They cannot be shared
+// literally (CRA cannot import across src/), so they are kept in step by
+// ROLE_MAP_VERSION - bump it in BOTH files on any change. roles.sync.test.js
+// enforces that.
+export const ROLE_MAP_VERSION = 1;
+
+// Role given to a user who holds no recognised role. Assigned by the backend
+// on first login and on invite; also used as the pre-hydration placeholder in
+// the Cognito auth bridge.
+export const DEFAULT_ROLE = 'promptengineer';
 
 // Options offered by the admin-only Roles multi-select in the user form.
+// `promptengineer` is the role referred to as "Context Engineer" in the role
+// spec - the stored value must stay `promptengineer` or existing users lose
+// access.
 export const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'ops', label: 'Ops' },
@@ -43,7 +60,7 @@ const PROMPT_ENGINEER_ACCESS = {
 //   pathPrefixes — route path prefixes the role may navigate to. A prefix match
 //                  covers sub-routes (e.g. `/harness/cost`, `/prompt-sets/:id/edit`).
 //                  `/profile` is always allowed as a baseline (own account).
-const RESTRICTED_ROLE_ACCESS = {
+export const RESTRICTED_ROLE_ACCESS = {
   ops: {
     menuKeys: [
       'home',
@@ -161,3 +178,11 @@ export const isPathAllowed = (user, pathname) =>
   [...getAllowedPathPrefixes(user)].some(
     (prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
   );
+
+// Single source of truth for "may this user go to, or be shown a link to,
+// this path". Combines the feature-flag check and the role check in the one
+// order the router applies them, so navigation guards and any UI that hides
+// links (the Home dashboard cards) cannot drift apart.
+export const isPathVisible = (user, pathname) =>
+  !isPathFeatureDisabled(pathname) &&
+  (!isRestricted(user) || isPathAllowed(user, pathname));

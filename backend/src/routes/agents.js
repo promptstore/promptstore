@@ -355,7 +355,7 @@ export default ({ app, auth, constants, logger, services }) => {
    *       500:
    *         description: Error
    */
-  app.get('/api/tools', (req, res, next) => {
+  app.get('/api/tools', auth, (req, res, next) => {
     const tools = toolService.getTools();
     res.json(tools);
   });

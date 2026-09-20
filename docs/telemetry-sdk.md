@@ -364,6 +364,65 @@ Keep them descriptive but content-free ("search results: Q3 filings", not the
 filings), or route them through the SDK's `redactor` / `deny_keys` hooks
 (configured in `ps.configure`) like any other attribute.
 
+### Instrumenting decisions (the Decision Tree view)
+
+The **Decisions** tab draws the tree a conversational harness walks: one node
+per step put to the user, one branch per option that step offered, plus an
+implicit **Other** branch for a reply that matched none of them. A trace holds
+one walk, so the untaken branches are drawn beside the taken one — they are the
+counterfactual, and without them it is a list, not a tree.
+
+As with the Context view, promptstore infers nothing. Emit two events:
+
+| Event | Emit when | Carries |
+|---|---|---|
+| `DecisionEventName.POINT` | you put a step to the user | `step`, `question`, `options`, `allows_free_text` |
+| `DecisionEventName.CHOICE` | their reply comes back | the branch it took, **and the offer it resolved** |
+
+```python
+# the turn that asks
+ps.decision_event(
+    ps.DecisionEventName.POINT,
+    step="DiagnosingNode",              # your name for this step
+    question="Is the tap dripping or running?",
+    options=["Dripping", "Running constantly"],
+    options_en=["Dripping", "Running constantly"],   # order-aligned, for a translated offer
+    allows_free_text=True,              # False when the UI only accepts an option
+)
+
+# the turn that answers
+ps.decision_event(
+    ps.DecisionEventName.CHOICE,
+    offer_step="DiagnosingNode",        # echo the offer this resolved
+    offer_options=["Dripping", "Running constantly"],
+    offer_allows_free_text=True,
+    branch="Dripping",                  # an offered label, or "__other__"
+    branch_index=0,
+    match="exact",
+    reply_chars=8,
+)
+```
+
+Four things are worth getting right:
+
+- **A choice belongs to the turn that answered, not the turn that asked.** Turn
+  *n*'s choice resolves turn *n-1*'s step; the view pairs them that way.
+- **A choice repeats the offer it resolved.** That redundancy is deliberate: an
+  opening message is usually written outside any turn, so its point event never
+  reaches the trace, and the echo is the only way its branches can be drawn.
+  The view marks such a step *rebuilt*.
+- **`match` says how confident the pairing is.** `exact` / `normalized` /
+  `translated` / `synonym` are drawn as recorded fact; anything looser —
+  `contains`, `fuzzy`, or a value this UI has not seen — is drawn as a dashed
+  *inferred* edge, so a guess is never read as a fact. Decide your own ladder;
+  just do not call an inference `exact`.
+- **Don't send the user's reply.** The branch label carries the information. The
+  one exception is the Other branch, whose label says nothing — send a short
+  `reply_preview` there if you want it readable.
+
+If the step only puts a form or accepts free text, emit the point with no
+`options`: it is still a node, with an Other branch alone.
+
 ### Sub-agents across processes
 
 A sub-agent gets its **own trace id** (so it is independently viewable) that the
@@ -461,6 +520,13 @@ with ps.conversation(conv_id) as run:          # closes automatically at the end
 > for a dead run. A run left open with *no* open pause is still reaped, so call
 > `hitl_pause_open` whenever you actually yield to the user, and
 > `end_conversation` (or let the block close) when it ends.
+>
+> **A pause is not open-ended forever, though.** A separate, much longer sweep
+> (`HITL_PAUSE_ABANDON_TTL_MS`, default 7 days) closes a conversation nobody ever
+> came back to and marks it `abandoned` — distinct from `error` (the run died)
+> and `ok` (it finished). Spans are closed at *(last activity + TTL)*, so the
+> recorded end does not depend on when the sweep happened to run. Set the TTL to
+> `0` to leave suspended conversations open indefinitely.
 
 ### Span kinds
 

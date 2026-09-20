@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Segmented } from 'antd';
 import HighchartsReact from 'highcharts-react-official';
 
 import Highcharts, { registerFlameSeries } from '../charts/flameSeries';
@@ -26,20 +25,56 @@ export const KIND_COLORS = {
   'custom': '#94a3b8',
 };
 
-function flatten(nodes, depth, out) {
+// One span = one 26px band, matching the span tree's row pitch (see
+// .harness-span-tree in App.css) so row N of the tree sits on row N of the
+// chart. AXIS_H is the space below the plot for the value labels and title;
+// the plot itself starts flush with the top of the chart (marginTop 0).
+export const ROW_H = 26;
+const AXIS_H = 60;
+// Highcharts collapses ordinary leading/trailing spaces in axis labels.
+const NBSP = '\u00a0';
+
+// axis labels render as HTML below, and span names come from instrumented apps
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function countDescendants(nodes) {
+  return nodes.reduce((sum, n) => sum + 1 + (n.children ? countDescendants(n.children) : 0), 0);
+}
+
+// `expanded` is the tree's expandedKeys as a Set: a node's children are plotted
+// only when the tree is showing them. Pass nothing to flatten the whole tree.
+// A row whose children are hidden carries the count of what it stands in for.
+function flatten(nodes, depth, out, expanded) {
   for (const n of nodes) {
-    out.push({ span: n, depth });
-    if (n.children && n.children.length) flatten(n.children, depth + 1, out);
+    const hasChildren = !!(n.children && n.children.length);
+    const open = hasChildren && (!expanded || expanded.has(n.span_id));
+    out.push({ span: n, depth, hidden: hasChildren && !open ? countDescendants(n.children) : 0 });
+    if (open) flatten(n.children, depth + 1, out, expanded);
   }
   return out;
 }
 
-export default function Waterfall() {
+// `scale` ('linear' | 'log') is owned by the trace view, which renders the
+// scale switch alongside the view switch, as is `expandedKeys` — the chart plots
+// the same rows the span tree is showing, in the same order.
+export default function Waterfall({ scale = 'linear', expandedKeys }) {
   const dispatch = useDispatch();
   const tree = useSelector(selectSpanTree);
   const selectedSpanId = useSelector(selectSelectedSpanId);
-  const [scale, setScale] = useState('linear');
   const [tick, setTick] = useState(0);
+  const expanded = useMemo(() => (expandedKeys ? new Set(expandedKeys) : null), [expandedKeys]);
+  // Collapsing removes points, and the flame series' data labels (drawn through
+  // the line series' renderer) outlive their points on an in-place update — so
+  // remount the chart whenever the expansion changes. Live appends, which keep
+  // this signature, still update in place.
+  const expandSig = useMemo(
+    () => (expandedKeys ? expandedKeys.slice().sort().join('|') : 'all'),
+    [expandedKeys],
+  );
 
   // While any span is still running, advance a 1s ticker so the open bars'
   // right edge (which extends to "now") animates live.
@@ -51,7 +86,7 @@ export default function Waterfall() {
   }, [hasRunning]);
 
   const { options, hasData } = useMemo(() => {
-    const flat = flatten(tree, 0, []);
+    const flat = flatten(tree, 0, [], expanded);
     if (!flat.length) return { options: null, hasData: false };
 
     // baseline = earliest start; running spans extend to "now".
@@ -66,6 +101,7 @@ export default function Waterfall() {
     const logMin = 1;
 
     const categories = [];
+    const hiddenCounts = [];
     const data = [];
     flat.forEach((f, i) => {
       const s = f.span;
@@ -76,15 +112,22 @@ export default function Waterfall() {
       const rawHigh = Math.max(end - baseline, rawLow + 1);
       const low = scale === 'log' ? Math.max(rawLow, logMin) : rawLow;
       const high = scale === 'log' ? Math.max(rawHigh, low + 1) : rawHigh;
+      // a collapsed row stands in for its whole subtree: the axis label carries
+      // the ellipsis and hidden-span count (see the label formatter below), and
+      // the bar is outlined
       categories.push(`${'  '.repeat(f.depth)}${s.name || s.span_kind}`);
+      hiddenCounts.push(f.hidden);
       data.push({
         x: i,
         low,
         high,
         name: s.name || s.span_kind,
         color: running ? '#cbd5e1' : (KIND_COLORS[s.span_kind] || '#94a3b8'),
+        borderColor: f.hidden ? '#334155' : undefined,
+        borderWidth: f.hidden ? 1 : 0,
+        dashStyle: f.hidden ? 'ShortDash' : undefined,
         spanId: s.span_id,
-        custom: { running, durationMs: rawHigh - rawLow },
+        custom: { running, durationMs: rawHigh - rawLow, hidden: f.hidden },
       });
     });
 
@@ -93,11 +136,33 @@ export default function Waterfall() {
       options: {
         // animation off: live updates patch the chart every second while spans
         // run — replaying the intro animation on each update reads as flicker
-        chart: { type: 'flame', inverted: true, height: Math.max(220, flat.length * 26 + 80), animation: false },
+        chart: {
+          type: 'flame',
+          inverted: true,
+          height: flat.length * ROW_H + AXIS_H,
+          marginTop: 0,
+          marginBottom: AXIS_H,
+          animation: false,
+        },
         title: { text: null },
         credits: { enabled: false },
         legend: { enabled: false },
-        xAxis: { categories, reversed: true, labels: { style: { fontSize: '11px' } } },
+        xAxis: {
+          categories,
+          reversed: true,
+          labels: {
+            useHTML: true,
+            style: { fontSize: '11px' },
+            // "name … +12" — the count is the number of spans folded into the row
+            formatter: function () {
+              const n = hiddenCounts[this.pos];
+              const name = escapeHtml(this.value);
+              return n
+                ? `${name}<span style="color:#d46b08;font-weight:600">${NBSP}…${NBSP}+${n}</span>`
+                : name;
+            },
+          },
+        },
         yAxis: {
           type: scale === 'log' ? 'logarithmic' : 'linear',
           title: { text: 'ms since start' },
@@ -109,7 +174,8 @@ export default function Waterfall() {
             const c = this.point.custom || {};
             const dur = c.durationMs != null ? c.durationMs : (this.point.high - this.point.low);
             const r = c.running ? ' (running)' : '';
-            return `<b>${this.point.name}</b><br/>${dur} ms${r}`;
+            const h = c.hidden ? `<br/><span style="color:#64748b">collapsed \u2014 ${c.hidden} span${c.hidden > 1 ? 's' : ''} hidden</span>` : '';
+            return `<b>${escapeHtml(this.point.name)}</b><br/>${dur} ms${r}${h}`;
           },
         },
         plotOptions: {
@@ -127,23 +193,11 @@ export default function Waterfall() {
       },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree, scale, dispatch, selectedSpanId, tick]);
+  }, [tree, scale, expanded, dispatch, selectedSpanId, tick]);
 
   if (!hasData) {
     return <div style={{ padding: 24, color: 'rgba(0,0,0,0.45)' }}>No spans yet.</div>;
   }
 
-  return (
-    <div>
-      <div style={{ marginBottom: 8, textAlign: 'right' }}>
-        <Segmented
-          size="small"
-          value={scale}
-          onChange={setScale}
-          options={[{ label: 'Linear', value: 'linear' }, { label: 'Log', value: 'log' }]}
-        />
-      </div>
-      <HighchartsReact highcharts={Highcharts} options={options} />
-    </div>
-  );
+  return <HighchartsReact key={expandSig} highcharts={Highcharts} options={options} />;
 }

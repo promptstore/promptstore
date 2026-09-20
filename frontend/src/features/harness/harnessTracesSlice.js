@@ -396,22 +396,45 @@ const CONTEXT_EVENT_KIND = {
   'ps.context.evict': 'evict',
 };
 
-export const selectContextTimeline = createSelector([selectSpansMap], (spansMap) => {
-  const spans = Object.values(spansMap)
-    .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.start_time < b.start_time ? -1 : 1));
+// --- shared span-walking helpers (context timeline + decision tree) ---------
+// Ingest order: seq is monotonic per trace, start_time breaks ties for spans
+// that arrived in the same batch.
+const spansInOrder = (spansMap) => Object.values(spansMap)
+  .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.start_time < b.start_time ? -1 : 1));
 
-  const isAgentSpan = (s) => s.span_kind === 'harness.run' || s.span_kind === 'subagent.spawn';
-  const nearest = (span, pred, { stopAtAgent = false } = {}) => {
-    let cur = span;
-    while (cur) {
-      if (pred(cur)) return cur;
-      // turn attribution must not leak across an agent boundary — a sub-agent's
-      // context op belongs to that agent, not the spawning agent's turn
-      if (stopAtAgent && isAgentSpan(cur) && cur !== span) return null;
-      cur = cur.parent_span_id ? spansMap[cur.parent_span_id] : null;
-    }
-    return null;
+const isAgentSpan = (s) => s.span_kind === 'harness.run' || s.span_kind === 'subagent.spawn';
+
+// Nearest ancestor (including self) satisfying pred. With stopAtAgent, the walk
+// refuses to cross an agent boundary — a sub-agent's event belongs to that
+// agent, not to the spawning agent's turn.
+const nearestAncestor = (spansMap, span, pred, { stopAtAgent = false } = {}) => {
+  let cur = span;
+  while (cur) {
+    if (pred(cur)) return cur;
+    if (stopAtAgent && isAgentSpan(cur) && cur !== span) return null;
+    cur = cur.parent_span_id ? spansMap[cur.parent_span_id] : null;
+  }
+  return null;
+};
+
+const isLoopSpan = (s) => s.span_kind === 'loop.iteration';
+
+// Turn ordinals are assigned in first-seen order rather than read off the span,
+// so a trace whose turn spans are named or indexed differently still numbers
+// its turns 0..n in the order they ran.
+const turnOrdinals = () => {
+  const seen = new Map();
+  return (loop) => {
+    if (!loop) return null;
+    if (!seen.has(loop.span_id)) seen.set(loop.span_id, seen.size);
+    return seen.get(loop.span_id);
   };
+};
+
+export const selectContextTimeline = createSelector([selectSpansMap], (spansMap) => {
+  const spans = spansInOrder(spansMap);
+
+  const nearest = (span, pred, opts) => nearestAncestor(spansMap, span, pred, opts);
 
   const events = [];
   for (const span of spans) {
@@ -424,15 +447,13 @@ export const selectContextTimeline = createSelector([selectSpansMap], (spansMap)
   events.sort((a, b) => ((a.ev.time || '') < (b.ev.time || '') ? -1 : 1));
 
   let lastComposition = null;
-  let turnCounter = 0;
-  const seenTurns = new Map();   // loop span_id -> turn ordinal
+  const ordinalOf = turnOrdinals();
 
   return events.map(({ span, ev, kind }, index) => {
     const p = ev.attributes || {};
-    const loop = nearest(span, s => s.span_kind === 'loop.iteration', { stopAtAgent: true });
+    const loop = nearest(span, isLoopSpan, { stopAtAgent: true });
     const agent = nearest(span, isAgentSpan);
-    if (loop && !seenTurns.has(loop.span_id)) seenTurns.set(loop.span_id, turnCounter++);
-    const turn = loop ? seenTurns.get(loop.span_id) : null;
+    const turn = ordinalOf(loop);
 
     const total = p.window_tokens_after ?? null;
     let composition = null;
@@ -464,6 +485,148 @@ export const selectContextTimeline = createSelector([selectSpansMap], (spansMap)
       carried,
     };
   });
+});
+
+// --- the decision tree ------------------------------------------------------
+// A conversational harness puts a step to the user, offers a set of options,
+// and the reply takes one of them — or an implicit "other" branch when it
+// matches none. Chained turn by turn, that is the path the conversation walked.
+//
+// Two event kinds drive it, and the pairing is the only subtle part:
+//   ps.decision.point  — emitted on the turn that ASKED; the turn's last point
+//                        is the live question (earlier ones are narration).
+//   ps.decision.choice — emitted on the turn that ANSWERED, i.e. turn n's
+//                        choice resolves turn n-1's step.
+// A choice repeats the offer it resolved, so a step whose point never reached
+// the trace (an opening message written outside any turn) is still drawn — from
+// the choice alone.
+const DECISION_POINT = 'ps.decision.point';
+const DECISION_CHOICE = 'ps.decision.choice';
+
+//: The branch a reply takes when it matches none of the options on offer.
+export const OTHER_BRANCH = '__other__';
+
+// Matches that name the branch outright. 'none' belongs here: it is a definite
+// statement that the reply matched nothing, which is how Other is *reached*,
+// not a guess about it. Anything else — contains/fuzzy, or a tier this UI has
+// never heard of — is drawn as inferred.
+const DEFINITE_MATCHES = new Set(['exact', 'normalized', 'translated', 'synonym', 'none']);
+
+export const selectDecisionTree = createSelector([selectSpansMap], (spansMap) => {
+  const ordinalOf = turnOrdinals();
+
+  // turn ordinal -> { spanId, points: [], choice }
+  const turns = new Map();
+  const turnOf = (span) => {
+    const loop = nearestAncestor(spansMap, span, isLoopSpan, { stopAtAgent: true });
+    const ordinal = ordinalOf(loop);
+    if (ordinal == null) return null;
+    if (!turns.has(ordinal)) turns.set(ordinal, { turn: ordinal, spanId: loop.span_id, points: [], choice: null });
+    return turns.get(ordinal);
+  };
+
+  for (const span of spansInOrder(spansMap)) {
+    for (const ev of span.events || []) {
+      if (ev.name !== DECISION_POINT && ev.name !== DECISION_CHOICE) continue;
+      const entry = turnOf(span);
+      if (!entry) continue;
+      if (ev.name === DECISION_POINT) entry.points.push(ev.attributes || {});
+      else entry.choice = ev.attributes || {};
+    }
+  }
+
+  const steps = [];
+
+  const openStep = ({ turn, spanId, options, optionsEn, allowsFreeText, step, question, messageType, reconstructed }) => {
+    const entry = {
+      id: `s${steps.length}`,
+      turn,
+      spanId,
+      step: step || 'step',
+      question: question || null,
+      messageType: messageType || null,
+      reconstructed: !!reconstructed,
+      pending: true,
+      answered: false,
+      inferred: false,
+      branches: (options || []).map((label, index) => ({
+        key: `s${steps.length}:${index}`,
+        label,
+        labelEn: (optionsEn || [])[index],
+        other: false,
+        taken: false,
+      })),
+    };
+    if (allowsFreeText !== false) {
+      // Just "Other": how the reply arrived — tapped or typed — is not a
+      // distinction this tree draws, so naming it on the branch (and in the
+      // path summary built from these labels) says something that isn't there.
+      entry.branches.push({ key: `s${steps.length}:other`, label: 'Other', other: true, taken: false });
+    }
+    steps.push(entry);
+    return entry;
+  };
+
+  const answer = (entry, choice) => {
+    entry.pending = false;
+    entry.answered = true;
+    entry.inferred = !!choice.match && !DEFINITE_MATCHES.has(choice.match);
+    const other = entry.branches.find(b => b.other);
+    if (choice.branch === OTHER_BRANCH) {
+      if (other) {
+        other.taken = true;
+        other.preview = choice.reply_preview || null;
+        other.ambiguous = !!choice.ambiguous;
+      }
+      return;
+    }
+    const hit = entry.branches.find((b, i) =>
+      !b.other && (choice.branch_index === i || (choice.branch_index == null && b.label === choice.branch)));
+    if (hit) hit.taken = true;
+  };
+
+  for (const entry of [...turns.values()].sort((a, b) => a.turn - b.turn)) {
+    // A choice is emitted on the turn that ANSWERED, so it resolves the step
+    // still waiting for an answer. There may not be one: an opening message is
+    // written outside any turn, so its point event never reached the trace and
+    // the first choice has nothing to attach to. The choice echoes the offer it
+    // resolved precisely so that step can be rebuilt here rather than lost.
+    if (entry.choice) {
+      const pending = steps.length && steps[steps.length - 1].pending ? steps[steps.length - 1] : null;
+      const target = pending || openStep({
+        turn: null,
+        spanId: entry.spanId,
+        step: entry.choice.offer_step,
+        options: entry.choice.offer_options,
+        optionsEn: entry.choice.offer_options_en,
+        allowsFreeText: entry.choice.offer_allows_free_text,
+        reconstructed: true,
+      });
+      answer(target, entry.choice);
+    }
+
+    // The turn's LAST point is the step it put to the user, mirroring the rule
+    // a chat UI uses to decide which chip row is live; earlier ones are
+    // narration the user cannot answer.
+    if (entry.points.length) {
+      const point = entry.points[entry.points.length - 1];
+      openStep({
+        turn: entry.turn,
+        spanId: entry.spanId,
+        step: point.step,
+        question: point.question,
+        messageType: point.message_type,
+        options: point.options,
+        optionsEn: point.options_en,
+        allowsFreeText: point.allows_free_text,
+      });
+    }
+  }
+
+  return {
+    steps,
+    path: steps.map(s => (s.branches.find(b => b.taken) || {}).label).filter(Boolean),
+  };
 });
 
 export default harnessTracesSlice.reducer;

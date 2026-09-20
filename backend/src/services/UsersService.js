@@ -18,13 +18,32 @@ export function UsersService({ pg, logger }) {
     return rows.map(mapRow);
   }
 
-  async function setRole(username, role) {
+  // The role array is bound as a parameter, not interpolated. The previous
+  // implementation inlined `role` into a JSON literal, so a value such as
+  // `admin"],"credits":[999999` could rewrite arbitrary parts of the record.
+  async function setRoles(username, roles) {
     let q = `
       UPDATE users
-      SET val = jsonb_set(val::jsonb, '{roles}', '["${role}"]'::jsonb)
+      SET val = jsonb_set(val::jsonb, '{roles}', $2::jsonb)
       WHERE username = $1
+      RETURNING id, username, val
     `;
-    await pg.query(q, [username]);
+    const { rows } = await pg.query(q, [username, JSON.stringify(roles)]);
+    return rows.length ? mapRow(rows[0]) : null;
+  }
+
+  // Back-compat shim for existing callers.
+  async function setRole(username, role) {
+    return setRoles(username, [role]);
+  }
+
+  // Used to permit the first-run bootstrap in POST /api/roles.
+  // `val` is a `json` column, not `jsonb`, so it must be cast before the
+  // containment operator - `@>` is not defined for `json`.
+  async function countAdmins() {
+    let q = `SELECT count(*)::int AS n FROM users WHERE val::jsonb->'roles' @> '["admin"]'::jsonb`;
+    const { rows } = await pg.query(q);
+    return rows[0].n;
   }
 
   async function getUser(username) {
@@ -143,7 +162,9 @@ export function UsersService({ pg, logger }) {
     getUserByEmail,
     getUserById,
     getUserByKeycloakId,
+    countAdmins,
     setRole,
+    setRoles,
     upsertUser,
   };
 }

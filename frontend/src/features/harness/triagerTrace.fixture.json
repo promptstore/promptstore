@@ -1,0 +1,291 @@
+[
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "52eed61564746415",
+  "span_kind": "harness.run",
+  "name": "conversation",
+  "start_time": "2026-09-20T00:22:46.820796+00:00",
+  "status": "unset",
+  "attributes": {},
+  "events": [],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "seq": 0
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "96cfc0ec1abbc90c",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "loop.iteration",
+  "name": "turn 0",
+  "start_time": "2026-09-20T00:22:46.820468+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [
+   {
+    "name": "ps.decision.choice",
+    "time": "2026-09-20T00:22:46.820491+00:00",
+    "attributes": {
+     "offer_step": "EmergencyTriageNode",
+     "offer_options": [
+      "Emergency",
+      "Continue"
+     ],
+     "offer_allows_free_text": false,
+     "branch": "Continue",
+     "branch_index": 1,
+     "match": "exact",
+     "reply_chars": 8
+    }
+   },
+   {
+    "name": "ps.decision.point",
+    "time": "2026-09-20T00:22:46.820510+00:00",
+    "attributes": {
+     "step": "FirstMessageNode",
+     "question": "Describe the issue",
+     "allows_free_text": true,
+     "message_type": "text"
+    }
+   }
+  ],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820515+00:00",
+  "seq": 1
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "f68a5882349a830d",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "hitl.pause",
+  "name": "awaiting user input",
+  "start_time": "2026-09-20T00:22:46.820542+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820544+00:00",
+  "seq": 2
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "5385ad29a45cd937",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "loop.iteration",
+  "name": "turn 1",
+  "start_time": "2026-09-20T00:22:46.820552+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [
+   {
+    "name": "ps.decision.choice",
+    "time": "2026-09-20T00:22:46.820564+00:00",
+    "attributes": {
+     "offer_step": "FirstMessageNode",
+     "offer_options": [],
+     "offer_allows_free_text": true,
+     "branch": "__other__",
+     "match": "none",
+     "reply_chars": 20
+    }
+   },
+   {
+    "name": "ps.decision.point",
+    "time": "2026-09-20T00:22:46.820573+00:00",
+    "attributes": {
+     "step": "IssueDetectionNode",
+     "question": "Thanks, one moment",
+     "allows_free_text": true,
+     "message_type": "text"
+    }
+   },
+   {
+    "name": "ps.decision.point",
+    "time": "2026-09-20T00:22:46.820590+00:00",
+    "attributes": {
+     "step": "DiagnosingNode",
+     "question": "Is the tap dripping or running constantly?",
+     "options": [
+      "Dripping",
+      "Running constantly"
+     ],
+     "options_en": [
+      "Dripping",
+      "Running constantly"
+     ],
+     "allows_free_text": true,
+     "message_type": "text",
+     "possible_next_nodes": [
+      "GeneratingQuoteNode"
+     ]
+    }
+   }
+  ],
+  "links": [
+   {
+    "trace_id": "0315b4020af3eccab7706679580ac87a",
+    "span_id": "96cfc0ec1abbc90c",
+    "rel": "resumes"
+   }
+  ],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820599+00:00",
+  "seq": 3
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "6c808cdd2c7cac99",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "hitl.pause",
+  "name": "awaiting user input",
+  "start_time": "2026-09-20T00:22:46.820622+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820623+00:00",
+  "seq": 4
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "2044e5d1c49c2287",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "loop.iteration",
+  "name": "turn 2",
+  "start_time": "2026-09-20T00:22:46.820629+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [
+   {
+    "name": "ps.decision.choice",
+    "time": "2026-09-20T00:22:46.820763+00:00",
+    "attributes": {
+     "offer_step": "DiagnosingNode",
+     "offer_options": [
+      "Dripping",
+      "Running constantly"
+     ],
+     "offer_options_en": [
+      "Dripping",
+      "Running constantly"
+     ],
+     "offer_allows_free_text": true,
+     "branch": "Dripping",
+     "branch_index": 0,
+     "branch_en": "Dripping",
+     "match": "contains",
+     "reply_chars": 26
+    }
+   },
+   {
+    "name": "ps.decision.point",
+    "time": "2026-09-20T00:22:46.820777+00:00",
+    "attributes": {
+     "step": "AwaitingSlotsNode",
+     "question": "Your contact details",
+     "allows_free_text": true,
+     "message_type": "form"
+    }
+   }
+  ],
+  "links": [
+   {
+    "trace_id": "0315b4020af3eccab7706679580ac87a",
+    "span_id": "5385ad29a45cd937",
+    "rel": "resumes"
+   }
+  ],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820782+00:00",
+  "seq": 5
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "037025cadd2dd014",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "hitl.pause",
+  "name": "awaiting user input",
+  "start_time": "2026-09-20T00:22:46.820801+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820803+00:00",
+  "seq": 6
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "6e9ccbbe452d9a05",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "loop.iteration",
+  "name": "turn 3",
+  "start_time": "2026-09-20T00:22:46.820809+00:00",
+  "status": "ok",
+  "attributes": {},
+  "events": [
+   {
+    "name": "ps.decision.choice",
+    "time": "2026-09-20T00:22:46.820822+00:00",
+    "attributes": {
+     "offer_step": "AwaitingSlotsNode",
+     "offer_options": [],
+     "offer_allows_free_text": true,
+     "branch": "__other__",
+     "match": "none",
+     "reply_chars": 21
+    }
+   },
+   {
+    "name": "ps.decision.point",
+    "time": "2026-09-20T00:22:46.820831+00:00",
+    "attributes": {
+     "step": "AwaitingResolutionNode",
+     "question": "Shall I book a plumber?",
+     "options": [
+      "Yes please",
+      "Not yet"
+     ],
+     "allows_free_text": true,
+     "message_type": "text"
+    }
+   }
+  ],
+  "links": [
+   {
+    "trace_id": "0315b4020af3eccab7706679580ac87a",
+    "span_id": "2044e5d1c49c2287",
+    "rel": "resumes"
+   }
+  ],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "end_time": "2026-09-20T00:22:46.820837+00:00",
+  "seq": 7
+ },
+ {
+  "trace_id": "0315b4020af3eccab7706679580ac87a",
+  "span_id": "1bfafeafe7289147",
+  "parent_span_id": "52eed61564746415",
+  "span_kind": "hitl.pause",
+  "name": "awaiting user input",
+  "start_time": "2026-09-20T00:22:46.820842+00:00",
+  "status": "unset",
+  "attributes": {},
+  "events": [],
+  "links": [],
+  "session_id": "4242",
+  "sdk_version": "0.1.2",
+  "seq": 8
+ }
+]

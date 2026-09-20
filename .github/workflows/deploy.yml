@@ -467,6 +467,9 @@ jobs:
           litellm:
             api_key: |-
               ${{ secrets.LITELLM_API_KEY }}
+          session:
+            secret: |-
+              ${{ secrets.SESSION_SECRET }}
           telemetry:
             stream_secret: |-
               ${{ secrets.TELEMETRY_STREAM_SECRET }}

@@ -20,6 +20,12 @@ import {
 
 const AUTO_REFRESH_MS = 8000;
 
+// Closed-trace statuses that aren't a clean completion. Anything else is green.
+const STATUS_COLORS = {
+  error: 'red',
+  abandoned: 'default',
+};
+
 export function HarnessTracesList() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -116,11 +122,13 @@ export function HarnessTracesList() {
       width: 130,
       // Three-state for conversations: an open hitl.pause => suspended on the
       // user; else an open span => actively working; else the final status.
+      // 'abandoned' is a closed status the reaper writes when a suspended
+      // conversation is never resumed — neither a failure nor a completion.
       render: (status, row) => row.awaiting_user
         ? <Tag color="gold">awaiting user</Tag>
         : row.running
           ? <Tag color="processing">running</Tag>
-          : <Tag color={status === 'error' ? 'red' : 'green'}>{status}</Tag>,
+          : <Tag color={STATUS_COLORS[status] || 'green'}>{status}</Tag>,
     },
     {
       title: 'Conversation',

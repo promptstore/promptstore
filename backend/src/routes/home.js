@@ -11,7 +11,7 @@ export default ({ app, auth, constants, logger, services }) => {
     transformationsService,
   } = services;
 
-  app.get('/api/workspaces/:workspaceId/statistics', async (req, res, next) => {
+  app.get('/api/workspaces/:workspaceId/statistics', auth, async (req, res, next) => {
     const { workspaceId } = req.params;
     const agentsCount = await agentsService.getAgentsCount(workspaceId);
     const dataSourcesCount = await dataSourcesService.getDataSourcesCount(workspaceId);

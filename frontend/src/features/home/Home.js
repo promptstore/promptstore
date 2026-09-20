@@ -31,6 +31,8 @@ import {
   selectStatistics,
 } from './statisticsSlice';
 
+import { isPathVisible } from '../../config/roles';
+
 const { Text, Title } = Typography;
 
 export function Home() {
@@ -68,6 +70,18 @@ export function Home() {
     list.sort((a, b) => a.title < b.title ? -1 : 1);
     return list;
   }, [contents]);
+
+  // Each statistic's key is its route segment (the card links to `/${key}`),
+  // so the same rule the router uses decides whether to show the card. Without
+  // this a restricted role sees counts for features it cannot open - clicking
+  // one just bounces back here via OpsRouteGuard.
+  const visibleStatistics = useMemo(
+    () => Object.entries(statistics).filter(([key]) => isPathVisible(currentUser, `/${key}`)),
+    [statistics, currentUser]
+  );
+
+  const showWorkspacesCard = isPathVisible(currentUser, '/workspaces');
+  const showAppsCard = isPathVisible(currentUser, '/apps');
 
   const workspacesData = useMemo(() => {
     const list = Object.values(workspaces)
@@ -123,7 +137,7 @@ export function Home() {
       <div style={{ marginTop: 40 }}>
         <Space direction="vertical" size="large">
           <Space align="start" size="large" wrap={true}>
-            {Object.entries(statistics).map(([key, stat]) =>
+            {visibleStatistics.map(([key, stat]) =>
               <Card bordered={false} key={key}>
                 <Statistic
                   formatter={(value) => <Link to={`/${key}`}>{value}</Link>}
@@ -136,26 +150,30 @@ export function Home() {
             )}
           </Space>
           <Space align="start" size="large" wrap={true}>
-            <Card loading={workspacesLoading} title="My Workspaces" style={{ minHeight: 271, width: 350 }}>
-              <List
-                dataSource={workspacesData}
-                renderItem={(item) => (
-                  <List.Item key={item.key}>
-                    <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
-                  </List.Item>
-                )}
-              />
-            </Card>
-            <Card loading={appsLoading} title="My Apps" style={{ minHeight: 271, width: 350 }}>
-              <List
-                dataSource={appsData}
-                renderItem={(item) => (
-                  <List.Item key={item.key}>
-                    <Link to={`/apps/${item.key}`}>{item.title}</Link>
-                  </List.Item>
-                )}
-              />
-            </Card>
+            {showWorkspacesCard &&
+              <Card loading={workspacesLoading} title="My Workspaces" style={{ minHeight: 271, width: 350 }}>
+                <List
+                  dataSource={workspacesData}
+                  renderItem={(item) => (
+                    <List.Item key={item.key}>
+                      <Link to={`/workspaces/${item.key}`}>{item.title}</Link>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            }
+            {showAppsCard &&
+              <Card loading={appsLoading} title="My Apps" style={{ minHeight: 271, width: 350 }}>
+                <List
+                  dataSource={appsData}
+                  renderItem={(item) => (
+                    <List.Item key={item.key}>
+                      <Link to={`/apps/${item.key}`}>{item.title}</Link>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            }
             <Card loading={contentsLoading} title="Recent Activity" style={{ minHeight: 271, width: 600 }}>
               <List
                 dataSource={contentsData}

@@ -22,6 +22,8 @@ import 'web-streams-polyfill/polyfill';
 import pg from './db';
 import initSearchIndex from './initSearchIndex';
 import logger from './logger';
+import { createAuthz } from './middleware/authz';
+import { DEFAULT_ROLE, findUnmappedRoutes } from './config/roles';
 import { AgentNetworksService } from './services/AgentNetworksService';
 import { AgentsService } from './services/AgentsService';
 import { ApiKeysService } from './services/ApiKeysService';
@@ -75,6 +77,7 @@ import { UploadsService } from './services/UploadsService';
 import { UsersService } from './services/UsersService';
 import { WorkspacesService } from './services/WorkspacesService';
 import { VectorStoreService } from './services/VectorStoreService';
+import { assertRequiredEnv, requireEnv } from './config/requiredEnv';
 import { getPlugins, installModules } from './utils';
 import * as workflowClient from './workflow/clients';
 
@@ -83,6 +86,14 @@ logger.debug('ENV:', ENV);
 if (ENV === 'dev') {
   dotenv.config();
 }
+
+// Fail fast on secrets that have no safe default, before any listener starts.
+assertRequiredEnv({
+  SESSION_SECRET: 'Signs session cookies. Generate with: openssl rand -hex 32',
+  TELEMETRY_STREAM_SECRET: 'Signs telemetry stream tokens. Generate with: openssl rand -hex 32',
+});
+
+const SESSION_SECRET = requireEnv('SESSION_SECRET');
 
 const SEARCH_EMBEDDING_PROVIDER = process.env.SEARCH_EMBEDDING_PROVIDER;
 const SEARCH_INDEX_NAME = process.env.SEARCH_INDEX_NAME;
@@ -323,6 +334,27 @@ setInterval(async () => {
   }
 }, STALE_SPAN_SWEEP_MS).unref();
 
+// The reaper above deliberately skips conversations parked on a human (an open
+// hitl.pause): a slow user is not a crash. But a user who never comes back must
+// not leave a trace "awaiting user" forever, so sweep those on a much longer
+// TTL and close them as `abandoned` — keeping the three outcomes distinct:
+// error = the run died, abandoned = nobody replied, ok = it finished.
+// Set HITL_PAUSE_ABANDON_TTL_MS=0 to disable (pauses then stay open forever).
+// (an explicit "0" disables; an unset-or-empty var falls back to the default)
+const HITL_ABANDON_TTL_MS = process.env.HITL_PAUSE_ABANDON_TTL_MS
+  ? +process.env.HITL_PAUSE_ABANDON_TTL_MS : 7 * 24 * 60 * 60 * 1000;
+const HITL_ABANDON_SWEEP_MS = +(process.env.HITL_PAUSE_ABANDON_SWEEP_MS || 60 * 60 * 1000);
+if (HITL_ABANDON_TTL_MS > 0) {
+  setInterval(async () => {
+    try {
+      const { spans, traces } = await spanStore.reapAbandonedPauses(HITL_ABANDON_TTL_MS);
+      if (spans) logger.info(`telemetry reaper abandoned ${traces} suspended conversation(s) (${spans} open spans, no reply in ${HITL_ABANDON_TTL_MS}ms)`);
+    } catch (err) {
+      logger.warn('hitl pause reaper failed:', err.message);
+    }
+  }, HITL_ABANDON_SWEEP_MS).unref();
+}
+
 const trainingService = TrainingService({ pg, logger });
 
 const transformationsService = TransformationsService({ pg, logger });
@@ -343,7 +375,7 @@ if (!MINIMAL_INSTALL) {
     cookie: {},
     resave: false,
     saveUninitialized: true,
-    secret: 'Data Science is a team sport!',
+    secret: SESSION_SECRET,
     store: new RedisStore({ client: rc }),
   };
 
@@ -351,7 +383,7 @@ if (!MINIMAL_INSTALL) {
 } else {
   app.use(
     session({
-      secret: 'Data Science is a team sport!',
+      secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: true,
       cookie: { secure: true },
@@ -405,6 +437,17 @@ app.use(cors());
 //   auth = (req, res, next) => next();  // unauthenticated
 // }
 
+// Pick the first non-empty roles array, falling back to the default role.
+// An empty array is truthy, so a plain `||` chain would leave a user with
+// `roles: []` unroled and - with the backend map's fail-closed default -
+// silently restricted to DEFAULT_ROLE's grants anyway. Be explicit instead.
+const firstNonEmptyRoles = (...candidates) => {
+  for (const c of candidates) {
+    if (Array.isArray(c) && c.length) return c;
+  }
+  return [DEFAULT_ROLE];
+};
+
 const VerifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -425,7 +468,7 @@ const VerifyToken = async (req, res, next) => {
         req.user = {
           ...tokenUser,
           ...(user || {}),
-          roles: user?.roles || tokenUser.roles,
+          roles: firstNonEmptyRoles(user?.roles, tokenUser.roles),
           username: tokenUser.email,
         };
         return next();
@@ -450,7 +493,7 @@ const VerifyToken = async (req, res, next) => {
             req.user = {
               ...decodeValue,
               ...(user || {}),
-              roles: user?.roles || [],
+              roles: firstNonEmptyRoles(user?.roles),
               username: decodeValue.email,
             };
             return next();
@@ -520,7 +563,18 @@ const VerifyToken = async (req, res, next) => {
   return res.status(401).json('Not authorized');
 };
 
-const auth = VerifyToken;
+// Role-based API authorization, composed into `auth` so that every route
+// using the shared `auth` middleware is gated. A global app.use() would not
+// work: `auth` is per-route middleware, so a global would run before
+// VerifyToken has populated req.user. Routes registered without `auth`
+// (home statistics, credits, agent SSE, image proxies, the HMAC-gated
+// telemetry streams, /api/v1/health and the /api/v1/* proxy) are untouched.
+const authz = createAuthz({ logger, enforce: process.env.AUTHZ_MODE !== 'audit' });
+
+// VerifyToken never calls next(err) - it either next()s or returns 401 - but
+// the guard keeps the composition correct if that ever changes.
+const auth = (req, res, next) =>
+  VerifyToken(req, res, (err) => (err ? next(err) : authz(req, res, next)));
 
 const llmService = LLMService({ logger, registry: llmPlugins, services: { parserService } });
 
@@ -791,6 +845,26 @@ const routePaths = app._router.stack
   })
   .filter(p => p !== null);
 logger.debug(routePaths);
+
+// Authorization coverage check. Express route templates use the same `:param`
+// syntax as the rules in config/roles.js, so the matcher runs on them
+// directly. This turns "someone added a route and forgot to map it" from a
+// production 403 into a boot-time warning.
+// Only routes that actually use `auth` are gated, so only those need a rule.
+// Deliberately unauthenticated routes (agent SSE, image proxies) are skipped.
+const authzUnmapped = findUnmappedRoutes(
+  app._router.stack
+    .filter(r => r.route && r.route.stack.some(layer => layer.handle === auth))
+    .map(r => r.route.path)
+    .filter(p => typeof p === 'string' && (p.startsWith('/api/') || p.startsWith('/v1/')))
+);
+if (authzUnmapped.length) {
+  logger.warn(
+    `[authz] ${authzUnmapped.length} registered route(s) have no rule in ` +
+    `config/roles.js and will be denied to non-admins:\n  ` +
+    [...new Set(authzUnmapped)].join('\n  ')
+  );
+}
 
 let clientProxy;
 if (ENV === 'dev') {
