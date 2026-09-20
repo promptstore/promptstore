@@ -357,6 +357,15 @@ class TelemetryClient:
         return redacted
 
     def _next_seq(self, trace_id: str) -> int:
+        """This client's own emission counter for a trace.
+
+        Per *process*, not per trace: a fresh client starts it at zero, so a run
+        written by two replicas -- or by one process either side of a restart --
+        reports several counters over one trace_id, repeating and going
+        backwards. It is enough to order one emitter's batch and to spot loss,
+        and it is not a cursor. promptstore assigns `spans.ingest_seq` on write
+        for that, and that is what `?since=` and an SSE frame id carry.
+        """
         with self._seq_lock:
             n = self._seq_by_trace.get(trace_id, 0)
             self._seq_by_trace[trace_id] = n + 1

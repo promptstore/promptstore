@@ -53,7 +53,7 @@ export function TelemetryLiveBus({ logger }) {
         trace_id: span.trace_id,
         workspace_id: span.workspace_id,
         running: !span.end_time,
-        seq: span.seq,
+        seq: span.ingest_seq ?? span.seq,
         ts: span.end_time || span.start_time,
       });
       publisher.publish(workspaceChannel(span.workspace_id), touch).catch(() => { });

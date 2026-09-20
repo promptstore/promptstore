@@ -14,7 +14,33 @@ const COLUMNS = [
   'payload_ref', 'session_id', 'user_id', 'sdk_version', 'seq',
 ];
 
+// `ingest_seq` is the server's, never the caller's: written by the column
+// default on insert and by nextval() on every upsert, so it is read back but
+// never sent. See the cursor note on getSpans.
+const READ_COLUMNS = [...COLUMNS, 'ingest_seq'];
+
 export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): SpanStore {
+
+  // `ingest_seq` arrives with a hand-applied script (016_add_span_ingest_seq.sql,
+  // or scripts/add_span_ingest_seq.sql for a database the init dir never ran
+  // against), so a deployed backend can meet a database that predates it.
+  // Probed once at construction, because without the column every trace read
+  // would fail outright — a worse outcome than the stale cursor the column was
+  // added to fix. Missing, the store says so loudly and goes back to `seq`.
+  let cursor = 'ingest_seq';
+  const ready = pg.query(
+    `SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'spans' AND column_name = 'ingest_seq'`
+  ).then((res: any) => {
+    if (res.rowCount) return;
+    cursor = 'seq';
+    logger.error('spans.ingest_seq is missing: live tailing will silently miss every span from an '
+      + 'emitter that restarted mid-trace. Apply scripts/add_span_ingest_seq.sql.');
+  }).catch((err: any) => {
+    logger.warn('span cursor probe failed; assuming ingest_seq is present:', err.message);
+  });
+
+  const serverCursor = () => cursor === 'ingest_seq';
 
   function toRowValues(span: Span): any[] {
     const usage = span.usage || {};
@@ -88,6 +114,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
       user_id: row.user_id,
       sdk_version: row.sdk_version,
       seq: row.seq != null ? Number(row.seq) : null,
+      ingest_seq: row.ingest_seq != null ? Number(row.ingest_seq) : null,
     };
   }
 
@@ -113,6 +140,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
 
   async function writeSpans(spans: Span[]): Promise<void> {
     if (!spans || spans.length === 0) return;
+    await ready;
     // coalesce duplicates within the batch (see mergeSpan)
     const byKey = new Map<string, Span>();
     for (const span of spans) {
@@ -157,22 +185,47 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
         links            = COALESCE(EXCLUDED.links, spans.links),
         payload_ref      = COALESCE(EXCLUDED.payload_ref, spans.payload_ref),
         seq              = GREATEST(COALESCE(EXCLUDED.seq, 0), COALESCE(spans.seq, 0))
+        -- a patch is a new event for anyone tailing, so it takes a new cursor;
+        -- leaving it alone would deliver a span's start and never its end
+        ${serverCursor() ? `, ingest_seq = nextval('spans_ingest_seq')` : ''}
+      ${serverCursor() ? 'RETURNING trace_id, span_id, ingest_seq' : ''}
     `;
-    await pg.query(q, values);
+    const { rows } = await pg.query(q, values);
+    if (!serverCursor()) return;
+    // Hand the assigned cursor back to the caller's span objects: the live bus
+    // publishes those, and an SSE frame whose id is not the cursor the replay
+    // query filters on cannot be resumed from.
+    const assigned = new Map<string, number>();
+    for (const row of rows) assigned.set(`${row.trace_id}:${row.span_id}`, Number(row.ingest_seq));
+    for (const span of spans) {
+      const stamped = assigned.get(`${span.trace_id}:${span.span_id}`);
+      if (stamped != null) span.ingest_seq = stamped;
+    }
   }
 
+  // sinceSeq is an `ingest_seq` cursor, not the SDK's `seq` — that one counts
+  // per emitting process and so repeats and goes backwards within a trace
+  // written by more than one (see 016_add_span_ingest_seq.sql). The one race
+  // left is a sequence-visibility one: a transaction that took its cursor
+  // before a concurrent writer's but commits after it is invisible to a read
+  // that happened in between, and stays invisible to that cursor. The window is
+  // one in-flight ingest batch, and a reload re-reads the trace whole.
   async function getSpans(workspaceId: number, traceId: string, opts: { sinceSeq?: number } = {}): Promise<Span[]> {
+    await ready;
     const params: any[] = [workspaceId, traceId];
     let where = 'workspace_id = $1 AND trace_id = $2';
     if (opts.sinceSeq != null) {
       params.push(opts.sinceSeq);
-      where += ` AND seq > $${params.length}`;
+      where += ` AND ${cursor} > $${params.length}`;
     }
+    // A cursor read is a delivery queue, so it comes back in cursor order; a
+    // whole-trace read is something a person may well read top to bottom.
+    const order = opts.sinceSeq != null ? cursor : `start_time, ${cursor}`;
     const { rows } = await pg.query(`
-      SELECT ${COLUMNS.join(', ')}
+      SELECT ${(serverCursor() ? READ_COLUMNS : COLUMNS).join(', ')}
       FROM spans
       WHERE ${where}
-      ORDER BY COALESCE(seq, 0), start_time
+      ORDER BY ${order}
       `, params);
     return rows.map(mapRow);
   }
@@ -372,6 +425,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
   }
 
   async function reapStaleSpans(olderThanMs: number): Promise<{ spans: number; traces: number }> {
+    await ready;
     // A trace is stale when it still has an open span but nothing has been
     // ingested for it in `olderThanMs` (using received_at, the server-side
     // ingest time, so a slow/long but still-live run keeps itself fresh and is
@@ -393,6 +447,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
       SET end_time       = GREATEST(st.last_activity, s.start_time),
           status         = CASE WHEN s.status = 'unset' THEN 'error' ELSE s.status END,
           status_message = COALESCE(s.status_message, 'reaped: no end received within TTL (abandoned run)')
+          ${serverCursor() ? `, ingest_seq = nextval('spans_ingest_seq')` : ''}
       FROM stale st
       WHERE s.trace_id = st.trace_id
         AND s.end_time IS NULL
@@ -404,6 +459,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
   }
 
   async function reapAbandonedPauses(olderThanMs: number): Promise<{ spans: number; traces: number }> {
+    await ready;
     // The mirror image of reapStaleSpans: it skips traces with an open
     // hitl.pause, this one handles *only* those. A conversation parked on a
     // human is suspended, not dead, so it is never reaped on the crash TTL —
@@ -431,6 +487,7 @@ export function PostgresSpanStore({ pg, logger }: { pg: any; logger: any }): Spa
                            ),
           status         = CASE WHEN s.status = 'unset' THEN 'abandoned' ELSE s.status END,
           status_message = COALESCE(s.status_message, 'reaped: conversation abandoned (no user reply within HITL pause TTL)')
+          ${serverCursor() ? `, ingest_seq = nextval('spans_ingest_seq')` : ''}
       FROM abandoned ab
       WHERE s.trace_id = ab.trace_id
         AND s.end_time IS NULL

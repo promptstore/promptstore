@@ -184,7 +184,15 @@ export interface Span {
   session_id?: string | null;
   user_id?: string | null;
   sdk_version?: string | null;
-  seq?: number | null;              // monotonic per trace, for ordering/replay
+  // The emitter's own counter, kept as sent. It is monotonic per *process*,
+  // not per trace: an SDK client starts it at zero, so a run written by two
+  // replicas -- or by one process either side of a restart -- reports several
+  // counters over one trace. Never use it as a cursor.
+  seq?: number | null;
+  // The server's ingest cursor, assigned on write and re-assigned on every
+  // upsert. This is what `?since=` filters on and what an SSE frame's id
+  // carries. Absent on a span that has not been through the store yet.
+  ingest_seq?: number | null;
 }
 
 // A node in the reconstructed trace tree (returned by SpanReadService).

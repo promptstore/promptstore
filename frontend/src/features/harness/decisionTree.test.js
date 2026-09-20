@@ -91,6 +91,57 @@ describe('selectDecisionTree', () => {
     expect(loose.steps[0].inferred).toBe(true);
   });
 
+  // seq is assigned by the SDK from a counter held on the client instance, so a
+  // conversation served either side of a process restart — or by two replicas —
+  // carries several counters that each begin again at zero. Ordering turns by it
+  // scrambles the tree: the closing turn drawn first, each answer attached to
+  // somebody else's question, and the step that was actually answered left
+  // pending forever.
+  it('orders turns by when they ran, not by a seq that restarts mid-conversation', () => {
+    const { steps, path } = run([
+      root,
+      { ...turn(0, [point(OFFER)]), seq: 40 },
+      {
+        ...turn(1, [
+          choice({ branch: 'Dripping', branch_index: 0, match: 'exact' }),
+          point({ step: 'AwaitingSlotsNode' }),
+        ]),
+        seq: 1,
+      },
+      {
+        ...turn(2, [
+          choice({ branch: OTHER_BRANCH, match: 'none' }),
+          point({ step: 'AwaitingResolutionNode' }),
+        ]),
+        seq: 2,
+      },
+    ]);
+
+    expect(steps.map(s => s.turn)).toEqual([0, 1, 2]);
+    expect(steps.map(s => s.step)).toEqual(['DiagnosingNode', 'AwaitingSlotsNode', 'AwaitingResolutionNode']);
+    // nothing had to be rebuilt, and only the step nobody has answered yet is
+    // still pending
+    expect(steps.some(s => s.reconstructed)).toBe(false);
+    expect(steps.map(s => s.pending)).toEqual([false, false, true]);
+    expect(path).toEqual(['Dripping', 'Other']);
+  });
+
+  it('keeps a turn that emitted no decision events in the count', () => {
+    const { steps } = run([
+      root,
+      turn(0, [point(OFFER)]),
+      turn(1, []),                                  // a turn that decided nothing
+      turn(2, [
+        choice({ branch: 'Running', branch_index: 1, match: 'exact' }),
+        point({ step: 'AwaitingSlotsNode' }),
+      ]),
+    ]);
+    // the choice still resolves the step that was open, and turn 2 is labelled
+    // turn 2 -- numbering only the turns that spoke up would call it turn 1
+    expect(steps.map(s => s.turn)).toEqual([0, 2]);
+    expect(steps[0].branches.find(b => b.taken).label).toBe('Running');
+  });
+
   it("uses the turn's last point, the way a chat UI picks the live chip row", () => {
     const { steps } = run([
       root,

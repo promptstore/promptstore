@@ -169,14 +169,19 @@ export default ({ app, auth, logger, services }) => {
     const workspaceId = +claims.ws;
     sseHeaders(res);
 
+    // The frame id is the span's ingest_seq — the server's cursor, which is
+    // what a Last-Event-ID replay filters on. The SDK's own `seq` cannot serve:
+    // it counts per emitting process, so two replicas writing one trace both
+    // hand out a seq 3 and the dedupe below would swallow the second span.
     const writtenSeqs = new Set();
     const writeSpan = (span) => {
       if (res.writableLength > SSE_WRITABLE_CAP) return;   // slow client — drop, recover on reconnect
-      if (span.seq != null) {
-        if (writtenSeqs.has(span.seq)) return;             // dedupe replay vs live overlap
-        writtenSeqs.add(span.seq);
+      const cursor = span.ingest_seq;
+      if (cursor != null) {
+        if (writtenSeqs.has(cursor)) return;               // dedupe replay vs live overlap
+        writtenSeqs.add(cursor);
       }
-      res.write(`id: ${span.seq != null ? span.seq : ''}\ndata: ${JSON.stringify(span)}\n\n`);
+      res.write(`id: ${cursor != null ? cursor : ''}\ndata: ${JSON.stringify(span)}\n\n`);
     };
 
     // Subscribe first and buffer, so nothing published during replay is lost.

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button, Empty, Tag, Tooltip } from 'antd';
 import { FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
-import ReactFlow, { Background, Controls, MarkerType, Position } from 'reactflow';
+import ReactFlow, { BaseEdge, Background, Controls, MarkerType, Position } from 'reactflow';
 
 import { selectDecisionTree, selectSelectedSpanId, selectSpan } from '../harnessTracesSlice';
 
@@ -66,6 +66,47 @@ const CANVAS_MIN_H = 360;
 // Full screen is the same column, lifted out of the panel and over the page --
 // above antd's drawer/modal layer so nothing on the trace page sits over it.
 const FULLSCREEN = { ...SHELL, position: 'fixed', inset: 0, zIndex: 1050, background: '#fff', padding: 16 };
+
+// A step the trace never recorded an answer for still led somewhere, and a
+// trunk that stops dead in the middle of a conversation reads as a broken
+// drawing rather than as data the trace never carried. The continuation is
+// drawn down a lane beside the options, not straight down through them: the
+// trunk normally leaves a step by the option that was taken, and a step with no
+// taken option has nothing between it and the next step but its own untaken
+// row, which a vertical line would run right through.
+const LANE_GAP = 24;      // clear air between the option row and the lane
+const LANE_R = 10;        // corner radius
+const LANE_APPROACH = 26; // the drop back onto the centre line, above the target
+
+function SidestepEdge({ sourceX, sourceY, targetX, targetY, data, style, markerEnd, label, labelStyle, labelBgStyle }) {
+  const lane = (data && data.lane != null) ? data.lane : sourceX;
+  const turn = targetY - LANE_APPROACH;
+  const path = [
+    `M ${sourceX},${sourceY}`,
+    `L ${lane + LANE_R},${sourceY}`,
+    `Q ${lane},${sourceY} ${lane},${sourceY + LANE_R}`,
+    `L ${lane},${turn - LANE_R}`,
+    `Q ${lane},${turn} ${lane + LANE_R},${turn}`,
+    `L ${targetX - LANE_R},${turn}`,
+    `Q ${targetX},${turn} ${targetX},${turn + LANE_R}`,
+    `L ${targetX},${targetY}`,
+  ].join(' ');
+  return (
+    <BaseEdge
+      path={path}
+      style={style}
+      markerEnd={markerEnd}
+      label={label}
+      labelX={lane}
+      labelY={(sourceY + turn) / 2}
+      labelStyle={labelStyle}
+      labelBgStyle={labelBgStyle}
+      labelShowBg
+    />
+  );
+}
+
+const edgeTypes = { sidestep: SidestepEdge };
 
 function truncate(text, chars) {
   if (!text) return '';
@@ -225,6 +266,25 @@ export default function DecisionTree() {
           markerEnd: { type: MarkerType.ArrowClosed, color: taken.other ? OTHER : TAKEN },
           style: { stroke: taken.other ? OTHER : TAKEN, strokeWidth: 2 },
         });
+      } else if (!taken && next) {
+        // No choice event ever resolved this step, so there is no taken option
+        // to carry the trunk. The two steps are joined anyway — faintly, down
+        // the lane, and with the gap named — because an unexplained break in
+        // the trunk reads as a bug in the drawing.
+        const n = step.branches.length;
+        const rowW = n ? n * BRANCH_W + (n - 1) * BRANCH_GAP : STEP_W;
+        edges.push({
+          id: `${id}~>${stepId(next)}`,
+          type: 'sidestep',
+          source: id,
+          target: stepId(next),
+          data: { lane: -rowW / 2 - LANE_GAP },
+          markerEnd: { type: MarkerType.ArrowClosed, color: INK.axis },
+          style: { stroke: INK.axis, strokeWidth: 1, strokeDasharray: '2 4' },
+          label: 'no choice traced',
+          labelStyle: { fill: INK.muted, fontSize: 10 },
+          labelBgStyle: { fill: '#fff' },
+        });
       }
     });
 
@@ -326,6 +386,7 @@ export default function DecisionTree() {
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          edgeTypes={edgeTypes}
           onInit={onInit}
           minZoom={0.2}
           // The wheel pans instead of zooming, which the other ReactFlow views

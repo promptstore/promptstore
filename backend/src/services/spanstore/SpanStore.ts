@@ -75,10 +75,15 @@ export interface CostDistributionRow {
 
 export interface SpanStore {
   // Persist a batch of spans (upsert by (trace_id, span_id) so start/end patch).
+  // Stamps each span with the `ingest_seq` it was written under, so a caller
+  // that goes on to publish the same objects live emits the cursor a reader can
+  // resume from.
   writeSpans(spans: Span[]): Promise<void>;
 
-  // All spans for a trace within a workspace, ordered by (seq, start_time).
-  // sinceSeq enables incremental polling / live replay.
+  // All spans for a trace within a workspace. sinceSeq is an `ingest_seq`
+  // cursor — the server's, not the emitter's `seq` — and enables incremental
+  // polling and live replay; a cursor read comes back in cursor order, a whole
+  // read in start_time order.
   getSpans(workspaceId: number, traceId: string, opts?: { sinceSeq?: number }): Promise<Span[]>;
 
   // Paginated per-trace summaries for the list view.

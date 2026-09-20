@@ -13,8 +13,14 @@
 DROP TABLE IF EXISTS public."spans";
 
 DROP SEQUENCE IF EXISTS public."spans_id_seq";
+DROP SEQUENCE IF EXISTS public."spans_ingest_seq";
 
 CREATE SEQUENCE public."spans_id_seq" AS bigint;
+
+-- The ingest cursor live tailing reads. Shared by every writer and re-assigned
+-- on each upsert, unlike `seq`, which the SDK counts per emitting process --
+-- see 016_add_span_ingest_seq.sql for why that distinction matters.
+CREATE SEQUENCE public."spans_ingest_seq" AS bigint;
 
 CREATE TABLE public."spans"
 (
@@ -49,6 +55,7 @@ CREATE TABLE public."spans"
     user_id character varying(255),
     sdk_version character varying(64),
     seq bigint,
+    ingest_seq bigint NOT NULL DEFAULT nextval('"spans_ingest_seq"'::regclass),
     received_at TIMESTAMP(6) WITH TIME ZONE NOT NULL DEFAULT NOW(),
     CONSTRAINT "spans_pkey" PRIMARY KEY (id),
     CONSTRAINT "spans_span_uniq" UNIQUE (trace_id, span_id)
@@ -61,11 +68,14 @@ TABLESPACE pg_default;
 ALTER TABLE public."spans" OWNER to dbadmin;
 ALTER SEQUENCE public."spans_id_seq" OWNER to dbadmin;
 ALTER SEQUENCE public."spans_id_seq" OWNED BY public."spans"."id";
+ALTER SEQUENCE public."spans_ingest_seq" OWNER to dbadmin;
+ALTER SEQUENCE public."spans_ingest_seq" OWNED BY public."spans"."ingest_seq";
 
 -- Tree reads by trace, workspace-scoped analytics, and live replay by seq.
 CREATE INDEX "spans_ws_trace_start_idx" ON public."spans" (workspace_id, trace_id, start_time);
 CREATE INDEX "spans_ws_start_idx" ON public."spans" (workspace_id, start_time);
 CREATE INDEX "spans_trace_seq_idx" ON public."spans" (trace_id, seq);
+CREATE INDEX "spans_trace_ingest_seq_idx" ON public."spans" (trace_id, ingest_seq);
 CREATE INDEX "spans_ws_kind_start_idx" ON public."spans" (workspace_id, span_kind, start_time);
 
 -- ---------------------------------------------------------------------------

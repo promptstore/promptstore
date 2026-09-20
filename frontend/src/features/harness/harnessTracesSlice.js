@@ -3,9 +3,20 @@ import qs from 'qs';
 
 import { http } from '../../http';
 
+// The server's ingest cursor, falling back to the emitter's counter only where
+// there is no server one to read (see the note above).
+const cursorOf = (span) => (span.ingest_seq != null ? span.ingest_seq : span.seq);
+
 // Normalized store for harness spans. A trace is held as spans keyed by
 // span_id so live updates (Phase 2) patch entities in place; the tree is a
 // pure selector over that map. `mode` is 'completed' | 'running'.
+//
+// `lastSeq` is the incremental cursor the poll and the SSE resume are driven
+// from, and it reads `ingest_seq`, the server's. The SDK's `seq` is a
+// per-process counter — a run written by two replicas, or by one process either
+// side of a restart, reports several of them over one trace — so a cursor built
+// from it goes backwards and the tail silently stops delivering. `seq` is only
+// the fallback for a span from a store too old to carry a cursor.
 
 export const harnessTracesSlice = createSlice({
   name: 'harnessTraces',
@@ -58,7 +69,8 @@ export const harnessTracesSlice = createSlice({
       let lastSeq = state.current.lastSeq;
       for (const s of spans) {
         byId[s.span_id] = s;
-        if (s.seq != null && s.seq > lastSeq) lastSeq = s.seq;
+        const cursor = cursorOf(s);
+        if (cursor != null && cursor > lastSeq) lastSeq = cursor;
       }
       state.current.spans = byId;
       state.current.summary = summary;
@@ -77,7 +89,8 @@ export const harnessTracesSlice = createSlice({
       for (const s of action.payload.spans) {
         const existing = state.current.spans[s.span_id];
         state.current.spans[s.span_id] = existing ? { ...existing, ...s } : s;
-        if (s.seq != null && s.seq > state.current.lastSeq) state.current.lastSeq = s.seq;
+        const cursor = cursorOf(s);
+        if (cursor != null && cursor > state.current.lastSeq) state.current.lastSeq = cursor;
         if (!newestSpan || (s.start_time || '') > (newestSpan.start_time || '')) newestSpan = s;
       }
       // derive running from whether any span is still open
@@ -397,10 +410,24 @@ const CONTEXT_EVENT_KIND = {
 };
 
 // --- shared span-walking helpers (context timeline + decision tree) ---------
-// Ingest order: seq is monotonic per trace, start_time breaks ties for spans
-// that arrived in the same batch.
+// Run order: start_time is the clock the span was opened on; seq breaks ties
+// between spans opened in the same instant.
+//
+// seq deliberately does NOT lead. It is assigned by the SDK from a counter held
+// on the client *instance*, so it is monotonic per emitting process, not per
+// trace: a conversation served by more than one replica — or by one process
+// either side of a restart — carries several counters that each begin again at
+// zero. Leading on it scrambles the turns of any such trace, which is what put
+// a conversation's closing turn at the top of the decision tree and attached
+// each answer to somebody else's question.
+const cmpTime = (a, b) => {
+  const x = a.start_time || '';
+  const y = b.start_time || '';
+  return x < y ? -1 : x > y ? 1 : 0;
+};
+
 const spansInOrder = (spansMap) => Object.values(spansMap)
-  .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.start_time < b.start_time ? -1 : 1));
+  .sort((a, b) => cmpTime(a, b) || (cursorOf(a) ?? 0) - (cursorOf(b) ?? 0));
 
 const isAgentSpan = (s) => s.span_kind === 'harness.run' || s.span_kind === 'subagent.spawn';
 
@@ -419,15 +446,24 @@ const nearestAncestor = (spansMap, span, pred, { stopAtAgent = false } = {}) => 
 
 const isLoopSpan = (s) => s.span_kind === 'loop.iteration';
 
-// Turn ordinals are assigned in first-seen order rather than read off the span,
-// so a trace whose turn spans are named or indexed differently still numbers
-// its turns 0..n in the order they ran.
-const turnOrdinals = () => {
-  const seen = new Map();
+// Turn ordinals are assigned by the order the turn spans ran rather than read
+// off the span, so a trace whose turn spans are named or indexed differently
+// still numbers its turns 0..n.
+//
+// Numbered over the loop spans themselves, not over whichever span happened to
+// carry a turn's first interesting event: a turn whose events all sit on a
+// nested span is still that turn, and a turn that emits nothing at all still
+// takes its place in the count rather than shifting every later turn down one.
+const turnOrdinals = (spansMap) => {
+  const order = new Map();
+  Object.values(spansMap)
+    .filter(isLoopSpan)
+    .sort((a, b) => cmpTime(a, b) || (cursorOf(a) ?? 0) - (cursorOf(b) ?? 0) || (a.span_id < b.span_id ? -1 : 1))
+    .forEach((loop, i) => order.set(loop.span_id, i));
   return (loop) => {
     if (!loop) return null;
-    if (!seen.has(loop.span_id)) seen.set(loop.span_id, seen.size);
-    return seen.get(loop.span_id);
+    const ordinal = order.get(loop.span_id);
+    return ordinal == null ? null : ordinal;
   };
 };
 
@@ -447,7 +483,7 @@ export const selectContextTimeline = createSelector([selectSpansMap], (spansMap)
   events.sort((a, b) => ((a.ev.time || '') < (b.ev.time || '') ? -1 : 1));
 
   let lastComposition = null;
-  const ordinalOf = turnOrdinals();
+  const ordinalOf = turnOrdinals(spansMap);
 
   return events.map(({ span, ev, kind }, index) => {
     const p = ev.attributes || {};
@@ -513,7 +549,7 @@ export const OTHER_BRANCH = '__other__';
 const DEFINITE_MATCHES = new Set(['exact', 'normalized', 'translated', 'synonym', 'none']);
 
 export const selectDecisionTree = createSelector([selectSpansMap], (spansMap) => {
-  const ordinalOf = turnOrdinals();
+  const ordinalOf = turnOrdinals(spansMap);
 
   // turn ordinal -> { spanId, points: [], choice }
   const turns = new Map();
@@ -530,9 +566,15 @@ export const selectDecisionTree = createSelector([selectSpansMap], (spansMap) =>
       if (ev.name !== DECISION_POINT && ev.name !== DECISION_CHOICE) continue;
       const entry = turnOf(span);
       if (!entry) continue;
-      if (ev.name === DECISION_POINT) entry.points.push(ev.attributes || {});
+      // Keyed by the event's own clock, not the span's: which of a turn's
+      // points was the live one is decided by the last one *emitted*, and a
+      // turn's events can arrive spread over the turn span and its children.
+      if (ev.name === DECISION_POINT) entry.points.push({ time: ev.time || '', attributes: ev.attributes || {} });
       else entry.choice = ev.attributes || {};
     }
+  }
+  for (const entry of turns.values()) {
+    entry.points.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
   }
 
   const steps = [];
@@ -609,7 +651,7 @@ export const selectDecisionTree = createSelector([selectSpansMap], (spansMap) =>
     // a chat UI uses to decide which chip row is live; earlier ones are
     // narration the user cannot answer.
     if (entry.points.length) {
-      const point = entry.points[entry.points.length - 1];
+      const point = entry.points[entry.points.length - 1].attributes;
       openStep({
         turn: entry.turn,
         spanId: entry.spanId,
