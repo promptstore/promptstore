@@ -91,6 +91,7 @@ export interface ModelCallParams {
   provider?: string;
   request: ChatRequest;
   callbacks?: Callback[];
+  skipCache?: boolean;  // bypass the semantic cache (e.g. mid-loop agent harness turns)
 }
 
 export interface ModelOnStartResponse {

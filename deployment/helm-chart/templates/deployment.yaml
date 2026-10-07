@@ -182,9 +182,6 @@ spec:
           image: "{{ .Values.containerRegistry }}/{{ .Values.appname }}:{{ .Values.version }}"
           command: ["node"]
           args: ["--loader", "ts-node/esm", "workflow/worker.js"]
-          env:
-            - name: NODE_OPTIONS
-              value: "--experimental-modules --es-module-specifier-resolution=node"
           envFrom:
             - configMapRef:
                 name: "{{ .Values.appname }}"

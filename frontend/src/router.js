@@ -56,6 +56,7 @@ import { PromptSetView } from './features/promptSets/PromptSetView';
 import { RagTester } from './features/ragtester/RagTester';
 import { RulesList } from './features/rules/RulesList';
 import { RuleForm } from './features/rules/RuleForm';
+import { McpServers } from './features/mcpServers/McpServers';
 import { Secrets } from './features/secrets/Secrets';
 import { SettingsList } from './features/settings/SettingsList';
 import { SettingsForm } from './features/settings/SettingsForm';
@@ -171,6 +172,7 @@ const router = ({ currentUser, isDarkMode, selectedWorkspace }) => {
                       <Route path="/prompt-sets/:id" element={<PromptSetView />} />
                       <Route path="/prompt-sets" element={<PromptSetsList />} />
                       <Route path="/rag" element={<RagTester />} />
+                      <Route path="/mcp-servers" element={<McpServers />} />
                       <Route path="/secrets" element={<Secrets />} />
                       <Route path="/test-scenarios/:id" element={<TestScenarioEditor />} />
                       <Route path="/test-scenarios" element={<TestScenarios />} />

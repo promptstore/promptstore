@@ -1,5 +1,15 @@
 import { Composition } from '../core/compositions/Composition';
+import { MessageRole, convertContentTypeToString } from '../core/conversions/RosettaStone';
+import type { HarnessServiceType } from '../core/harness/HarnessService';
+import type { HarnessToolRef } from '../core/harness/types';
+import { LLMModel } from '../core/models/llm_types';
 import { SemanticFunction } from '../core/semanticfunctions/SemanticFunction';
+
+interface AgentHarness {
+  harnessService: HarnessServiceType;
+  model: LLMModel;
+  toolRefs: HarnessToolRef[];
+}
 
 export class AgentRuntime {
 
@@ -17,6 +27,7 @@ export class AgentRuntime {
   provider: string;
   selfEvaluate: boolean;
   useFunctions: boolean;
+  harness?: AgentHarness;
 
   constructor({
     agentType,
@@ -33,6 +44,7 @@ export class AgentRuntime {
     provider,
     selfEvaluate,
     useFunctions,
+    harness = undefined,
   }) {
     this.agentType = agentType;
     this.agents = agents;
@@ -48,9 +60,13 @@ export class AgentRuntime {
     this.provider = provider;
     this.selfEvaluate = selfEvaluate;
     this.useFunctions = useFunctions;
+    this.harness = harness;
   }
 
   async call({ email, callbacks, args, username, workspaceId, parentAgentName }) {
+    if (this.agentType === 'harness') {
+      return this.callHarness({ callbacks, args, username, workspaceId });
+    }
     const modelParams = { max_tokens: 1024 };
     const options = {
       name: this.name,
@@ -97,6 +113,45 @@ export class AgentRuntime {
     });
     console.log('Return agent runtime response:', response);
     return response;
+  }
+
+  /**
+   * Agent instructions (the agent's prompt) become the system prompt and the
+   * goal the user message.
+   */
+  async callHarness({ callbacks = [], args, username, workspaceId }) {
+    if (!this.harness) {
+      throw new Error('Agent harness is not configured');
+    }
+    const { harnessService, model, toolRefs } = this.harness;
+    const goal = args?.goal || this.args?.goal;
+    for (const cb of callbacks) {
+      cb.onAgentStart?.({ name: this.name, args: { goal }, model: this.model, modelParams: {} });
+    }
+    try {
+      const { response } = await harnessService.run({
+        name: this.name,
+        model,
+        provider: this.provider,
+        modelKey: this.model,
+        modelParams: { max_tokens: 4096 },
+        systemPrompt: args?.goal ? this.args?.goal : undefined,
+        prompts: [{ role: MessageRole.user, content: goal }],
+        config: { enabled: true, tools: toolRefs },
+        callbacks,
+        run: { workspaceId, username },
+      });
+      const content = convertContentTypeToString(response.choices[0].message.content);
+      for (const cb of callbacks) {
+        cb.onAgentEnd?.({ response: content });
+      }
+      return content;
+    } catch (err) {
+      for (const cb of callbacks) {
+        cb.onAgentEnd?.({ errors: [{ message: err.message }] });
+      }
+      throw err;
+    }
   }
 
 }

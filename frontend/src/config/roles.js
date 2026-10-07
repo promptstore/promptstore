@@ -9,7 +9,7 @@ import { isPathFeatureDisabled } from './featureFlags';
 // literally (CRA cannot import across src/), so they are kept in step by
 // ROLE_MAP_VERSION - bump it in BOTH files on any change. roles.sync.test.js
 // enforces that.
-export const ROLE_MAP_VERSION = 1;
+export const ROLE_MAP_VERSION = 3;
 
 // Role given to a user who holds no recognised role. Assigned by the backend
 // on first login and on invite; also used as the pre-hydration placeholder in
@@ -85,6 +85,7 @@ export const RESTRICTED_ROLE_ACCESS = {
       'composer',
       'models',
       'agents',
+      'mcp-servers',
     ],
     pathPrefixes: [
       ...PROMPT_ENGINEER_ACCESS.pathPrefixes,
@@ -92,6 +93,7 @@ export const RESTRICTED_ROLE_ACCESS = {
       '/compositions',
       '/models',
       '/agents',
+      '/mcp-servers',
     ],
   },
   // `evaluator` extends `promptengineer` with the Evals items:

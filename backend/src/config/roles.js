@@ -6,7 +6,7 @@
 // ROLE_MAP_VERSION — bump it in BOTH files on any change.
 // frontend/src/config/roles.sync.test.js enforces that.
 
-export const ROLE_MAP_VERSION = 1;
+export const ROLE_MAP_VERSION = 3;
 
 export const ROLES = [
   'admin',
@@ -193,6 +193,7 @@ export const ADMIN_ONLY_API_ACCESS = [
 const HARNESS_READ = [
   g('/api/harness'),  // cost/*, insights, budgets (GET)
   g('/api/harness-traces'),
+  g('/api/harness-sessions'),
   { path: '/api/harness-stream-token', methods: ['POST'] },
   { path: '/api/harness-traces/:traceId/stream-token', methods: ['POST'] },
 ];
@@ -241,6 +242,7 @@ export const ROLE_API_ACCESS = {
     '/api/compositions',
     w('/api/models'),
     '/api/agents',
+    '/api/mcp-servers',
     '/api/agent-executions',
     '/api/agent-execution-status/:correlationId',
   ],

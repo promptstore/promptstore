@@ -113,7 +113,7 @@ plugins:
   featurestore: ""
   graphstore: ""
   guardrail: "emojiremover|Emoji Remover|./plugins/guardrails/emojiremover|type=output"
-  llm: "bedrock|AWS Bedrock|./plugins/llms/bedrock,litellm|LiteLLM|./plugins/llms/litellm"
+  llm: "openai|OpenAI|./plugins/llms/openai,bedrock|AWS Bedrock|./plugins/llms/bedrock,litellm|LiteLLM|./plugins/llms/litellm"
   loader: ""
   metricstore: ""
   modelprovider: ""

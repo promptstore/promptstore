@@ -159,6 +159,11 @@ const getSideMenuItems = (isWorkspaceSelected, currentUser) => {
               label: <NavLink to="/agents">Agents</NavLink>,
             },
             {
+              key: 'mcp-servers',
+              icon: <ApiOutlined />,
+              label: <NavLink to="/mcp-servers">MCP Servers</NavLink>,
+            },
+            {
               key: 'agent-networks',
               icon: <RadarChartOutlined />,
               label: <NavLink to="/agent-networks">Agent-Networks</NavLink>,

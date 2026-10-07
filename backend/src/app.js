@@ -17,7 +17,6 @@ import axios from 'axios';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
-import 'web-streams-polyfill/polyfill';
 
 import pg from './db';
 import initSearchIndex from './initSearchIndex';
@@ -63,6 +62,11 @@ import { TestCasesService } from './services/TestCasesService';
 import { TestScenariosService } from './services/TestScenariosService.js';
 import { ToolService } from './services/ToolService';
 import { TracesService } from './services/TracesService';
+import { HarnessService } from './core/harness/HarnessService';
+import { McpClientManager } from './core/harness/McpClientManager';
+import { PostgresSessionStore } from './core/harness/PostgresSessionStore';
+import { ToolResolver } from './core/harness/ToolResolver';
+import { McpServersService } from './services/McpServersService';
 import { PricingService } from './services/PricingService';
 import { BudgetsService } from './services/BudgetsService';
 import { InsightsService } from './services/InsightsService';
@@ -80,6 +84,13 @@ import { VectorStoreService } from './services/VectorStoreService';
 import { assertRequiredEnv, requireEnv } from './config/requiredEnv';
 import { getPlugins, installModules } from './utils';
 import * as workflowClient from './workflow/clients';
+
+// Web streams are native globals on Node >= 18. Polyfill only when they are
+// missing: replacing native ReadableStream/TransformStream breaks libraries
+// that pipe native fetch() bodies through them (e.g. the MCP SDK's SSE parser).
+if (typeof globalThis.ReadableStream === 'undefined') {
+  await import('web-streams-polyfill/polyfill');
+}
 
 const ENV = process.env.ENV?.toLowerCase();
 logger.debug('ENV:', ENV);
@@ -649,6 +660,37 @@ const toolService = ToolService({ logger, registry: toolPlugins });
 
 executionsService.addServices({ guardrailsService, pipelinesService, toolService });
 
+// Agent harness: multi-turn tool loop for semantic function implementations.
+const harnessSessionStore = PostgresSessionStore({ pg, logger });
+
+const mcpServersService = McpServersService({ pg, logger });
+
+const mcpClientManager = McpClientManager({ logger, secretsService });
+
+const harnessService = HarnessService({
+  logger,
+  toolResolver: ToolResolver({
+    logger,
+    services: {
+      agentsService,
+      compositionsService,
+      executionsService,
+      functionsService,
+      indexesService,
+      llmService,
+      mcpClientManager,
+      mcpServersService,
+      toolService,
+      vectorStoreService,
+    },
+  }),
+  telemetryIngestService,
+  pricingService,
+  sessionStore: harnessSessionStore,
+});
+
+executionsService.addServices({ harnessService });
+
 const options = {
   app,
   auth,
@@ -715,6 +757,10 @@ const options = {
     spanStore,
     payloadStore,
     telemetryIngestService,
+    harnessService,
+    harnessSessionStore,
+    mcpClientManager,
+    mcpServersService,
     telemetryLiveBus,
     spanReadService,
     budgetsService,

@@ -11,6 +11,7 @@ export const functionsSlice = createSlice({
     loading: false,
     functions: {},
     testResult: null,
+    testHarness: null,
     testResultLoaded: false,
     testResultLoading: false,
   },
@@ -32,6 +33,7 @@ export const functionsSlice = createSlice({
     },
     setTestResult: (state, action) => {
       state.testResult = action.payload.result;
+      state.testHarness = action.payload.harness || null;
       state.testResultLoaded = true;
       state.testResultLoading = false;
     },
@@ -123,7 +125,7 @@ export const runTestAsync = ({ args, env, modelId, model, name, workspaceId }) =
   const url = `/api/executions/${name}`;
   const res = await http.post(url, { args, env, params: { modelId, model: model, maxTokens: 4096 }, workspaceId });
   const { response, responseMetadata } = res.data;
-  dispatch(setTestResult({ result: response }));
+  dispatch(setTestResult({ result: response, harness: responseMetadata.harness }));
   dispatch(setCredits({ credits: responseMetadata.creditBalance }));
 };
 
@@ -136,6 +138,8 @@ export const selectFunctions = (state) => state.functions.functions;
 export const selectTestResult = (state) => state.functions.testResult;
 
 export const selectTestResultLoaded = (state) => state.functions.testResultLoaded;
+
+export const selectTestHarness = (state) => state.functions.testHarness;
 
 export const selectTestResultLoading = (state) => state.functions.testResultLoading;
 

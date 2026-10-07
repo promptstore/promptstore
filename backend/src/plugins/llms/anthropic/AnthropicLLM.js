@@ -34,13 +34,17 @@ function AnthropicLLM({ __name, constants, logger }) {
         message += '\n' + err.stack;
       }
       logger.error(message);
-      if (res?.error?.message.startsWith('That model is currently overloaded with other requests')) {
+      const overloaded = err.status === 529 ||
+        res?.error?.message?.startsWith('That model is currently overloaded with other requests');
+      if (overloaded) {
         if (retryCount > 2) {
           throw new Error('Exceeded retry count: ' + err.message, { cause: err });
         }
         await delay(2000);
-        return createChatCompletion(request, retryCount + 1);
+        return createChatCompletion(request, parserService, retryCount + 1);
       }
+      // surface failures to the caller instead of returning undefined
+      throw err;
     }
   }
 

@@ -28,14 +28,48 @@ export function PricingService({ logger, rc, services } = {}) {
   const modelsService = services?.modelsService;
   let priceMap = { ...FALLBACK };
   let loadedAt = 0;
+  let failedAt = 0;
   let loading = null;
+  const unpriced = new Set();
+
+  // A failed fetch leaves loadedAt at 0, so without this every getPricing call
+  // would re-attempt the download — once per span.
+  const RETRY_AFTER_FAIL_MS = 5 * 60 * 1000;
+
+  // Cross-region inference-profile prefixes, as Bedrock spells them.
+  const REGION_PREFIXES = ['us.', 'eu.', 'apac.', 'ap.', 'jp.', 'au.', 'in.', 'global.', 'us-gov.'];
+  const VENDOR_PREFIXES = ['anthropic.', 'openai.', 'amazon.', 'meta.', 'mistral.', 'cohere.'];
+
+  // The ids a model might be keyed under, most specific first. LiteLLM keys the
+  // inference profiles themselves ('global.anthropic.claude-haiku-4-5-20251001-v1:0')
+  // AND the bare names ('claude-haiku-4-5-20251001'), and prices them apart — a
+  // region carries its own rate. So the full id is tried first and the strips are
+  // a fallback, not a normalisation: stripping first would both lose the regional
+  // price and, for a Bedrock Claude id, miss entirely (the '-v1:0' suffix is
+  // Bedrock's, and no bare LiteLLM key carries it).
+  function modelCandidates(model) {
+    if (!model) return [];
+    const out = [];
+    const push = (m) => { if (m && !out.includes(m)) out.push(m); };
+    push(model);
+    // provider prefix, e.g. 'anthropic/claude-...', 'bedrock/anthropic.claude-...'
+    let m = model.includes('/') ? model.split('/').pop() : model;
+    push(m);
+    for (const pref of REGION_PREFIXES) {
+      if (m.startsWith(pref)) { m = m.slice(pref.length); push(m); break; }
+    }
+    for (const vendor of VENDOR_PREFIXES) {
+      if (m.startsWith(vendor)) { m = m.slice(vendor.length); push(m); break; }
+    }
+    // Bedrock's version suffix ('-v1:0') is not part of any bare LiteLLM key.
+    // Only reached once the prefixes are off, i.e. for a caller that already
+    // stripped them itself — several SDK callers used to.
+    push(m.replace(/-v\d+:\d+$/, ''));
+    return out;
+  }
 
   function normalizeModel(model) {
-    if (!model) return model;
-    // strip a provider prefix (e.g. 'anthropic/claude-...', 'bedrock/anthropic.claude-...')
-    let m = model;
-    if (m.includes('/')) m = m.split('/').pop();
-    return m;
+    return modelCandidates(model)[1] || model;
   }
 
   async function fetchMap() {
@@ -47,17 +81,28 @@ export function PricingService({ logger, rc, services } = {}) {
       delete json.sample_spec; // LiteLLM includes a non-model spec entry
       priceMap = { ...FALLBACK, ...json };
       loadedAt = Date.now();
+      failedAt = 0;
+      unpriced.clear();
       if (rc) {
         try { await rc.set(REDIS_KEY, JSON.stringify(priceMap)); } catch (e) { /* non-fatal */ }
       }
       logger?.info?.(`PricingService: loaded ${Object.keys(priceMap).length} model prices`);
     } catch (err) {
-      logger?.warn?.('PricingService: could not fetch LiteLLM price map, using cached/fallback:', err.message);
+      failedAt = Date.now();
+      // An error, not a warning: with no map, every model outside the handful in
+      // FALLBACK prices as null and the whole cost surface reads $0.00 with
+      // nothing else to distinguish it from a genuinely free run.
+      logger?.error?.(
+        'PricingService: could not fetch the LiteLLM price map, falling back to '
+        + `${Object.keys(FALLBACK).length} bundled models — cost will be missing for every other model:`,
+        err.message,
+      );
     }
   }
 
   async function ensureLoaded() {
     if (Date.now() - loadedAt < REFRESH_MS && loadedAt > 0) return;
+    if (loadedAt === 0 && failedAt && Date.now() - failedAt < RETRY_AFTER_FAIL_MS) return;
     if (loading) return loading;
     loading = (async () => {
       if (rc && loadedAt === 0) {
@@ -94,7 +139,15 @@ export function PricingService({ logger, rc, services } = {}) {
         }
       } catch (e) { /* fall through to map */ }
     }
-    return priceMap[key] || priceMap[model] || null;
+    let pricing = null;
+    for (const candidate of modelCandidates(model)) {
+      if (priceMap[candidate]) { pricing = priceMap[candidate]; break; }
+    }
+    if (!pricing && model && !unpriced.has(key)) {
+      unpriced.add(key);
+      logger?.warn?.(`PricingService: no price for model '${model}' — its spans will carry no cost`);
+    }
+    return pricing;
   }
 
   // Compute cost for a model.call span given its usage. cached prompt tokens are
@@ -105,8 +158,17 @@ export function PricingService({ logger, rc, services } = {}) {
     const pricing = await getPricing(model, { workspaceId });
     if (!pricing) return null;
     const promptTokens = usage.prompt_tokens || 0;
-    const cached = Math.min(usage.cached_tokens || 0, promptTokens);
-    const uncached = promptTokens - cached;
+    const reportedCached = usage.cached_tokens || 0;
+    // Providers disagree about whether cached prompt tokens are INSIDE
+    // prompt_tokens or reported beside it. OpenAI folds them in (so the cached
+    // part must be subtracted out); Bedrock — Converse and its OpenAI-compatible
+    // endpoint alike — reports them disjointly, and there prompt_tokens is
+    // already the uncached remainder (a real span: prompt 2, cached 5363).
+    // Clamping to prompt_tokens, as this did, threw away every cached token on
+    // the disjoint providers and billed a 5k-token prompt as two tokens.
+    const disjoint = reportedCached > promptTokens;
+    const cached = reportedCached;
+    const uncached = disjoint ? promptTokens : promptTokens - cached;
     const inRate = pricing.input_cost_per_token || 0;
     const cacheRate = pricing.cache_read_input_token_cost != null ? pricing.cache_read_input_token_cost : inRate;
     const outRate = pricing.output_cost_per_token || 0;

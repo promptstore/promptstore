@@ -64,10 +64,37 @@ import {
   CompositionOnStartResponse,
   CompositionOnEndResponse,
 } from '../compositions/Composition_types';
+import {
+  HarnessOnStartResponse,
+  HarnessOnEndResponse,
+  HarnessToolCallResponse,
+  HarnessTurnOnStartResponse,
+  HarnessTurnOnEndResponse,
+} from '../harness/types';
 
 export abstract class Callback {
 
   abstract clone(): Callback;
+
+  onHarnessStart(params: HarnessOnStartResponse) {
+
+  }
+
+  onHarnessEnd(params: HarnessOnEndResponse) {
+
+  }
+
+  onHarnessTurnStart(params: HarnessTurnOnStartResponse) {
+
+  }
+
+  onHarnessTurnEnd(params: HarnessTurnOnEndResponse) {
+
+  }
+
+  onHarnessToolCall(params: HarnessToolCallResponse) {
+
+  }
 
   onAgentStart(params: Partial<AgentOnStartResponse>) {
 

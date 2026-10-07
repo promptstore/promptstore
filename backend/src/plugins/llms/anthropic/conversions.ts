@@ -17,8 +17,12 @@ import {
 } from '../../../core/conversions';
 
 import {
+  AnthropicV1ChatCompletionRequest,
   AnthropicV1ChatCompletionResponse,
   AnthropicV1ContentObject,
+  AnthropicV1Message,
+  AnthropicV1ToolResultContent,
+  AnthropicV1ToolUseContent,
 } from './anthropic_types';
 
 async function mapAnthropicV1Message(message: Message) {
@@ -60,7 +64,56 @@ async function mapAnthropicV1Message(message: Message) {
   };
 }
 
-async function createAnthropicV1Prompts(prompt: ChatPrompt, functions?: Function[]) {
+function parseToolArguments(args: string | object) {
+  if (typeof args !== 'string') return args || {};
+  try {
+    return JSON.parse(args || '{}');
+  } catch (err) {
+    return { input: args };
+  }
+}
+
+/**
+ * Native tool use: assistant `tool_calls` become `tool_use` blocks and `tool`
+ * role messages become `tool_result` blocks in a user message. Consecutive
+ * tool results are merged into one user message, as the API requires.
+ */
+async function appendNativeToolMessage(messages: AnthropicV1Message<AnthropicV1ContentObject[]>[], message: Message) {
+  if (message.role === MessageRole.tool) {
+    const block: AnthropicV1ToolResultContent = {
+      type: 'tool_result',
+      tool_use_id: message.tool_call_id,
+      content: convertContentTypeToString(message.content) || '',
+    };
+    const last = messages[messages.length - 1];
+    if (last?.role === 'user' && last.content.every((c) => c.type === 'tool_result')) {
+      last.content.push(block);
+    } else {
+      messages.push({ role: 'user', content: [block] });
+    }
+    return;
+  }
+  if (message.role === MessageRole.assistant && message.tool_calls?.length) {
+    const content: AnthropicV1ContentObject[] = [];
+    const text = message.content ? convertContentTypeToString(message.content) : '';
+    if (text) {
+      content.push({ type: 'text', text });
+    }
+    for (const call of message.tool_calls) {
+      content.push({
+        type: 'tool_use',
+        id: call.id,
+        name: call.function.name,
+        input: parseToolArguments(call.function.arguments),
+      });
+    }
+    messages.push({ role: 'assistant', content });
+    return;
+  }
+  messages.push(await mapAnthropicV1Message(message) as AnthropicV1Message<AnthropicV1ContentObject[]>);
+}
+
+async function createAnthropicV1Prompts(prompt: ChatPrompt, functions?: Function[], nativeTools = false) {
   const messages = [];
   const systemPrompts = [];
   if (prompt.history) {
@@ -69,8 +122,10 @@ async function createAnthropicV1Prompts(prompt: ChatPrompt, functions?: Function
         systemPrompts.push(convertContentTypeToString(message.content));
         continue;
       }
-      if (message.role !== 'function') {
-        messages.push(mapAnthropicV1Message(message));
+      if (nativeTools) {
+        await appendNativeToolMessage(messages, message);
+      } else if (message.role !== 'function') {
+        messages.push(await mapAnthropicV1Message(message));
       }
     }
   }
@@ -91,12 +146,14 @@ async function createAnthropicV1Prompts(prompt: ChatPrompt, functions?: Function
       systemPrompts.push(convertContentTypeToString(message.content));
       continue;
     }
-    if (message.role !== 'function') {
+    if (nativeTools) {
+      await appendNativeToolMessage(messages, message);
+    } else if (message.role !== 'function') {
       const msg = await mapAnthropicV1Message(message);
       messages.push(msg);
     }
   }
-  if (functions?.length) {
+  if (!nativeTools && functions?.length) {
     systemPrompts.push(...getFunctionPrompts(functions));
   }
   return {
@@ -112,6 +169,8 @@ export async function toAnthropicV1ChatRequest(request: ChatRequest) {
     model_params,
     prompt,
     stream,
+    tools,
+    tool_choice,
     user,
   } = request;
   const {
@@ -121,18 +180,89 @@ export async function toAnthropicV1ChatRequest(request: ChatRequest) {
     stop = [],
     max_tokens,
   } = model_params;
-  const { system, messages } = await createAnthropicV1Prompts(prompt, functions);
-  return {
+  // `tools` requests use native tool use; legacy `functions` requests keep
+  // the prompt-embedded ReAct format.
+  const nativeTools = !!tools?.length;
+  const { system, messages } = await createAnthropicV1Prompts(prompt, functions, nativeTools);
+  const req: AnthropicV1ChatCompletionRequest = {
     model,
     messages,
     system,
-    max_tokens,
+    max_tokens: max_tokens || DEFAULT_MAX_TOKENS,
     metadata: { user_id: user },
     temperature,
-    stop_sequences: stop,
+    stop_sequences: typeof stop === 'string' ? [stop] : stop,
     stream,
     top_p,
     top_k,
+  };
+  if (nativeTools) {
+    req.tools = tools.map((t) => ({
+      name: t.function.name,
+      description: t.function.description,
+      input_schema: t.function.parameters || { type: 'object', properties: {} },
+    }));
+    const choice = toAnthropicToolChoice(tool_choice);
+    if (choice) {
+      req.tool_choice = choice;
+    }
+  }
+  return req;
+}
+
+const DEFAULT_MAX_TOKENS = 4096;
+
+function toAnthropicToolChoice(toolChoice: string | object): AnthropicV1ChatCompletionRequest['tool_choice'] {
+  if (!toolChoice || toolChoice === 'none') return undefined;
+  if (toolChoice === 'auto') return { type: 'auto' };
+  if (toolChoice === 'required') return { type: 'any' };
+  const name = (toolChoice as any).function?.name || (toolChoice as any).name;
+  if (name) return { type: 'tool', name };
+  return undefined;
+}
+
+function fromAnthropicToolUse(response: AnthropicV1ChatCompletionResponse) {
+  const { content, id, model, usage } = response;
+  const text = content
+    .filter((c) => c.type === 'text')
+    .map((c: any) => c.text)
+    .join('\n');
+  const tool_calls = content
+    .filter((c): c is AnthropicV1ToolUseContent => c.type === 'tool_use')
+    .map((c) => ({
+      id: c.id,
+      type: 'function',
+      function: { name: c.name, arguments: JSON.stringify(c.input ?? {}) },
+    }));
+  return {
+    id,
+    created: new Date(),
+    model,
+    n: 1,
+    choices: [
+      {
+        index: 0,
+        finish_reason: 'tool_calls',
+        message: {
+          role: MessageRole.assistant,
+          content: text || null,
+          tool_calls,
+        },
+      },
+    ],
+    usage: toUsage(usage),
+  };
+}
+
+function toUsage(usage: AnthropicV1ChatCompletionResponse['usage']) {
+  const completion_tokens = usage?.output_tokens || 0;
+  const prompt_tokens = (usage?.input_tokens || 0)
+    + (usage?.cache_creation_input_tokens || 0)
+    + (usage?.cache_read_input_tokens || 0);
+  return {
+    completion_tokens,
+    prompt_tokens,
+    total_tokens: prompt_tokens + completion_tokens,
   };
 }
 
@@ -150,7 +280,15 @@ export async function fromAnthropicV1ChatResponse(
   } = response;
   let choices: ChatCompletionChoice[];
 
-  const { json, nonJsonStr } = await parserService.parse('json', content[0].text);
+  if (content.some((c) => c.type === 'tool_use')) {
+    return fromAnthropicToolUse(response);
+  }
+  const text = content
+    .filter((c) => c.type === 'text')
+    .map((c: any) => c.text)
+    .join('\n');
+
+  const { json, nonJsonStr } = await parserService.parse('json', text);
   if (json) {
     const { action, action_input, citations } = json;
     if (citations) {
@@ -213,23 +351,17 @@ export async function fromAnthropicV1ChatResponse(
         index: 0,
         message: {
           role: MessageRole.assistant,
-          content: content[0].text,
+          content: text,
         },
       }
     ];
   }
-  const completion_tokens = usage?.output_tokens || 0;
-  const prompt_tokens = usage?.input_tokens || 0;
   return {
     id,
     created: new Date(),
     model,
     n: choices.length,
     choices,
-    usage: {
-      completion_tokens,
-      prompt_tokens,
-      total_tokens: prompt_tokens + completion_tokens,
-    }
+    usage: toUsage(usage),
   };
 }

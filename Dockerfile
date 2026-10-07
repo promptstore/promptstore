@@ -1,4 +1,4 @@
-FROM node:16-bullseye
+FROM node:20-bookworm
 
 # RUN apt-get update && \
 #     apt-get install -y graphicsmagick libpango1.0-dev && \
@@ -46,6 +46,9 @@ COPY ./frontend/build/ ./build/
 ENV FRONTEND_DIR=.
 EXPOSE 5000
 
-ENV NODE_OPTIONS="--experimental-modules --es-module-specifier-resolution=node"
+# Node 20 removed `--es-module-specifier-resolution=node` (it is now accepted
+# and silently ignored), so extensionless relative imports are resolved by
+# ts-node's own loader instead — see the `ts-node` block in tsconfig.json.
+# `--experimental-modules` has been a no-op since ESM went stable.
 
 CMD [ "node", "--loader", "ts-node/esm", "--enable-source-maps", "app.js" ]

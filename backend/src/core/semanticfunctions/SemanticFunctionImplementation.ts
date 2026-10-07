@@ -17,6 +17,7 @@ import {
   Message,
   ChatRequestContext,
   ResponseMetadata,
+  convertContentTypeToString,
 } from '../conversions/RosettaStone';
 import { SemanticFunctionError } from '../errors';
 import { InputGuardrails } from '../guardrails/InputGuardrails';
@@ -26,6 +27,8 @@ import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPi
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import { EnrichmentPipelineResponse } from '../promptenrichment/PromptEnrichmentPipeline_types';
 import { convertResponseWithImages } from '../utils';
+import type { HarnessServiceType } from '../harness/HarnessService';
+import type { HarnessConfig } from '../harness/types';
 import { SemanticFunction } from './SemanticFunction';
 import {
   SemanticFunctionImplementationParams,
@@ -62,6 +65,10 @@ export class SemanticFunctionImplementation {
   queryRewriteFunction: SemanticFunction;
   dataMapper: DataMapper;
   callbacks: Callback[];
+  harness?: HarnessConfig;
+  harnessService?: HarnessServiceType;
+  functionId?: string;
+  functionName?: string;
 
   constructor({
     environment,
@@ -79,6 +86,10 @@ export class SemanticFunctionImplementation {
     queryRewriteFunction,
     dataMapper,
     callbacks,
+    harness,
+    harnessService,
+    functionId,
+    functionName,
   }: SemanticFunctionImplementationParams) {
     this.environment = environment;
     this.model = model;
@@ -95,6 +106,10 @@ export class SemanticFunctionImplementation {
     this.queryRewriteFunction = queryRewriteFunction;
     this.dataMapper = dataMapper || mapJsonAsync;
     this.callbacks = callbacks || [];
+    this.harness = harness;
+    this.harnessService = harnessService;
+    this.functionId = functionId;
+    this.functionName = functionName;
   }
 
   async call({
@@ -319,6 +334,7 @@ export class SemanticFunctionImplementation {
             functions,
             returnTypeSchema,
             isBatch,
+            options,
             callbacks: _callbacks,
           });
           response = res.response;
@@ -385,6 +401,7 @@ export class SemanticFunctionImplementation {
     functions,
     returnTypeSchema,
     isBatch,
+    options = undefined,
     callbacks,
   }) {
     let context: ChatRequestContext;
@@ -492,6 +509,47 @@ export class SemanticFunctionImplementation {
       await this.inputGuardrails.call({ messages: prompts, callbacks });
     }
 
+    if (this.useHarness(isBatch, functions)) {
+      const res = await this.harnessService.run({
+        name: this.functionName || 'semantic-function',
+        functionId: this.functionId,
+        model: this.model as LLMModel,
+        provider: model.provider,
+        modelKey: model.model,
+        modelParams: { ...modelParams, max_tokens: maxTokens },
+        systemPrompt: context?.system_prompt
+          ? convertContentTypeToString(context.system_prompt as any)
+          : undefined,
+        history: hist,
+        prompts,
+        config: this.harness,
+        returnTypeSchema,
+        callbacks,
+        run: options?.harness,
+      });
+      if (enrichmentPipelineResponse?.responseMetadata) {
+        const meta = enrichmentPipelineResponse.responseMetadata;
+        costComponents.push(...(meta.costComponents || []));
+        totalCost += meta.totalCost || 0;
+        promptTokens += meta.promptTokens || 0;
+        completionTokens += meta.completionTokens || 0;
+        totalTokens += meta.totalTokens || 0;
+      }
+      return {
+        response: res.response,
+        responseMetadata: {
+          ...res.responseMetadata,
+          hist,
+          prompts,
+          totalCost,
+          costComponents,
+          promptTokens: promptTokens + res.responseMetadata.promptTokens,
+          completionTokens: completionTokens + res.responseMetadata.completionTokens,
+          totalTokens: totalTokens + res.responseMetadata.totalTokens,
+        },
+      };
+    }
+
     let tools;
     if (returnTypeSchema && !functions) {
       const outputFormatter = new Func(
@@ -555,6 +613,21 @@ export class SemanticFunctionImplementation {
     };
 
     return { response, responseMetadata };
+  }
+
+  /**
+   * Run the agent harness instead of a single model call. Batch calls, and
+   * calls where the caller supplies its own `functions` (and so drives its own
+   * tool loop), keep the single-call path.
+   */
+  useHarness(isBatch: boolean, functions?: Function[]) {
+    return !!(
+      this.harness?.enabled &&
+      this.harnessService &&
+      this.model.modelType === 'gpt' &&
+      !isBatch &&
+      !functions?.length
+    );
   }
 
   getContext(messages: Message[]) {
@@ -740,6 +813,10 @@ interface SemanticFunctionImplementationOptions {
   summarizeResults?: boolean;
   queryRewriteFunction?: SemanticFunction;
   callbacks?: Callback[];
+  harness?: HarnessConfig;
+  harnessService?: HarnessServiceType;
+  functionId?: string;
+  functionName?: string;
 }
 
 export const semanticFunctionImplementation = (options: SemanticFunctionImplementationOptions) => (

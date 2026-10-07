@@ -263,10 +263,25 @@ export function ExecutionsService({ constants, logger, mc, rc, services }) {
     extraIndexes,
     batch = false,
     debug = false,
+    sessionId,
+    signal,
+    onEvent,
   }) => {
     // logger.debug('env:', env);
     logger.debug('workspaceId:', workspaceId);
     logger.debug('semanticFunctionName:', semanticFunctionName);
+    // per-run context for implementations that run the agent harness
+    options = {
+      ...options,
+      harness: {
+        ...options?.harness,
+        workspaceId,
+        username,
+        ...(sessionId && { sessionId }),
+        ...(signal && { signal }),
+        ...(onEvent && { onEvent }),
+      },
+    };
     if (!params) params = {};
     logger.debug('params:', params);
     const { credits, errors } = await usersService.checkCredits(username);

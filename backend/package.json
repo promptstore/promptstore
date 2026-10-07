@@ -17,6 +17,7 @@
     "@google-cloud/storage": "^7.7.0",
     "@google-cloud/vertexai": "^0.3.0",
     "@jsonhero/schema-infer": "^0.1.5",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@notionhq/client": "^2.2.14",
     "@playwright/test": "^1.42.0",
     "@temporalio/activity": "^1.8.1",
@@ -106,7 +107,6 @@
     "promise": "^8.3.0",
     "puppeteer-extra-plugin-recaptcha": "^3.6.8",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "recaptcha-solver": "^0.2.10",
     "redis": "^4.5.1",
     "request": "^2.88.2",
     "save": "^2.9.0",
@@ -127,13 +127,14 @@
     "winston-loki": "^6.0.6"
   },
   "scripts": {
-    "start": "VERBOSE=1 ENV=dev NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm --enable-source-maps -r dotenv/config src/app.js",
-    "start-prod": "ENV=prod NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm -r dotenv/config src/app.js",
-    "worker": "ENV=dev NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm --enable-source-maps -r dotenv/config src/workflow/worker.js",
-    "worker-prod": "ENV=prod NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm -r dotenv/config src/workflow/worker.js",
+    "start": "VERBOSE=1 ENV=dev node --loader ts-node/esm --enable-source-maps -r dotenv/config src/app.js",
+    "start-prod": "ENV=prod node --loader ts-node/esm -r dotenv/config src/app.js",
+    "worker": "ENV=dev node --loader ts-node/esm --enable-source-maps -r dotenv/config src/workflow/worker.js",
+    "worker-prod": "ENV=prod node --loader ts-node/esm -r dotenv/config src/workflow/worker.js",
     "temporal": "temporal server start-dev --ui-port 8080",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "check-authz": "NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm scripts/authz/coverage.mjs && NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm scripts/authz/role-spec.mjs && NODE_OPTIONS=\"--experimental-modules --es-module-specifier-resolution=node\" node --loader ts-node/esm scripts/authz/route-guards.mjs"
+    "check-authz": "node --loader ts-node/esm scripts/authz/coverage.mjs && node --loader ts-node/esm scripts/authz/role-spec.mjs && node --loader ts-node/esm scripts/authz/route-guards.mjs",
+    "test:harness": "vitest run src/lib/harness src/core/harness src/plugins/llms/anthropic"
   },
   "author": "Europa Labs Pty. Ltd.",
   "license": "Apache License Version 2.0",
@@ -141,6 +142,7 @@
     "@types/axios": "^0.14.0",
     "@types/node": "^20.4.5",
     "@types/uuid": "^10.0.0",
-    "node-gyp-build": "4.8.0"
+    "node-gyp-build": "4.8.0",
+    "vitest": "^3.2.7"
   }
 }

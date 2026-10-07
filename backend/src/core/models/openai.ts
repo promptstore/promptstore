@@ -1,6 +1,6 @@
 import isObject from 'lodash.isobject';
 
-import { OpenAIMessage } from './openai_types';
+import { OpenAIMessage, OpenAIToolCall } from './openai_types';
 import {
   ContentType,
   ContentObject,
@@ -28,8 +28,10 @@ export class OpenAIMessageImpl<T> implements OpenAIMessage<T> {
   content: T;
   name?: string;
   function_call?: FunctionCall;
+  tool_calls?: OpenAIToolCall[];
+  tool_call_id?: string;
 
-  constructor({ role, content, name, function_call }: OpenAIMessage<T>) {
+  constructor({ role, content, name, function_call, tool_calls, tool_call_id }: OpenAIMessage<T>) {
     this.role = role;
     if (role === 'user' && Array.isArray(content) && content.length && isObject(content[0])) {
       // if `content` is `ContentObject[]`
@@ -39,6 +41,13 @@ export class OpenAIMessageImpl<T> implements OpenAIMessage<T> {
     }
     this.name = name;
     this.function_call = function_call;
+    // keep tool-call linkage so multi-turn tool use replays correctly
+    if (tool_calls?.length) {
+      this.tool_calls = tool_calls;
+    }
+    if (tool_call_id) {
+      this.tool_call_id = tool_call_id;
+    }
   }
 
 }

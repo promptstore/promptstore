@@ -64,6 +64,7 @@ import {
   runTestAsync,
   selectLoaded,
   selectFunctions,
+  selectTestHarness,
   selectTestResult,
   selectTestResultLoaded,
   selectTestResultLoading,
@@ -74,6 +75,7 @@ import {
   selectLoading as selectGuardrailsLoading,
   selectGuardrails,
 } from './guardrailsSlice';
+import { HarnessSettings } from './HarnessSettings';
 import {
   getOutputParsersAsync,
   selectLoading as selectOutputParsersLoading,
@@ -137,6 +139,7 @@ export function FunctionForm() {
   const rulesetsLoading = useSelector(selectRulesLoading);
   const settings = useSelector(selectSettings);
   const testResult = useSelector(selectTestResult);
+  const testHarness = useSelector(selectTestHarness);
   const testResultLoaded = useSelector(selectTestResultLoaded);
   const testResultLoading = useSelector(selectTestResultLoading);
 
@@ -581,6 +584,14 @@ export function FunctionForm() {
               ) : (
                 <div>{String(testResult.choices[0].message.content)}</div>
               )}
+              {testHarness ? (
+                <div style={{ marginTop: 12, color: 'rgba(0, 0, 0, 0.45)' }}>
+                  Agent harness: {testHarness.turns} turn{testHarness.turns === 1 ? '' : 's'},{' '}
+                  {testHarness.toolCalls} tool call{testHarness.toolCalls === 1 ? '' : 's'}, stopped by{' '}
+                  {testHarness.stoppedBy || testHarness.stopReason}.{' '}
+                  <Link to={`/harness/${testHarness.traceId}`}>View trace</Link>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </Modal>
@@ -1245,6 +1256,12 @@ export function FunctionForm() {
                               </>
                             ) : null}
                           </div>
+                          <HarnessSettings
+                            field={field}
+                            workspaceId={selectedWorkspace?.id}
+                            functionId={id}
+                            indexes={indexes}
+                          />
                         </Col>
                       </Row>
                       {fields.length ? (

@@ -74,6 +74,10 @@ const { TextArea } = Input;
 
 const agentTypeOptions = [
   {
+    label: 'Agent Harness',
+    value: 'harness',
+  },
+  {
     label: 'Plan & Execute',
     value: 'plan',
   },

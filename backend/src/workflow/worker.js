@@ -3,7 +3,6 @@ import { NativeConnection, Worker } from '@temporalio/worker';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import path from 'path';
-import 'web-streams-polyfill/polyfill';
 
 import logger from '../logger';
 import pg from '../db';
@@ -46,6 +45,13 @@ import { getPlugins, installModules } from '../utils';
 
 import { createActivities } from './activities';
 import { getTemporalConnectionOptions, getTemporalNamespace } from './connection';
+
+// Web streams are native globals on Node >= 18. Polyfill only when they are
+// missing: replacing native ReadableStream/TransformStream breaks libraries
+// that pipe native fetch() bodies through them (e.g. the MCP SDK's SSE parser).
+if (typeof globalThis.ReadableStream === 'undefined') {
+  await import('web-streams-polyfill/polyfill');
+}
 
 let ENV = process.env.ENV?.toLowerCase();
 logger.debug('ENV:', ENV);

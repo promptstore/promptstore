@@ -18,6 +18,13 @@ import {
   InputGuardrailsOnStartResponse,
 } from '../guardrails/InputGuardrails_types';
 import {
+  HarnessOnStartResponse,
+  HarnessOnEndResponse,
+  HarnessToolCallResponse,
+  HarnessTurnOnStartResponse,
+  HarnessTurnOnEndResponse,
+} from '../harness/types';
+import {
   CustomModelOnStartResponse,
   CustomModelOnEndResponse,
 } from '../models/custom_model_types';
@@ -96,6 +103,92 @@ export class TracingCallback extends Callback {
       username: this.username,
       tracesService: this.tracesService,
       tracer: this.tracer.clone(),
+    });
+  }
+
+  // Harness runs always nest inside a semantic function call, so these
+  // hooks do not change callDepth.
+
+  onHarnessStart({ name, tools, config, traceId, sessionId }: HarnessOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        id: uuid.v4(),
+        type: 'call-harness',
+        name,
+        tools,
+        config,
+        harnessTraceId: traceId,
+        sessionId,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onHarnessEnd({ metadata, errors }: HarnessOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('elapsedReadable', dayjs(endTime).from(startTime))
+      .addProperty('harness', metadata)
+      ;
+    if (errors) {
+      this.tracer
+        .addProperty('errors', errors)
+        .addProperty('success', false)
+        ;
+    } else {
+      this.tracer.addProperty('success', true);
+    }
+  }
+
+  onHarnessTurnStart({ turn }: HarnessTurnOnStartResponse) {
+    const startTime = new Date();
+    this.startTime.push(startTime);
+    this.tracer
+      .push({
+        id: uuid.v4(),
+        type: 'harness-turn',
+        turn,
+        startTime: startTime.getTime(),
+      })
+      .down();
+  }
+
+  onHarnessTurnEnd({ stopReason, errorMessage }: HarnessTurnOnEndResponse) {
+    const startTime = this.startTime.pop();
+    const endTime = new Date();
+    this.tracer
+      .up()
+      .addProperty('endTime', endTime.getTime())
+      .addProperty('elapsedMillis', endTime.getTime() - startTime.getTime())
+      .addProperty('stopReason', stopReason)
+      .addProperty('success', !errorMessage)
+      ;
+    if (errorMessage) {
+      this.tracer.addProperty('errors', [{ message: errorMessage }]);
+    }
+  }
+
+  // Tool calls may run in parallel, so they are recorded as flat, completed
+  // steps rather than pushed onto the tracer stack.
+  onHarnessToolCall({ toolName, toolCallId, args, result, isError, durationMs }: HarnessToolCallResponse) {
+    const endTime = Date.now();
+    this.tracer.push({
+      id: uuid.v4(),
+      type: 'harness-tool-call',
+      toolName,
+      toolCallId,
+      args,
+      response: result,
+      success: !isError,
+      startTime: endTime - durationMs,
+      endTime,
+      elapsedMillis: durationMs,
     });
   }
 

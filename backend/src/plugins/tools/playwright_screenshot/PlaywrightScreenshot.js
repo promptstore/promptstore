@@ -5,6 +5,9 @@ import { chromium } from 'playwright-extra';
 import stealthmod from 'puppeteer-extra-plugin-stealth';
 // import recaptchamod from 'puppeteer-extra-plugin-recaptcha';
 // import { solve } from 'recaptcha-solver';
+// ^ the dependency is no longer installed: it pulls vosk-lib -> ffi-napi,
+// which does not compile against Node 18+ headers and so blocks the image
+// build. Re-adding it means finding a solver that builds on current Node.
 
 function PlaywrightScreenshot({ __key, __name, constants, logger }) {
 

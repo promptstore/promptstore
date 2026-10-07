@@ -15,6 +15,14 @@
       ]
     }
   },
+  // Node 20 removed `--es-module-specifier-resolution=node`, which is what
+  // used to resolve this codebase's extensionless relative imports
+  // (`import ... from "./utils"`). ts-node's ESM loader implements the same
+  // resolution itself, on every Node version we run, so this is what keeps
+  // those imports working — do not remove it.
+  "ts-node": {
+    "experimentalSpecifierResolution": "node"
+  },
   "include": [
     "src/**/*"
   ]

@@ -1,10 +1,17 @@
+import { buildSessionContext } from '../lib/harness/session';
 import { isTruthy } from '../utils';
 
 const SYSTEM_WORKSPACE_ID = 1;
 
 export default ({ app, auth, constants, logger, services, workflowClient }) => {
 
-  const { compositionsService, executionsService, functionsService, toolService } = services;
+  const {
+    compositionsService,
+    executionsService,
+    functionsService,
+    harnessSessionStore,
+    toolService,
+  } = services;
 
   /**
    * @openapi
@@ -366,49 +373,117 @@ export default ({ app, auth, constants, logger, services, workflowClient }) => {
     const { batch, stream } = req.query;
 
     // TODO
-    const { args, env, messages, history, params, workspaceId, extraIndexes } = req.body;
+    const { args, env, messages, history, params, workspaceId, extraIndexes, sessionId } = req.body;
 
-    const { errors, response, responseMetadata } = await executionsService.executeFunction({
-      workspaceId: workspaceId || SYSTEM_WORKSPACE_ID,
-      username,
-      semanticFunctionName,
-      args,
-      env,
-      messages,
-      history,
-      params: params || {},
-      extraIndexes,
-      batch: isTruthy(batch),
+    // abort the run (e.g. an agent harness loop) if the client goes away
+    const controller = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) controller.abort();
     });
-    if (errors) {
-      return res.status(500).json({ errors });
-    }
-    if (isTruthy(stream)) {
-      const headers = {
+
+    const streaming = isTruthy(stream);
+    const send = (event, data) => {
+      if (res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    if (streaming) {
+      res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Connection': 'keep-alive',
         'Cache-Control': 'no-cache',
-      };
-      res.writeHead(200, headers);
-      response.on('data', (data) => {
-        const lines = data.toString().split('\n').filter(line => line.trim() !== '');
-        for (const line of lines) {
-          const message = line.replace(/^data: /, '');
-          if (message === '[DONE]') {
-            // Stream finished
-            res.close();
-          }
-          try {
-            const parsed = JSON.parse(message);
-            res.write('data: ' + parsed.choices[0].text + '\n\n');
-          } catch (error) {
-            console.error('Could not JSON parse stream message', message, error);
-          }
-        }
+        'X-Accel-Buffering': 'no',
       });
-    } else {
-      res.json({ response, responseMetadata });
     }
+
+    try {
+      const { errors, response, responseMetadata } = await executionsService.executeFunction({
+        workspaceId: workspaceId || SYSTEM_WORKSPACE_ID,
+        username,
+        semanticFunctionName,
+        args,
+        env,
+        messages,
+        history,
+        params: params || {},
+        extraIndexes,
+        batch: isTruthy(batch),
+        sessionId,
+        signal: controller.signal,
+        // harness events stream as SSE; non-harness functions send only `result`
+        onEvent: streaming ? (event) => send(event.type, toStreamEvent(event)) : undefined,
+      });
+      if (errors) {
+        if (streaming) {
+          send('error', { errors });
+          return res.end();
+        }
+        return res.status(500).json({ errors });
+      }
+      if (streaming) {
+        send('result', { response, responseMetadata: withoutTranscript(responseMetadata) });
+        return res.end();
+      }
+      res.json({ response, responseMetadata: withoutTranscript(responseMetadata) });
+    } catch (err) {
+      logger.error('Error executing function "%s":', semanticFunctionName, err.message);
+      const errors = [{ message: err.message }];
+      if (streaming) {
+        send('error', { errors, harness: err.harness });
+        return res.end();
+      }
+      if (!res.headersSent) {
+        res.status(500).json({ errors, harness: err.harness });
+      }
+    }
+  });
+
+  // The full harness transcript is persisted in the session (when one is used)
+  // and in the trace; keep API responses small.
+  const withoutTranscript = (responseMetadata) => {
+    if (!responseMetadata?.harnessMessages) return responseMetadata;
+    const { harnessMessages, ...rest } = responseMetadata;
+    return rest;
+  };
+
+  // `agent_end` repeats every message of the run; send counts instead.
+  const toStreamEvent = (event) => {
+    if (event.type === 'agent_end') {
+      return { type: event.type, messageCount: event.messages.length };
+    }
+    return event;
+  };
+
+  /**
+   * @openapi
+   * /api/workspaces/{workspaceId}/harness-sessions/{sessionId}:
+   *   get:
+   *     description: An agent harness session - its entry tree and the current context.
+   *     tags: [Executions]
+   *     parameters:
+   *       - name: workspaceId
+   *         in: path
+   *         schema:
+   *           type: integer
+   *       - name: sessionId
+   *         in: path
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: The session
+   *       404:
+   *         description: Not found
+   */
+  app.get('/api/workspaces/:workspaceId/harness-sessions/:sessionId', auth, async (req, res) => {
+    const workspaceId = +req.params.workspaceId;
+    const { sessionId } = req.params;
+    const session = await harnessSessionStore.getSession(sessionId);
+    if (!session || session.workspaceId !== workspaceId) {
+      return res.sendStatus(404);
+    }
+    const entries = await harnessSessionStore.getEntries(sessionId);
+    const context = buildSessionContext(entries, session.leafId);
+    res.json({ ...session, entries, context });
   });
 
   /**

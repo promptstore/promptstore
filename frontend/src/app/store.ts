@@ -33,6 +33,7 @@ import modelsReducer from '../features/models/modelsSlice';
 import outputParsersReducer from '../features/functions/outputParsersSlice';
 import promptSetsReducer from '../features/promptSets/promptSetsSlice';
 import rulesReducer from '../features/rules/rulesSlice';
+import mcpServersReducer from '../features/mcpServers/mcpServersSlice';
 import secretsReducer from '../features/secrets/secretsSlice';
 import settingsReducer from '../features/settings/settingsSlice';
 import statisticsReducer from '../features/home/statisticsSlice';
@@ -85,6 +86,7 @@ export const store = configureStore({
     outputParsers: outputParsersReducer,
     promptSets: promptSetsReducer,
     rules: rulesReducer,
+    mcpServers: mcpServersReducer,
     secrets: secretsReducer,
     settings: settingsReducer,
     statistics: statisticsReducer,

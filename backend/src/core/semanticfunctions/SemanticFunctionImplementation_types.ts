@@ -5,6 +5,8 @@ import { OutputProcessingPipeline } from '../outputprocessing/OutputProcessingPi
 import { PromptEnrichmentPipeline } from '../promptenrichment/PromptEnrichmentPipeline';
 import { ChatResponse, Function, Message, ModelObject, ModelParams } from '../conversions/RosettaStone';
 import { SemanticFunction } from './SemanticFunction';
+import type { HarnessServiceType } from '../harness/HarnessService';
+import type { HarnessConfig } from '../harness/types';
 
 export interface SemanticFunctionImplementationCallParams {
   args: any;
@@ -58,4 +60,8 @@ export interface SemanticFunctionImplementationParams {
   queryRewriteFunction?: SemanticFunction;
   dataMapper?: DataMapper;
   callbacks?: Callback[];
+  harness?: HarnessConfig;
+  harnessService?: HarnessServiceType;
+  functionId?: string;
+  functionName?: string;
 }

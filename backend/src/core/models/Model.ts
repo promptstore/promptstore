@@ -83,7 +83,7 @@ export class LLMChatModel implements LLMModel {
     this.callbacks = callbacks || [];
   }
 
-  async call({ provider, request, callbacks }: ModelCallParams) {
+  async call({ provider, request, callbacks, skipCache }: ModelCallParams) {
     let _callbacks: Callback[];
     if (callbacks?.length) {
       _callbacks = callbacks;
@@ -104,7 +104,7 @@ export class LLMChatModel implements LLMModel {
     }
     let prompt: string;
     let embedding: number[];
-    if (this.semanticCache && this.semanticCacheEnabled) {
+    if (this.semanticCache && this.semanticCacheEnabled && !skipCache) {
       const cacheResult = await this.lookupCache(request, _callbacks);
       prompt = cacheResult.prompt;
       embedding = cacheResult.embedding;
@@ -127,7 +127,7 @@ export class LLMChatModel implements LLMModel {
     }, _callbacks);
     try {
       const response = await this.completionService(this.provider, request);
-      if (this.semanticCache && this.semanticCacheEnabled) {
+      if (this.semanticCache && this.semanticCacheEnabled && !skipCache) {
         for (const choice of response.choices) {
           let content = choice.message.content;
           await this.semanticCache.set(prompt, convertContentTypeToString(content), embedding);

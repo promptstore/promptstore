@@ -29,6 +29,7 @@ import {
 } from '../core/compositions/Composition';
 import { ContentType } from '../core/conversions/RosettaStone';
 import { InputGuardrails } from '../core/guardrails/InputGuardrails';
+import { HarnessToolRef } from '../core/harness/types';
 import { CompletionService } from '../core/models/llm_types';
 import { completionModel, customModel, huggingfaceModel, llmModel } from '../core/models/Model';
 import { OutputProcessingStep } from '../core/outputprocessing/OutputProcessingPipeline_types';
@@ -76,6 +77,7 @@ export default ({ agents, constants, logger, mc, rc, services }) => {
     functionsService,
     graphStoreService,
     guardrailsService,
+    harnessService,
     indexesService,
     llmService,
     metricStoreService,
@@ -473,10 +475,46 @@ export default ({ agents, constants, logger, mc, rc, services }) => {
       provider,
       selfEvaluate: agentInfo.selfEvaluate,
       useFunctions: agentInfo.useFunctions,
+      harness: agentInfo.agentType === 'harness'
+        ? await createAgentHarness(agentInfo)
+        : undefined,
     };
     logger.debug('agent runtime options:', options);
     const agent = new AgentRuntime(options);
     return agent;
+  }
+
+  /**
+   * The `harness` agent type runs the agent harness library over the agent's
+   * tools, functions, compositions and sub-agents.
+   */
+  async function createAgentHarness(agentInfo: any) {
+    if (!harnessService) {
+      throw new Error('Agent harness service is not available');
+    }
+    if (!agentInfo.modelId) {
+      throw new Error('The harness agent type requires a model');
+    }
+    const modelInfo = await modelsService.getModel(agentInfo.modelId);
+    const model = createChatModel(modelInfo, false, llmService.createChatCompletion, []);
+    const toolRefs: HarnessToolRef[] = [];
+    for (const key of (agentInfo.allowedTools || [])) {
+      if (key === 'searchIndex') {
+        if (agentInfo.indexName) toolRefs.push({ type: 'index', key: agentInfo.indexName });
+      } else {
+        toolRefs.push({ type: 'tool', key });
+      }
+    }
+    for (const f of (agentInfo.functions || [])) {
+      toolRefs.push({ type: 'function', key: String(f.functionId) });
+    }
+    for (const c of (agentInfo.compositions || [])) {
+      toolRefs.push({ type: 'composition', key: String(c.compositionId) });
+    }
+    for (const a of (agentInfo.subAgents || [])) {
+      toolRefs.push({ type: 'agent', key: String(a.agentId) });
+    }
+    return { harnessService, model, toolRefs };
   }
 
   async function createSemanticFunction(workspaceId: number, semanticFunctionInfo: any, callbacks: Callback[], extraIndexes?: number[]) {
@@ -525,8 +563,11 @@ export default ({ agents, constants, logger, mc, rc, services }) => {
       if (typeof implInfo.returnMappingData === 'string') {
         returnMappingTemplate = implInfo.returnMappingData.trim();
       }
+      // query rewriting only serves semantic search, so ignore a stale flag
+      // left on an implementation with no indexes (the UI hides the switch)
+      const rewriteQuery = !!implInfo.rewriteQuery && !isEmpty(implInfo.indexes);
       let queryRewriteFunction: SemanticFunction;
-      if (implInfo.rewriteQuery) {
+      if (rewriteQuery) {
         const queryRewriteFunctionInfo = await functionsService.getFunctionByName(workspaceId, QUERY_REWRITE_FUNCTION);
         queryRewriteFunction = await createSemanticFunction(workspaceId, queryRewriteFunctionInfo, callbacks);
       }
@@ -537,10 +578,14 @@ export default ({ agents, constants, logger, mc, rc, services }) => {
         returnMappingTemplate,
         indexContentPropertyPath: implInfo.indexContentPropertyPath,
         indexContextPropertyPath: implInfo.indexContextPropertyPath,
-        rewriteQuery: implInfo.rewriteQuery,
+        rewriteQuery,
         summarizeResults: implInfo.summarizeResults,
         queryRewriteFunction,
         callbacks,
+        harness: implInfo.harness?.enabled ? implInfo.harness : undefined,
+        harnessService,
+        functionId: semanticFunctionInfo.id,
+        functionName: semanticFunctionInfo.name,
       })(model, promptEnrichmentPipeline, inputGuardrails, outputProcessingPipeline);
       implementations.push(impl);
     }

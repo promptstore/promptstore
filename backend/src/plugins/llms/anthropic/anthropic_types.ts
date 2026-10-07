@@ -18,7 +18,31 @@ interface AnthropicV1ImageContent {
   source: AnthropicV1ImageSource;
 }
 
-export type AnthropicV1ContentObject = AnthropicV1TextContent | AnthropicV1ImageContent;
+export interface AnthropicV1ToolUseContent {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: any;
+}
+
+export interface AnthropicV1ToolResultContent {
+  type: 'tool_result';
+  tool_use_id: string;
+  content: string | (AnthropicV1TextContent | AnthropicV1ImageContent)[];
+  is_error?: boolean;
+}
+
+export interface AnthropicV1Tool {
+  name: string;
+  description?: string;
+  input_schema: any;
+}
+
+export type AnthropicV1ContentObject =
+  | AnthropicV1TextContent
+  | AnthropicV1ImageContent
+  | AnthropicV1ToolUseContent
+  | AnthropicV1ToolResultContent;
 
 type ContentType = string | AnthropicV1ContentObject[];
 
@@ -38,18 +62,22 @@ export interface AnthropicV1ChatCompletionRequest {
   top_k?: number;  // Only sample from the top K options for each subsequent token. Used to remove "long tail" low probability responses.
   metadata?: AnthropicRequestMetadata;  // An object describing metadata about the request.
   stream?: boolean;  // Whether to incrementally stream the response using server-sent events.
+  tools?: AnthropicV1Tool[];  // Native tool definitions.
+  tool_choice?: { type: 'auto' | 'any' | 'tool'; name?: string };
 }
 
 interface AnthropicV1Usage {
   input_tokens: number;
   output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
 }
 
 export interface AnthropicV1ChatCompletionResponse {
   id: string;
   type: string;  // For Messages, this is always "message".
   role: string;  // This will always be "assistant".
-  content: AnthropicV1TextContent[];
+  content: (AnthropicV1TextContent | AnthropicV1ToolUseContent)[];
   model: string;
   stop_reason: string;  // This may be one the following values: "end_turn": the model reached a natural stopping point, "max_tokens": we exceeded the requested max_tokens or the model's maximum, "stop_sequence": one of your provided custom stop_sequences was generated
   stop_sequence: string;  // Which custom stop sequence was generated, if any.
