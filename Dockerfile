@@ -28,6 +28,7 @@ RUN npm install --legacy-peer-deps
 COPY ./backend/src/agents ./agents
 COPY ./backend/src/config ./config
 COPY ./backend/src/core ./core
+COPY ./backend/src/lib ./lib
 COPY ./backend/src/middleware ./middleware
 COPY ./backend/src/plugins ./plugins
 COPY ./backend/src/routes ./routes
