@@ -15,69 +15,77 @@ import { PluginServiceParams } from '../core/indexers/Plugin';
 
 export function VectorStoreService({ logger, registry }: PluginServiceParams): VectorStoreService {
 
+  function getInstance(vectorstore: string) {
+    const instance = registry[vectorstore] as VectorStore;
+    if (!instance) {
+      throw new Error(`Vector store "${vectorstore}" not registered; check VECTOR_STORE_PLUGINS`);
+    }
+    return instance;
+  }
+
   function getIndexes(vectorstore: string) {
     logger.debug('get indexes, vectorstore:', vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.getIndexes();
   };
 
   function getIndex(vectorstore: string, indexName: string, params: GetIndexParams) {
     logger.debug('get index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.getIndex(indexName, params);
   };
 
   function createIndex(vectorstore: string, indexName: string, schema: Schema, params: CreateIndexParams) {
     logger.debug('create index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.createIndex(indexName, schema, params);
   };
 
   function dropIndex(vectorstore: string, indexName: string) {
     logger.debug('drop index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.dropIndex(indexName);
   };
 
   function getChunks(vectorstore: string, indexName: string, ids: string[]) {
     logger.debug('get chunks from index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.getChunks(indexName, ids);
   };
 
   function getNumberChunks(vectorstore: string, indexName: string, params: GetNumberChunksParams) {
     logger.debug('get number chunks from index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.getNumberChunks(indexName, params);
   };
 
   function dropData(vectorstore: string, indexName: string, params: DropDataParams) {
     logger.debug('drop data from index: %s, vectorstore:', indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.dropData(indexName, params);
   };
 
   function indexChunks(vectorstore: string, chunks: Chunk[], embeddings: Array<number[]>, params: IndexChunksParams) {
     logger.debug('index chunks, vectorstore:', vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.indexChunks(chunks, embeddings, params);
   };
 
   function deleteChunks(vectorstore: string, ids: string[], params) {
     logger.debug('delete chunks, vectorstore:', vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.deleteChunks(ids, params);
   };
 
   function deleteChunk(vectorstore: string, id: string, params) {
     logger.debug('delete chunk, vectorstore:', vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.deleteChunk(id, params);
   };
 
   function search(vectorstore: string, indexName: string, query: string, attrs: any, logicalType: boolean, params: SearchParams) {
     logger.debug('search for "%s" in index: %s, vectorstore:', query, indexName, vectorstore);
-    const instance = registry[vectorstore] as VectorStore;
+    const instance = getInstance(vectorstore);
     return instance.search(indexName, query, attrs, logicalType, params);
   };
 
