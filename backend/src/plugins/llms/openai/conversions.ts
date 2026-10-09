@@ -22,29 +22,23 @@ import {
   OpenAIImageResponse,
 } from '../../../core/models/openai_types';
 
-// Prefix-matched model families that support the native function/tool-calling API.
-// All current OpenAI chat models (gpt-4.x, gpt-4o, gpt-5, o-series reasoning models)
-// support tools; older completion-style models fall back to the prompt-embedded path.
-const OPENAI_MODELS_SUPPORTING_FUNCTIONS = [
-  'gpt-5',
-  'gpt-4.1',
-  'gpt-4o',
-  'gpt-4-turbo',
-  'gpt-4',
-  'gpt-3.5-turbo',
-  'o1',
-  'o3',
-  'o4',
-  'chatgpt-4o',
+// Prefix-matched legacy models that lack the native function/tool-calling API and must
+// fall back to the prompt-embedded path. Every other OpenAI chat model (gpt-4.x, gpt-4o,
+// gpt-5, gpt-6, o-series, and future families) is assumed to support tools, so new model
+// releases work without a code change.
+const OPENAI_MODELS_WITHOUT_FUNCTIONS = [
+  'gpt-3.5-turbo-0301',
+  'gpt-3.5-turbo-instruct',
+  'gpt-4-0314',
+  'gpt-4-32k-0314',
+  'o1-mini',
+  'o1-preview',
+  'davinci',
+  'babbage',
 ];
 
 function isFunctionCallingModel(model: string) {
-  for (const m of OPENAI_MODELS_SUPPORTING_FUNCTIONS) {
-    if (model.startsWith(m)) {
-      return true;
-    }
-  }
-  return false;
+  return !OPENAI_MODELS_WITHOUT_FUNCTIONS.some(m => model.startsWith(m));
 }
 
 export function toOpenAIChatRequest(request: ChatRequest) {
@@ -203,7 +197,8 @@ export async function fromOpenAIChatResponse(
       const message = candidate.message;
       const text = message.content as string;
       const { json, nonJsonStr } = await parserService.parse('json', text);
-      const { action, action_input, citations } = json;
+      // The reply may be plain text (or empty) rather than a JSON action.
+      const { action, action_input, citations } = json || {};
       if (action) {
         if (action === 'Final Answer') {
           choices = [
